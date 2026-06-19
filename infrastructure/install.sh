@@ -14,7 +14,7 @@ HD_USER="hellodeploy"
 HD_HOME="/opt/hellodeploy"
 HD_DATA="/var/lib/hellodeploy"
 HD_LOG="/var/log/hellodeploy"
-REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/your-org/hellodeploy.git}"
+REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/4hprojects/HelloDeploy.git}"
 REPO_BRANCH="${HELLODEPLOY_BRANCH:-main}"
 NODE_MAJOR=22
 
