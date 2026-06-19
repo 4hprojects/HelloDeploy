@@ -1,0 +1,46 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Enter Reset Code</h1>
+  <p class="auth-form__subtitle">
+    We sent a 6-digit code to your email address. Enter it below.
+  </p>
+
+  <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
+
+  <form method="POST" action="/auth/verify-reset-code" novalidate id="verify-code-form">
+    <%- include('../../partials/csrf-field') %>
+
+    <%- include('../../partials/form-field', {
+      fieldId: 'code',
+      label: 'Reset Code',
+      type: 'text',
+      name: 'code',
+      value: '',
+      autocomplete: 'one-time-code',
+      required: true,
+      placeholder: '000000',
+      hint: 'Enter the 6-digit code from your email.',
+      error: typeof errors !== 'undefined' ? errors.code || errors.form : null
+    }) %>
+
+    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
+      Verify Code
+    </button>
+  </form>
+
+  <p class="mt-4 text-center">
+    Didn't receive a code?
+    <a href="/auth/forgot-password">Request a new one</a>
+  </p>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById('verify-code-form');
+    const btn = document.getElementById('submit-btn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function () {
+      btn.disabled = true;
+      btn.textContent = 'Verifying…';
+    });
+  })();
+</script>

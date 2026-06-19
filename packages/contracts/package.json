@@ -1,0 +1,13 @@
+{
+  "name": "@hellodeploy/contracts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./enums": "./src/enums.js",
+    "./jobs": "./src/jobs.js",
+    "./api": "./src/api.js"
+  }
+}

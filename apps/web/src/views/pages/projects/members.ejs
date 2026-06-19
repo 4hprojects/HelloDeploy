@@ -1,0 +1,133 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Members</h1>
+    <p class="page-header__subtitle"><%= project.name %></p>
+  </div>
+  <a href="/projects/<%= project.slug %>" class="button button--secondary">Back to Project</a>
+</div>
+
+<div class="card mb-6">
+  <div class="table-wrapper" style="border: none; border-radius: 0;">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Member</th>
+          <th>Role</th>
+          <th>Added</th>
+          <th><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% members.forEach(m => { %>
+        <tr>
+          <td>
+            <strong><%= m.userId.firstName %> <%= m.userId.lastName %></strong>
+            <span class="text-muted text-xs d-block"><%= m.userId.email %></span>
+          </td>
+          <td>
+            <% if (m.role === 'OWNER') { %>
+            <span class="role-pill role-pill--owner">Owner</span>
+            <% } else { %>
+            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" style="display: inline;">
+              <%- include('../../../partials/csrf-field') %>
+              <select name="role" class="form-select form-select--inline" onchange="this.form.submit()" aria-label="Change role">
+                <option value="MAINTAINER" <%= m.role === 'MAINTAINER' ? 'selected' : '' %>>Maintainer</option>
+                <option value="VIEWER" <%= m.role === 'VIEWER' ? 'selected' : '' %>>Viewer</option>
+              </select>
+            </form>
+            <% } %>
+          </td>
+          <td class="text-sm text-muted">
+            <%= m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString() : '—' %>
+          </td>
+          <td class="text-right">
+            <% if (m.role !== 'OWNER') { %>
+            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/remove"
+                  onsubmit="return confirm('Remove <%= m.userId.firstName %> from this project?')">
+              <%- include('../../../partials/csrf-field') %>
+              <button type="submit" class="button button--ghost button--sm">Remove</button>
+            </form>
+            <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="card mb-6">
+  <div class="card__header">
+    <span class="card__title">Add Member</span>
+  </div>
+  <div class="card__body">
+    <%- include('../../../partials/form-errors', { errors }) %>
+
+    <form method="POST" action="/projects/<%= project.slug %>/members/invite" novalidate>
+      <%- include('../../../partials/csrf-field') %>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="email" class="form-label form-label--required">Email address</label>
+          <input
+            type="email"
+            id="email"
+            name="email"
+            class="form-input<%= errors.email ? ' form-input--error' : '' %>"
+            value="<%= values.email %>"
+            placeholder="colleague@example.com"
+            aria-describedby="<%= errors.email ? 'email-error' : '' %>"
+          />
+          <% if (errors.email) { %>
+          <span id="email-error" class="form-error" role="alert"><%= errors.email %></span>
+          <% } %>
+        </div>
+        <div class="form-field">
+          <label for="role" class="form-label form-label--required">Role</label>
+          <select
+            id="role"
+            name="role"
+            class="form-select<%= errors.role ? ' form-select--error' : '' %>"
+            aria-describedby="<%= errors.role ? 'role-error' : '' %>"
+          >
+            <option value="">Select role…</option>
+            <option value="MAINTAINER" <%= values.role === 'MAINTAINER' ? 'selected' : '' %>>Maintainer</option>
+            <option value="VIEWER" <%= values.role === 'VIEWER' ? 'selected' : '' %>>Viewer</option>
+          </select>
+          <% if (errors.role) { %>
+          <span id="role-error" class="form-error" role="alert"><%= errors.role %></span>
+          <% } %>
+        </div>
+      </div>
+      <div class="form-actions mt-4">
+        <button type="submit" class="button button--primary">Add Member</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card card--danger">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Transfer Ownership</h2>
+    <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
+    <form method="POST" action="/projects/<%= project.slug %>/transfer-ownership"
+          onsubmit="return confirm('Transfer ownership? You will lose owner privileges.')">
+      <%- include('../../../partials/csrf-field') %>
+      <div class="form-row">
+        <div class="form-field">
+          <label for="newOwnerId" class="form-label form-label--required">New owner</label>
+          <select id="newOwnerId" name="newOwnerId" class="form-select">
+            <option value="">Select member…</option>
+            <% members.filter(m => m.role !== 'OWNER').forEach(m => { %>
+            <option value="<%= m.userId._id %>">
+              <%= m.userId.firstName %> <%= m.userId.lastName %> (<%= m.role %>)
+            </option>
+            <% }) %>
+          </select>
+        </div>
+        <div class="form-field" style="align-self: flex-end;">
+          <button type="submit" class="button button--danger">Transfer Ownership</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,112 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Environment Variables</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Add Secret</span>
+  </div>
+  <div class="card__body">
+    <% if (locals.errors && errors.form) { %>
+      <p class="form-error mb-4"><%= errors.form %></p>
+    <% } %>
+    <form method="POST" action="/projects/<%= project.slug %>/environment">
+      <%- include('../../../partials/csrf-field') %>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label" for="name">Name</label>
+          <input
+            type="text"
+            class="form-input"
+            id="name"
+            name="name"
+            placeholder="DATABASE_URL"
+            value="<%= locals.values?.name ?? '' %>"
+            pattern="[A-Z_][A-Z0-9_]*"
+            maxlength="128"
+            required
+            autocomplete="off"
+            style="text-transform:uppercase"
+          >
+          <p class="form-hint text-xs text-muted">Uppercase letters, digits, underscores. Example: DATABASE_URL</p>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="value">Value</label>
+          <input
+            type="password"
+            class="form-input"
+            id="value"
+            name="value"
+            placeholder="•••••••••••••••"
+            autocomplete="new-password"
+            required
+          >
+          <p class="form-hint text-xs text-muted">Value is encrypted immediately — it cannot be retrieved after saving.</p>
+        </div>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button button--primary">Save Secret</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Stored Secrets</span>
+    <span class="text-muted text-sm"><%= secrets.length %> secret<%= secrets.length === 1 ? '' : 's' %></span>
+  </div>
+  <div class="card__body">
+    <% if (secrets.length === 0) { %>
+      <div class="empty-state empty-state--compact">
+        <p class="empty-state__description">No secrets yet. Add your first one above.</p>
+      </div>
+    <% } else { %>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Value</th>
+            <th>Last updated</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% secrets.forEach(secret => { %>
+          <tr>
+            <td><code class="code-inline"><%= secret.name %></code></td>
+            <td class="text-muted text-sm">••••••••</td>
+            <td class="text-muted text-sm">
+              <%= new Date(secret.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+            </td>
+            <td class="text-right">
+              <form method="POST"
+                    action="/projects/<%= project.slug %>/environment/<%= secret.name %>/delete"
+                    onsubmit="return confirm('Delete <%= secret.name %>? This cannot be undone.')">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--danger button--sm">Delete</button>
+              </form>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    <% } %>
+  </div>
+</div>
+
+<div class="card mt-6" style="border-color: var(--color-warning, #f59e0b)">
+  <div class="card__body">
+    <p class="text-sm">
+      <strong>Security notice:</strong>
+      Secret values are encrypted with AES-256-GCM and cannot be retrieved or displayed after storage.
+      To rotate a secret, delete it and re-add it with the new value.
+      Secrets are injected into your container at runtime only — they are never written to disk or included in build artifacts.
+    </p>
+  </div>
+</div>

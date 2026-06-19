@@ -1,0 +1,114 @@
+<div class="page-header">
+  <h1 class="page-header__title">Audit Events</h1>
+</div>
+
+<!-- Filter form -->
+<div class="card mb-4">
+  <div class="card__body">
+    <form method="GET" action="/admin/audit-events" class="filter-form">
+      <div class="filter-row">
+        <div class="form-group">
+          <label class="form-label text-sm">Action prefix</label>
+          <input type="text" name="action" class="form-input form-input--sm"
+                 placeholder="e.g. admin." value="<%= filters.action %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">Actor ID</label>
+          <input type="text" name="actorId" class="form-input form-input--sm"
+                 placeholder="User ObjectId" value="<%= filters.actorId %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">Target type</label>
+          <input type="text" name="targetType" class="form-input form-input--sm"
+                 placeholder="e.g. project" value="<%= filters.targetType %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">Outcome</label>
+          <select name="outcome" class="form-select form-select--sm">
+            <option value="">Any</option>
+            <option value="SUCCESS" <%= filters.outcome === 'SUCCESS' ? 'selected' : '' %>>Success</option>
+            <option value="FAILURE" <%= filters.outcome === 'FAILURE' ? 'selected' : '' %>>Failure</option>
+            <option value="DENIED" <%= filters.outcome === 'DENIED' ? 'selected' : '' %>>Denied</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">From</label>
+          <input type="date" name="from" class="form-input form-input--sm" value="<%= filters.from %>">
+        </div>
+        <div class="form-group">
+          <label class="form-label text-sm">To</label>
+          <input type="date" name="to" class="form-input form-input--sm" value="<%= filters.to %>">
+        </div>
+        <button type="submit" class="button button--primary button--sm">Search</button>
+        <a href="/admin/audit-events" class="button button--ghost button--sm">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <p class="text-muted text-sm mb-4">
+      Showing <%= events.length %> of <%= total %> events
+      (page <%= page %> of <%= totalPages %>)
+    </p>
+
+    <% if (events.length === 0) { %>
+    <div class="empty-state">
+      <p class="empty-state__title">No audit events found</p>
+    </div>
+    <% } else { %>
+    <table class="table table--sm">
+      <thead>
+        <tr>
+          <th>Time</th>
+          <th>Action</th>
+          <th>Outcome</th>
+          <th>Actor</th>
+          <th>Target</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% events.forEach(ev => { %>
+        <tr>
+          <td class="text-muted text-xs text-nowrap">
+            <%= new Date(ev.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) %>
+          </td>
+          <td><code class="code-inline text-xs"><%= ev.action %></code></td>
+          <td>
+            <span class="badge badge--<%= ev.outcome === 'SUCCESS' ? 'success' : ev.outcome === 'DENIED' ? 'warning' : 'danger' %> badge--sm">
+              <%= ev.outcome %>
+            </span>
+          </td>
+          <td class="text-muted text-xs">
+            <% if (ev.actorId) { %>
+              <code class="code-inline"><%= ev.actorId.toString().slice(-8) %></code>
+            <% } else { %>
+              system
+            <% } %>
+          </td>
+          <td class="text-muted text-xs">
+            <% if (ev.targetType) { %>
+              <%= ev.targetType %> / <code class="code-inline"><%= ev.targetId?.toString().slice(-8) ?? '—' %></code>
+            <% } else { %> — <% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <% if (totalPages > 1) { %>
+    <div class="pagination mt-4">
+      <% if (page > 1) { %>
+        <a href="?<%= new URLSearchParams({...filters, page: page - 1}) %>" class="button button--ghost button--sm">&larr; Previous</a>
+      <% } %>
+      <span class="text-muted text-sm">Page <%= page %> / <%= totalPages %></span>
+      <% if (page < totalPages) { %>
+        <a href="?<%= new URLSearchParams({...filters, page: page + 1}) %>" class="button button--ghost button--sm">Next &rarr;</a>
+      <% } %>
+    </div>
+    <% } %>
+    <% } %>
+  </div>
+</div>

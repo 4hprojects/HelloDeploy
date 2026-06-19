@@ -1,0 +1,90 @@
+<div class="page-header">
+  <h1 class="page-header__title">Server &amp; Queue</h1>
+  <p class="page-header__subtitle text-muted text-sm">
+    Collected at <%= server.collectedAt ? new Date(server.collectedAt).toLocaleTimeString('en-GB') : '—' %>
+    &nbsp;·&nbsp; Uptime: <%= server.uptime?.human ?? '—' %>
+  </p>
+</div>
+
+<!-- System stats -->
+<div class="stats-grid mb-6">
+  <% if (server.cpu) { %>
+  <div class="stat-card">
+    <span class="stat-card__value"><%= server.cpu.load1 %></span>
+    <span class="stat-card__label">Load avg (1m)</span>
+    <span class="stat-card__sub"><%= server.cpu.cores %> CPU cores</span>
+  </div>
+  <% } %>
+
+  <% if (server.memory) { %>
+  <div class="stat-card<%= server.memory.usedPercent > 85 ? ' stat-card--alert' : '' %>">
+    <span class="stat-card__value"><%= server.memory.usedPercent %>%</span>
+    <span class="stat-card__label">Memory Used</span>
+    <span class="stat-card__sub"><%= server.memory.usedMb %> / <%= server.memory.totalMb %> MB</span>
+  </div>
+  <% } %>
+
+  <% if (server.disk) { %>
+  <div class="stat-card<%= server.disk.usedPercent > 85 ? ' stat-card--alert' : '' %>">
+    <span class="stat-card__value"><%= server.disk.usedPercent %>%</span>
+    <span class="stat-card__label">Disk Used</span>
+    <span class="stat-card__sub"><%= server.disk.usedGb %> / <%= server.disk.totalGb %> GB</span>
+  </div>
+  <% } %>
+
+  <div class="stat-card">
+    <span class="stat-card__value"><%= server.running ?? '—' %></span>
+    <span class="stat-card__label">Running Containers</span>
+  </div>
+</div>
+
+<!-- Queue management -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Deployment Queue</h2>
+    <% if (server.queue) { %>
+    <span class="badge <%= server.queue.paused ? 'badge--warning' : 'badge--success' %>">
+      <%= server.queue.paused ? 'Paused' : 'Active' %>
+    </span>
+    <% } %>
+  </div>
+  <div class="card__body">
+    <% if (server.queue) { %>
+    <div class="stats-grid stats-grid--sm mb-4">
+      <div class="stat-card stat-card--sm">
+        <span class="stat-card__value"><%= server.queue.waiting ?? 0 %></span>
+        <span class="stat-card__label">Waiting</span>
+      </div>
+      <div class="stat-card stat-card--sm">
+        <span class="stat-card__value"><%= server.queue.active ?? 0 %></span>
+        <span class="stat-card__label">Active</span>
+      </div>
+      <div class="stat-card stat-card--sm">
+        <span class="stat-card__value"><%= server.queue.delayed ?? 0 %></span>
+        <span class="stat-card__label">Delayed</span>
+      </div>
+      <div class="stat-card stat-card--sm">
+        <span class="stat-card__value"><%= server.queue.failed ?? 0 %></span>
+        <span class="stat-card__label">Failed</span>
+      </div>
+    </div>
+    <% } else { %>
+    <p class="text-muted text-sm">Queue is not available (Redis may be disconnected).</p>
+    <% } %>
+
+    <div class="button-group">
+      <% if (server.queue?.paused) { %>
+      <form method="POST" action="/admin/server/queue/resume">
+        <%- include('../../../partials/csrf-field') %>
+        <button type="submit" class="button button--success">Resume Queue</button>
+      </form>
+      <% } else { %>
+      <form method="POST" action="/admin/server/queue/pause"
+            onsubmit="return confirm('Pause the deployment queue? Running jobs will finish, but no new jobs will start.')">
+        <%- include('../../../partials/csrf-field') %>
+        <button type="submit" class="button button--warning">Pause Queue</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+</div>

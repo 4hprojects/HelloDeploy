@@ -1,0 +1,61 @@
+<div class="page-header">
+  <h1 class="page-header__title">Domain Approval Queue</h1>
+</div>
+
+<% if (domains.length === 0) { %>
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No domains awaiting approval</p>
+      <p class="empty-state__description">Verified custom domains will appear here for review before routing is activated.</p>
+    </div>
+  </div>
+</div>
+<% } else { %>
+<div class="card">
+  <div class="card__body">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>Project</th>
+          <th>Verified</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% domains.forEach(d => { %>
+        <tr>
+          <td><code class="code-inline"><%= d.hostnameNormalized %></code></td>
+          <td>
+            <% if (d.projectId && d.projectId.name) { %>
+              <a href="/projects/<%= d.projectId.slug %>" class="table-link"><%= d.projectId.name %></a>
+            <% } else { %>
+              <span class="text-muted">Unknown</span>
+            <% } %>
+          </td>
+          <td class="text-muted text-sm">
+            <% if (d.verifiedAt) { %>
+              <%= new Date(d.verifiedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
+            <% } else { %> — <% } %>
+          </td>
+          <td class="text-right">
+            <div class="button-group button-group--sm">
+              <form method="POST" action="/admin/domains/<%= d._id %>/approve">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--success button--sm">Approve</button>
+              </form>
+              <form method="POST" action="/admin/domains/<%= d._id %>/reject">
+                <%- include('../../../partials/csrf-field') %>
+                <input type="text" name="reason" placeholder="Rejection reason (optional)" class="form-input form-input--sm">
+                <button type="submit" class="button button--danger button--sm">Reject</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>

@@ -1,0 +1,93 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Create Account</h1>
+  <p class="auth-form__subtitle">Already have an account? <a href="/auth/sign-in">Sign In</a></p>
+
+  <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
+
+  <form method="POST" action="/auth/create-account" novalidate id="create-account-form">
+    <%- include('../../partials/csrf-field') %>
+
+    <%# Honeypot — hidden from real users, bots fill it %>
+    <div style="display:none" aria-hidden="true">
+      <input type="text" name="website" tabindex="-1" autocomplete="off" />
+    </div>
+
+    <div class="form-row">
+      <%- include('../../partials/form-field', {
+        fieldId: 'firstName',
+        label: 'First Name',
+        type: 'text',
+        name: 'firstName',
+        value: typeof values !== 'undefined' ? values.firstName : '',
+        autocomplete: 'given-name',
+        required: true,
+        error: typeof errors !== 'undefined' ? errors.firstName : null
+      }) %>
+
+      <%- include('../../partials/form-field', {
+        fieldId: 'lastName',
+        label: 'Last Name',
+        type: 'text',
+        name: 'lastName',
+        value: typeof values !== 'undefined' ? values.lastName : '',
+        autocomplete: 'family-name',
+        required: true,
+        error: typeof errors !== 'undefined' ? errors.lastName : null
+      }) %>
+    </div>
+
+    <%- include('../../partials/form-field', {
+      fieldId: 'email',
+      label: 'Email Address',
+      type: 'email',
+      name: 'email',
+      value: typeof values !== 'undefined' ? values.email : '',
+      autocomplete: 'email',
+      required: true,
+      error: typeof errors !== 'undefined' ? errors.email : null
+    }) %>
+
+    <%- include('../../partials/password-field', {
+      fieldId: 'password',
+      fieldName: 'password',
+      label: 'Password',
+      required: true,
+      autocomplete: 'new-password',
+      error: typeof errors !== 'undefined' ? errors.password : null
+    }) %>
+
+    <%- include('../../partials/password-requirements') %>
+
+    <%- include('../../partials/password-field', {
+      fieldId: 'confirmPassword',
+      fieldName: 'confirmPassword',
+      label: 'Confirm Password',
+      required: true,
+      autocomplete: 'new-password',
+      error: typeof errors !== 'undefined' ? errors.confirmPassword : null
+    }) %>
+
+    <%- include('../../partials/policy-consent', {
+      error: typeof errors !== 'undefined' ? errors.acceptTerms : null
+    }) %>
+
+    <%# Cloudflare Turnstile widget placeholder (rendered by Turnstile JS) %>
+    <div class="cf-turnstile mt-4" data-sitekey="<%= process.env.TURNSTILE_SITE_KEY || '' %>"></div>
+
+    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
+      Create Account
+    </button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById('create-account-form');
+    const btn = document.getElementById('submit-btn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function () {
+      btn.disabled = true;
+      btn.textContent = 'Creating account…';
+    });
+  })();
+</script>

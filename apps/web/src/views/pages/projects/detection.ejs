@@ -1,0 +1,107 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Project Detection</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+</div>
+
+<% if (!repo) { %>
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No repository connected</p>
+      <p class="empty-state__description">
+        Connect a GitHub repository before running detection.
+      </p>
+      <a href="/projects/<%= project.slug %>/repository" class="button button--primary mt-4">
+        Connect Repository
+      </a>
+    </div>
+  </div>
+</div>
+<% } else { %>
+
+<!-- Current state -->
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Runtime Configuration</span>
+  </div>
+  <div class="card__body">
+    <dl class="detail-list">
+      <dt>Detected runtime</dt>
+      <dd>
+        <% if (project.runtimeType) { %>
+          <%- include('../../../partials/status-badge', { status: project.runtimeType }) %>
+        <% } else { %>
+          <span class="text-muted text-sm">Not yet detected</span>
+        <% } %>
+      </dd>
+
+      <% if (project.buildConfiguration) { %>
+      <% const bc = project.buildConfiguration; %>
+      <% if (bc.buildCommand) { %>
+      <dt>Build command</dt>
+      <dd><code class="code-inline"><%= bc.buildCommand %></code></dd>
+      <% } %>
+      <% if (bc.startCommand) { %>
+      <dt>Start command</dt>
+      <dd><code class="code-inline"><%= bc.startCommand %></code></dd>
+      <% } %>
+      <% if (bc.outputDirectory) { %>
+      <dt>Output directory</dt>
+      <dd><code class="code-inline"><%= bc.outputDirectory %></code></dd>
+      <% } %>
+      <% if (bc.applicationPort) { %>
+      <dt>Application port</dt>
+      <dd><code class="code-inline"><%= bc.applicationPort %></code></dd>
+      <% } %>
+      <% } %>
+
+      <dt>Repository</dt>
+      <dd><code class="code-inline"><%= repo.fullName %></code></dd>
+    </dl>
+  </div>
+</div>
+
+<!-- Detection result (shown immediately after running) -->
+<% if (locals.detectionResult && detectionResult) { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Detection Results</span>
+    <%- include('../../../partials/status-badge', { status: detectionResult.isValid ? 'ACTIVE' : 'FAILED' }) %>
+  </div>
+  <div class="card__body">
+    <% if (detectionResult.issues.length === 0) { %>
+      <p class="text-sm" style="color: var(--color-success);">No issues found. Your project looks good!</p>
+    <% } else { %>
+      <ul class="detection-issues">
+        <% detectionResult.issues.forEach(issue => { %>
+        <li class="detection-issue detection-issue--<%= issue.level.toLowerCase() %>">
+          <strong class="detection-issue__level"><%= issue.level %></strong>
+          <span class="detection-issue__message"><%= issue.message %></span>
+        </li>
+        <% }) %>
+      </ul>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<% if (membership.role === 'OWNER') { %>
+<div class="card mt-6">
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Detection fetches key files from your repository and identifies your runtime, build command, and port configuration.
+      Re-run any time after pushing changes.
+    </p>
+    <form method="POST" action="/projects/<%= project.slug %>/detection">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--primary">Run Detection</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<% } %>

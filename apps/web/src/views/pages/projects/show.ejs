@@ -1,0 +1,211 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">
+      <%= project.name %>
+      <%- include('../../../partials/status-badge', { status: project.status }) %>
+    </h1>
+    <p class="page-header__subtitle text-muted text-sm"><%= project.slug %></p>
+  </div>
+  <% if (membership.role === 'OWNER') { %>
+  <div class="button-group">
+    <a href="/projects/<%= project.slug %>/edit" class="button button--secondary">Settings</a>
+  </div>
+  <% } %>
+</div>
+
+<div class="project-detail-grid">
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">Quick Links</span>
+    </div>
+    <div class="card__body">
+      <nav class="quick-links">
+        <a href="/projects/<%= project.slug %>/deployments" class="table-link text-sm">Deployments</a>
+        <a href="/projects/<%= project.slug %>/repository" class="table-link text-sm">Repository</a>
+        <a href="/projects/<%= project.slug %>/detection" class="table-link text-sm">Detection</a>
+        <% if (membership.role === 'OWNER') { %>
+          <a href="/projects/<%= project.slug %>/environment" class="table-link text-sm">Environment</a>
+          <a href="/projects/<%= project.slug %>/members" class="table-link text-sm">Members</a>
+        <% } %>
+      </nav>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">Project Info</span>
+    </div>
+    <div class="card__body">
+      <dl class="detail-list">
+        <dt>Status</dt>
+        <dd><%- include('../../../partials/status-badge', { status: project.status }) %></dd>
+
+        <dt>Slug</dt>
+        <dd><code class="code-inline"><%= project.slug %></code></dd>
+
+        <dt>Your role</dt>
+        <dd><span class="role-pill"><%= membership.role %></span></dd>
+
+        <dt>Runtime</dt>
+        <dd>
+          <% if (project.runtimeType) { %>
+            <%- include('../../../partials/status-badge', { status: project.runtimeType }) %>
+          <% } else { %>
+            <a href="/projects/<%= project.slug %>/detection" class="table-link text-sm">Run detection</a>
+          <% } %>
+        </dd>
+
+        <dt>Deployment mode</dt>
+        <dd><%= project.deploymentMode %></dd>
+
+        <dt>Created</dt>
+        <dd><%= new Date(project.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %></dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">Repository</span>
+      <% if (membership.role === 'OWNER') { %>
+        <a href="/projects/<%= project.slug %>/repository" class="button button--ghost button--sm">Manage</a>
+      <% } %>
+    </div>
+    <div class="card__body">
+      <% if (locals.repository && repository) { %>
+        <dl class="detail-list">
+          <dt>Repository</dt>
+          <dd><code class="code-inline"><%= repository.fullName %></code></dd>
+
+          <dt>Branch</dt>
+          <dd><code class="code-inline"><%= project.productionBranch %></code></dd>
+
+          <dt>Latest commit</dt>
+          <dd>
+            <% if (repository.lastCommitSha) { %>
+              <code class="code-inline"><%= repository.lastCommitSha.slice(0, 7) %></code>
+              <% if (repository.lastCommitMessage) { %>
+                <span class="text-muted text-sm"><%= repository.lastCommitMessage %></span>
+              <% } %>
+            <% } else { %>
+              <span class="text-muted text-sm">No commits yet</span>
+            <% } %>
+          </dd>
+
+          <% if (locals.newCommitAvailable && newCommitAvailable) { %>
+          <dt>New commit</dt>
+          <dd>
+            <span class="status-badge status-badge--queued">New commit available</span>
+          </dd>
+          <% } %>
+        </dl>
+      <% } else { %>
+        <div class="empty-state empty-state--compact">
+          <p class="empty-state__description">
+            No repository connected.
+            <% if (membership.role === 'OWNER') { %>
+              <a href="/projects/<%= project.slug %>/repository" class="table-link">Connect one</a>
+            <% } %>
+          </p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">Deployment mode</span>
+    </div>
+    <div class="card__body">
+      <p class="text-sm text-muted mb-4">
+        <% if (project.deploymentMode === 'AUTOMATIC') { %>
+          Pushes to the production branch trigger automatic deployment.
+        <% } else if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
+          Deploys require admin approval before executing.
+        <% } else { %>
+          Deploys are triggered manually only.
+        <% } %>
+      </p>
+      <% if (membership.role === 'OWNER') { %>
+      <form method="POST" action="/projects/<%= project.slug %>/deployment-mode">
+        <%- include('../../../partials/csrf-field') %>
+        <div class="button-group">
+          <% ['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'].forEach(mode => { %>
+          <button type="submit" name="deploymentMode" value="<%= mode %>"
+                  class="button button--sm <%= project.deploymentMode === mode ? 'button--primary' : 'button--secondary' %>">
+            <%= mode.charAt(0) + mode.slice(1).toLowerCase().replace('_', ' ') %>
+          </button>
+          <% }) %>
+        </div>
+      </form>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
+      <span class="card__title">Deployments</span>
+      <a href="/projects/<%= project.slug %>/deployments" class="button button--ghost button--sm">View all</a>
+    </div>
+    <div class="card__body">
+      <% if (locals.deployments && deployments.length > 0) { %>
+        <table class="table">
+          <thead>
+            <tr><th>#</th><th>Status</th><th>Commit</th><th>Started</th></tr>
+          </thead>
+          <tbody>
+            <% deployments.slice(0, 5).forEach(d => { %>
+            <tr>
+              <td class="text-muted text-sm"><%= d.sequenceNumber %></td>
+              <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
+              <td><code class="code-inline"><%= d.commitSha.slice(0, 7) %></code></td>
+              <td class="text-muted text-sm"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      <% } else { %>
+        <div class="empty-state empty-state--compact">
+          <p class="empty-state__description">
+            No deployments yet.
+            <% if (membership.role === 'OWNER' || membership.role === 'MAINTAINER') { %>
+              <a href="/projects/<%= project.slug %>/deployments" class="table-link">Deploy now</a>
+            <% } %>
+          </p>
+        </div>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<% if (membership.role === 'OWNER' && project.status === 'DRAFT') { %>
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Submit for Review</h2>
+    <p class="text-sm text-muted mb-4">Once your project is configured, submit it for admin review to enable deployments.</p>
+    <form method="POST" action="/projects/<%= project.slug %>/submit-review">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--primary">Submit for Review</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<% if (membership.role === 'OWNER' && project.status !== 'ARCHIVED') { %>
+<div class="card card--danger mt-6">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Danger Zone</h2>
+    <div class="danger-action">
+      <div>
+        <strong>Archive this project</strong>
+        <p class="text-sm text-muted">The application will be stopped and the project will be read-only.</p>
+      </div>
+      <form method="POST" action="/projects/<%= project.slug %>/archive"
+            onsubmit="return confirm('Archive <%= project.name %>? The application will be stopped.')">
+        <%- include('../../../partials/csrf-field') %>
+        <button type="submit" class="button button--danger button--sm">Archive</button>
+      </form>
+    </div>
+  </div>
+</div>
+<% } %>

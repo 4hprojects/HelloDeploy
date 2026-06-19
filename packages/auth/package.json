@@ -1,0 +1,16 @@
+{
+  "name": "@hellodeploy/auth",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./password": "./src/password.js",
+    "./token": "./src/token.js"
+  },
+  "dependencies": {
+    "@hellodeploy/security": "*",
+    "argon2": "^0.41.1"
+  }
+}

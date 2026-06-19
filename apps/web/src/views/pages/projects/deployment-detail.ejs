@@ -1,0 +1,173 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">
+      Deployment #<%= deployment.sequenceNumber %>
+      <%- include('../../../partials/status-badge', { status: deployment.status }) %>
+    </h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>/deployments" class="table-link">&larr; All Deployments</a>
+    </p>
+  </div>
+  <% const canAct = membership.role === 'OWNER' || membership.role === 'MAINTAINER'; %>
+  <% const isActive = ['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(deployment.status); %>
+  <% const isRetryable = ['FAILED','CANCELLED'].includes(deployment.status); %>
+  <div class="button-group">
+    <% if (isActive && canAct) { %>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/cancel"
+          onsubmit="return confirm('Cancel this deployment?')">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--danger button--sm">Cancel</button>
+    </form>
+    <% } %>
+    <% if (isRetryable && canAct) { %>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--secondary button--sm">Retry</button>
+    </form>
+    <% } %>
+  </div>
+</div>
+
+<!-- Deployment info cards -->
+<div class="card-grid card-grid--3 mb-6">
+  <div class="card">
+    <div class="card__body">
+      <p class="text-muted text-xs mb-1">Commit</p>
+      <code class="code-inline"><%= deployment.commitSha.slice(0, 7) %></code>
+      <% if (deployment.commitMessage) { %>
+      <p class="text-sm mt-1"><%= deployment.commitMessage.slice(0, 80) %></p>
+      <% } %>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="text-muted text-xs mb-1">Trigger</p>
+      <p class="text-sm font-medium"><%= deployment.triggerType %></p>
+      <% if (deployment.sourceDeploymentId) { %>
+      <p class="text-muted text-xs">from deployment #<%= deployment.sourceDeploymentId %></p>
+      <% } %>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="text-muted text-xs mb-1">Duration</p>
+      <% if (deployment.startedAt && deployment.completedAt) { %>
+        <% const ms = new Date(deployment.completedAt) - new Date(deployment.startedAt); %>
+        <% const secs = Math.round(ms / 1000); %>
+        <p class="text-sm font-medium"><%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %></p>
+      <% } else if (deployment.startedAt) { %>
+        <p class="text-sm font-medium text-muted">In progress…</p>
+      <% } else { %>
+        <p class="text-sm text-muted">—</p>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<!-- Stage timeline -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title text-sm">Pipeline Stages</h2>
+  </div>
+  <div class="card__body">
+    <div class="deployment-timeline">
+      <%
+        const allStages = ['QUEUED','VALIDATING','BUILDING','DEPLOYING','HEALTHY'];
+        const statusOrder = {QUEUED:0,VALIDATING:1,BUILDING:2,DEPLOYING:3,HEALTHY:4,FAILED:4,CANCELLED:4,ROLLED_BACK:4};
+        const currentOrder = statusOrder[deployment.status] ?? 0;
+        const failed = ['FAILED','CANCELLED','ROLLED_BACK'].includes(deployment.status);
+      %>
+      <% allStages.forEach((stage, i) => { %>
+        <%
+          const stageOrder = statusOrder[stage];
+          let stageClass = 'stage--pending';
+          if (stageOrder < currentOrder) stageClass = 'stage--complete';
+          else if (stageOrder === currentOrder && !failed) stageClass = deployment.status === stage ? 'stage--active' : 'stage--complete';
+          else if (stageOrder === currentOrder && failed) stageClass = 'stage--failed';
+        %>
+        <div class="deployment-stage <%= stageClass %>">
+          <div class="deployment-stage__dot"></div>
+          <span class="deployment-stage__label text-xs"><%= stage %></span>
+        </div>
+        <% if (i < allStages.length - 1) { %>
+          <div class="deployment-stage__connector <%= stageOrder < currentOrder ? 'connector--complete' : '' %>"></div>
+        <% } %>
+      <% }) %>
+    </div>
+    <% if (deployment.failureCode) { %>
+    <div class="alert alert--error mt-4">
+      <strong><%= deployment.failureCode %></strong>
+      <% if (deployment.failureSummary) { %>
+      <p class="text-sm mt-1"><%= deployment.failureSummary %></p>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<!-- Log viewer -->
+<div class="card" id="log-card">
+  <div class="card__header">
+    <h2 class="card__title text-sm">Deployment Logs</h2>
+    <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
+    <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
+    <% } %>
+  </div>
+  <div class="card__body p-0">
+    <div class="log-viewer" id="log-output" aria-live="polite" aria-label="Deployment logs">
+      <% if (events.length === 0 && ['QUEUED','VALIDATING'].includes(deployment.status)) { %>
+      <div class="log-line log-line--info">Waiting for worker to pick up job…</div>
+      <% } %>
+      <% events.forEach(ev => { %>
+      <div class="log-line log-line--<%= ev.level.toLowerCase() %>">
+        <span class="log-line__stage"><%= ev.stage %></span>
+        <span class="log-line__msg"><%= ev.messageRedacted %></span>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
+<script>
+(function () {
+  const output = document.getElementById('log-output');
+  const indicator = document.getElementById('live-indicator');
+  const streamUrl = '/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs';
+
+  function appendLog(ev) {
+    const line = document.createElement('div');
+    line.className = `log-line log-line--${(ev.level || 'info').toLowerCase()}`;
+    line.innerHTML = `<span class="log-line__stage">${ev.stage || ''}</span><span class="log-line__msg">${ev.message || ''}</span>`;
+    output.appendChild(line);
+    output.scrollTop = output.scrollHeight;
+  }
+
+  const source = new EventSource(streamUrl);
+
+  source.addEventListener('log', (e) => {
+    try { appendLog(JSON.parse(e.data)); } catch {}
+  });
+
+  source.addEventListener('status', (e) => {
+    try {
+      const { status } = JSON.parse(e.data);
+      if (indicator) { indicator.textContent = status; indicator.className = 'badge text-xs'; }
+      source.close();
+      // Reload page to show final state
+      setTimeout(() => window.location.reload(), 1200);
+    } catch {}
+  });
+
+  source.addEventListener('timeout', () => {
+    if (indicator) indicator.textContent = 'Timed out';
+    source.close();
+  });
+
+  source.onerror = () => {
+    if (indicator) indicator.textContent = 'Disconnected';
+    source.close();
+  };
+})();
+</script>
+<% } %>

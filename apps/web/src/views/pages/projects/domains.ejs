@@ -1,0 +1,139 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Custom Domains</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+</div>
+
+<% if (verificationToken && pendingHostname) { %>
+<div class="card mb-6 card--highlight">
+  <div class="card__header">
+    <h2 class="card__title">Verify Domain Ownership</h2>
+  </div>
+  <div class="card__body">
+    <p class="text-sm mb-4">
+      Add the following <strong>DNS TXT record</strong> to <strong><%= pendingHostname %></strong> using your DNS provider.
+      Once the record propagates (typically 1–30 minutes), click "Check Verification".
+    </p>
+
+    <div class="dns-instructions">
+      <div class="dns-record">
+        <div class="dns-record__row">
+          <span class="dns-record__label text-xs text-muted">Record type</span>
+          <code class="code-inline">TXT</code>
+        </div>
+        <div class="dns-record__row">
+          <span class="dns-record__label text-xs text-muted">Host / Name</span>
+          <code class="code-inline">_hellodeploy-verify.<%= pendingHostname %></code>
+        </div>
+        <div class="dns-record__row">
+          <span class="dns-record__label text-xs text-muted">Value</span>
+          <code class="code-inline">hellodeploy-verify=<%= verificationToken %></code>
+        </div>
+        <div class="dns-record__row">
+          <span class="dns-record__label text-xs text-muted">TTL</span>
+          <code class="code-inline">300</code>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-xs text-muted mt-4">
+      This token is only shown once. If you lose it, remove the domain and re-add it to generate a new token.
+    </p>
+  </div>
+</div>
+<% } %>
+
+<% if (membership.role === 'OWNER') { %>
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Add Custom Domain</h2>
+  </div>
+  <div class="card__body">
+    <form method="POST" action="/projects/<%= project.slug %>/domains">
+      <%- include('../../../partials/csrf-field') %>
+      <div class="form-group">
+        <label for="hostname" class="form-label">Domain</label>
+        <input type="text"
+               id="hostname"
+               name="hostname"
+               class="form-input"
+               placeholder="app.yourdomain.com"
+               required
+               autocomplete="off"
+               spellcheck="false">
+        <p class="form-hint text-xs text-muted mt-1">
+          Enter a fully qualified domain name. You will need to add a DNS TXT record to verify ownership.
+          After verification, an administrator will review and activate the domain.
+        </p>
+      </div>
+      <button type="submit" class="button button--primary">Add Domain</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<div class="card">
+  <div class="card__header">
+    <h2 class="card__title">Domains</h2>
+  </div>
+  <% if (domains.length === 0) { %>
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No custom domains</p>
+      <p class="empty-state__description">Add a domain above to serve this project from your own hostname.</p>
+    </div>
+  </div>
+  <% } else { %>
+  <div class="card__body">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Hostname</th>
+          <th>Status</th>
+          <th>Added</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% domains.forEach(d => { %>
+        <tr>
+          <td>
+            <code class="code-inline"><%= d.hostnameNormalized %></code>
+            <% if (d.status === 'ACTIVE') { %>
+            <a href="https://<%= d.hostnameNormalized %>" class="table-link text-xs ml-2" target="_blank" rel="noopener">↗</a>
+            <% } %>
+          </td>
+          <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
+          <td class="text-muted text-sm">
+            <%= new Date(d.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+          </td>
+          <td class="text-right">
+            <div class="button-group button-group--sm">
+              <% if (d.status === 'PENDING_VERIFICATION' && membership.role === 'OWNER') { %>
+              <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/verify">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--secondary button--sm">Check Verification</button>
+              </form>
+              <% } %>
+              <% if (d.status === 'PENDING_ADMIN_APPROVAL') { %>
+              <span class="text-muted text-xs">Awaiting admin approval</span>
+              <% } %>
+              <% if (membership.role === 'OWNER') { %>
+              <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/remove"
+                    onsubmit="return confirm('Remove <%= d.hostnameNormalized %>? This cannot be undone.')">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--danger button--sm">Remove</button>
+              </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+  <% } %>
+</div>

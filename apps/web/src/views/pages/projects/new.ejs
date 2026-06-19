@@ -1,0 +1,40 @@
+<div class="page-header">
+  <h1 class="page-header__title">New Project</h1>
+  <p class="page-header__subtitle">Name your project. You can change it later.</p>
+</div>
+
+<div class="card" style="max-width: 32rem;">
+  <div class="card__body">
+    <%- include('../../../partials/form-errors', { errors }) %>
+
+    <form method="POST" action="/projects" novalidate>
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-field">
+        <label for="name" class="form-label form-label--required">Project name</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          class="form-input<%= errors.name ? ' form-input--error' : '' %>"
+          value="<%= values.name %>"
+          maxlength="100"
+          autocomplete="off"
+          autofocus
+          required
+          aria-describedby="<%= errors.name ? 'name-error' : 'name-hint' %>"
+        />
+        <% if (errors.name) { %>
+        <span id="name-error" class="form-error" role="alert"><%= errors.name %></span>
+        <% } else { %>
+        <span id="name-hint" class="form-hint">A slug will be generated automatically, e.g. <em>my-project</em>.</span>
+        <% } %>
+      </div>
+
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary">Create Project</button>
+        <a href="/projects" class="button button--secondary">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

@@ -1,0 +1,129 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Deployments</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+  <% const canDeploy = membership.role === 'OWNER' || membership.role === 'MAINTAINER'; %>
+  <% if (canDeploy) { %>
+  <div class="button-group">
+    <form method="POST" action="/projects/<%= project.slug %>/deployments">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--primary">Deploy Latest</button>
+    </form>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments">
+      <%- include('../../../partials/csrf-field') %>
+      <input type="hidden" name="noCache" value="true">
+      <button type="submit" class="button button--secondary button--sm">Deploy (no cache)</button>
+    </form>
+  </div>
+  <% } %>
+</div>
+
+<% if (rollbackTargets && rollbackTargets.length > 0 && canDeploy) { %>
+<div class="card mb-4">
+  <div class="card__header">
+    <h2 class="card__title text-sm">Rollback</h2>
+  </div>
+  <div class="card__body">
+    <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline">
+      <%- include('../../../partials/csrf-field') %>
+      <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
+      <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
+        <% rollbackTargets.forEach(d => { %>
+        <option value="<%= d._id %>">
+          #<%= d.sequenceNumber %> — <%= d.commitSha.slice(0, 7) %>
+          <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
+        </option>
+        <% }) %>
+      </select>
+      <button type="submit" class="button button--warning button--sm"
+              onclick="return confirm('Roll back to this deployment?')">Roll Back</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<% if (deployments.length === 0) { %>
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No deployments yet</p>
+      <p class="empty-state__description">
+        Trigger your first deployment using the button above.
+        Make sure you have connected a repository and run detection first.
+      </p>
+    </div>
+  </div>
+</div>
+<% } else { %>
+<div class="card">
+  <div class="card__body">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Status</th>
+          <th>Commit</th>
+          <th>Trigger</th>
+          <th>Started</th>
+          <th>Duration</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% deployments.forEach(d => { %>
+        <tr>
+          <td class="text-muted text-sm">
+            <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="table-link">
+              #<%= d.sequenceNumber %>
+            </a>
+          </td>
+          <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
+          <td>
+            <code class="code-inline"><%= d.commitSha.slice(0, 7) %></code>
+            <% if (d.commitMessage) { %>
+              <span class="text-muted text-sm d-block"><%= d.commitMessage.slice(0, 60) %></span>
+            <% } %>
+          </td>
+          <td class="text-muted text-sm"><%= d.triggerType %></td>
+          <td class="text-muted text-sm">
+            <% if (d.startedAt) { %>
+              <%= new Date(d.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
+            <% } else { %> — <% } %>
+          </td>
+          <td class="text-muted text-sm">
+            <% if (d.startedAt && d.completedAt) { %>
+              <% const secs = Math.round((new Date(d.completedAt) - new Date(d.startedAt)) / 1000); %>
+              <%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %>
+            <% } else if (d.startedAt) { %>
+              <span class="text-muted">Running…</span>
+            <% } else { %> — <% } %>
+          </td>
+          <td class="text-right">
+            <div class="button-group button-group--sm">
+              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm">Logs</a>
+              <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
+              <form method="POST"
+                    action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
+                    onsubmit="return confirm('Cancel this deployment?')">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--danger button--sm">Cancel</button>
+              </form>
+              <% } %>
+              <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
+              <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry">
+                <%- include('../../../partials/csrf-field') %>
+                <button type="submit" class="button button--secondary button--sm">Retry</button>
+              </form>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </div>
+</div>
+<% } %>

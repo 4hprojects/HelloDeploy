@@ -1,0 +1,18 @@
+<% if (flash && flash.success) { %>
+<div class="flash flash--success" role="alert" aria-live="polite">
+  <span class="flash__icon" aria-hidden="true">✓</span>
+  <span><%= flash.success %></span>
+</div>
+<% } %>
+<% if (flash && flash.error) { %>
+<div class="flash flash--error" role="alert" aria-live="assertive">
+  <span class="flash__icon" aria-hidden="true">✕</span>
+  <span><%= flash.error %></span>
+</div>
+<% } %>
+<% if (flash && flash.info) { %>
+<div class="flash flash--info" role="status" aria-live="polite">
+  <span class="flash__icon" aria-hidden="true">ℹ</span>
+  <span><%= flash.info %></span>
+</div>
+<% } %>

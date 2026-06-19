@@ -1,0 +1,84 @@
+<div class="page-header">
+  <h1 class="page-header__title">All Projects</h1>
+  <p class="page-header__subtitle"><%= total %> total</p>
+</div>
+
+<form method="GET" action="/admin/projects" class="filter-bar mb-6">
+  <select name="status" class="form-select" style="max-width: 12rem;">
+    <option value="">All statuses</option>
+    <option value="DRAFT" <%= filters.status === 'DRAFT' ? 'selected' : '' %>>Draft</option>
+    <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
+    <option value="SUSPENDED" <%= filters.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
+    <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
+  </select>
+  <button type="submit" class="button button--secondary">Filter</button>
+  <% if (filters.status) { %>
+  <a href="/admin/projects" class="button button--ghost">Clear</a>
+  <% } %>
+</form>
+
+<% if (projects.length === 0) { %>
+<div class="empty-state">
+  <p class="empty-state__description">No projects match your filters.</p>
+</div>
+<% } else { %>
+<div class="table-wrapper">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Project</th>
+        <th>Owner</th>
+        <th>Status</th>
+        <th>Created</th>
+        <th><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% projects.forEach(p => { %>
+      <tr>
+        <td>
+          <a href="/projects/<%= p.slug %>" class="table-link"><strong><%= p.name %></strong></a>
+          <span class="text-muted text-xs d-block"><%= p.slug %></span>
+        </td>
+        <td>
+          <% if (p.ownerId) { %>
+          <span><%= p.ownerId.firstName %> <%= p.ownerId.lastName %></span>
+          <span class="text-muted text-xs d-block"><%= p.ownerId.email %></span>
+          <% } else { %>
+          <span class="text-muted">—</span>
+          <% } %>
+        </td>
+        <td><%- include('../../../partials/status-badge', { status: p.status }) %></td>
+        <td class="text-sm text-muted"><%= new Date(p.createdAt).toLocaleDateString() %></td>
+        <td class="text-right">
+          <% if (p.status === 'SUSPENDED') { %>
+          <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" style="display:inline;">
+            <%- include('../../../partials/csrf-field') %>
+            <button type="submit" class="button button--ghost button--sm">Reactivate</button>
+          </form>
+          <% } else if (p.status === 'ACTIVE' || p.status === 'DRAFT') { %>
+          <form method="POST" action="/admin/projects/<%= p._id %>/suspend" style="display:inline;"
+                onsubmit="return confirm('Suspend project <%= p.name %>?')">
+            <%- include('../../../partials/csrf-field') %>
+            <button type="submit" class="button button--ghost button--sm">Suspend</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination mt-4">
+  <% if (page > 1) { %>
+  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>" class="button button--ghost button--sm">← Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
+  <% if (page < totalPages) { %>
+  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>" class="button button--ghost button--sm">Next →</a>
+  <% } %>
+</div>
+<% } %>
+<% } %>

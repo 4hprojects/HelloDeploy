@@ -1,0 +1,70 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Verify Email</h1>
+
+  <% if (typeof submitted !== 'undefined' && submitted) { %>
+    <div class="alert alert--info" role="status">
+      <strong>Check your inbox.</strong><br />
+      We sent a verification link to your email address. Click the link to activate your account.
+    </div>
+    <p class="mt-4">Didn't receive it? Check your spam folder, or:</p>
+    <form method="POST" action="/auth/verify-email/resend" class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <%- include('../../partials/form-field', {
+        fieldId: 'email',
+        label: 'Email Address',
+        type: 'email',
+        name: 'email',
+        value: '',
+        autocomplete: 'email',
+        required: true,
+        error: null
+      }) %>
+      <button type="submit" class="button button--secondary mt-4">Resend Verification Email</button>
+    </form>
+
+  <% } else if (typeof resent !== 'undefined' && resent) { %>
+    <div class="alert alert--success" role="status">
+      Verification email sent. Please check your inbox.
+    </div>
+    <p class="mt-4"><a href="/auth/sign-in">Back to Sign In</a></p>
+
+  <% } else if (typeof error !== 'undefined' && error) { %>
+    <div class="alert alert--error" role="alert">
+      <%= error %>
+    </div>
+    <p class="mt-4">
+      Request a new verification link by entering your email below:
+    </p>
+    <form method="POST" action="/auth/verify-email/resend" class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <%- include('../../partials/form-field', {
+        fieldId: 'email',
+        label: 'Email Address',
+        type: 'email',
+        name: 'email',
+        value: '',
+        autocomplete: 'email',
+        required: true,
+        error: null
+      }) %>
+      <button type="submit" class="button button--secondary mt-4">Resend Verification Email</button>
+    </form>
+
+  <% } else { %>
+    <p>Enter your email address to receive a new verification link.</p>
+    <form method="POST" action="/auth/verify-email/resend" class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <%- include('../../partials/form-field', {
+        fieldId: 'email',
+        label: 'Email Address',
+        type: 'email',
+        name: 'email',
+        value: '',
+        autocomplete: 'email',
+        required: true,
+        error: null
+      }) %>
+      <button type="submit" class="button button--secondary mt-4">Send Verification Email</button>
+    </form>
+  <% } %>
+</div>

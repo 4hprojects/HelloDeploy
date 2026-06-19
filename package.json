@@ -1,0 +1,33 @@
+{
+  "name": "hellodeploy",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "concurrently --names \"web,worker\" --prefix-colors \"cyan,yellow\" \"npm run dev -w @hellodeploy/web\" \"npm run dev -w @hellodeploy/worker\"",
+    "start": "concurrently --names \"web,worker\" \"npm run start -w @hellodeploy/web\" \"npm run start -w @hellodeploy/worker\"",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "node --test 'tests/**/*.test.js'",
+    "test:watch": "node --test --watch 'tests/**/*.test.js'"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "eslint": "^9.18.0",
+    "prettier": "^3.4.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "allowScripts": {
+    "argon2@0.41.1": true,
+    "msgpackr-extract@3.0.4": true
+  }
+}

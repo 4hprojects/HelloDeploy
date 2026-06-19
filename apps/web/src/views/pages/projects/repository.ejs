@@ -1,0 +1,225 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Repository</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+</div>
+
+<% if (!githubConfigured) { %>
+<!-- GitHub App not configured on this server -->
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">GitHub integration not available</p>
+      <p class="empty-state__description">
+        The GitHub App is not configured on this server.
+        Contact the platform administrator to enable repository integration.
+      </p>
+    </div>
+  </div>
+</div>
+
+<% } else if (currentRepo) { %>
+<!-- Repository already connected -->
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Connected Repository</span>
+    <%- include('../../../partials/status-badge', { status: currentRepo.accessStatus }) %>
+  </div>
+  <div class="card__body">
+    <dl class="detail-list">
+      <dt>Repository</dt>
+      <dd>
+        <code class="code-inline"><%= currentRepo.fullName %></code>
+        <% if (currentRepo.visibility === 'public') { %>
+          <span class="role-pill text-xs">public</span>
+        <% } else { %>
+          <span class="role-pill text-xs">private</span>
+        <% } %>
+      </dd>
+
+      <dt>Production branch</dt>
+      <dd><code class="code-inline"><%= project.productionBranch || '—' %></code></dd>
+
+      <dt>Default branch</dt>
+      <dd><code class="code-inline"><%= currentRepo.defaultBranch %></code></dd>
+
+      <% if (currentRepo.lastCommitSha) { %>
+      <dt>Latest commit</dt>
+      <dd>
+        <code class="code-inline"><%= currentRepo.lastCommitSha.slice(0, 7) %></code>
+        <span class="text-muted text-sm"><%= currentRepo.lastCommitMessage || '' %></span>
+      </dd>
+      <% } %>
+
+      <dt>Connected</dt>
+      <dd class="text-sm text-muted"><%= new Date(currentRepo.connectedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %></dd>
+    </dl>
+  </div>
+</div>
+
+<% if (membership.role === 'OWNER') { %>
+<div class="card card--danger mt-6">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Danger Zone</h2>
+    <div class="danger-action">
+      <div>
+        <strong>Disconnect repository</strong>
+        <p class="text-sm text-muted">This will stop automatic deploys. Existing deployments are not affected.</p>
+      </div>
+      <form method="POST" action="/projects/<%= project.slug %>/repository/disconnect"
+            onsubmit="return confirm('Disconnect <%= currentRepo.fullName %>?')">
+        <%- include('../../../partials/csrf-field') %>
+        <button type="submit" class="button button--danger button--sm">Disconnect</button>
+      </form>
+    </div>
+  </div>
+</div>
+<% } %>
+
+<% } else if (!locals.installationId) { %>
+<!-- GitHub App not yet installed -->
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">Connect your GitHub account</p>
+      <p class="empty-state__description">
+        Install the HelloDeploy GitHub App to grant repository access.
+        You control exactly which repositories are shared.
+      </p>
+      <a href="/github/connect?project=<%= project.slug %>" class="button button--primary mt-4">
+        Install GitHub App
+      </a>
+    </div>
+  </div>
+</div>
+
+<% } else if (!repos || repos.length === 0) { %>
+<!-- Installed but no repos accessible -->
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No repositories found</p>
+      <p class="empty-state__description">
+        The GitHub App is installed but no repositories are accessible.
+        Update your installation to grant access to specific repositories.
+      </p>
+      <a href="/github/connect?project=<%= project.slug %>" class="button button--secondary mt-4">
+        Update GitHub App access
+      </a>
+    </div>
+  </div>
+</div>
+
+<% } else { %>
+<!-- Repo selection form -->
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Connect a Repository</span>
+  </div>
+  <div class="card__body">
+    <form method="POST" action="/projects/<%= project.slug %>/repository" id="repoForm">
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-group">
+        <label class="form-label" for="fullName">Repository</label>
+        <select class="form-input" name="fullName" id="fullName" required>
+          <option value="">— choose a repository —</option>
+          <% repos.forEach(repo => { %>
+          <option value="<%= repo.fullName %>"
+                  data-id="<%= repo.id %>"
+                  data-nodeid="<%= repo.nodeId %>"
+                  data-owner="<%= repo.ownerLogin %>"
+                  data-default-branch="<%= repo.defaultBranch %>"
+                  data-visibility="<%= repo.visibility %>"
+                  <% if (locals.values && values.fullName === repo.fullName) { %>selected<% } %>>
+            <%= repo.fullName %>
+            (<%= repo.visibility %>)
+          </option>
+          <% }) %>
+        </select>
+        <% if (locals.errors && errors.fullName) { %>
+          <p class="form-error"><%= errors.fullName %></p>
+        <% } %>
+      </div>
+
+      <!-- Hidden fields populated by JS when repo is selected -->
+      <input type="hidden" name="githubRepoId" id="githubRepoId">
+      <input type="hidden" name="nodeId" id="nodeId">
+      <input type="hidden" name="ownerLogin" id="ownerLogin">
+      <input type="hidden" name="defaultBranch" id="defaultBranch">
+      <input type="hidden" name="visibility" id="visibility">
+
+      <div class="form-group" id="branchGroup" style="display:none">
+        <label class="form-label" for="productionBranch">Production branch</label>
+        <select class="form-input" name="productionBranch" id="productionBranch" required>
+          <option value="">— choose a branch —</option>
+        </select>
+        <p class="form-hint text-xs text-muted">Pushes to this branch trigger deployments in Automatic mode.</p>
+        <% if (locals.errors && errors.productionBranch) { %>
+          <p class="form-error"><%= errors.productionBranch %></p>
+        <% } %>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="button button--primary" id="connectBtn" disabled>Connect Repository</button>
+        <a href="/projects/<%= project.slug %>" class="button button--ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<a href="/github/connect?project=<%= project.slug %>" class="text-sm text-muted d-block mt-4">
+  Don't see your repository? Update GitHub App access
+</a>
+
+<script>
+  const repoSelect = document.getElementById('fullName');
+  const branchGroup = document.getElementById('branchGroup');
+  const branchSelect = document.getElementById('productionBranch');
+  const connectBtn = document.getElementById('connectBtn');
+
+  repoSelect.addEventListener('change', async function () {
+    const opt = this.options[this.selectedIndex];
+    const fullName = opt.value;
+
+    // Clear dependents
+    branchSelect.innerHTML = '<option value="">Loading branches…</option>';
+    branchGroup.style.display = 'none';
+    connectBtn.disabled = true;
+
+    if (!fullName) return;
+
+    // Populate hidden fields
+    document.getElementById('githubRepoId').value = opt.dataset.id;
+    document.getElementById('nodeId').value = opt.dataset.nodeid;
+    document.getElementById('ownerLogin').value = opt.dataset.owner;
+    document.getElementById('defaultBranch').value = opt.dataset.defaultBranch;
+    document.getElementById('visibility').value = opt.dataset.visibility;
+
+    try {
+      const res = await fetch('/github/branches?fullName=' + encodeURIComponent(fullName));
+      const data = await res.json();
+      branchSelect.innerHTML = '<option value="">— choose a branch —</option>';
+      (data.branches || []).forEach(b => {
+        const o = document.createElement('option');
+        o.value = b.name;
+        o.textContent = b.name === opt.dataset.defaultBranch ? b.name + ' (default)' : b.name;
+        if (b.name === opt.dataset.defaultBranch) { o.selected = true; }
+        branchSelect.appendChild(o);
+      });
+      branchGroup.style.display = '';
+      connectBtn.disabled = !branchSelect.value;
+    } catch {
+      branchSelect.innerHTML = '<option value="">Could not load branches</option>';
+      branchGroup.style.display = '';
+    }
+  });
+
+  branchSelect.addEventListener('change', function () {
+    connectBtn.disabled = !this.value;
+  });
+</script>
+<% } %>

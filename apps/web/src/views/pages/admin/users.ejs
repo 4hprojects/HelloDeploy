@@ -1,0 +1,85 @@
+<div class="page-header">
+  <h1 class="page-header__title">Users</h1>
+  <p class="page-header__subtitle"><%= total %> total</p>
+</div>
+
+<form method="GET" action="/admin/users" class="filter-bar mb-6">
+  <input
+    type="search"
+    name="search"
+    class="form-input"
+    placeholder="Search by name or email…"
+    value="<%= filters.search %>"
+    style="max-width: 18rem;"
+  />
+  <select name="status" class="form-select" style="max-width: 12rem;">
+    <option value="">All statuses</option>
+    <option value="PENDING_VERIFICATION" <%= filters.status === 'PENDING_VERIFICATION' ? 'selected' : '' %>>Pending</option>
+    <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
+    <option value="SUSPENDED" <%= filters.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
+    <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
+  </select>
+  <button type="submit" class="button button--secondary">Filter</button>
+  <% if (filters.search || filters.status) { %>
+  <a href="/admin/users" class="button button--ghost">Clear</a>
+  <% } %>
+</form>
+
+<% if (users.length === 0) { %>
+<div class="empty-state">
+  <p class="empty-state__description">No users match your filters.</p>
+</div>
+<% } else { %>
+<div class="table-wrapper">
+  <table class="table">
+    <thead>
+      <tr>
+        <th>User</th>
+        <th>Role</th>
+        <th>Status</th>
+        <th>Joined</th>
+        <th><span class="sr-only">Actions</span></th>
+      </tr>
+    </thead>
+    <tbody>
+      <% users.forEach(u => { %>
+      <tr>
+        <td>
+          <strong><%= u.firstName %> <%= u.lastName %></strong>
+          <span class="text-muted text-xs d-block"><%= u.email %></span>
+        </td>
+        <td><span class="role-pill"><%= u.platformRole %></span></td>
+        <td><%- include('../../../partials/status-badge', { status: u.status }) %></td>
+        <td class="text-sm text-muted"><%= new Date(u.createdAt).toLocaleDateString() %></td>
+        <td class="text-right">
+          <% if (u.status === 'SUSPENDED') { %>
+          <form method="POST" action="/admin/users/<%= u._id %>/reactivate" style="display:inline;">
+            <%- include('../../../partials/csrf-field') %>
+            <button type="submit" class="button button--ghost button--sm">Reactivate</button>
+          </form>
+          <% } else if (u.status === 'ACTIVE' && u.platformRole !== 'SUPER_ADMIN') { %>
+          <form method="POST" action="/admin/users/<%= u._id %>/suspend" style="display:inline;"
+                onsubmit="return confirm('Suspend <%= u.firstName %> <%= u.lastName %>?')">
+            <%- include('../../../partials/csrf-field') %>
+            <button type="submit" class="button button--ghost button--sm">Suspend</button>
+          </form>
+          <% } %>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination mt-4">
+  <% if (page > 1) { %>
+  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">← Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
+  <% if (page < totalPages) { %>
+  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Next →</a>
+  <% } %>
+</div>
+<% } %>
+<% } %>

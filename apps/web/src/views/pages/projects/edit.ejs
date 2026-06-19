@@ -1,0 +1,41 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Project Settings</h1>
+    <p class="page-header__subtitle"><%= project.slug %></p>
+  </div>
+  <a href="/projects/<%= project.slug %>" class="button button--secondary">Back to Project</a>
+</div>
+
+<div class="card" style="max-width: 32rem;">
+  <div class="card__header">
+    <span class="card__title">General</span>
+  </div>
+  <div class="card__body">
+    <%- include('../../../partials/form-errors', { errors }) %>
+
+    <form method="POST" action="/projects/<%= project.slug %>/update" novalidate>
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-field">
+        <label for="name" class="form-label form-label--required">Project name</label>
+        <input
+          type="text"
+          id="name"
+          name="name"
+          class="form-input<%= errors.name ? ' form-input--error' : '' %>"
+          value="<%= values.name %>"
+          maxlength="100"
+          required
+          aria-describedby="<%= errors.name ? 'name-error' : '' %>"
+        />
+        <% if (errors.name) { %>
+        <span id="name-error" class="form-error" role="alert"><%= errors.name %></span>
+        <% } %>
+      </div>
+
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary">Save Settings</button>
+      </div>
+    </form>
+  </div>
+</div>

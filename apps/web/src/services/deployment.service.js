@@ -1,0 +1,375 @@
+import { Project, Repository, Deployment } from '@hellodeploy/database';
+import { DeploymentStatus, DeploymentTrigger, JobType, AuditOutcome } from '@hellodeploy/contracts';
+import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
+import { writeAuditEvent } from '@hellodeploy/observability';
+import { enqueueJob } from '@hellodeploy/queue';
+import { getDeploymentQueue } from '../queue/client.js';
+
+// ─── Create deployment ─────────────────────────────────────────────────────────
+
+/**
+ * Create a new deployment record and enqueue the build job.
+ * Enforces one-active-deployment-per-project invariant.
+ *
+ * @param {{ projectId, actorId, triggerType?, noCache?, sourceIp?, correlationId? }} opts
+ * @returns {{ success: boolean, deployment?: object, error?: string }}
+ */
+export async function createDeployment({
+  projectId,
+  actorId,
+  triggerType = DeploymentTrigger.MANUAL,
+  noCache = false,
+  sourceIp,
+  correlationId,
+}) {
+  const project = await Project.findById(projectId).lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  if (!project.repositoryId) {
+    return { success: false, error: 'No repository connected to this project.' };
+  }
+
+  if (!project.runtimeType) {
+    return { success: false, error: 'Run project detection before deploying.' };
+  }
+
+  const repo = await Repository.findById(project.repositoryId).lean();
+  if (!repo || repo.accessStatus !== 'ACTIVE') {
+    return { success: false, error: 'Repository access is not active.' };
+  }
+
+  if (!repo.lastCommitSha) {
+    return { success: false, error: 'No commit SHA available. Push a commit to the production branch first.' };
+  }
+
+  // ── One-active-deployment-per-project check ─────────────────────────────────
+  const active = await Deployment.findOne({
+    projectId,
+    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+  }).lean();
+
+  if (active) {
+    return {
+      success: false,
+      error: `A deployment is already in progress (${active.status.toLowerCase()}). Wait for it to complete or cancel it first.`,
+    };
+  }
+
+  // ── Create deployment record ────────────────────────────────────────────────
+  const seqNum = await nextSequenceNumber(Deployment, projectId);
+
+  const deployment = await Deployment.create({
+    projectId,
+    sequenceNumber: seqNum,
+    triggerType,
+    requestedBy: actorId,
+    commitSha: repo.lastCommitSha,
+    commitMessage: repo.lastCommitMessage,
+    configurationVersion: project.configurationVersion,
+    status: DeploymentStatus.QUEUED,
+    startedAt: new Date(),
+  });
+
+  // ── Enqueue job ─────────────────────────────────────────────────────────────
+  const queue = getDeploymentQueue();
+  if (!queue) {
+    // Redis unavailable — mark deployment failed immediately
+    await Deployment.updateOne(
+      { _id: deployment._id },
+      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', failureSummary: 'Deployment queue is not available.', completedAt: new Date() } },
+    );
+    return { success: false, error: 'Deployment queue is unavailable. Contact the administrator.' };
+  }
+
+  const imageTag = buildImageTag(project.slug, repo.lastCommitSha, seqNum);
+
+  await enqueueJob(
+    queue,
+    JobType.BUILD_DEPLOYMENT,
+    {
+      version: 1,
+      correlationId,
+      actorId,
+      actorRole: 'USER',
+      projectId: projectId.toString(),
+      deploymentId: deployment._id.toString(),
+      commitSha: repo.lastCommitSha,
+      repositoryId: project.repositoryId.toString(),
+      runtimeType: project.runtimeType,
+      imageTag,
+      noCache,
+    },
+    { jobId: `deploy-${deployment._id.toString()}` }, // deduplication key
+  );
+
+  await writeAuditEvent({
+    action: 'deployment.created',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'deployment',
+    targetId: deployment._id.toString(),
+    sourceIp,
+    correlationId,
+    metadata: {
+      projectId: projectId.toString(),
+      sequenceNumber: seqNum,
+      commitSha: repo.lastCommitSha.slice(0, 7),
+      triggerType,
+    },
+  });
+
+  return { success: true, deployment };
+}
+
+// ─── Cancel deployment ──────────────────────────────────────────────────────────
+
+/**
+ * Cancel a deployment that is in a cancellable state (QUEUED or BUILDING).
+ */
+export async function cancelDeployment(deploymentId, actorId, opts = {}) {
+  const deployment = await Deployment.findById(deploymentId);
+  if (!deployment) {
+    return { success: false, error: 'Deployment not found.' };
+  }
+
+  if (!isActive(deployment.status)) {
+    return { success: false, error: `Cannot cancel a deployment with status ${deployment.status}.` };
+  }
+
+  await Deployment.updateOne(
+    { _id: deploymentId },
+    { $set: { status: DeploymentStatus.CANCELLED, completedAt: new Date() } },
+  );
+
+  await writeAuditEvent({
+    action: 'deployment.cancelled',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'deployment',
+    targetId: deploymentId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { projectId: deployment.projectId.toString() },
+  });
+
+  return { success: true };
+}
+
+// ─── Retry deployment ───────────────────────────────────────────────────────────
+
+/**
+ * Retry a failed/cancelled deployment using the exact same commit SHA.
+ */
+export async function retryDeployment(deploymentId, actorId, opts = {}) {
+  const original = await Deployment.findById(deploymentId).lean();
+  if (!original) {
+    return { success: false, error: 'Deployment not found.' };
+  }
+
+  const project = await Project.findById(original.projectId).lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  // Only allow retry on terminal non-HEALTHY states
+  const retryable = ['FAILED', 'CANCELLED'];
+  if (!retryable.includes(original.status)) {
+    return { success: false, error: `Cannot retry a deployment with status ${original.status}.` };
+  }
+
+  const repo = await Repository.findById(project.repositoryId).lean();
+  if (!repo || repo.accessStatus !== 'ACTIVE') {
+    return { success: false, error: 'Repository access is not active.' };
+  }
+
+  // One-active-deployment check
+  const active = await Deployment.findOne({
+    projectId: original.projectId,
+    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+  }).lean();
+  if (active) {
+    return { success: false, error: 'A deployment is already in progress.' };
+  }
+
+  const seqNum = await nextSequenceNumber(Deployment, original.projectId);
+  const imageTag = buildImageTag(project.slug, original.commitSha, seqNum);
+
+  const deployment = await Deployment.create({
+    projectId: original.projectId,
+    sequenceNumber: seqNum,
+    triggerType: DeploymentTrigger.MANUAL,
+    requestedBy: actorId,
+    commitSha: original.commitSha,
+    commitMessage: original.commitMessage,
+    configurationVersion: project.configurationVersion,
+    status: DeploymentStatus.QUEUED,
+    startedAt: new Date(),
+  });
+
+  const queue = getDeploymentQueue();
+  if (!queue) {
+    await Deployment.updateOne(
+      { _id: deployment._id },
+      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', completedAt: new Date() } },
+    );
+    return { success: false, error: 'Deployment queue is unavailable.' };
+  }
+
+  await enqueueJob(
+    queue,
+    JobType.BUILD_DEPLOYMENT,
+    {
+      version: 1,
+      correlationId: opts.correlationId,
+      actorId,
+      actorRole: 'USER',
+      projectId: original.projectId.toString(),
+      deploymentId: deployment._id.toString(),
+      commitSha: original.commitSha,
+      repositoryId: project.repositoryId.toString(),
+      runtimeType: project.runtimeType,
+      imageTag,
+      noCache: false,
+    },
+    { jobId: `deploy-${deployment._id.toString()}` },
+  );
+
+  await writeAuditEvent({
+    action: 'deployment.retried',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'deployment',
+    targetId: deployment._id.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: {
+      projectId: original.projectId.toString(),
+      originalDeploymentId: deploymentId.toString(),
+      commitSha: original.commitSha.slice(0, 7),
+    },
+  });
+
+  return { success: true, deployment };
+}
+
+// ─── Rollback ───────────────────────────────────────────────────────────────────
+
+/**
+ * Roll back a project to a specific past HEALTHY deployment.
+ * Creates a new ROLLBACK deployment record and enqueues the job.
+ */
+export async function rollbackDeployment(projectId, targetDeploymentId, actorId, opts = {}) {
+  const project = await Project.findById(projectId).lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  const targetDeployment = await Deployment.findById(targetDeploymentId).lean();
+  if (!targetDeployment || targetDeployment.projectId.toString() !== projectId.toString()) {
+    return { success: false, error: 'Target deployment not found.' };
+  }
+
+  if (targetDeployment.status !== DeploymentStatus.HEALTHY) {
+    return { success: false, error: 'Can only roll back to a HEALTHY deployment.' };
+  }
+
+  if (!targetDeployment.imageTag) {
+    return { success: false, error: 'Target deployment image is no longer available.' };
+  }
+
+  // Cannot rollback to the currently active deployment
+  if (project.activeDeploymentId?.toString() === targetDeploymentId.toString()) {
+    return { success: false, error: 'Target deployment is already active.' };
+  }
+
+  // One-active-deployment check
+  const active = await Deployment.findOne({
+    projectId,
+    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+  }).lean();
+  if (active) {
+    return { success: false, error: 'A deployment is already in progress.' };
+  }
+
+  const seqNum = await nextSequenceNumber(Deployment, projectId);
+
+  const deployment = await Deployment.create({
+    projectId,
+    sequenceNumber: seqNum,
+    triggerType: DeploymentTrigger.ROLLBACK,
+    requestedBy: actorId,
+    commitSha: targetDeployment.commitSha,
+    commitMessage: targetDeployment.commitMessage,
+    configurationVersion: project.configurationVersion,
+    status: DeploymentStatus.DEPLOYING,
+    sourceDeploymentId: targetDeploymentId,
+    startedAt: new Date(),
+  });
+
+  const queue = getDeploymentQueue();
+  if (!queue) {
+    await Deployment.updateOne(
+      { _id: deployment._id },
+      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', completedAt: new Date() } },
+    );
+    return { success: false, error: 'Deployment queue is unavailable.' };
+  }
+
+  await enqueueJob(
+    queue,
+    JobType.ROLLBACK_RELEASE,
+    {
+      version: 1,
+      correlationId: opts.correlationId,
+      actorId,
+      actorRole: 'USER',
+      projectId: projectId.toString(),
+      deploymentId: deployment._id.toString(),
+      sourceDeploymentId: targetDeploymentId.toString(),
+    },
+    { jobId: `rollback-${deployment._id.toString()}` },
+  );
+
+  await writeAuditEvent({
+    action: 'deployment.rollback_requested',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'deployment',
+    targetId: deployment._id.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: {
+      projectId: projectId.toString(),
+      targetDeploymentId: targetDeploymentId.toString(),
+      targetSequenceNumber: targetDeployment.sequenceNumber,
+    },
+  });
+
+  return { success: true, deployment };
+}
+
+// ─── Deployment events ──────────────────────────────────────────────────────────
+
+export async function getDeploymentEvents(deploymentId, opts = {}) {
+  const { afterId, limit = 500 } = opts;
+  const { DeploymentEvent } = await import('@hellodeploy/database');
+
+  const query = { deploymentId };
+  if (afterId) {
+    query._id = { $gt: afterId };
+  }
+
+  return DeploymentEvent.find(query).sort({ _id: 1 }).limit(limit).lean();
+}
+
+// ─── Query helpers ──────────────────────────────────────────────────────────────
+
+export async function getDeployments(projectId, limit = 20) {
+  return Deployment.find({ projectId }).sort({ sequenceNumber: -1 }).limit(limit).lean();
+}
+
+export async function getDeployment(deploymentId) {
+  return Deployment.findById(deploymentId).lean();
+}

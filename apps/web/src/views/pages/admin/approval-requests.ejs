@@ -1,0 +1,77 @@
+<div class="page-header">
+  <h1 class="page-header__title">Approval Requests</h1>
+  <p class="page-header__subtitle"><%= total %> pending</p>
+</div>
+
+<% if (requests.length === 0) { %>
+<div class="empty-state">
+  <div class="empty-state__icon" aria-hidden="true">◎</div>
+  <h2 class="empty-state__title">No pending requests</h2>
+  <p class="empty-state__description">There are no project reviews waiting for your decision.</p>
+</div>
+<% } else { %>
+<div class="review-list">
+  <% requests.forEach(r => { %>
+  <div class="card mb-4">
+    <div class="card__header">
+      <div>
+        <strong><%= r.projectId ? r.projectId.name : 'Unknown Project' %></strong>
+        <% if (r.projectId) { %>
+        <span class="text-muted text-sm"> · <%= r.projectId.slug %></span>
+        <% } %>
+      </div>
+      <span class="text-sm text-muted"><%= new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %></span>
+    </div>
+    <div class="card__body">
+      <dl class="detail-list detail-list--inline mb-4">
+        <dt>Requested by</dt>
+        <dd>
+          <% if (r.requestedBy) { %>
+          <%= r.requestedBy.firstName %> <%= r.requestedBy.lastName %>
+          <span class="text-muted">(<%= r.requestedBy.email %>)</span>
+          <% } else { %>
+          <span class="text-muted">Unknown</span>
+          <% } %>
+        </dd>
+        <dt>Type</dt>
+        <dd><%= r.requestType.replace('_', ' ') %></dd>
+      </dl>
+
+      <div class="review-actions">
+        <form method="POST" action="/admin/approval-requests/<%= r._id %>/review" class="review-form">
+          <%- include('../../../partials/csrf-field') %>
+          <div class="form-field mb-3">
+            <label for="note-<%= r._id %>" class="form-label">Admin note <span class="text-muted">(optional)</span></label>
+            <textarea
+              id="note-<%= r._id %>"
+              name="note"
+              class="form-textarea"
+              rows="2"
+              maxlength="1000"
+              placeholder="Reason for approval or rejection…"
+            ></textarea>
+          </div>
+          <div class="button-group">
+            <button type="submit" name="decision" value="APPROVED" class="button button--primary button--sm">Approve</button>
+            <button type="submit" name="decision" value="REJECTED" class="button button--danger button--sm"
+                    onclick="return confirm('Reject this request?')">Reject</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <% }) %>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination mt-4">
+  <% if (page > 1) { %>
+  <a href="?page=<%= page - 1 %>" class="button button--ghost button--sm">← Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
+  <% if (page < totalPages) { %>
+  <a href="?page=<%= page + 1 %>" class="button button--ghost button--sm">Next →</a>
+  <% } %>
+</div>
+<% } %>
+<% } %>

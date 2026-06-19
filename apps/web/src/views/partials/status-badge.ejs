@@ -1,0 +1,23 @@
+<%
+// Maps any status value to its CSS modifier and display label.
+const STATUS_MAP = {
+  DRAFT:               { mod: 'draft',     label: 'Draft' },
+  ACTIVE:              { mod: 'healthy',   label: 'Active' },
+  SUSPENDED:           { mod: 'suspended', label: 'Suspended' },
+  ARCHIVED:            { mod: 'archived',  label: 'Archived' },
+  PENDING_VERIFICATION:{ mod: 'pending',   label: 'Pending' },
+  PENDING:             { mod: 'pending',   label: 'Pending' },
+  APPROVED:            { mod: 'healthy',   label: 'Approved' },
+  REJECTED:            { mod: 'failed',    label: 'Rejected' },
+  QUEUED:              { mod: 'queued',    label: 'Queued' },
+  VALIDATING:          { mod: 'building',  label: 'Validating' },
+  BUILDING:            { mod: 'building',  label: 'Building' },
+  DEPLOYING:           { mod: 'deploying', label: 'Deploying' },
+  HEALTHY:             { mod: 'healthy',   label: 'Healthy' },
+  FAILED:              { mod: 'failed',    label: 'Failed' },
+  CANCELLED:           { mod: 'stopped',   label: 'Cancelled' },
+  ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back' },
+};
+const { mod, label } = STATUS_MAP[status] || { mod: 'draft', label: status };
+%>
+<span class="status-badge status-badge--<%= mod %>"><%= label %></span>

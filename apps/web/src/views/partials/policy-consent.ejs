@@ -1,0 +1,25 @@
+<%
+  const _error = typeof error !== 'undefined' ? error : null;
+%>
+<div class="form-field">
+  <div class="checkbox-field<% if (_error) { %> checkbox-field--error<% } %>">
+    <input
+      type="checkbox"
+      id="acceptTerms"
+      name="acceptTerms"
+      value="1"
+      class="checkbox-input"
+      aria-required="true"
+      <% if (_error) { %>aria-describedby="acceptTerms-error"<% } %>
+    />
+    <label for="acceptTerms" class="checkbox-label">
+      I agree to the
+      <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>,
+      <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>, and
+      <a href="/acceptable-use" target="_blank" rel="noopener noreferrer">Acceptable Use Policy</a>.
+    </label>
+  </div>
+  <% if (_error) { %>
+  <p class="form-error" id="acceptTerms-error" role="alert"><%= _error %></p>
+  <% } %>
+</div>

@@ -1,0 +1,47 @@
+import { redactObject } from '@hellodeploy/security';
+
+// Patterns that must never appear in stored deployment logs
+const REDACT_PATTERNS = [
+  // GitHub tokens
+  /ghp_[A-Za-z0-9]{36}/g,
+  /ghs_[A-Za-z0-9]{36}/g,
+  /ghu_[A-Za-z0-9]{36}/g,
+  // Generic bearer/token patterns
+  /Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi,
+  /x-access-token:[^@\s]*/gi,
+  // npm tokens
+  /npm_[A-Za-z0-9]{36}/g,
+  // Generic secrets (key=value format)
+  /(?:password|secret|token|key|credential)=[^\s&]*/gi,
+];
+
+/**
+ * Redact known secret patterns from a log line before storage.
+ * Lines are capped at 2000 chars to prevent log bloat.
+ *
+ * @param {string} line
+ * @returns {string}
+ */
+export function redactLogLine(line) {
+  let redacted = line;
+  for (const pattern of REDACT_PATTERNS) {
+    redacted = redacted.replace(pattern, '[REDACTED]');
+  }
+  return redacted.slice(0, 2000);
+}
+
+/**
+ * Split a buffer from child process output into individual lines,
+ * redact each, and return the array.
+ *
+ * @param {Buffer} buffer
+ * @returns {string[]}
+ */
+export function processOutputLines(buffer) {
+  return buffer
+    .toString('utf8')
+    .split('\n')
+    .map((l) => l.trimEnd())
+    .filter(Boolean)
+    .map(redactLogLine);
+}

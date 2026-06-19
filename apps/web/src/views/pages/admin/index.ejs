@@ -1,0 +1,49 @@
+<div class="page-header">
+  <h1 class="page-header__title">Admin Overview</h1>
+</div>
+
+<div class="stats-grid mb-6">
+  <div class="stat-card">
+    <span class="stat-card__value"><%= stats.totalUsers %></span>
+    <span class="stat-card__label">Total Users</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-card__value"><%= stats.activeUsers %></span>
+    <span class="stat-card__label">Active Users</span>
+  </div>
+  <div class="stat-card">
+    <span class="stat-card__value"><%= stats.totalProjects %></span>
+    <span class="stat-card__label">Active Projects</span>
+  </div>
+  <div class="stat-card<%= stats.pendingApprovals > 0 ? ' stat-card--alert' : '' %>">
+    <span class="stat-card__value"><%= stats.pendingApprovals %></span>
+    <span class="stat-card__label">Pending Reviews</span>
+  </div>
+  <% if (server?.running !== null && server?.running !== undefined) { %>
+  <div class="stat-card">
+    <span class="stat-card__value"><%= server.running %></span>
+    <span class="stat-card__label">Running Containers</span>
+  </div>
+  <% } %>
+  <% if (server?.memory) { %>
+  <div class="stat-card<%= server.memory.usedPercent > 85 ? ' stat-card--alert' : '' %>">
+    <span class="stat-card__value"><%= server.memory.usedPercent %>%</span>
+    <span class="stat-card__label">Memory Used</span>
+  </div>
+  <% } %>
+</div>
+
+<div class="quick-links mt-4">
+  <a href="/admin/users" class="button button--secondary">Manage Users</a>
+  <a href="/admin/projects" class="button button--secondary">Manage Projects</a>
+  <a href="/admin/domains" class="button button--secondary">Domain Queue</a>
+  <a href="/admin/server" class="button button--secondary">Server &amp; Queue</a>
+  <a href="/admin/audit-events" class="button button--secondary">Audit Log</a>
+  <% if (stats.pendingApprovals > 0) { %>
+  <a href="/admin/approval-requests" class="button button--primary">
+    Review Requests (<%= stats.pendingApprovals %>)
+  </a>
+  <% } else { %>
+  <a href="/admin/approval-requests" class="button button--secondary">Approval Requests</a>
+  <% } %>
+</div>

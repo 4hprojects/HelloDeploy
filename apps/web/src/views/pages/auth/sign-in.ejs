@@ -1,0 +1,69 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Sign In</h1>
+  <p class="auth-form__subtitle">New to HelloDeploy? <a href="/auth/create-account">Create Account</a></p>
+
+  <% if (typeof success !== 'undefined' && success) { %>
+  <div class="alert alert--success mt-4" role="status">
+    <%= success %>
+  </div>
+  <% } %>
+
+  <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
+
+  <% if (typeof needsVerification !== 'undefined' && needsVerification) { %>
+  <div class="alert alert--info mt-4" role="alert">
+    Please verify your email before signing in.
+    <form method="POST" action="/auth/verify-email/resend" class="inline-form">
+      <%- include('../../partials/csrf-field') %>
+      <input type="hidden" name="email" value="<%= typeof verificationEmail !== 'undefined' ? verificationEmail : '' %>" />
+      <button type="submit" class="button button--ghost button--sm">Resend verification email</button>
+    </form>
+  </div>
+  <% } %>
+
+  <form method="POST" action="/auth/sign-in" novalidate id="sign-in-form">
+    <%- include('../../partials/csrf-field') %>
+    <input type="hidden" name="returnTo" value="<%= typeof returnTo !== 'undefined' ? returnTo : '' %>" />
+
+    <%- include('../../partials/form-field', {
+      fieldId: 'email',
+      label: 'Email Address',
+      type: 'email',
+      name: 'email',
+      value: typeof values !== 'undefined' ? values.email : '',
+      autocomplete: 'email',
+      required: true,
+      error: typeof errors !== 'undefined' ? errors.email : null
+    }) %>
+
+    <%- include('../../partials/password-field', {
+      fieldId: 'password',
+      fieldName: 'password',
+      label: 'Password',
+      required: true,
+      autocomplete: 'current-password',
+      error: typeof errors !== 'undefined' ? errors.password : null
+    }) %>
+
+    <div class="form-row form-row--between mt-4">
+      <div></div>
+      <a href="/auth/forgot-password" class="form-link">Forgot Password?</a>
+    </div>
+
+    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
+      Sign In
+    </button>
+  </form>
+</div>
+
+<script>
+  (function () {
+    const form = document.getElementById('sign-in-form');
+    const btn = document.getElementById('submit-btn');
+    if (!form || !btn) return;
+    form.addEventListener('submit', function () {
+      btn.disabled = true;
+      btn.textContent = 'Signing in…';
+    });
+  })();
+</script>
