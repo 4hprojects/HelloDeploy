@@ -1,4 +1,5 @@
 import { PlatformRole } from '@hellodeploy/contracts';
+import { env } from '../config/env.js';
 import {
   registerUser,
   verifyEmail,
@@ -19,7 +20,7 @@ import {
 // ─── Turnstile verification ────────────────────────────────────────────────────
 
 async function verifyTurnstile(token, sourceIp) {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const secret = env.TURNSTILE_SECRET_KEY;
   if (!secret) {
     // Skip in development when no key is configured
     return true;

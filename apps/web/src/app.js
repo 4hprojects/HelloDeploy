@@ -14,7 +14,9 @@ import projectRoutes from './routes/pages/project.routes.js';
 import adminRoutes from './routes/pages/admin.routes.js';
 import githubRoutes from './routes/pages/github.routes.js';
 import webhookRoutes from './routes/api/webhook.routes.js';
+import helmet from 'helmet';
 import { getDashboard } from './controllers/dashboard.controller.js';
+import { logger } from '@hellodeploy/observability';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +25,10 @@ export function createApp() {
 
   // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare)
   app.set('trust proxy', 1);
+
+  // Security headers — CSP is disabled because inline scripts are used throughout
+  // the templates; enabling it requires adding per-request nonces first.
+  app.use(helmet({ contentSecurityPolicy: false }));
 
   // View engine
   app.set('view engine', 'ejs');
@@ -72,7 +78,14 @@ export function createApp() {
     res.status(404).render('pages/404', { title: 'Page Not Found', layout: 'layouts/main' });
   });
 
-  app.use((err, _req, res, _next) => {
+  app.use((err, req, res, _next) => {
+    logger.error('[web] Unhandled error', {
+      message: err.message,
+      stack: err.stack,
+      correlationId: req.correlationId,
+      method: req.method,
+      url: req.originalUrl,
+    });
     res.status(500).render('pages/error', {
       title: 'Something Went Wrong',
       layout: 'layouts/main',

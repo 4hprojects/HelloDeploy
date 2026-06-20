@@ -1,5 +1,5 @@
 import { ProjectRole } from '@hellodeploy/contracts';
-import { Repository } from '@hellodeploy/database';
+import { Deployment, Repository } from '@hellodeploy/database';
 import { getDeployments } from '../services/deployment.service.js';
 import {
   createProject,
@@ -78,9 +78,12 @@ export async function getProject(req, res) {
 
   if (project.repositoryId) {
     repository = await Repository.findById(project.repositoryId).lean();
-    // Show indicator when the latest pushed commit differs from what was last deployed
     if (repository?.lastCommitSha && project.activeDeploymentId) {
-      newCommitAvailable = true;
+      const activeDeployment = await Deployment.findById(
+        project.activeDeploymentId,
+        'commitSha',
+      ).lean();
+      newCommitAvailable = activeDeployment?.commitSha !== repository.lastCommitSha;
     }
   }
 

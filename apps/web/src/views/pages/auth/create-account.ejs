@@ -72,7 +72,7 @@
     }) %>
 
     <%# Cloudflare Turnstile widget placeholder (rendered by Turnstile JS) %>
-    <div class="cf-turnstile mt-4" data-sitekey="<%= process.env.TURNSTILE_SITE_KEY || '' %>"></div>
+    <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>"></div>
 
     <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
       Create Account

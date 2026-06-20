@@ -11,19 +11,21 @@
   },
   "dependencies": {
     "@hellodeploy/auth": "*",
-    "@hellodeploy/deployment-core": "*",
-    "@hellodeploy/queue": "*",
     "@hellodeploy/contracts": "*",
     "@hellodeploy/database": "*",
+    "@hellodeploy/deployment-core": "*",
     "@hellodeploy/observability": "*",
+    "@hellodeploy/queue": "*",
     "@hellodeploy/security": "*",
     "connect-mongo": "^5.1.0",
     "dotenv": "^16.4.7",
     "ejs": "^3.1.10",
     "express": "^4.21.2",
     "express-ejs-layouts": "^2.5.1",
-    "express-rate-limit": "^7.5.0",
+    "express-rate-limit": "^8.5.2",
     "express-session": "^1.18.1",
+    "helmet": "^8.2.0",
+    "rate-limit-redis": "^5.0.0",
     "resend": "^4.5.1"
   }
 }

@@ -51,6 +51,7 @@ import {
 const router = Router();
 
 const anyRole = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER, ProjectRole.VIEWER);
+const ownerOrMaintainer = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER);
 const ownerOnly = requireProjectRole(ProjectRole.OWNER);
 
 // Project list and creation
@@ -86,12 +87,12 @@ router.post('/:slug/detection', requireAuth, ownerOnly, postRunDetection);
 
 // Deployments
 router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);
-router.post('/:slug/deployments', requireAuth, ownerOnly, postCreateDeployment);
-router.post('/:slug/rollback', requireAuth, ownerOnly, postRollback);
+router.post('/:slug/deployments', requireAuth, ownerOrMaintainer, postCreateDeployment);
+router.post('/:slug/rollback', requireAuth, ownerOrMaintainer, postRollback);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);
 router.get('/:slug/deployments/:deploymentId/logs', requireAuth, anyRole, sseDeploymentLogs);
-router.post('/:slug/deployments/:deploymentId/cancel', requireAuth, ownerOnly, postCancelDeployment);
-router.post('/:slug/deployments/:deploymentId/retry', requireAuth, ownerOnly, postRetryDeployment);
+router.post('/:slug/deployments/:deploymentId/cancel', requireAuth, ownerOrMaintainer, postCancelDeployment);
+router.post('/:slug/deployments/:deploymentId/retry', requireAuth, ownerOrMaintainer, postRetryDeployment);
 
 // Environment secrets
 router.get('/:slug/environment', requireAuth, ownerOnly, getEnvironment);

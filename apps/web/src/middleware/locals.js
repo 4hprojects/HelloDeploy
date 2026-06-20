@@ -5,10 +5,13 @@
  * - flash: One-time messages, cleared after read
  * - currentPath: For active nav link detection
  */
+import { env } from '../config/env.js';
+
 export function localsMiddleware(req, res, next) {
   res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
   res.locals.user = req.session?.user ?? null;
   res.locals.currentPath = req.path;
+  res.locals.turnstileSiteKey = env.TURNSTILE_SITE_KEY;
 
   // Consume flash messages — read once and clear
   res.locals.flash = req.session?.flash ?? {};

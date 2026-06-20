@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'crypto';
 import { generateRawToken } from '@hellodeploy/security';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
@@ -27,7 +28,15 @@ export function csrfMiddleware(req, res, next) {
   const sessionToken = req.session?.csrfToken;
   const submittedToken = req.body?._csrf ?? req.headers['x-csrf-token'];
 
-  if (!sessionToken || !submittedToken || sessionToken !== submittedToken) {
+  const sessionBuf = sessionToken ? Buffer.from(sessionToken) : null;
+  const submittedBuf = submittedToken ? Buffer.from(submittedToken) : null;
+  const tokensMatch =
+    sessionBuf &&
+    submittedBuf &&
+    sessionBuf.length === submittedBuf.length &&
+    timingSafeEqual(sessionBuf, submittedBuf);
+
+  if (!tokensMatch) {
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',

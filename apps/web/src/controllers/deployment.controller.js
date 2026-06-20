@@ -154,9 +154,12 @@ export async function sseDeploymentLogs(req, res) {
 
   let lastId = null;
   let closed = false;
+  let poll = null;
 
-  const cleanup = () => { closed = true; };
-  req.on('close', cleanup);
+  req.on('close', () => {
+    closed = true;
+    if (poll) clearInterval(poll);
+  });
 
   const sendEvent = (eventType, data) => {
     if (closed) return;
@@ -188,7 +191,7 @@ export async function sseDeploymentLogs(req, res) {
   // Poll for new events
   const deadline = Date.now() + SSE_MAX_DURATION_MS;
 
-  const poll = setInterval(async () => {
+  poll = setInterval(async () => {
     if (closed || Date.now() > deadline) {
       clearInterval(poll);
       if (!closed) {
@@ -227,8 +230,4 @@ export async function sseDeploymentLogs(req, res) {
     }
   }, SSE_POLL_INTERVAL_MS);
 
-  req.on('close', () => {
-    clearInterval(poll);
-    closed = true;
-  });
 }
