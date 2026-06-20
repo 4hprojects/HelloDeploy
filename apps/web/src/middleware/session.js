@@ -17,7 +17,7 @@ export function createSessionMiddleware() {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
     store: MongoStore.create({
-      mongooseConnection: mongoose.connection,
+      client: mongoose.connection.getClient(),
       collectionName: 'sessions',
       ttl: 24 * 60 * 60, // 24 hours in seconds
       autoRemove: 'interval',
