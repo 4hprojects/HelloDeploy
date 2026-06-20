@@ -11,17 +11,17 @@ import {
   postEditProject,
   postArchiveProject,
   postSubmitForReview,
-  getProjectMembers_ctrl,
+  getProjectMembersPage,
   postInviteMember,
   postRemoveMember,
   postUpdateMemberRole,
   postTransferOwnership,
+  postUpdateDeploymentMode,
 } from '../../controllers/project.controller.js';
 import {
   getRepository,
   postConnectRepository,
   postDisconnectRepository,
-  postUpdateDeploymentMode,
 } from '../../controllers/github.controller.js';
 import {
   getDetection,
@@ -67,7 +67,7 @@ router.post('/:slug/archive', requireAuth, ownerOnly, postArchiveProject);
 router.post('/:slug/submit-review', requireAuth, ownerOnly, postSubmitForReview);
 
 // Members
-router.get('/:slug/members', requireAuth, ownerOnly, getProjectMembers_ctrl);
+router.get('/:slug/members', requireAuth, ownerOnly, getProjectMembersPage);
 router.post('/:slug/members/invite', requireAuth, ownerOnly, postInviteMember);
 router.post('/:slug/members/:userId/remove', requireAuth, ownerOnly, postRemoveMember);
 router.post('/:slug/members/:userId/role', requireAuth, ownerOnly, postUpdateMemberRole);

@@ -1,5 +1,5 @@
 import { User, Project, Repository } from '@hellodeploy/database';
-import { DeploymentMode, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
+import { AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import {
@@ -317,43 +317,4 @@ export async function getBranches(req, res) {
   } catch (err) {
     res.status(500).json({ error: 'Could not load branches' });
   }
-}
-
-// ─── Deployment mode ──────────────────────────────────────────────────────────
-
-/**
- * Update the project deployment mode (MANUAL / AUTOMATIC / APPROVAL_REQUIRED).
- * POST /projects/:slug/deployment-mode
- */
-export async function postUpdateDeploymentMode(req, res) {
-  const project = req.project;
-  const { deploymentMode } = req.body;
-  const allowed = Object.values(DeploymentMode);
-
-  if (!allowed.includes(deploymentMode)) {
-    req.flash('error', 'Invalid deployment mode.');
-    return res.redirect(`/projects/${project.slug}`);
-  }
-
-  // AUTOMATIC requires the project to be ACTIVE (approved)
-  if (deploymentMode === DeploymentMode.AUTOMATIC && project.status !== ProjectStatus.ACTIVE) {
-    req.flash('error', 'Automatic deployment can only be enabled for approved projects.');
-    return res.redirect(`/projects/${project.slug}`);
-  }
-
-  await Project.updateOne({ _id: project._id }, { $set: { deploymentMode } });
-
-  await writeAuditEvent({
-    action: 'project.deployment_mode_updated',
-    outcome: AuditOutcome.SUCCESS,
-    actorId: req.session.user.id,
-    targetType: 'project',
-    targetId: project._id.toString(),
-    sourceIp: req.ip,
-    correlationId: req.correlationId,
-    metadata: { deploymentMode },
-  });
-
-  req.flash('success', `Deployment mode set to ${deploymentMode.toLowerCase().replace('_', ' ')}.`);
-  res.redirect(`/projects/${project.slug}`);
 }

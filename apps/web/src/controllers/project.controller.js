@@ -1,5 +1,6 @@
-import { ProjectRole } from '@hellodeploy/contracts';
-import { Deployment, Repository } from '@hellodeploy/database';
+import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
+import { Deployment, Project, Repository } from '@hellodeploy/database';
+import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
 import {
   createProject,
@@ -183,7 +184,7 @@ export async function postSubmitForReview(req, res) {
 
 // ─── Members ───────────────────────────────────────────────────────────────────
 
-export async function getProjectMembers_ctrl(req, res) {
+export async function getProjectMembersPage(req, res) {
   const members = await getProjectMembers(req.project._id);
   res.render('pages/projects/members', {
     title: `Members – ${req.project.name}`,
@@ -297,4 +298,38 @@ export async function postTransferOwnership(req, res) {
   }
 
   res.redirect(`/projects/${req.project.slug}/members`);
+}
+
+// ─── Deployment mode ───────────────────────────────────────────────────────────
+
+export async function postUpdateDeploymentMode(req, res) {
+  const project = req.project;
+  const { deploymentMode } = req.body;
+  const allowed = Object.values(DeploymentMode);
+
+  if (!allowed.includes(deploymentMode)) {
+    req.flash('error', 'Invalid deployment mode.');
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  if (deploymentMode === DeploymentMode.AUTOMATIC && project.status !== ProjectStatus.ACTIVE) {
+    req.flash('error', 'Automatic deployment can only be enabled for approved projects.');
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  await Project.updateOne({ _id: project._id }, { $set: { deploymentMode } });
+
+  await writeAuditEvent({
+    action: 'project.deployment_mode_updated',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { deploymentMode },
+  });
+
+  req.flash('success', `Deployment mode set to ${deploymentMode.toLowerCase().replace('_', ' ')}.`);
+  res.redirect(`/projects/${project.slug}`);
 }

@@ -1,5 +1,6 @@
 import session from 'express-session';
 import MongoStore from 'connect-mongo';
+import { mongoose } from '@hellodeploy/database';
 import { env } from '../config/env.js';
 
 export function createSessionMiddleware() {
@@ -16,7 +17,7 @@ export function createSessionMiddleware() {
       maxAge: 24 * 60 * 60 * 1000, // 24 hours
     },
     store: MongoStore.create({
-      mongoUrl: env.MONGODB_URI,
+      mongooseConnection: mongoose.connection,
       collectionName: 'sessions',
       ttl: 24 * 60 * 60, // 24 hours in seconds
       autoRemove: 'interval',
