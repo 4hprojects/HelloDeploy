@@ -1,4 +1,4 @@
-import { readdir, stat, rm, unlink } from 'node:fs/promises';
+import { readdir, stat, rm, unlink, realpath } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 
@@ -62,10 +62,29 @@ async function getDirectorySize(dir, depth = 0) {
 export async function prepareBuildContext(contextDir) {
   const resolvedRoot = resolve(contextDir);
 
-  // ── Validate all filenames in the top two levels ──────────────────────────
+  // ── Validate all top-level filenames and remove unsafe entries ───────────
   const topEntries = await readdir(resolvedRoot, { withFileTypes: true });
   for (const entry of topEntries) {
     assertInsideRoot(resolvedRoot, entry.name);
+
+    // path.resolve() does not follow symlinks — verify the real target is inside
+    // the root so a symlink pointing to /etc (or similar) cannot expose host files
+    // to the Docker build context.
+    if (entry.isSymbolicLink()) {
+      const entryPath = join(resolvedRoot, entry.name);
+      try {
+        const realTarget = await realpath(entryPath);
+        const rel = relative(resolvedRoot, realTarget);
+        if (rel.startsWith('..')) {
+          await unlink(entryPath);
+          logger.warn('BuildContext: removed symlink escaping context root', { name: entry.name });
+        }
+      } catch {
+        // Broken (dangling) symlink — remove it
+        await unlink(entryPath);
+        logger.warn('BuildContext: removed broken symlink', { name: entry.name });
+      }
+    }
   }
 
   // ── Remove forbidden files ─────────────────────────────────────────────────
