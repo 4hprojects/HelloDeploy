@@ -1,6 +1,7 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { listSecretNames, setSecret, deleteSecret } from '../services/env-secret.service.js';
 
-export async function getEnvironment(req, res) {
+export const getEnvironment = asyncHandler(async (req, res) => {
   const project = req.project;
   const secrets = await listSecretNames(project._id);
 
@@ -12,9 +13,9 @@ export async function getEnvironment(req, res) {
     errors: {},
     values: {},
   });
-}
+});
 
-export async function postSetSecret(req, res) {
+export const postSetSecret = asyncHandler(async (req, res) => {
   const project = req.project;
   const { name, value } = req.body;
 
@@ -37,9 +38,9 @@ export async function postSetSecret(req, res) {
 
   req.flash('success', `Secret ${name.trim().toUpperCase()} saved.`);
   res.redirect(`/projects/${project.slug}/environment`);
-}
+});
 
-export async function postDeleteSecret(req, res) {
+export const postDeleteSecret = asyncHandler(async (req, res) => {
   const project = req.project;
   const { name } = req.params;
 
@@ -55,4 +56,4 @@ export async function postDeleteSecret(req, res) {
   }
 
   res.redirect(`/projects/${project.slug}/environment`);
-}
+});

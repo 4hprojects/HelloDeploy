@@ -82,6 +82,10 @@ if [[ -f /etc/nginx/conf.d/hellodeploy.conf ]]; then
   rm -f /etc/nginx/conf.d/hellodeploy.conf
   info "Removed /etc/nginx/conf.d/hellodeploy.conf"
 fi
+if [[ -f /etc/nginx/conf.d/hellodeploy-platform.conf ]]; then
+  rm -f /etc/nginx/conf.d/hellodeploy-platform.conf
+  info "Removed /etc/nginx/conf.d/hellodeploy-platform.conf"
+fi
 nginx -t 2>/dev/null && nginx -s reload 2>/dev/null || warn "Nginx reload failed — check config manually"
 
 # ─── stop and remove containers ──────────────────────────────────────────────

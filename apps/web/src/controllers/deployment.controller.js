@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
@@ -11,7 +12,7 @@ import {
   getDeploymentEvents,
 } from '../services/deployment.service.js';
 
-export async function getDeploymentList(req, res) {
+export const getDeploymentList = asyncHandler(async (req, res) => {
   const project = req.project;
   const deployments = await getDeployments(project._id);
 
@@ -29,9 +30,9 @@ export async function getDeploymentList(req, res) {
     deployments,
     rollbackTargets,
   });
-}
+});
 
-export async function getDeploymentDetail(req, res) {
+export const getDeploymentDetail = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
@@ -49,9 +50,9 @@ export async function getDeploymentDetail(req, res) {
     deployment,
     events,
   });
-}
+});
 
-export async function postCreateDeployment(req, res) {
+export const postCreateDeployment = asyncHandler(async (req, res) => {
   const project = req.project;
   const { noCache } = req.body;
 
@@ -71,9 +72,9 @@ export async function postCreateDeployment(req, res) {
 
   req.flash('success', `Deployment #${result.deployment.sequenceNumber} queued.`);
   res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
-}
+});
 
-export async function postCancelDeployment(req, res) {
+export const postCancelDeployment = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
@@ -89,9 +90,9 @@ export async function postCancelDeployment(req, res) {
   }
 
   res.redirect(`/projects/${project.slug}/deployments`);
-}
+});
 
-export async function postRetryDeployment(req, res) {
+export const postRetryDeployment = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
@@ -107,9 +108,9 @@ export async function postRetryDeployment(req, res) {
 
   req.flash('success', `Retry deployment #${result.deployment.sequenceNumber} queued.`);
   res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
-}
+});
 
-export async function postRollback(req, res) {
+export const postRollback = asyncHandler(async (req, res) => {
   const { targetDeploymentId } = req.body;
   const project = req.project;
 
@@ -130,14 +131,14 @@ export async function postRollback(req, res) {
 
   req.flash('success', 'Rollback initiated.');
   res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
-}
+});
 
 // ─── SSE: live deployment log stream ─────────────────────────────────────────
 
 const SSE_MAX_DURATION_MS = 6 * 60 * 1000; // 6 minutes
 const SSE_POLL_INTERVAL_MS = 1_500;
 
-export async function sseDeploymentLogs(req, res) {
+export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
@@ -230,4 +231,4 @@ export async function sseDeploymentLogs(req, res) {
     }
   }, SSE_POLL_INTERVAL_MS);
 
-}
+});

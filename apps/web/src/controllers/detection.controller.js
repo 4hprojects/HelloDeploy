@@ -1,7 +1,8 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { Project, Repository } from '@hellodeploy/database';
 import { runProjectDetection } from '../services/detection.service.js';
 
-export async function getDetection(req, res) {
+export const getDetection = asyncHandler(async (req, res) => {
   const project = req.project;
 
   let repo = null;
@@ -16,9 +17,9 @@ export async function getDetection(req, res) {
     repo,
     detectionResult: null,
   });
-}
+});
 
-export async function postRunDetection(req, res) {
+export const postRunDetection = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const result = await runProjectDetection(project._id.toString(), req.session.user.id, {
@@ -40,4 +41,4 @@ export async function postRunDetection(req, res) {
     repo,
     detectionResult: result,
   });
-}
+});

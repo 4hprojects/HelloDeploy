@@ -1,5 +1,6 @@
 import { timingSafeEqual } from 'crypto';
 import { generateRawToken } from '@hellodeploy/security';
+import { logger } from '@hellodeploy/observability';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
@@ -37,6 +38,18 @@ export function csrfMiddleware(req, res, next) {
     timingSafeEqual(sessionBuf, submittedBuf);
 
   if (!tokensMatch) {
+    logger.warn('CSRF validation failed', {
+      correlationId: req.correlationId,
+      method: req.method,
+      path: req.originalUrl,
+      secureRequest: req.secure,
+      forwardedProto: req.headers['x-forwarded-proto'],
+      hasSessionCookie: Boolean(req.headers.cookie),
+      hasSessionToken: Boolean(sessionToken),
+      hasSubmittedToken: Boolean(submittedToken),
+    });
+
+
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',

@@ -18,6 +18,7 @@ const STATUS_MAP = {
   CANCELLED:           { mod: 'stopped',   label: 'Cancelled' },
   ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back' },
 };
-const { mod, label } = STATUS_MAP[status] || { mod: 'draft', label: status };
+const _status = typeof status !== 'undefined' ? status : '';
+const { mod, label } = STATUS_MAP[_status] || { mod: 'draft', label: _status };
 %>
 <span class="status-badge status-badge--<%= mod %>"><%= label %></span>

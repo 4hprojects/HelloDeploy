@@ -33,7 +33,7 @@
       <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
         <% rollbackTargets.forEach(d => { %>
         <option value="<%= d._id %>">
-          #<%= d.sequenceNumber %> — <%= d.commitSha.slice(0, 7) %>
+          #<%= d.sequenceNumber %> — <%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %>
           <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
         </option>
         <% }) %>
@@ -82,7 +82,7 @@
           </td>
           <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
           <td>
-            <code class="code-inline"><%= d.commitSha.slice(0, 7) %></code>
+            <code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code>
             <% if (d.commitMessage) { %>
               <span class="text-muted text-sm d-block"><%= d.commitMessage.slice(0, 60) %></span>
             <% } %>

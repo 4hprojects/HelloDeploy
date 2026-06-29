@@ -77,6 +77,10 @@ fi
 section "Dependencies"
 sudo -u "$HD_USER" npm install --omit=dev
 
+# Refresh the platform ingress so proxy/security changes apply to existing installs.
+bash infrastructure/nginx/render-platform-ingress.sh "$HD_HOME/.env"
+info "Platform ingress refreshed."
+
 # ─── restart services ────────────────────────────────────────────────────────
 
 section "Restarting services"

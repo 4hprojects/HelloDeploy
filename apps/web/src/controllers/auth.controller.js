@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { PlatformRole } from '@hellodeploy/contracts';
 import { env } from '../config/env.js';
 import {
@@ -73,7 +74,7 @@ export function getCreateAccount(req, res) {
   res.render('pages/auth/create-account', authRenderOpts({ title: 'Create Account' }));
 }
 
-export async function postCreateAccount(req, res) {
+export const postCreateAccount = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateRegistration(req.body);
 
   if (hasErrors) {
@@ -123,11 +124,11 @@ export async function postCreateAccount(req, res) {
 
   // Always show "check your email" — never confirm or deny whether email exists
   res.redirect('/auth/verify-email?submitted=1');
-}
+});
 
 // ─── Verify Email ──────────────────────────────────────────────────────────────
 
-export async function getVerifyEmail(req, res) {
+export const getVerifyEmail = asyncHandler(async (req, res) => {
   const { token, submitted, resent } = req.query;
 
   if (submitted) {
@@ -163,9 +164,9 @@ export async function getVerifyEmail(req, res) {
 
   req.flash('success', 'Email verified. Welcome to HelloDeploy!');
   res.redirect('/auth/sign-in');
-}
+});
 
-export async function postResendVerification(req, res) {
+export const postResendVerification = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
   if (email) {
@@ -177,7 +178,7 @@ export async function postResendVerification(req, res) {
   }
 
   res.redirect('/auth/verify-email?resent=1');
-}
+});
 
 // ─── Sign In ───────────────────────────────────────────────────────────────────
 
@@ -189,7 +190,7 @@ export function getSignIn(req, res) {
   res.render('pages/auth/sign-in', authRenderOpts({ title: 'Sign In', success: flashSuccess }));
 }
 
-export async function postSignIn(req, res) {
+export const postSignIn = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateSignIn(req.body);
 
   if (hasErrors) {
@@ -240,7 +241,7 @@ export async function postSignIn(req, res) {
       res.redirect(safeRedirect(req, redirectByRole(sessionUser.platformRole)));
     });
   });
-}
+});
 
 // ─── Sign Out ──────────────────────────────────────────────────────────────────
 
@@ -257,7 +258,7 @@ export function getForgotPassword(req, res) {
   res.render('pages/auth/forgot-password', authRenderOpts({ title: 'Forgot Password' }));
 }
 
-export async function postForgotPassword(req, res) {
+export const postForgotPassword = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateForgotPassword(req.body);
 
   if (hasErrors) {
@@ -278,7 +279,7 @@ export async function postForgotPassword(req, res) {
   req.session.save(() => {
     res.redirect('/auth/verify-reset-code');
   });
-}
+});
 
 // ─── Verify Reset Code ─────────────────────────────────────────────────────────
 
@@ -289,7 +290,7 @@ export function getVerifyResetCode(req, res) {
   res.render('pages/auth/verify-reset-code', authRenderOpts({ title: 'Verify Reset Code' }));
 }
 
-export async function postVerifyResetCode(req, res) {
+export const postVerifyResetCode = asyncHandler(async (req, res) => {
   if (!req.session?.passwordResetEmail) {
     return res.redirect('/auth/forgot-password');
   }
@@ -321,7 +322,7 @@ export async function postVerifyResetCode(req, res) {
   req.session.save(() => {
     res.redirect('/auth/new-password');
   });
-}
+});
 
 // ─── New Password ──────────────────────────────────────────────────────────────
 
@@ -332,7 +333,7 @@ export function getNewPassword(req, res) {
   res.render('pages/auth/new-password', authRenderOpts({ title: 'New Password' }));
 }
 
-export async function postNewPassword(req, res) {
+export const postNewPassword = asyncHandler(async (req, res) => {
   if (!req.session?.passwordResetEmail || !req.session?.passwordResetVerified) {
     return res.redirect('/auth/forgot-password');
   }
@@ -364,4 +365,4 @@ export async function postNewPassword(req, res) {
   req.session.save(() => {
     res.redirect('/auth/sign-in');
   });
-}
+});

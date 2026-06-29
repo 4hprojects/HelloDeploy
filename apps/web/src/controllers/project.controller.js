@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
 import { Deployment, Project, Repository } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -22,13 +23,13 @@ import {
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
-export async function getProjectIndex(req, res) {
+export const getProjectIndex = asyncHandler(async (req, res) => {
   const userProjects = await getUserProjects(req.session.user.id);
   res.render('pages/projects/index', {
     title: 'Projects',
     projects: userProjects,
   });
-}
+});
 
 // ─── New project ───────────────────────────────────────────────────────────────
 
@@ -40,7 +41,7 @@ export function getNewProject(req, res) {
   });
 }
 
-export async function postNewProject(req, res) {
+export const postNewProject = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateCreateProject(req.body);
 
   if (hasErrors) {
@@ -68,11 +69,11 @@ export async function postNewProject(req, res) {
 
   req.flash('success', `Project "${result.project.name}" created.`);
   res.redirect(`/projects/${result.project.slug}`);
-}
+});
 
 // ─── Show project ──────────────────────────────────────────────────────────────
 
-export async function getProject(req, res) {
+export const getProject = asyncHandler(async (req, res) => {
   const project = req.project;
   let repository = null;
   let newCommitAvailable = false;
@@ -98,7 +99,7 @@ export async function getProject(req, res) {
     newCommitAvailable,
     deployments,
   });
-}
+});
 
 // ─── Edit project ──────────────────────────────────────────────────────────────
 
@@ -111,7 +112,7 @@ export function getEditProject(req, res) {
   });
 }
 
-export async function postEditProject(req, res) {
+export const postEditProject = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateUpdateProject(req.body);
 
   if (hasErrors) {
@@ -142,11 +143,11 @@ export async function postEditProject(req, res) {
 
   req.flash('success', 'Project settings saved.');
   res.redirect(`/projects/${req.project.slug}`);
-}
+});
 
 // ─── Archive project ───────────────────────────────────────────────────────────
 
-export async function postArchiveProject(req, res) {
+export const postArchiveProject = asyncHandler(async (req, res) => {
   const result = await archiveProject({
     projectId: req.project._id,
     actorId: req.session.user.id,
@@ -161,11 +162,11 @@ export async function postArchiveProject(req, res) {
 
   req.flash('success', `Project "${req.project.name}" has been archived.`);
   res.redirect('/projects');
-}
+});
 
 // ─── Submit for review ─────────────────────────────────────────────────────────
 
-export async function postSubmitForReview(req, res) {
+export const postSubmitForReview = asyncHandler(async (req, res) => {
   const result = await submitForReview({
     projectId: req.project._id,
     actorId: req.session.user.id,
@@ -180,11 +181,11 @@ export async function postSubmitForReview(req, res) {
   }
 
   res.redirect(`/projects/${req.project.slug}`);
-}
+});
 
 // ─── Members ───────────────────────────────────────────────────────────────────
 
-export async function getProjectMembersPage(req, res) {
+export const getProjectMembersPage = asyncHandler(async (req, res) => {
   const members = await getProjectMembers(req.project._id);
   res.render('pages/projects/members', {
     title: `Members – ${req.project.name}`,
@@ -194,9 +195,9 @@ export async function getProjectMembersPage(req, res) {
     errors: {},
     values: { email: '', role: '' },
   });
-}
+});
 
-export async function postInviteMember(req, res) {
+export const postInviteMember = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateInviteMember(req.body);
 
   if (hasErrors) {
@@ -235,9 +236,9 @@ export async function postInviteMember(req, res) {
 
   req.flash('success', 'Member added successfully.');
   res.redirect(`/projects/${req.project.slug}/members`);
-}
+});
 
-export async function postRemoveMember(req, res) {
+export const postRemoveMember = asyncHandler(async (req, res) => {
   const result = await removeMember({
     projectId: req.project._id,
     userId: req.params.userId,
@@ -253,9 +254,9 @@ export async function postRemoveMember(req, res) {
   }
 
   res.redirect(`/projects/${req.project.slug}/members`);
-}
+});
 
-export async function postUpdateMemberRole(req, res) {
+export const postUpdateMemberRole = asyncHandler(async (req, res) => {
   const { role } = req.body;
   const allowed = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
 
@@ -280,9 +281,9 @@ export async function postUpdateMemberRole(req, res) {
   }
 
   res.redirect(`/projects/${req.project.slug}/members`);
-}
+});
 
-export async function postTransferOwnership(req, res) {
+export const postTransferOwnership = asyncHandler(async (req, res) => {
   const result = await transferOwnership({
     projectId: req.project._id,
     newOwnerId: req.body.newOwnerId,
@@ -298,11 +299,11 @@ export async function postTransferOwnership(req, res) {
   }
 
   res.redirect(`/projects/${req.project.slug}/members`);
-}
+});
 
 // ─── Deployment mode ───────────────────────────────────────────────────────────
 
-export async function postUpdateDeploymentMode(req, res) {
+export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
   const project = req.project;
   const { deploymentMode } = req.body;
   const allowed = Object.values(DeploymentMode);
@@ -332,4 +333,4 @@ export async function postUpdateDeploymentMode(req, res) {
 
   req.flash('success', `Deployment mode set to ${deploymentMode.toLowerCase().replace('_', ' ')}.`);
   res.redirect(`/projects/${project.slug}`);
-}
+});

@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { User, Project, Repository } from '@hellodeploy/database';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -45,7 +46,7 @@ export function getGithubConnect(req, res) {
  * GitHub sends: ?installation_id=123&setup_action=install&state=...
  * GET /github/callback
  */
-export async function getGithubCallback(req, res) {
+export const getGithubCallback = asyncHandler(async (req, res) => {
   const { installation_id, setup_action } = req.query;
   const sessionState = req.session.githubConnectState;
 
@@ -91,7 +92,7 @@ export async function getGithubCallback(req, res) {
   req.session.save(() => {
     res.redirect(returnSlug ? `/projects/${returnSlug}/repository` : '/dashboard');
   });
-}
+});
 
 // ─── Repository management ────────────────────────────────────────────────────
 
@@ -99,7 +100,7 @@ export async function getGithubCallback(req, res) {
  * Show the repository connection page for a project.
  * GET /projects/:slug/repository
  */
-export async function getRepository(req, res) {
+export const getRepository = asyncHandler(async (req, res) => {
   const project = req.project;
 
   // Fetch current repository if connected
@@ -159,14 +160,14 @@ export async function getRepository(req, res) {
     errors: {},
     values: {},
   });
-}
+});
 
 /**
  * Connect a repository to a project.
  * POST /projects/:slug/repository
  * body: { githubRepoId, fullName, defaultBranch, productionBranch, nodeId, ownerLogin, visibility }
  */
-export async function postConnectRepository(req, res) {
+export const postConnectRepository = asyncHandler(async (req, res) => {
   const project = req.project;
   const user = await User.findById(req.session.user.id).lean();
 
@@ -259,13 +260,13 @@ export async function postConnectRepository(req, res) {
 
   req.flash('success', `Repository ${fullName} connected on branch ${productionBranch}.`);
   res.redirect(`/projects/${project.slug}`);
-}
+});
 
 /**
  * Disconnect the repository from a project.
  * POST /projects/:slug/repository/disconnect
  */
-export async function postDisconnectRepository(req, res) {
+export const postDisconnectRepository = asyncHandler(async (req, res) => {
   const project = req.project;
 
   if (!project.repositoryId) {
@@ -294,13 +295,13 @@ export async function postDisconnectRepository(req, res) {
 
   req.flash('success', 'Repository disconnected.');
   res.redirect(`/projects/${project.slug}/repository`);
-}
+});
 
 /**
  * List branches for the AJAX/form use — returns JSON for a given fullName.
  * GET /github/branches?fullName=owner/repo
  */
-export async function getBranches(req, res) {
+export const getBranches = asyncHandler(async (req, res) => {
   const { fullName } = req.query;
   if (!fullName) {
     return res.status(400).json({ error: 'fullName is required' });
@@ -317,4 +318,4 @@ export async function getBranches(req, res) {
   } catch (err) {
     res.status(500).json({ error: 'Could not load branches' });
   }
-}
+});

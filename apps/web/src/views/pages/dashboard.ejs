@@ -1,7 +1,7 @@
 <div class="page-header page-header--actions">
   <div>
     <h1 class="page-header__title">Dashboard</h1>
-    <p class="page-header__subtitle">Welcome back, <%= user.firstName %>.</p>
+    <p class="page-header__subtitle">Welcome back, <%= locals.user?.firstName ?? 'there' %>.</p>
   </div>
   <a href="/projects/new" class="button button--primary">New Project</a>
 </div>

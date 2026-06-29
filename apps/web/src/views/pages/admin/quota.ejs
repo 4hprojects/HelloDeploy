@@ -1,0 +1,115 @@
+<div class="page-header">
+  <div>
+    <h1 class="page-header__title">Quota Override</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <%= scopeType %> / <code class="code-inline"><%= scopeId %></code>
+    </p>
+  </div>
+</div>
+
+<%- include('../../../partials/flash-banner') %>
+
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Current Limits</span>
+  </div>
+  <div class="card__body">
+    <% if (quota && quota.limits && Object.keys(quota.limits).length > 0) { %>
+    <dl class="detail-list">
+      <% Object.entries(quota.limits).forEach(([k, v]) => { %>
+      <dt><%= k %></dt>
+      <dd><%= v %></dd>
+      <% }) %>
+    </dl>
+    <% if (quota.reason) { %>
+    <p class="text-sm text-muted mt-4">Reason: <%= quota.reason %></p>
+    <% } %>
+    <% } else { %>
+    <p class="text-muted text-sm">No custom quota override set. Platform defaults apply.</p>
+    <% } %>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Set Quota Override</span>
+  </div>
+  <div class="card__body">
+    <form method="POST" action="/admin/quotas/<%= scopeType %>/<%= scopeId %>">
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-grid form-grid--2">
+        <div class="form-group">
+          <label class="form-label" for="maxOwnedProjects">Max Owned Projects</label>
+          <input type="number" id="maxOwnedProjects" name="maxOwnedProjects" class="form-input"
+                 min="0" value="<%= quota?.limits?.maxOwnedProjects ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="maxRunningApps">Max Running Apps</label>
+          <input type="number" id="maxRunningApps" name="maxRunningApps" class="form-input"
+                 min="0" value="<%= quota?.limits?.maxRunningApps ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="maxProjectMembers">Max Project Members</label>
+          <input type="number" id="maxProjectMembers" name="maxProjectMembers" class="form-input"
+                 min="0" value="<%= quota?.limits?.maxProjectMembers ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="memoryMb">Memory (MB)</label>
+          <input type="number" id="memoryMb" name="memoryMb" class="form-input"
+                 min="0" value="<%= quota?.limits?.memoryMb ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="cpuCores">CPU Cores</label>
+          <input type="number" id="cpuCores" name="cpuCores" class="form-input"
+                 min="0" step="0.1" value="<%= quota?.limits?.cpuCores ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="deploymentsPerMonth">Deployments / Month</label>
+          <input type="number" id="deploymentsPerMonth" name="deploymentsPerMonth" class="form-input"
+                 min="0" value="<%= quota?.limits?.deploymentsPerMonth ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="buildTimeoutSeconds">Build Timeout (seconds)</label>
+          <input type="number" id="buildTimeoutSeconds" name="buildTimeoutSeconds" class="form-input"
+                 min="0" value="<%= quota?.limits?.buildTimeoutSeconds ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="maxCustomDomains">Max Custom Domains</label>
+          <input type="number" id="maxCustomDomains" name="maxCustomDomains" class="form-input"
+                 min="0" value="<%= quota?.limits?.maxCustomDomains ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="maxRollbackReleases">Max Rollback Releases</label>
+          <input type="number" id="maxRollbackReleases" name="maxRollbackReleases" class="form-input"
+                 min="0" value="<%= quota?.limits?.maxRollbackReleases ?? '' %>" placeholder="Platform default" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="logRetentionDays">Log Retention (days)</label>
+          <input type="number" id="logRetentionDays" name="logRetentionDays" class="form-input"
+                 min="0" value="<%= quota?.limits?.logRetentionDays ?? '' %>" placeholder="Platform default" />
+        </div>
+      </div>
+
+      <div class="form-group mt-4">
+        <label class="form-label" for="reason">Reason for override</label>
+        <input type="text" id="reason" name="reason" class="form-input"
+               value="<%= quota?.reason ?? '' %>" placeholder="Optional — appears in audit log" />
+      </div>
+
+      <div class="button-group mt-6">
+        <button type="submit" class="button button--primary">Save Quota Override</button>
+        <a href="/admin/users" class="button button--ghost">Cancel</a>
+      </div>
+    </form>
+  </div>
+</div>

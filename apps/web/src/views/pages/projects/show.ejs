@@ -158,7 +158,7 @@
             <tr>
               <td class="text-muted text-sm"><%= d.sequenceNumber %></td>
               <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
-              <td><code class="code-inline"><%= d.commitSha.slice(0, 7) %></code></td>
+              <td><code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code></td>
               <td class="text-muted text-sm"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
             </tr>
             <% }) %>

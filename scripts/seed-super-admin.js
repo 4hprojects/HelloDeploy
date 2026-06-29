@@ -35,8 +35,8 @@ async function seed() {
   const firstName = required('SUPER_ADMIN_FIRST_NAME');
   const lastName = required('SUPER_ADMIN_LAST_NAME');
 
-  if (password.length < 12) {
-    process.stderr.write('Super Admin password must be at least 12 characters.\n');
+  if (password.length < 8) {
+    process.stderr.write('Super Admin password must be at least 8 characters.\n');
     process.exit(1);
   }
 

@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import {
   addDomain,
   requestVerification,
@@ -10,7 +11,7 @@ import {
 
 // ─── Project-scoped domain management ─────────────────────────────────────────
 
-export async function getDomains(req, res) {
+export const getDomains = asyncHandler(async (req, res) => {
   const project = req.project;
   const domains = await getProjectDomains(project._id);
 
@@ -26,9 +27,9 @@ export async function getDomains(req, res) {
   // Clear one-time token after rendering
   delete req.session.pendingDomainToken;
   delete req.session.pendingDomainHostname;
-}
+});
 
-export async function postAddDomain(req, res) {
+export const postAddDomain = asyncHandler(async (req, res) => {
   const project = req.project;
   const { hostname } = req.body;
 
@@ -48,9 +49,9 @@ export async function postAddDomain(req, res) {
 
   req.flash('success', `Domain ${result.domain.hostnameNormalized} added. See the TXT record instructions below.`);
   res.redirect(`/projects/${project.slug}/domains`);
-}
+});
 
-export async function postVerifyDomain(req, res) {
+export const postVerifyDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const project = req.project;
 
@@ -66,9 +67,9 @@ export async function postVerifyDomain(req, res) {
   }
 
   res.redirect(`/projects/${project.slug}/domains`);
-}
+});
 
-export async function postRemoveDomain(req, res) {
+export const postRemoveDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const project = req.project;
 
@@ -84,20 +85,20 @@ export async function postRemoveDomain(req, res) {
   }
 
   res.redirect(`/projects/${project.slug}/domains`);
-}
+});
 
 // ─── Admin: domain approval queue ─────────────────────────────────────────────
 
-export async function getAdminDomains(req, res) {
+export const getAdminDomains = asyncHandler(async (req, res) => {
   const domains = await getPendingApprovalDomains();
 
   res.render('pages/admin/domains', {
     title: 'Domain Approval Queue',
     domains,
   });
-}
+});
 
-export async function postApproveDomain(req, res) {
+export const postApproveDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
 
   const result = await approveDomain(domainId, req.session.user.id, {
@@ -112,9 +113,9 @@ export async function postApproveDomain(req, res) {
   }
 
   res.redirect('/admin/domains');
-}
+});
 
-export async function postRejectDomain(req, res) {
+export const postRejectDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const { reason } = req.body;
 
@@ -130,4 +131,4 @@ export async function postRejectDomain(req, res) {
   }
 
   res.redirect('/admin/domains');
-}
+});

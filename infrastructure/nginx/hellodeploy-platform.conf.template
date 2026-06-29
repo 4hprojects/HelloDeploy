@@ -1,0 +1,28 @@
+# HelloDeploy platform UI ingress.
+#
+# The origin must only accept traffic from the trusted Cloudflare ingress. Cloudflare
+# sends X-Forwarded-Proto with the visitor-facing scheme; preserving that value lets
+# Express determine that an HTTP origin request represents a public HTTPS request.
+
+server {
+    listen 80;
+    server_name {{PLATFORM_DOMAIN}};
+
+    client_max_body_size 10m;
+    client_body_timeout 30s;
+
+    location / {
+        proxy_pass http://127.0.0.1:{{PORT}};
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        proxy_set_header X-Forwarded-Host $host;
+
+        proxy_connect_timeout 10s;
+        proxy_send_timeout 60s;
+        proxy_read_timeout 60s;
+    }
+}

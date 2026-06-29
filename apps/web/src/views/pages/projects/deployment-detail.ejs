@@ -33,7 +33,7 @@
   <div class="card">
     <div class="card__body">
       <p class="text-muted text-xs mb-1">Commit</p>
-      <code class="code-inline"><%= deployment.commitSha.slice(0, 7) %></code>
+      <code class="code-inline"><%= deployment.commitSha ? deployment.commitSha.slice(0, 7) : '—' %></code>
       <% if (deployment.commitMessage) { %>
       <p class="text-sm mt-1"><%= deployment.commitMessage.slice(0, 80) %></p>
       <% } %>

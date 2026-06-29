@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { ApprovalStatus } from '@hellodeploy/contracts';
 import {
   getAdminOverview,
@@ -20,7 +21,7 @@ import { searchAuditEvents } from '../services/audit-search.service.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
-export async function getAdminIndex(req, res) {
+export const getAdminIndex = asyncHandler(async (req, res) => {
   const [stats, server] = await Promise.all([
     getAdminOverview(),
     collectServerStats(),
@@ -30,19 +31,19 @@ export async function getAdminIndex(req, res) {
     stats,
     server,
   });
-}
+});
 
 // ─── Server dashboard ──────────────────────────────────────────────────────────
 
-export async function getAdminServer(req, res) {
+export const getAdminServer = asyncHandler(async (req, res) => {
   const server = await collectServerStats();
   res.render('pages/admin/server', {
     title: 'Server & Queue',
     server,
   });
-}
+});
 
-export async function postPauseQueue(req, res) {
+export const postPauseQueue = asyncHandler(async (req, res) => {
   const result = await pauseQueue(req.session.user.id, req.session.user.platformRole, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -50,9 +51,9 @@ export async function postPauseQueue(req, res) {
   if (!result.success) req.flash('error', result.error);
   else req.flash('success', 'Deployment queue paused. No new jobs will start until resumed.');
   res.redirect('/admin/server');
-}
+});
 
-export async function postResumeQueue(req, res) {
+export const postResumeQueue = asyncHandler(async (req, res) => {
   const result = await resumeQueue(req.session.user.id, req.session.user.platformRole, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -60,11 +61,11 @@ export async function postResumeQueue(req, res) {
   if (!result.success) req.flash('error', result.error);
   else req.flash('success', 'Deployment queue resumed.');
   res.redirect('/admin/server');
-}
+});
 
 // ─── Audit events ──────────────────────────────────────────────────────────────
 
-export async function getAdminAuditEvents(req, res) {
+export const getAdminAuditEvents = asyncHandler(async (req, res) => {
   const { action, actorId, targetType, outcome, from, to, page } = req.query;
 
   const result = await searchAuditEvents({
@@ -83,11 +84,11 @@ export async function getAdminAuditEvents(req, res) {
     ...result,
     filters: { action: action ?? '', actorId: actorId ?? '', targetType: targetType ?? '', outcome: outcome ?? '', from: from ?? '', to: to ?? '' },
   });
-}
+});
 
 // ─── Quota management ──────────────────────────────────────────────────────────
 
-export async function getAdminQuota(req, res) {
+export const getAdminQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
   const quota = await getQuotaOverride(scopeType, scopeId);
   res.render('pages/admin/quota', {
@@ -96,9 +97,9 @@ export async function getAdminQuota(req, res) {
     scopeType,
     scopeId,
   });
-}
+});
 
-export async function postAdminSetQuota(req, res) {
+export const postAdminSetQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
   const {
     maxOwnedProjects, maxRunningApps, maxProjectMembers,
@@ -132,11 +133,11 @@ export async function postAdminSetQuota(req, res) {
   else req.flash('success', 'Quota updated.');
 
   res.redirect(`/admin/quotas/${scopeType}/${scopeId}`);
-}
+});
 
 // ─── Users ─────────────────────────────────────────────────────────────────────
 
-export async function getAdminUsers(req, res) {
+export const getAdminUsers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const { status, search } = req.query;
 
@@ -151,9 +152,9 @@ export async function getAdminUsers(req, res) {
     totalPages: Math.ceil(total / limit),
     filters: { status: status ?? '', search: search ?? '' },
   });
-}
+});
 
-export async function postSuspendUser(req, res) {
+export const postSuspendUser = asyncHandler(async (req, res) => {
   const { reason } = req.body;
   const result = await suspendUser({
     userId: req.params.userId,
@@ -171,9 +172,9 @@ export async function postSuspendUser(req, res) {
   }
 
   res.redirect('/admin/users');
-}
+});
 
-export async function postReactivateUser(req, res) {
+export const postReactivateUser = asyncHandler(async (req, res) => {
   const result = await reactivateUser({
     userId: req.params.userId,
     adminId: req.session.user.id,
@@ -189,11 +190,11 @@ export async function postReactivateUser(req, res) {
   }
 
   res.redirect('/admin/users');
-}
+});
 
 // ─── Projects ──────────────────────────────────────────────────────────────────
 
-export async function getAdminProjects(req, res) {
+export const getAdminProjects = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const { status } = req.query;
 
@@ -208,9 +209,9 @@ export async function getAdminProjects(req, res) {
     totalPages: Math.ceil(total / limit),
     filters: { status: status ?? '' },
   });
-}
+});
 
-export async function postAdminSuspendProject(req, res) {
+export const postAdminSuspendProject = asyncHandler(async (req, res) => {
   const { reason } = req.body;
   const result = await adminSuspendProjectWithStop({
     projectId: req.params.projectId,
@@ -228,9 +229,9 @@ export async function postAdminSuspendProject(req, res) {
   }
 
   res.redirect('/admin/projects');
-}
+});
 
-export async function postAdminReactivateProject(req, res) {
+export const postAdminReactivateProject = asyncHandler(async (req, res) => {
   const result = await adminReactivateProject({
     projectId: req.params.projectId,
     adminId: req.session.user.id,
@@ -246,11 +247,11 @@ export async function postAdminReactivateProject(req, res) {
   }
 
   res.redirect('/admin/projects');
-}
+});
 
 // ─── Approval requests ─────────────────────────────────────────────────────────
 
-export async function getApprovalRequestsList(req, res) {
+export const getApprovalRequestsList = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const { requests, total, limit } = await getApprovalRequests({ page });
 
@@ -262,9 +263,9 @@ export async function getApprovalRequestsList(req, res) {
     limit,
     totalPages: Math.ceil(total / limit),
   });
-}
+});
 
-export async function postReviewApprovalRequest(req, res) {
+export const postReviewApprovalRequest = asyncHandler(async (req, res) => {
   const { decision, note } = req.body;
   const allowed = [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED];
 
@@ -290,4 +291,4 @@ export async function postReviewApprovalRequest(req, res) {
   }
 
   res.redirect('/admin/approval-requests');
-}
+});

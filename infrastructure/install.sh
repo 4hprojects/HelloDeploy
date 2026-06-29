@@ -167,6 +167,9 @@ fi
 info "Launching setup wizard…"
 sudo -u "$HD_USER" node scripts/setup.js --output "$ENV_FILE" --skip-existing
 
+bash infrastructure/nginx/render-platform-ingress.sh "$ENV_FILE"
+info "Configured platform ingress."
+
 # ─── PM2 ─────────────────────────────────────────────────────────────────────
 
 section "PM2 startup"

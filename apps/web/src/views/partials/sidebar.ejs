@@ -1,10 +1,12 @@
+<% var _path = locals.currentPath || ''; %>
+<% var _user = locals.user || null; %>
 <nav class="sidebar" aria-label="Application navigation">
   <ul class="sidebar__nav" role="list">
     <li>
       <a
         href="/dashboard"
         class="sidebar__link"
-        <%= currentPath === '/dashboard' ? 'aria-current="page"' : '' %>
+        <%= _path === '/dashboard' ? 'aria-current="page"' : '' %>
       >
         <span aria-hidden="true">⊞</span>
         <span>Dashboard</span>
@@ -14,7 +16,7 @@
       <a
         href="/projects"
         class="sidebar__link"
-        <%= currentPath.startsWith('/projects') ? 'aria-current="page"' : '' %>
+        <%= _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
       >
         <span aria-hidden="true">◫</span>
         <span>Projects</span>
@@ -22,7 +24,7 @@
     </li>
   </ul>
 
-  <% if (user && (user.platformRole === 'ADMIN' || user.platformRole === 'SUPER_ADMIN')) { %>
+  <% if (_user && (_user.platformRole === 'ADMIN' || _user.platformRole === 'SUPER_ADMIN')) { %>
   <div class="sidebar__section">
     <p class="sidebar__section-title">Admin</p>
     <ul class="sidebar__nav" role="list">
@@ -30,7 +32,7 @@
         <a
           href="/admin"
           class="sidebar__link"
-          <%= currentPath === '/admin' ? 'aria-current="page"' : '' %>
+          <%= _path === '/admin' ? 'aria-current="page"' : '' %>
         >
           <span aria-hidden="true">◈</span>
           <span>Overview</span>
@@ -40,7 +42,7 @@
         <a
           href="/admin/users"
           class="sidebar__link"
-          <%= currentPath.startsWith('/admin/users') ? 'aria-current="page"' : '' %>
+          <%= _path.startsWith('/admin/users') ? 'aria-current="page"' : '' %>
         >
           <span aria-hidden="true">◉</span>
           <span>Users</span>
@@ -50,7 +52,7 @@
         <a
           href="/admin/projects"
           class="sidebar__link"
-          <%= currentPath.startsWith('/admin/projects') ? 'aria-current="page"' : '' %>
+          <%= _path.startsWith('/admin/projects') ? 'aria-current="page"' : '' %>
         >
           <span aria-hidden="true">◧</span>
           <span>All Projects</span>
@@ -60,7 +62,7 @@
         <a
           href="/admin/approval-requests"
           class="sidebar__link"
-          <%= currentPath.startsWith('/admin/approval-requests') ? 'aria-current="page"' : '' %>
+          <%= _path.startsWith('/admin/approval-requests') ? 'aria-current="page"' : '' %>
         >
           <span aria-hidden="true">◎</span>
           <span>Reviews</span>
