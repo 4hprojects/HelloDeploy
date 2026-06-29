@@ -235,7 +235,7 @@
 
 ### Tasks
 
-- [ ] Complete security test suite and threat review.
+- [x] Complete security test suite and threat review.
 - [ ] Perform load, build concurrency, and resource-exhaustion tests.
 - [ ] Test failure recovery for MongoDB, Redis, Docker, Nginx, worker, and tunnel.
 - [ ] Conduct usability pilot.

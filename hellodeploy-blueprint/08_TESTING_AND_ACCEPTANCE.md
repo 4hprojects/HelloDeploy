@@ -68,17 +68,19 @@
 
 ## Security Tests
 
-- Horizontal and vertical authorization bypass
-- CSRF and session fixation
-- Brute-force and rate-limit behavior
-- Webhook forgery and replay
-- Secret leakage through logs and errors
-- Command and argument injection
-- Path traversal and malicious repository filenames
-- Host-header and domain-claim attacks
-- Container privilege and host-mount attempts
-- Resource exhaustion and fork-bomb resistance within limits
-- Nginx configuration injection
+**Status: gate closed — 356 tests, 0 failures (2026-06-29)**
+
+- [x] Horizontal and vertical authorization bypass (`tests/security/authorization.test.js`)
+- [x] CSRF and session fixation (`tests/security/csrf.test.js`, `tests/security/session-fixation.test.js`)
+- [x] Brute-force and rate-limit behavior (`tests/security/rate-limit.test.js`)
+- [x] Webhook forgery and replay (`tests/security/webhook-replay.test.js`)
+- [x] Secret leakage through logs and errors (`tests/security/redaction.test.js`, `tests/security/secret-leakage.test.js`)
+- [x] Command and argument injection (`tests/security/command-injection.test.js`)
+- [x] Path traversal and malicious repository filenames (`tests/security/build-context.test.js`, `tests/security/nginx-path-traversal.test.js`)
+- [x] Host-header and domain-claim attacks (`tests/security/domain-validation.test.js`)
+- [x] Container privilege and host-mount attempts (`tests/security/command-injection.test.js`)
+- [x] Resource exhaustion and fork-bomb resistance within limits (`tests/security/command-injection.test.js`)
+- [x] Nginx configuration injection (`tests/security/nginx-route-manager.test.js`)
 
 ## Failure Recovery Tests
 
