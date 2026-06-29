@@ -151,7 +151,7 @@
       <% if (locals.deployments && deployments.length > 0) { %>
         <table class="table">
           <thead>
-            <tr><th>#</th><th>Status</th><th>Commit</th><th>Started</th></tr>
+            <tr><th scope="col">#</th><th scope="col">Status</th><th scope="col">Commit</th><th scope="col">Started</th></tr>
           </thead>
           <tbody>
             <% deployments.slice(0, 5).forEach(d => { %>

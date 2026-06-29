@@ -252,6 +252,16 @@
   box-shadow: 0 0 0 3px rgb(56 189 248 / 0.2);
 }
 
+/* Windows High Contrast mode — box-shadow is ignored; restore visible outline */
+@media (forced-colors: active) {
+  .form-input:focus,
+  .form-select:focus,
+  .form-textarea:focus {
+    outline: 3px solid ButtonText;
+    outline-offset: 0;
+  }
+}
+
 .form-input--error,
 .form-select--error,
 .form-textarea--error {
