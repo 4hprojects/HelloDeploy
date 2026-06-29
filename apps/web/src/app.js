@@ -73,6 +73,12 @@ export function createApp() {
 
   app.get('/dashboard', requireAuth, getDashboard);
 
+  // ── Public policy pages ────────────────────────────────────────────────────
+  app.get('/terms', (_req, res) => res.render('pages/terms', { title: 'Terms of Service' }));
+  app.get('/privacy', (_req, res) => res.render('pages/privacy', { title: 'Privacy Policy' }));
+  app.get('/acceptable-use', (_req, res) => res.render('pages/acceptable-use', { title: 'Acceptable Use Policy' }));
+  app.get('/service-limits', (_req, res) => res.render('pages/service-limits', { title: 'Service Limits' }));
+
   // ── Error pages ────────────────────────────────────────────────────────────
   app.use((_req, res) => {
     res.status(404).render('pages/404', { title: 'Page Not Found', layout: 'layouts/main' });

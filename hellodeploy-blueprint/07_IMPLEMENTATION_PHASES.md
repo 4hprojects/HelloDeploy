@@ -239,7 +239,7 @@
 - [ ] Perform load, build concurrency, and resource-exhaustion tests.
 - [ ] Test failure recovery for MongoDB, Redis, Docker, Nginx, worker, and tunnel.
 - [ ] Conduct usability pilot.
-- [ ] Finalize acceptable-use, privacy, retention, and service-limit policies.
+- [x] Finalize acceptable-use, privacy, retention, and service-limit policies.
 - [ ] Establish measured server capacity.
 - [ ] Deploy a noncritical pilot application.
 - [ ] Run keyboard, screen-reader landmark, contrast, zoom, and reduced-motion checks.

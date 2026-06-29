@@ -1,0 +1,98 @@
+<div class="page-header">
+  <h1 class="page-header__title">Service Limits</h1>
+  <p class="page-header__subtitle">Effective 29 June 2026 &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/acceptable-use">Acceptable Use</a></p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <h2>Default Limits</h2>
+    <p>Every account starts with the following limits. The platform administrator can increase individual limits on request.</p>
+
+    <table class="table">
+      <thead>
+        <tr><th>Resource</th><th>Default limit</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Projects per account</td>
+          <td>1</td>
+          <td>Archived projects do not count against this limit.</td>
+        </tr>
+        <tr>
+          <td>Running applications</td>
+          <td>1</td>
+          <td>Only one of your projects may have a live container at a time.</td>
+        </tr>
+        <tr>
+          <td>Team members per project</td>
+          <td>3</td>
+          <td>Owner plus up to 2 Maintainers or Viewers.</td>
+        </tr>
+        <tr>
+          <td>Container memory</td>
+          <td>256 MB</td>
+          <td>Applications that consistently exceed this are automatically stopped.</td>
+        </tr>
+        <tr>
+          <td>CPU allocation</td>
+          <td>0.25 cores</td>
+          <td>Shared CPU time; bursting is permitted but not guaranteed.</td>
+        </tr>
+        <tr>
+          <td>Build context size</td>
+          <td>500 MB</td>
+          <td>The total size of your repository at build time.</td>
+        </tr>
+        <tr>
+          <td>Deployments per month</td>
+          <td>10</td>
+          <td>Resets on the first of each calendar month.</td>
+        </tr>
+        <tr>
+          <td>Build timeout</td>
+          <td>5 minutes</td>
+          <td>Builds that exceed this are cancelled and the deployment fails.</td>
+        </tr>
+        <tr>
+          <td>Custom domains per project</td>
+          <td>1</td>
+          <td>In addition to the platform subdomain, which is always available.</td>
+        </tr>
+        <tr>
+          <td>Rollback releases retained</td>
+          <td>3</td>
+          <td>The 3 most recent healthy releases are kept; older ones are removed.</td>
+        </tr>
+        <tr>
+          <td>Deployment log retention</td>
+          <td>7 days</td>
+          <td>Build and runtime logs are permanently deleted after 7 days.</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h2>Container Isolation</h2>
+    <p>Every deployed application runs in an isolated Docker container with the following fixed constraints:</p>
+    <ul>
+      <li>No access to other users&rsquo; containers or the host filesystem.</li>
+      <li>All Linux capabilities dropped; no privilege escalation.</li>
+      <li>Process count limited to 100 (fork-bomb protection).</li>
+      <li>Memory swap disabled (memory limit is a hard cap).</li>
+      <li>Outbound network access is available to your application; inbound traffic is routed exclusively through the platform&rsquo;s Nginx reverse proxy.</li>
+    </ul>
+
+    <h2>Supported Runtimes</h2>
+    <p>HelloDeploy automatically detects and supports:</p>
+    <ul>
+      <li>Static HTML, CSS, and JavaScript sites (served via Nginx).</li>
+      <li>Node.js applications (detected via <code>package.json</code> with a <code>start</code> script).</li>
+    </ul>
+    <p>Python, PHP, Java, and other runtimes are not supported in the current pilot.</p>
+
+    <h2>Pilot Phase Notice</h2>
+    <p>These limits reflect the measured capacity of the pilot server and may change as the platform scales. Accounts granted higher limits during the pilot are not guaranteed the same limits in any future version of the service.</p>
+
+    <h2>Requesting a Limit Increase</h2>
+    <p>Contact the platform administrator at <strong>hensonsagorsor@gmail.com</strong> with a description of your project and the resource you need increased. Requests are reviewed individually based on available server capacity.</p>
+  </div>
+</div>

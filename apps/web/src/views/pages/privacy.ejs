@@ -1,0 +1,90 @@
+<div class="page-header">
+  <h1 class="page-header__title">Privacy Policy</h1>
+  <p class="page-header__subtitle">Effective 29 June 2026 &middot; <a href="/terms">Terms</a> &middot; <a href="/acceptable-use">Acceptable Use</a> &middot; <a href="/service-limits">Service Limits</a></p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <h2>Overview</h2>
+    <p>HelloDeploy is a self-hosted web application deployment platform operated as an MIT capstone project. This policy explains what personal data we collect, why we collect it, how long we keep it, and your rights over it.</p>
+
+    <h2>Data We Collect</h2>
+
+    <h3>Account Data</h3>
+    <ul>
+      <li><strong>Name and email address</strong> — provided at registration. Used to identify your account and send service notifications (email verification, password reset, deployment alerts).</li>
+      <li><strong>Password</strong> — stored as an Argon2id hash. Your plaintext password is never stored or logged.</li>
+    </ul>
+
+    <h3>GitHub Data</h3>
+    <p>When you install the HelloDeploy GitHub App and connect a repository:</p>
+    <ul>
+      <li><strong>Installation ID and repository names</strong> — stored to identify which repositories you have authorised for deployment.</li>
+      <li><strong>Commit SHA and message</strong> — the latest commit on your production branch is stored so the platform can display it in the dashboard. We do not store your source code.</li>
+      <li><strong>Short-lived access tokens</strong> — generated on demand to clone your repository for a build. Tokens are used once and are never stored or logged.</li>
+    </ul>
+
+    <h3>Project and Deployment Data</h3>
+    <ul>
+      <li><strong>Project configuration</strong> — project name, slug, domain, runtime settings, and deployment mode.</li>
+      <li><strong>Environment variable names</strong> — stored in plain text so they can be listed in the UI.</li>
+      <li><strong>Environment variable values</strong> — encrypted at rest using AES-256-GCM before storage. The encryption key is never stored in the database.</li>
+      <li><strong>Build and deployment logs</strong> — retained for 7 days, then permanently deleted.</li>
+      <li><strong>Container and image metadata</strong> — image tags, port assignments, and health-check results. Docker images for old releases are deleted automatically (up to 3 rollback releases are kept per project).</li>
+    </ul>
+
+    <h3>Session and Technical Data</h3>
+    <ul>
+      <li><strong>Session cookie</strong> — a single <code>hellodeploy.sid</code> session cookie, set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>. It contains only a session identifier, not your personal data. Sessions expire after 24 hours of inactivity.</li>
+      <li><strong>IP address</strong> — logged for rate limiting, brute-force protection, and security audit events. Not used for advertising or profiling.</li>
+      <li><strong>Correlation IDs</strong> — random identifiers attached to each request for internal debugging. Not linked to your identity in logs.</li>
+    </ul>
+
+    <h2>Data Retention</h2>
+    <table class="table">
+      <thead>
+        <tr><th>Data type</th><th>Retention period</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Build and deployment logs</td><td>7 days</td></tr>
+        <tr><td>Docker images (old releases)</td><td>Deleted when a fourth healthy release is created</td></tr>
+        <tr><td>Audit events</td><td>90 days</td></tr>
+        <tr><td>Account and project data</td><td>Until account deletion is requested</td></tr>
+        <tr><td>Session data</td><td>24 hours of inactivity, or until sign-out</td></tr>
+      </tbody>
+    </table>
+
+    <h2>Third-Party Services</h2>
+    <table class="table">
+      <thead>
+        <tr><th>Service</th><th>Purpose</th><th>Data shared</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>MongoDB Atlas</td><td>Database hosting</td><td>All stored data listed above</td></tr>
+        <tr><td>GitHub</td><td>Source repository access</td><td>Installation ID; repository names and commit metadata</td></tr>
+        <tr><td>Resend</td><td>Transactional email</td><td>Your email address and name</td></tr>
+        <tr><td>Cloudflare</td><td>DNS, TLS, and tunnel ingress</td><td>IP addresses and HTTP request metadata</td></tr>
+      </tbody>
+    </table>
+    <p>We do not sell your data or share it with any other third party.</p>
+
+    <h2>Cookies</h2>
+    <p>We use a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. We do not use tracking cookies, analytics cookies, or advertising cookies.</p>
+
+    <h2>Your Rights</h2>
+    <ul>
+      <li><strong>Access</strong> — you can view all project and deployment data you own through the dashboard.</li>
+      <li><strong>Deletion</strong> — to request deletion of your account and all associated data, email <strong>hensonsagorsor@gmail.com</strong> from your registered address. Requests are processed within 30 days.</li>
+      <li><strong>Correction</strong> — contact us to correct inaccurate account information.</li>
+    </ul>
+
+    <h2>Security</h2>
+    <p>Passwords are hashed with Argon2id. Environment secrets are encrypted with AES-256-GCM. All connections use TLS. The platform undergoes a security test suite covering authorisation bypass, CSRF, session fixation, path traversal, command injection, and container privilege escalation.</p>
+
+    <h2>Pilot Status</h2>
+    <p>HelloDeploy is currently in a limited pilot phase as part of an MIT capstone project. The service may be modified, suspended, or discontinued with reasonable notice. This policy will be updated to reflect any material changes.</p>
+
+    <h2>Contact</h2>
+    <p>Questions about this policy: <strong>hensonsagorsor@gmail.com</strong></p>
+  </div>
+</div>
