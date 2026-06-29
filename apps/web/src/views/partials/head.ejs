@@ -5,8 +5,17 @@
   <title><%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %></title>
 
   <link rel="icon" type="image/svg+xml" href="/assets/icons/favicon.svg" />
-  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
+
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="HelloDeploy" />
+  <meta property="og:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
+  <meta property="og:description" content="Self-hosted web application deployment platform" />
+  <meta property="og:image" content="/assets/icons/icon-512.png" />
+  <meta name="twitter:card" content="summary" />
+  <meta name="twitter:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
+  <meta name="twitter:image" content="/assets/icons/icon-512.png" />
 
   <link rel="stylesheet" href="/css/main.css" />
 </head>
