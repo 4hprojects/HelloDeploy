@@ -242,7 +242,7 @@
 - [x] Finalize acceptable-use, privacy, retention, and service-limit policies.
 - [ ] Establish measured server capacity.
 - [ ] Deploy a noncritical pilot application.
-- [ ] Run keyboard, screen-reader landmark, contrast, zoom, and reduced-motion checks.
+- [x] Run keyboard, screen-reader landmark, contrast, zoom, and reduced-motion checks.
 - [x] Verify all final favicon, manifest, email-logo, and social-preview assets or approved placeholders.
 
 ### Acceptance Criteria
