@@ -2,7 +2,6 @@ import { randomBytes, createHash } from 'node:crypto';
 import { Domain, Project } from '@hellodeploy/database';
 import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
-import { logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { JobType } from '@hellodeploy/contracts';
@@ -19,7 +18,9 @@ const PLATFORM_DOMAINS = new Set(['hellodeploy.online', 'hellodeploy.com', 'loca
  * @returns {string} normalized hostname
  */
 export function normalizeHostname(raw) {
-  if (!raw || typeof raw !== 'string') throw new Error('Hostname is required.');
+  if (!raw || typeof raw !== 'string') {
+    throw new Error('Hostname is required.');
+  }
 
   const trimmed = raw.trim().toLowerCase();
 
@@ -33,10 +34,14 @@ export function normalizeHostname(raw) {
 
   const hostname = parsed.hostname;
 
-  if (!hostname) throw new Error('Hostname could not be parsed.');
+  if (!hostname) {
+    throw new Error('Hostname could not be parsed.');
+  }
 
   // Length limits (RFC 1035)
-  if (hostname.length > 253) throw new Error('Hostname exceeds maximum length (253 chars).');
+  if (hostname.length > 253) {
+    throw new Error('Hostname exceeds maximum length (253 chars).');
+  }
 
   // Block localhost and local addresses
   if (hostname === 'localhost' || hostname.endsWith('.localhost')) {
@@ -142,24 +147,33 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
  */
 export async function requestVerification(domainId, actorId, opts = {}) {
   const domain = await Domain.findById(domainId).lean();
-  if (!domain) return { success: false, error: 'Domain not found.' };
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
 
   if (domain.status !== DomainStatus.PENDING_VERIFICATION) {
     return { success: false, error: `Domain cannot be verified in status ${domain.status}.` };
   }
 
   const queue = getDeploymentQueue();
-  if (!queue) return { success: false, error: 'Queue is unavailable.' };
+  if (!queue) {
+    return { success: false, error: 'Queue is unavailable.' };
+  }
 
-  await enqueueJob(queue, JobType.VERIFY_DOMAIN, {
-    version: 1,
-    correlationId: opts.correlationId,
-    actorId,
-    actorRole: 'USER',
-    domainId: domainId.toString(),
-    projectId: domain.projectId.toString(),
-    hostname: domain.hostnameNormalized,
-  }, { jobId: `verify-domain-${domainId}` });
+  await enqueueJob(
+    queue,
+    JobType.VERIFY_DOMAIN,
+    {
+      version: 1,
+      correlationId: opts.correlationId,
+      actorId,
+      actorRole: 'USER',
+      domainId: domainId.toString(),
+      projectId: domain.projectId.toString(),
+      hostname: domain.hostnameNormalized,
+    },
+    { jobId: `verify-domain-${domainId}` },
+  );
 
   return { success: true };
 }
@@ -168,10 +182,15 @@ export async function requestVerification(domainId, actorId, opts = {}) {
 
 export async function approveDomain(domainId, adminId, opts = {}) {
   const domain = await Domain.findById(domainId);
-  if (!domain) return { success: false, error: 'Domain not found.' };
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
 
   if (domain.status !== DomainStatus.PENDING_ADMIN_APPROVAL) {
-    return { success: false, error: `Domain is not awaiting admin approval (status: ${domain.status}).` };
+    return {
+      success: false,
+      error: `Domain is not awaiting admin approval (status: ${domain.status}).`,
+    };
   }
 
   // Check the project has an active deployment to route to
@@ -195,16 +214,21 @@ export async function approveDomain(domainId, adminId, opts = {}) {
   // Enqueue nginx route update for the custom domain
   const queue = getDeploymentQueue();
   if (queue) {
-    await enqueueJob(queue, JobType.VERIFY_DOMAIN, {
-      version: 1,
-      correlationId: opts.correlationId,
-      actorId: adminId,
-      actorRole: 'SUPER_ADMIN',
-      domainId: domainId.toString(),
-      projectId: domain.projectId.toString(),
-      hostname: domain.hostnameNormalized,
-      activateRoute: true, // signal to worker to activate nginx route
-    }, { jobId: `activate-domain-${domainId}` });
+    await enqueueJob(
+      queue,
+      JobType.VERIFY_DOMAIN,
+      {
+        version: 1,
+        correlationId: opts.correlationId,
+        actorId: adminId,
+        actorRole: 'SUPER_ADMIN',
+        domainId: domainId.toString(),
+        projectId: domain.projectId.toString(),
+        hostname: domain.hostnameNormalized,
+        activateRoute: true, // signal to worker to activate nginx route
+      },
+      { jobId: `activate-domain-${domainId}` },
+    );
   }
 
   await writeAuditEvent({
@@ -223,7 +247,9 @@ export async function approveDomain(domainId, adminId, opts = {}) {
 
 export async function rejectDomain(domainId, adminId, reason, opts = {}) {
   const domain = await Domain.findById(domainId);
-  if (!domain) return { success: false, error: 'Domain not found.' };
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
 
   await Domain.updateOne(
     { _id: domainId },
@@ -248,22 +274,29 @@ export async function rejectDomain(domainId, adminId, reason, opts = {}) {
 
 export async function removeDomain(domainId, actorId, opts = {}) {
   const domain = await Domain.findById(domainId);
-  if (!domain) return { success: false, error: 'Domain not found.' };
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
 
   // Remove the nginx route if domain was active
   if (domain.status === DomainStatus.ACTIVE) {
     const queue = getDeploymentQueue();
     if (queue) {
-      await enqueueJob(queue, JobType.VERIFY_DOMAIN, {
-        version: 1,
-        correlationId: opts.correlationId,
-        actorId,
-        actorRole: 'USER',
-        domainId: domainId.toString(),
-        projectId: domain.projectId.toString(),
-        hostname: domain.hostnameNormalized,
-        removeRoute: true,
-      }, { jobId: `remove-domain-${domainId}` });
+      await enqueueJob(
+        queue,
+        JobType.VERIFY_DOMAIN,
+        {
+          version: 1,
+          correlationId: opts.correlationId,
+          actorId,
+          actorRole: 'USER',
+          domainId: domainId.toString(),
+          projectId: domain.projectId.toString(),
+          hostname: domain.hostnameNormalized,
+          removeRoute: true,
+        },
+        { jobId: `remove-domain-${domainId}` },
+      );
     }
   }
 
@@ -280,7 +313,10 @@ export async function removeDomain(domainId, actorId, opts = {}) {
     targetId: domainId.toString(),
     sourceIp: opts.sourceIp,
     correlationId: opts.correlationId,
-    metadata: { hostnameNormalized: domain.hostnameNormalized, projectId: domain.projectId.toString() },
+    metadata: {
+      hostnameNormalized: domain.hostnameNormalized,
+      projectId: domain.projectId.toString(),
+    },
   });
 
   return { success: true };
@@ -292,7 +328,9 @@ export async function getProjectDomains(projectId) {
   return Domain.find({
     projectId,
     status: { $ne: DomainStatus.REMOVED },
-  }).sort({ createdAt: -1 }).lean();
+  })
+    .sort({ createdAt: -1 })
+    .lean();
 }
 
 export async function getPendingApprovalDomains() {

@@ -53,7 +53,10 @@ export function createDeploymentQueue(connection) {
  * @returns {Promise<import('bullmq').Job>}
  */
 export async function enqueueJob(queue, jobType, payload, opts = {}) {
-  const retryPolicy = JobRetryPolicy[jobType] ?? { attempts: 1, backoff: { type: 'fixed', delay: 0 } };
+  const retryPolicy = JobRetryPolicy[jobType] ?? {
+    attempts: 1,
+    backoff: { type: 'fixed', delay: 0 },
+  };
   return queue.add(jobType, payload, {
     attempts: retryPolicy.attempts,
     backoff: retryPolicy.backoff,

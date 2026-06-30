@@ -33,7 +33,11 @@ async function sendEmail({ to, subject, html, text }) {
   });
 
   if (error) {
-    logger.error('[notification] Failed to send deployment email', { to, subject, error: error.message });
+    logger.error('[notification] Failed to send deployment email', {
+      to,
+      subject,
+      error: error.message,
+    });
   }
 }
 
@@ -68,7 +72,9 @@ export async function notifyDeploymentResult(opts) {
 
   try {
     const owner = await User.findById(ownerId).select('email name').lean();
-    if (!owner) return;
+    if (!owner) {
+      return;
+    }
 
     const dashboardUrl = `https://${platformDomain}/projects/${projectSlug}/deployments`;
     const isHealthy = status === 'HEALTHY';

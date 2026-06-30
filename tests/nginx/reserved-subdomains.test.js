@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { isReservedSubdomain, isValidSubdomainLabel } = await import(
-  '../../apps/worker/src/nginx/reserved-subdomains.js'
-);
+const { isReservedSubdomain, isValidSubdomainLabel } =
+  await import('../../apps/worker/src/nginx/reserved-subdomains.js');
 
 describe('isReservedSubdomain', () => {
   it('blocks platform-critical names', () => {

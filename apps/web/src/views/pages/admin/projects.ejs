@@ -48,18 +48,18 @@
           <span class="text-muted">—</span>
           <% } %>
         </td>
-        <td><%- include('../../../partials/status-badge', { status: p.status }) %></td>
-        <td class="text-sm text-muted"><%= new Date(p.createdAt).toLocaleDateString() %></td>
+        <td><%- include('../../partials/status-badge', { status: p.status }) %></td>
+        <td class="text-sm text-muted"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right">
           <% if (p.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" style="display:inline;">
-            <%- include('../../../partials/csrf-field') %>
+            <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
           <% } else if (p.status === 'ACTIVE' || p.status === 'DRAFT') { %>
           <form method="POST" action="/admin/projects/<%= p._id %>/suspend" style="display:inline;"
-                onsubmit="return confirm('Suspend project <%= p.name %>?')">
-            <%- include('../../../partials/csrf-field') %>
+                data-confirm='Suspend project <%= p.name %>?'>
+            <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>

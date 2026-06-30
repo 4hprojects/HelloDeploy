@@ -1,7 +1,6 @@
 import { join } from 'node:path';
 import { Project, Repository, Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { DeploymentStatus, JobType } from '@hellodeploy/contracts';
-import { canTransition } from '@hellodeploy/deployment-core';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
@@ -52,16 +51,8 @@ async function updateStatus(deploymentId, toStatus, extra = {}) {
  * On any failure: mark FAILED, cleanup workspace, remove partial image.
  */
 export async function handleBuildDeployment(job) {
-  const {
-    projectId,
-    deploymentId,
-    commitSha,
-    repositoryId,
-    runtimeType,
-    imageTag,
-    noCache,
-    correlationId,
-  } = job.data;
+  const { projectId, deploymentId, commitSha, repositoryId, runtimeType, imageTag, correlationId } =
+    job.data;
 
   const workDir = join(env.BUILD_WORKSPACE_ROOT, deploymentId);
 
@@ -110,8 +101,14 @@ export async function handleBuildDeployment(job) {
   let installationToken;
   try {
     installationToken = await getInstallationToken(repo.installationId);
-  } catch (err) {
-    await logEvent(deploymentId, 'VALIDATE', 'ERROR', 'Failed to obtain GitHub token.', correlationId);
+  } catch {
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      'Failed to obtain GitHub token.',
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'GITHUB_TOKEN_FAILED',
       failureSummary: 'Could not obtain GitHub installation token.',
@@ -128,9 +125,21 @@ export async function handleBuildDeployment(job) {
       commitSha,
       workDir,
     });
-    await logEvent(deploymentId, 'VALIDATE', 'INFO', `Cloned commit ${commitSha.slice(0, 7)}.`, correlationId);
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'INFO',
+      `Cloned commit ${commitSha.slice(0, 7)}.`,
+      correlationId,
+    );
   } catch (err) {
-    await logEvent(deploymentId, 'VALIDATE', 'ERROR', `Clone failed: ${err.message}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      `Clone failed: ${err.message}`,
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'CLONE_FAILED',
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
@@ -145,7 +154,13 @@ export async function handleBuildDeployment(job) {
     await prepareBuildContext(workDir);
     await logEvent(deploymentId, 'VALIDATE', 'INFO', 'Build context validated.', correlationId);
   } catch (err) {
-    await logEvent(deploymentId, 'VALIDATE', 'ERROR', `Build context error: ${err.message}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      `Build context error: ${err.message}`,
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'BUILD_CONTEXT_INVALID',
       failureSummary: err.message.slice(0, 1000),
@@ -166,9 +181,21 @@ export async function handleBuildDeployment(job) {
       applicationPort: project.buildConfiguration?.applicationPort ?? null,
     });
     await writeDockerfile(workDir, dockerfileContent);
-    await logEvent(deploymentId, 'VALIDATE', 'INFO', `Generated Dockerfile for ${runtimeType}.`, correlationId);
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'INFO',
+      `Generated Dockerfile for ${runtimeType}.`,
+      correlationId,
+    );
   } catch (err) {
-    await logEvent(deploymentId, 'VALIDATE', 'ERROR', `Dockerfile generation failed: ${err.message}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      `Dockerfile generation failed: ${err.message}`,
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'DOCKERFILE_GENERATION_FAILED',
       failureSummary: err.message.slice(0, 1000),
@@ -180,11 +207,16 @@ export async function handleBuildDeployment(job) {
 
   // ── BUILD stage ─────────────────────────────────────────────────────────────
   await updateStatus(deploymentId, DeploymentStatus.BUILDING);
-  await logEvent(deploymentId, 'BUILD', 'INFO', `Starting docker build. Image: ${imageTag}`, correlationId);
+  await logEvent(
+    deploymentId,
+    'BUILD',
+    'INFO',
+    `Starting docker build. Image: ${imageTag}`,
+    correlationId,
+  );
 
-  let imageId;
   try {
-    const result = await buildDockerImage({
+    await buildDockerImage({
       contextDir: workDir,
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
@@ -198,8 +230,13 @@ export async function handleBuildDeployment(job) {
         ).catch(() => {}); // non-fatal if log write fails
       },
     });
-    imageId = result.imageId;
-    await logEvent(deploymentId, 'BUILD', 'INFO', `Build succeeded. Image: ${imageTag}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'BUILD',
+      'INFO',
+      `Build succeeded. Image: ${imageTag}`,
+      correlationId,
+    );
   } catch (err) {
     await logEvent(deploymentId, 'BUILD', 'ERROR', `Build failed: ${err.message}`, correlationId);
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
@@ -214,7 +251,13 @@ export async function handleBuildDeployment(job) {
 
   // ── Transition to DEPLOYING and enqueue ACTIVATE_RELEASE ───────────────────
   await updateStatus(deploymentId, DeploymentStatus.DEPLOYING, { imageTag });
-  await logEvent(deploymentId, 'BUILD', 'INFO', `Image ready. Queuing container activation.`, correlationId);
+  await logEvent(
+    deploymentId,
+    'BUILD',
+    'INFO',
+    `Image ready. Queuing container activation.`,
+    correlationId,
+  );
 
   // Cleanup build workspace before activation — image is in the Docker daemon
   await cleanupBuildWorkspace(workDir);
@@ -224,17 +267,22 @@ export async function handleBuildDeployment(job) {
   const { getWorkerQueue } = await import('../queue/worker-queue.js');
   const queue = getWorkerQueue();
   if (queue) {
-    await enqueueJob(queue, JobType.ACTIVATE_RELEASE, {
-      version: 1,
-      correlationId,
-      actorId: job.data.actorId,
-      actorRole: job.data.actorRole,
-      projectId,
-      deploymentId,
-      imageId: imageTag,
-      targetPort: project.buildConfiguration?.applicationPort ?? 3000,
-      resourceLimits: { memoryMb: 256, cpuShares: 256, pidsLimit: 100 },
-    }, { jobId: `activate-${deploymentId}` });
+    await enqueueJob(
+      queue,
+      JobType.ACTIVATE_RELEASE,
+      {
+        version: 1,
+        correlationId,
+        actorId: job.data.actorId,
+        actorRole: job.data.actorRole,
+        projectId,
+        deploymentId,
+        imageId: imageTag,
+        targetPort: project.buildConfiguration?.applicationPort ?? 3000,
+        resourceLimits: { memoryMb: 256, cpuShares: 256, pidsLimit: 100 },
+      },
+      { jobId: `activate-${deploymentId}` },
+    );
   }
 
   logger.info('BuildDeployment: job complete', {

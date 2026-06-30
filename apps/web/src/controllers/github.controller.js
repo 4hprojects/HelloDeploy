@@ -62,7 +62,9 @@ export const getGithubCallback = asyncHandler(async (req, res) => {
   if (!installation_id) {
     req.flash('error', 'GitHub installation was cancelled or did not return an ID.');
     const slug = sessionState?.projectSlug;
-    return req.session.save(() => res.redirect(slug ? `/projects/${slug}/repository` : '/dashboard'));
+    return req.session.save(() =>
+      res.redirect(slug ? `/projects/${slug}/repository` : '/dashboard'),
+    );
   }
 
   const installationId = parseInt(installation_id, 10);
@@ -144,7 +146,7 @@ export const getRepository = asyncHandler(async (req, res) => {
   let repos = [];
   try {
     repos = await listInstallationRepos(user.githubInstallationId);
-  } catch (err) {
+  } catch {
     req.flash('error', 'Could not load repositories from GitHub. Please try again.');
   }
 
@@ -176,8 +178,15 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
     return res.redirect(`/projects/${project.slug}/repository`);
   }
 
-  const { fullName, githubRepoId, nodeId, ownerLogin, defaultBranch, visibility, productionBranch } =
-    req.body;
+  const {
+    fullName,
+    githubRepoId,
+    nodeId,
+    ownerLogin,
+    defaultBranch,
+    visibility,
+    productionBranch,
+  } = req.body;
 
   if (!fullName || !githubRepoId || !productionBranch) {
     req.flash('error', 'Repository and branch selection are required.');
@@ -315,7 +324,7 @@ export const getBranches = asyncHandler(async (req, res) => {
   try {
     const branches = await listBranches(user.githubInstallationId, fullName);
     res.json({ branches });
-  } catch (err) {
+  } catch {
     res.status(500).json({ error: 'Could not load branches' });
   }
 });

@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { describe, it, before, after } from 'node:test';
+import { describe, it } from 'node:test';
 import { createHmac } from 'node:crypto';
 
 // Set required env before importing the service
@@ -7,9 +7,7 @@ process.env.GITHUB_WEBHOOK_SECRET = 'test-webhook-secret';
 process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 
-const { verifyWebhookSignature } = await import(
-  '../../apps/web/src/services/github.service.js'
-);
+const { verifyWebhookSignature } = await import('../../apps/web/src/services/github.service.js');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

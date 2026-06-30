@@ -36,12 +36,25 @@ function invoke(limiter, ip, acceptsHtml = false) {
     };
     let capturedStatus = null;
     const res = {
-      setHeader() { return this; },
-      getHeader() { return null; },
-      removeHeader() { return this; },
-      status(code) { capturedStatus = code; return this; },
-      render(view, data) { resolve({ status: capturedStatus, type: 'html', view, data }); },
-      json(body) { resolve({ status: capturedStatus, type: 'json', body }); },
+      setHeader() {
+        return this;
+      },
+      getHeader() {
+        return null;
+      },
+      removeHeader() {
+        return this;
+      },
+      status(code) {
+        capturedStatus = code;
+        return this;
+      },
+      render(view, data) {
+        resolve({ status: capturedStatus, type: 'html', view, data });
+      },
+      json(body) {
+        resolve({ status: capturedStatus, type: 'json', body });
+      },
     };
     limiter(req, res, (err) => resolve({ status: null, type: 'pass', err: err ?? null }));
   });
@@ -63,7 +76,9 @@ describe('brute-force protection — rate limit behaviour', () => {
   it('blocks the first request that exceeds the limit with 429', async () => {
     const limiter = makeTestLimiter(3);
     const ip = '192.0.2.2';
-    for (let i = 0; i < 3; i++) await invoke(limiter, ip);
+    for (let i = 0; i < 3; i++) {
+      await invoke(limiter, ip);
+    }
     const result = await invoke(limiter, ip); // 4th request exceeds limit=3
     assert.equal(result.status, 429, 'request exceeding limit must be blocked');
     assert.equal(result.type !== 'pass', true, 'must not pass to next middleware');
@@ -83,7 +98,7 @@ describe('brute-force protection — rate limit behaviour', () => {
   it('returns JSON for non-browser (API) requests', async () => {
     const limiter = makeTestLimiter(1);
     const ip = '192.0.2.4';
-    await invoke(limiter, ip, false);      // exhaust
+    await invoke(limiter, ip, false); // exhaust
     const result = await invoke(limiter, ip, false); // trigger 429
     assert.equal(result.status, 429);
     assert.equal(result.type, 'json', 'API clients must receive JSON');
@@ -94,7 +109,7 @@ describe('brute-force protection — rate limit behaviour', () => {
   it('returns HTML for browser (Accept: text/html) requests', async () => {
     const limiter = makeTestLimiter(1);
     const ip = '192.0.2.5';
-    await invoke(limiter, ip, true);       // exhaust
+    await invoke(limiter, ip, true); // exhaust
     const result = await invoke(limiter, ip, true); // trigger 429
     assert.equal(result.status, 429);
     assert.equal(result.type, 'html', 'browsers must receive an HTML error page');
@@ -129,7 +144,9 @@ describe('brute-force protection — rate limit behaviour', () => {
   it('registration limiter configuration: limit is 5 per hour', async () => {
     const registrationPattern = makeTestLimiter(5);
     const ip = '192.0.2.21';
-    for (let i = 0; i < 5; i++) await invoke(registrationPattern, ip);
+    for (let i = 0; i < 5; i++) {
+      await invoke(registrationPattern, ip);
+    }
     const blocked = await invoke(registrationPattern, ip);
     assert.equal(blocked.status, 429, '6th registration attempt must be blocked (limit=5)');
   });

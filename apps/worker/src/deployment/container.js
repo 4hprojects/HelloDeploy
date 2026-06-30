@@ -110,25 +110,39 @@ export async function startContainer({
   const args = [
     'run',
     '--detach',
-    '--name', name,
-    '--network', netName,
-    '--publish', `127.0.0.1:${hostPort}:${appPort}`,
+    '--name',
+    name,
+    '--network',
+    netName,
+    '--publish',
+    `127.0.0.1:${hostPort}:${appPort}`,
     // Resource limits (blueprint: mandatory)
-    '--memory', `${memoryMb}m`,
-    '--memory-swap', `${memoryMb}m`, // disable swap
-    '--cpus', String(cpuCores),
-    '--pids-limit', '100',
+    '--memory',
+    `${memoryMb}m`,
+    '--memory-swap',
+    `${memoryMb}m`, // disable swap
+    '--cpus',
+    String(cpuCores),
+    '--pids-limit',
+    '100',
     // Security hardening (blueprint non-negotiable controls)
-    '--security-opt', 'no-new-privileges:true',
-    '--cap-drop', 'ALL',
+    '--security-opt',
+    'no-new-privileges:true',
+    '--cap-drop',
+    'ALL',
     // Crash loop protection (max 3 restarts before giving up)
-    '--restart', 'on-failure:3',
+    '--restart',
+    'on-failure:3',
     // Labels for identification
-    '--label', `hellodeploy.managed=true`,
-    '--label', `hellodeploy.project=${projectId}`,
-    '--label', `hellodeploy.deployment=${deploymentId}`,
+    '--label',
+    `hellodeploy.managed=true`,
+    '--label',
+    `hellodeploy.project=${projectId}`,
+    '--label',
+    `hellodeploy.deployment=${deploymentId}`,
     // Always inject PORT so the app knows which port to listen on
-    '--env', `PORT=${appPort}`,
+    '--env',
+    `PORT=${appPort}`,
     ...envArgs,
   ];
 
@@ -158,12 +172,7 @@ export async function startContainer({
  */
 export async function inspectContainer(containerIdOrName) {
   try {
-    const json = await runDocker([
-      'inspect',
-      '--format',
-      '{{json .State}}',
-      containerIdOrName,
-    ]);
+    const json = await runDocker(['inspect', '--format', '{{json .State}}', containerIdOrName]);
     const state = JSON.parse(json);
     return {
       status: state.Status ?? 'unknown',
@@ -188,7 +197,10 @@ export async function stopAndRemoveContainer(containerIdOrName) {
     await runDocker(['rm', '--force', containerIdOrName]);
     logger.info('Container: removed', { container: containerIdOrName });
   } catch (err) {
-    logger.warn('Container: failed to remove', { container: containerIdOrName, error: err.message });
+    logger.warn('Container: failed to remove', {
+      container: containerIdOrName,
+      error: err.message,
+    });
   }
 }
 

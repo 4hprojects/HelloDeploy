@@ -2,18 +2,27 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { PlatformRole, UserStatus } from '@hellodeploy/contracts';
 
-const { requireAuth, requireSuperAdmin, requireAdmin } = await import(
-  '../../apps/web/src/middleware/require-auth.js'
-);
+const { requireAuth, requireSuperAdmin, requireAdmin } =
+  await import('../../apps/web/src/middleware/require-auth.js');
 
 function makeRes() {
   return {
     redirectedTo: null,
     renderedStatus: null,
     renderedView: null,
-    redirect(url) { this.redirectedTo = url; return this; },
-    status(code) { this.renderedStatus = code; return this; },
-    render(view, data) { this.renderedView = view; this.renderedData = data; return this; },
+    redirect(url) {
+      this.redirectedTo = url;
+      return this;
+    },
+    status(code) {
+      this.renderedStatus = code;
+      return this;
+    },
+    render(view, data) {
+      this.renderedView = view;
+      this.renderedData = data;
+      return this;
+    },
   };
 }
 
@@ -24,7 +33,9 @@ describe('requireAuth — authentication gate', () => {
     const req = { session: {}, originalUrl: '/projects/my-app' };
     const res = makeRes();
     let nextCalled = false;
-    requireAuth(req, res, () => { nextCalled = true; });
+    requireAuth(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false, 'next must not be called for unauthenticated request');
     assert.ok(res.redirectedTo?.startsWith('/auth/sign-in'), 'must redirect to sign-in');
     assert.ok(
@@ -38,16 +49,24 @@ describe('requireAuth — authentication gate', () => {
     const req = {
       session: {
         user: { status: UserStatus.SUSPENDED },
-        destroy(cb) { destroyed = true; cb?.(); },
+        destroy(cb) {
+          destroyed = true;
+          cb?.();
+        },
       },
       originalUrl: '/dashboard',
     };
     const res = makeRes();
     let nextCalled = false;
-    requireAuth(req, res, () => { nextCalled = true; });
+    requireAuth(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false);
     assert.equal(destroyed, true, 'session must be destroyed for suspended user');
-    assert.ok(res.redirectedTo?.includes('account_suspended'), 'redirect must include suspension reason');
+    assert.ok(
+      res.redirectedTo?.includes('account_suspended'),
+      'redirect must include suspension reason',
+    );
   });
 
   it('blocks PENDING_VERIFICATION user: destroys session and redirects', () => {
@@ -55,7 +74,10 @@ describe('requireAuth — authentication gate', () => {
     const req = {
       session: {
         user: { status: UserStatus.PENDING_VERIFICATION },
-        destroy(cb) { destroyed = true; cb?.(); },
+        destroy(cb) {
+          destroyed = true;
+          cb?.();
+        },
       },
       originalUrl: '/dashboard',
     };
@@ -71,7 +93,9 @@ describe('requireAuth — authentication gate', () => {
     };
     const res = makeRes();
     let nextCalled = false;
-    requireAuth(req, res, () => { nextCalled = true; });
+    requireAuth(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, true, 'ACTIVE user must reach next middleware');
     assert.equal(res.redirectedTo, null, 'ACTIVE user must not be redirected');
   });
@@ -84,7 +108,9 @@ describe('requireSuperAdmin — vertical privilege escalation prevention', () =>
     const req = { session: { user: { platformRole: PlatformRole.USER } } };
     const res = makeRes();
     let nextCalled = false;
-    requireSuperAdmin(req, res, () => { nextCalled = true; });
+    requireSuperAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false, 'USER must not pass super admin gate');
     assert.equal(res.renderedStatus, 403);
   });
@@ -93,7 +119,9 @@ describe('requireSuperAdmin — vertical privilege escalation prevention', () =>
     const req = { session: { user: { platformRole: PlatformRole.ADMIN } } };
     const res = makeRes();
     let nextCalled = false;
-    requireSuperAdmin(req, res, () => { nextCalled = true; });
+    requireSuperAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false, 'ADMIN must not pass super admin gate');
     assert.equal(res.renderedStatus, 403);
   });
@@ -102,7 +130,9 @@ describe('requireSuperAdmin — vertical privilege escalation prevention', () =>
     const req = { session: { user: { platformRole: PlatformRole.SUPER_ADMIN } } };
     const res = makeRes();
     let nextCalled = false;
-    requireSuperAdmin(req, res, () => { nextCalled = true; });
+    requireSuperAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, true);
     assert.equal(res.renderedStatus, null, 'must not render an error');
   });
@@ -111,7 +141,9 @@ describe('requireSuperAdmin — vertical privilege escalation prevention', () =>
     const req = { session: {} };
     const res = makeRes();
     let nextCalled = false;
-    requireSuperAdmin(req, res, () => { nextCalled = true; });
+    requireSuperAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false);
     assert.equal(res.renderedStatus, 403);
   });
@@ -124,7 +156,9 @@ describe('requireAdmin — vertical privilege check', () => {
     const req = { session: { user: { platformRole: PlatformRole.USER } } };
     const res = makeRes();
     let nextCalled = false;
-    requireAdmin(req, res, () => { nextCalled = true; });
+    requireAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, false);
     assert.equal(res.renderedStatus, 403);
   });
@@ -133,7 +167,9 @@ describe('requireAdmin — vertical privilege check', () => {
     const req = { session: { user: { platformRole: PlatformRole.ADMIN } } };
     const res = makeRes();
     let nextCalled = false;
-    requireAdmin(req, res, () => { nextCalled = true; });
+    requireAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, true);
   });
 
@@ -141,7 +177,9 @@ describe('requireAdmin — vertical privilege check', () => {
     const req = { session: { user: { platformRole: PlatformRole.SUPER_ADMIN } } };
     const res = makeRes();
     let nextCalled = false;
-    requireAdmin(req, res, () => { nextCalled = true; });
+    requireAdmin(req, res, () => {
+      nextCalled = true;
+    });
     assert.equal(nextCalled, true);
   });
 });

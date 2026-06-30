@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { canTransition, validNextStatuses, isTerminal, isActive, buildImageTag } =
+const { canTransition, isTerminal, isActive, buildImageTag } =
   await import('../../packages/deployment-core/src/index.js');
 
 describe('canTransition', () => {

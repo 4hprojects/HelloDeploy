@@ -75,13 +75,13 @@
     <div class="button-group">
       <% if (server.queue?.paused) { %>
       <form method="POST" action="/admin/server/queue/resume">
-        <%- include('../../../partials/csrf-field') %>
+        <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--success">Resume Queue</button>
       </form>
       <% } else { %>
       <form method="POST" action="/admin/server/queue/pause"
-            onsubmit="return confirm('Pause the deployment queue? Running jobs will finish, but no new jobs will start.')">
-        <%- include('../../../partials/csrf-field') %>
+            data-confirm='Pause the deployment queue? Running jobs will finish, but no new jobs will start.'>
+        <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--warning">Pause Queue</button>
       </form>
       <% } %>

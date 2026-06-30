@@ -5,9 +5,7 @@ process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32).toString('base64');
 
-const { normalizeHostname } = await import(
-  '../../apps/web/src/services/domain.service.js'
-);
+const { normalizeHostname } = await import('../../apps/web/src/services/domain.service.js');
 
 describe('Domain validation — security hardening', () => {
   // SSRF / internal network access prevention

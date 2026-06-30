@@ -1,5 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import { DeploymentTrigger } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
 import {
@@ -7,21 +7,25 @@ import {
   cancelDeployment,
   retryDeployment,
   rollbackDeployment,
-  getDeployments,
+  getDeploymentsPaginated,
+  getRollbackTargets,
   getDeployment,
   getDeploymentEvents,
 } from '../services/deployment.service.js';
 
+const DEPLOYMENTS_PER_PAGE = 20;
+
 export const getDeploymentList = asyncHandler(async (req, res) => {
   const project = req.project;
-  const deployments = await getDeployments(project._id);
+  const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
 
-  // Identify HEALTHY deployments eligible for rollback (not the currently active one)
-  const rollbackTargets = deployments.filter(
-    (d) =>
-      d.status === DeploymentStatus.HEALTHY &&
-      d._id.toString() !== project.activeDeploymentId?.toString(),
-  );
+  const { deployments, total, totalPages } = await getDeploymentsPaginated(project._id, {
+    page,
+    limit: DEPLOYMENTS_PER_PAGE,
+  });
+
+  // Identify HEALTHY deployments eligible for rollback outside the paginated list.
+  const rollbackTargets = await getRollbackTargets(project._id, project.activeDeploymentId);
 
   res.render('pages/projects/deployments', {
     title: `Deployments – ${project.name}`,
@@ -29,6 +33,9 @@ export const getDeploymentList = asyncHandler(async (req, res) => {
     membership: req.membership,
     deployments,
     rollbackTargets,
+    page,
+    totalPages,
+    total,
   });
 });
 
@@ -159,11 +166,15 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
 
   req.on('close', () => {
     closed = true;
-    if (poll) clearInterval(poll);
+    if (poll) {
+      clearInterval(poll);
+    }
   });
 
   const sendEvent = (eventType, data) => {
-    if (closed) return;
+    if (closed) {
+      return;
+    }
     res.write(`event: ${eventType}\n`);
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
@@ -206,7 +217,10 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       const newEvents = await DeploymentEvent.find({
         deploymentId,
         ...(lastId ? { _id: { $gt: lastId } } : {}),
-      }).sort({ _id: 1 }).limit(100).lean();
+      })
+        .sort({ _id: 1 })
+        .limit(100)
+        .lean();
 
       for (const ev of newEvents) {
         sendEvent('log', {
@@ -230,5 +244,4 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       // Non-fatal — keep polling
     }
   }, SSE_POLL_INTERVAL_MS);
-
 });

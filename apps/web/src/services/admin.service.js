@@ -1,5 +1,12 @@
 import { User, Project, ApprovalRequest, Quota } from '@hellodeploy/database';
-import { UserStatus, ProjectStatus, ApprovalStatus, AuditOutcome, QuotaScope, JobType } from '@hellodeploy/contracts';
+import {
+  UserStatus,
+  ProjectStatus,
+  ApprovalStatus,
+  AuditOutcome,
+  QuotaScope,
+  JobType,
+} from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
@@ -187,7 +194,9 @@ export async function adminReactivateProject({
 
 export async function pauseQueue(adminId, adminRole, opts = {}) {
   const queue = getDeploymentQueue();
-  if (!queue) return { success: false, error: 'Queue unavailable.' };
+  if (!queue) {
+    return { success: false, error: 'Queue unavailable.' };
+  }
   await queue.pause();
   await writeAuditEvent({
     action: 'admin.queue_paused',
@@ -202,7 +211,9 @@ export async function pauseQueue(adminId, adminRole, opts = {}) {
 
 export async function resumeQueue(adminId, adminRole, opts = {}) {
   const queue = getDeploymentQueue();
-  if (!queue) return { success: false, error: 'Queue unavailable.' };
+  if (!queue) {
+    return { success: false, error: 'Queue unavailable.' };
+  }
   await queue.resume();
   await writeAuditEvent({
     action: 'admin.queue_resumed',
@@ -217,7 +228,16 @@ export async function resumeQueue(adminId, adminRole, opts = {}) {
 
 // ─── Quota management ─────────────────────────────────────────────────────────
 
-export async function setQuotaOverride({ scopeType, scopeId, limits, adminId, adminRole, reason, sourceIp, correlationId }) {
+export async function setQuotaOverride({
+  scopeType,
+  scopeId,
+  limits,
+  adminId,
+  adminRole,
+  reason,
+  sourceIp,
+  correlationId,
+}) {
   if (!Object.values(QuotaScope).includes(scopeType)) {
     return { success: false, error: 'Invalid quota scope type.' };
   }
@@ -262,23 +282,34 @@ export async function adminSuspendProjectWithStop({
   correlationId,
 }) {
   const project = await Project.findById(projectId);
-  if (!project) return { success: false, error: 'Project not found.' };
-  if (project.status === ProjectStatus.SUSPENDED) return { success: false, error: 'Already suspended.' };
-  if (project.status === ProjectStatus.ARCHIVED) return { success: false, error: 'Cannot suspend an archived project.' };
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+  if (project.status === ProjectStatus.SUSPENDED) {
+    return { success: false, error: 'Already suspended.' };
+  }
+  if (project.status === ProjectStatus.ARCHIVED) {
+    return { success: false, error: 'Cannot suspend an archived project.' };
+  }
 
   project.status = ProjectStatus.SUSPENDED;
   await project.save();
 
   const queue = getDeploymentQueue();
   if (queue) {
-    await enqueueJob(queue, JobType.STOP_PROJECT, {
-      version: 1,
-      correlationId,
-      actorId: adminId,
-      actorRole: adminRole,
-      projectId: projectId.toString(),
-      reason: reason?.trim() || 'Suspended by administrator.',
-    }, { jobId: `stop-${projectId}` });
+    await enqueueJob(
+      queue,
+      JobType.STOP_PROJECT,
+      {
+        version: 1,
+        correlationId,
+        actorId: adminId,
+        actorRole: adminRole,
+        projectId: projectId.toString(),
+        reason: reason?.trim() || 'Suspended by administrator.',
+      },
+      { jobId: `stop-${projectId}` },
+    );
   }
 
   await writeAuditEvent({

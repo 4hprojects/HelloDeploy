@@ -34,13 +34,19 @@ export async function buildDockerImage({ contextDir, imageTag, buildTimeoutMs, o
     // SECURITY: command array — no shell, no string interpolation
     const args = [
       'build',
-      '--tag', imageTag,
-      '--file', join(contextDir, 'Dockerfile'),
-      '--label', `hellodeploy.image=true`,
-      '--label', `hellodeploy.tag=${imageTag}`,
+      '--tag',
+      imageTag,
+      '--file',
+      join(contextDir, 'Dockerfile'),
+      '--label',
+      `hellodeploy.image=true`,
+      '--label',
+      `hellodeploy.tag=${imageTag}`,
       // Resource limits on the build process itself
-      '--memory', '1g',
-      '--network', 'none', // no network during build — dependencies must be in the image
+      '--memory',
+      '1g',
+      '--network',
+      'none', // no network during build — dependencies must be in the image
       contextDir,
     ];
 

@@ -111,10 +111,7 @@ describe('container security — hardening flags in startContainer', () => {
   });
 
   it('does not use --privileged mode', () => {
-    assert.ok(
-      !source.includes('--privileged'),
-      'containers must never run in privileged mode',
-    );
+    assert.ok(!source.includes('--privileged'), 'containers must never run in privileged mode');
   });
 
   it('does not use --network host (must use isolated project network)', () => {

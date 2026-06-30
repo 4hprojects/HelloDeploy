@@ -8,7 +8,9 @@ import { logger } from '@hellodeploy/observability';
 let _privateKey = null;
 
 function loadPrivateKey() {
-  if (_privateKey) return _privateKey;
+  if (_privateKey) {
+    return _privateKey;
+  }
 
   if (env.GITHUB_APP_PRIVATE_KEY_PATH) {
     try {
@@ -99,17 +101,14 @@ export function getInstallationUrl() {
 export async function listInstallationRepos(installationId) {
   const token = await getInstallationToken(installationId);
 
-  const res = await fetch(
-    'https://api.github.com/installation/repositories?per_page=100',
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'hellodeploy',
-      },
+  const res = await fetch('https://api.github.com/installation/repositories?per_page=100', {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'hellodeploy',
     },
-  );
+  });
 
   if (!res.ok) {
     throw new Error(`Failed to list installation repositories (${res.status})`);
@@ -135,17 +134,14 @@ export async function listBranches(installationId, fullName) {
   const token = await getInstallationToken(installationId);
   const [owner, repo] = fullName.split('/');
 
-  const res = await fetch(
-    `https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`,
-    {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github+json',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'User-Agent': 'hellodeploy',
-      },
+  const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'hellodeploy',
     },
-  );
+  });
 
   if (!res.ok) {
     throw new Error(`Failed to list branches for ${fullName} (${res.status})`);
@@ -205,7 +201,9 @@ export function verifyWebhookSignature(rawBody, signatureHeader) {
   try {
     const expectedBuf = Buffer.from(expected, 'utf8');
     const receivedBuf = Buffer.from(signatureHeader, 'utf8');
-    if (expectedBuf.length !== receivedBuf.length) return false;
+    if (expectedBuf.length !== receivedBuf.length) {
+      return false;
+    }
     return timingSafeEqual(expectedBuf, receivedBuf);
   } catch {
     return false;

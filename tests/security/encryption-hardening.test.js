@@ -2,12 +2,16 @@ import assert from 'node:assert/strict';
 import { describe, it, before, after } from 'node:test';
 
 // Each test uses its own master key to avoid crosstalk
-const KEY_A = Buffer.alloc(32, 0xAA).toString('base64');
-const KEY_B = Buffer.alloc(32, 0xBB).toString('base64');
+const KEY_A = Buffer.alloc(32, 0xaa).toString('base64');
+const KEY_B = Buffer.alloc(32, 0xbb).toString('base64');
 
 describe('Encryption hardening', () => {
-  before(() => { process.env.HELLODEPLOY_MASTER_KEY = KEY_A; });
-  after(() => { delete process.env.HELLODEPLOY_MASTER_KEY; });
+  before(() => {
+    process.env.HELLODEPLOY_MASTER_KEY = KEY_A;
+  });
+  after(() => {
+    delete process.env.HELLODEPLOY_MASTER_KEY;
+  });
 
   it('every ciphertext is unique (IVs are random)', async () => {
     const { encrypt } = await import('../../packages/security/src/encryption.js');

@@ -2,9 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { tmpdir } from 'node:os';
 
-const { activateRoute, removeRoute, readRouteConfig } = await import(
-  '../../apps/worker/src/nginx/route-manager.js'
-);
+const { activateRoute, removeRoute, readRouteConfig } =
+  await import('../../apps/worker/src/nginx/route-manager.js');
 
 // ─── Unsafe slugs that must be rejected ──────────────────────────────────────
 

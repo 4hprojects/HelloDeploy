@@ -45,6 +45,8 @@ export function requireProjectRole(...allowedRoles) {
 
     req.project = project;
     req.membership = membership;
+    res.locals.currentProject = project;
+    res.locals.currentMembership = membership;
     next();
   };
 }

@@ -1,6 +1,5 @@
 import { spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
-import { existsSync } from 'node:fs';
 import { logger } from '@hellodeploy/observability';
 
 // ─── Git runner ────────────────────────────────────────────────────────────────
@@ -54,7 +53,13 @@ function runGit(args, opts = {}) {
  *   workDir: string,            // must not exist yet
  * }} params
  */
-export async function cloneExactCommit({ installationToken, ownerLogin, repoName, commitSha, workDir }) {
+export async function cloneExactCommit({
+  installationToken,
+  ownerLogin,
+  repoName,
+  commitSha,
+  workDir,
+}) {
   await mkdir(workDir, { recursive: true });
 
   const cloneUrl = `https://x-access-token:${installationToken}@github.com/${ownerLogin}/${repoName}.git`;

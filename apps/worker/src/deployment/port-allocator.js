@@ -36,5 +36,7 @@ export async function allocatePort() {
     }
   }
 
-  throw new Error('No available ports in allocation range. Maximum concurrent deployments reached.');
+  throw new Error(
+    'No available ports in allocation range. Maximum concurrent deployments reached.',
+  );
 }

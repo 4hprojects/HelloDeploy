@@ -4,9 +4,8 @@ import { describe, it } from 'node:test';
 process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 
-const { containerName, networkName } = await import(
-  '../../apps/worker/src/deployment/container.js'
-);
+const { containerName, networkName } =
+  await import('../../apps/worker/src/deployment/container.js');
 
 describe('containerName', () => {
   it('produces expected format', () => {

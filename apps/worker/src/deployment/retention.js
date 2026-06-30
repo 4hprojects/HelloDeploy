@@ -25,7 +25,9 @@ export async function cleanupOldReleases(projectId) {
 
   const toClean = healthy.slice(MAX_HEALTHY_RELEASES);
 
-  if (toClean.length === 0) return;
+  if (toClean.length === 0) {
+    return;
+  }
 
   logger.info('Retention: cleaning up old releases', {
     projectId,
@@ -61,14 +63,13 @@ export async function cleanupOldReleases(projectId) {
     }
 
     // Clear container references now that they are removed
-    await Deployment.updateOne(
-      { _id: dep._id },
-      { $set: { activeContainerId: null } },
-    ).catch((err) => {
-      logger.warn('Retention: failed to update deployment record', {
-        deploymentId: dep._id,
-        error: err.message,
-      });
-    });
+    await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
+      (err) => {
+        logger.warn('Retention: failed to update deployment record', {
+          deploymentId: dep._id,
+          error: err.message,
+        });
+      },
+    );
   }
 }

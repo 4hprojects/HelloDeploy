@@ -7,7 +7,9 @@ import { env } from '../config/env.js';
 let _privateKey = null;
 
 function loadPrivateKey() {
-  if (_privateKey) return _privateKey;
+  if (_privateKey) {
+    return _privateKey;
+  }
   if (env.GITHUB_APP_PRIVATE_KEY_PATH) {
     try {
       _privateKey = readFileSync(env.GITHUB_APP_PRIVATE_KEY_PATH, 'utf8');
@@ -27,7 +29,9 @@ function loadPrivateKey() {
 
 function generateAppJWT() {
   const privateKey = loadPrivateKey();
-  if (!privateKey) throw new Error('GitHub App private key is not configured.');
+  if (!privateKey) {
+    throw new Error('GitHub App private key is not configured.');
+  }
 
   const now = Math.floor(Date.now() / 1000);
   const header = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');

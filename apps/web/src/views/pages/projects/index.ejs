@@ -33,7 +33,7 @@
         </td>
         <td><%- include('../../partials/status-badge', { status: project.status }) %></td>
         <td><span class="role-pill"><%= role %></span></td>
-        <td class="text-muted text-sm"><%= new Date(project.createdAt).toLocaleDateString() %></td>
+        <td class="text-muted text-sm"><%= new Date(project.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right">
           <a href="/projects/<%= project.slug %>" class="button button--ghost button--sm">Open</a>
         </td>

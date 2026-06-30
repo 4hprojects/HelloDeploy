@@ -6,7 +6,6 @@ import {
   suspendUser,
   reactivateUser,
   getProjects,
-  adminSuspendProject,
   adminSuspendProjectWithStop,
   adminReactivateProject,
   getApprovalRequests,
@@ -22,10 +21,7 @@ import { searchAuditEvents } from '../services/audit-search.service.js';
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
 export const getAdminIndex = asyncHandler(async (req, res) => {
-  const [stats, server] = await Promise.all([
-    getAdminOverview(),
-    collectServerStats(),
-  ]);
+  const [stats, server] = await Promise.all([getAdminOverview(), collectServerStats()]);
   res.render('pages/admin/index', {
     title: 'Admin Overview',
     stats,
@@ -48,8 +44,11 @@ export const postPauseQueue = asyncHandler(async (req, res) => {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
-  if (!result.success) req.flash('error', result.error);
-  else req.flash('success', 'Deployment queue paused. No new jobs will start until resumed.');
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Deployment queue paused. No new jobs will start until resumed.');
+  }
   res.redirect('/admin/server');
 });
 
@@ -58,8 +57,11 @@ export const postResumeQueue = asyncHandler(async (req, res) => {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
-  if (!result.success) req.flash('error', result.error);
-  else req.flash('success', 'Deployment queue resumed.');
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Deployment queue resumed.');
+  }
   res.redirect('/admin/server');
 });
 
@@ -82,7 +84,14 @@ export const getAdminAuditEvents = asyncHandler(async (req, res) => {
   res.render('pages/admin/audit-events', {
     title: 'Audit Events',
     ...result,
-    filters: { action: action ?? '', actorId: actorId ?? '', targetType: targetType ?? '', outcome: outcome ?? '', from: from ?? '', to: to ?? '' },
+    filters: {
+      action: action ?? '',
+      actorId: actorId ?? '',
+      targetType: targetType ?? '',
+      outcome: outcome ?? '',
+      from: from ?? '',
+      to: to ?? '',
+    },
   });
 });
 
@@ -102,20 +111,42 @@ export const getAdminQuota = asyncHandler(async (req, res) => {
 export const postAdminSetQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
   const {
-    maxOwnedProjects, maxRunningApps, maxProjectMembers,
-    memoryMb, cpuCores, deploymentsPerMonth, buildTimeoutSeconds,
-    maxCustomDomains, maxRollbackReleases, logRetentionDays, reason,
+    maxOwnedProjects,
+    maxRunningApps,
+    maxProjectMembers,
+    memoryMb,
+    cpuCores,
+    deploymentsPerMonth,
+    buildTimeoutSeconds,
+    maxCustomDomains,
+    maxRollbackReleases,
+    logRetentionDays,
+    reason,
   } = req.body;
 
   const limits = {};
-  const numericFields = { maxOwnedProjects, maxRunningApps, maxProjectMembers, memoryMb, deploymentsPerMonth, buildTimeoutSeconds, maxCustomDomains, maxRollbackReleases, logRetentionDays };
+  const numericFields = {
+    maxOwnedProjects,
+    maxRunningApps,
+    maxProjectMembers,
+    memoryMb,
+    deploymentsPerMonth,
+    buildTimeoutSeconds,
+    maxCustomDomains,
+    maxRollbackReleases,
+    logRetentionDays,
+  };
   const floatFields = { cpuCores };
 
   for (const [k, v] of Object.entries(numericFields)) {
-    if (v !== '' && v !== undefined) limits[k] = parseInt(v, 10);
+    if (v !== '' && v !== undefined) {
+      limits[k] = parseInt(v, 10);
+    }
   }
   for (const [k, v] of Object.entries(floatFields)) {
-    if (v !== '' && v !== undefined) limits[k] = parseFloat(v);
+    if (v !== '' && v !== undefined) {
+      limits[k] = parseFloat(v);
+    }
   }
 
   const result = await setQuotaOverride({
@@ -129,8 +160,11 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
     correlationId: req.correlationId,
   });
 
-  if (!result.success) req.flash('error', result.error);
-  else req.flash('success', 'Quota updated.');
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Quota updated.');
+  }
 
   res.redirect(`/admin/quotas/${scopeType}/${scopeId}`);
 });

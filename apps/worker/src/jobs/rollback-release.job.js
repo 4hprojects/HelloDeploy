@@ -21,7 +21,11 @@ import { env } from '../config/env.js';
 
 const DEFAULT_MEMORY_MB = 256;
 const DEFAULT_CPU_CORES = 0.25;
-const DEFAULT_APP_PORT = { [RuntimeType.STATIC]: 80, [RuntimeType.REACT]: 80, [RuntimeType.VUE]: 80 };
+const DEFAULT_APP_PORT = {
+  [RuntimeType.STATIC]: 80,
+  [RuntimeType.REACT]: 80,
+  [RuntimeType.VUE]: 80,
+};
 const STARTUP_DELAY_MS = 3_000;
 
 async function logEvent(deploymentId, stage, level, message, correlationId) {
@@ -60,13 +64,20 @@ export async function handleRollbackRelease(job) {
   }
 
   if (deployment.status !== DeploymentStatus.DEPLOYING) {
-    logger.info('RollbackRelease: skipping non-DEPLOYING deployment', { deploymentId, status: deployment.status });
+    logger.info('RollbackRelease: skipping non-DEPLOYING deployment', {
+      deploymentId,
+      status: deployment.status,
+    });
     return;
   }
 
   // ── Fetch source (target) deployment ───────────────────────────────────────
   const sourceDeployment = await Deployment.findById(sourceDeploymentId).lean();
-  if (!sourceDeployment || sourceDeployment.status !== DeploymentStatus.HEALTHY || !sourceDeployment.imageTag) {
+  if (
+    !sourceDeployment ||
+    sourceDeployment.status !== DeploymentStatus.HEALTHY ||
+    !sourceDeployment.imageTag
+  ) {
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'ROLLBACK_SOURCE_INVALID',
       failureSummary: 'Target deployment is not in a valid HEALTHY state for rollback.',
@@ -85,10 +96,17 @@ export async function handleRollbackRelease(job) {
     return;
   }
 
-  await logEvent(deploymentId, 'DEPLOY', 'INFO', `Rolling back to deployment #${sourceDeployment.sequenceNumber} (${sourceDeployment.commitSha.slice(0, 7)}).`, correlationId);
+  await logEvent(
+    deploymentId,
+    'DEPLOY',
+    'INFO',
+    `Rolling back to deployment #${sourceDeployment.sequenceNumber} (${sourceDeployment.commitSha.slice(0, 7)}).`,
+    correlationId,
+  );
 
   const runtimeType = project.runtimeType ?? RuntimeType.NODEJS;
-  const appPort = project.buildConfiguration?.applicationPort ?? DEFAULT_APP_PORT[runtimeType] ?? 3000;
+  const appPort =
+    project.buildConfiguration?.applicationPort ?? DEFAULT_APP_PORT[runtimeType] ?? 3000;
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
@@ -115,7 +133,13 @@ export async function handleRollbackRelease(job) {
   try {
     await ensureNetwork(netName);
   } catch (err) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `Network setup failed: ${err.message}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Network setup failed: ${err.message}`,
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'NETWORK_SETUP_FAILED',
       failureSummary: err.message,
@@ -128,8 +152,14 @@ export async function handleRollbackRelease(job) {
   let envVars = {};
   try {
     envVars = await getProjectEnvVars(projectId);
-  } catch (err) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', 'Failed to decrypt environment secrets.', correlationId);
+  } catch {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      'Failed to decrypt environment secrets.',
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'SECRET_DECRYPTION_FAILED',
       failureSummary: 'Could not decrypt environment secrets.',
@@ -158,9 +188,21 @@ export async function handleRollbackRelease(job) {
       { _id: deploymentId },
       { $set: { candidateContainerId: containerId, imageTag: sourceDeployment.imageTag } },
     );
-    await logEvent(deploymentId, 'DEPLOY', 'INFO', `Rollback container started: ${cName}.`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Rollback container started: ${cName}.`,
+      correlationId,
+    );
   } catch (err) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `Failed to start rollback container: ${err.message}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Failed to start rollback container: ${err.message}`,
+      correlationId,
+    );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'CONTAINER_START_FAILED',
       failureSummary: err.message.slice(0, 1000),
@@ -174,7 +216,13 @@ export async function handleRollbackRelease(job) {
 
   const state = await inspectContainer(cName);
   if (!state.running) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `Rollback container exited immediately (code ${state.exitCode}).`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Rollback container exited immediately (code ${state.exitCode}).`,
+      correlationId,
+    );
     await stopAndRemoveContainer(cName);
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'CONTAINER_CRASHED_ON_STARTUP',
@@ -189,7 +237,13 @@ export async function handleRollbackRelease(job) {
   const health = await httpHealthCheck({ url: healthUrl, attempts: 12, intervalMs: 5_000 });
 
   if (!health.healthy) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `Rollback health check failed: ${health.error ?? 'timeout'}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Rollback health check failed: ${health.error ?? 'timeout'}`,
+      correlationId,
+    );
     await stopAndRemoveContainer(cName);
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
       failureCode: 'HEALTH_CHECK_FAILED',
@@ -199,7 +253,13 @@ export async function handleRollbackRelease(job) {
     return;
   }
 
-  await logEvent(deploymentId, 'DEPLOY', 'INFO', `Rollback health check passed (HTTP ${health.finalStatus}).`, correlationId);
+  await logEvent(
+    deploymentId,
+    'DEPLOY',
+    'INFO',
+    `Rollback health check passed (HTTP ${health.finalStatus}).`,
+    correlationId,
+  );
 
   // ── Nginx route update ──────────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {
@@ -220,9 +280,21 @@ export async function handleRollbackRelease(job) {
           configContent: nginxConfig,
           nginxBinary: env.NGINX_BINARY_PATH,
         });
-        await logEvent(deploymentId, 'DEPLOY', 'INFO', `Nginx route updated for rollback.`, correlationId);
+        await logEvent(
+          deploymentId,
+          'DEPLOY',
+          'INFO',
+          `Nginx route updated for rollback.`,
+          correlationId,
+        );
       } catch (err) {
-        await logEvent(deploymentId, 'DEPLOY', 'ERROR', `Nginx update failed: ${err.message}`, correlationId);
+        await logEvent(
+          deploymentId,
+          'DEPLOY',
+          'ERROR',
+          `Nginx update failed: ${err.message}`,
+          correlationId,
+        );
         await stopAndRemoveContainer(cName);
         await updateStatus(deploymentId, DeploymentStatus.FAILED, {
           failureCode: 'NGINX_ROUTE_FAILED',
@@ -238,12 +310,24 @@ export async function handleRollbackRelease(job) {
   if (project.activeDeploymentId) {
     const currentActive = await Deployment.findById(project.activeDeploymentId).lean();
     if (currentActive?.activeContainerId) {
-      await logEvent(deploymentId, 'DEPLOY', 'INFO', `Stopping current container: ${currentActive.activeContainerId.slice(0, 12)}.`, correlationId);
+      await logEvent(
+        deploymentId,
+        'DEPLOY',
+        'INFO',
+        `Stopping current container: ${currentActive.activeContainerId.slice(0, 12)}.`,
+        correlationId,
+      );
       await stopAndRemoveContainer(currentActive.activeContainerId);
       // Mark the previous active as ROLLED_BACK
       await Deployment.updateOne(
         { _id: currentActive._id },
-        { $set: { status: DeploymentStatus.ROLLED_BACK, activeContainerId: null, completedAt: new Date() } },
+        {
+          $set: {
+            status: DeploymentStatus.ROLLED_BACK,
+            activeContainerId: null,
+            completedAt: new Date(),
+          },
+        },
       );
     }
   }
@@ -254,12 +338,15 @@ export async function handleRollbackRelease(job) {
     completedAt: new Date(),
   });
 
-  await Project.updateOne(
-    { _id: projectId },
-    { $set: { activeDeploymentId: deployment._id } },
-  );
+  await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deployment._id } });
 
-  await logEvent(deploymentId, 'DEPLOY', 'INFO', `Rollback complete. Restored to deployment #${sourceDeployment.sequenceNumber}.`, correlationId);
+  await logEvent(
+    deploymentId,
+    'DEPLOY',
+    'INFO',
+    `Rollback complete. Restored to deployment #${sourceDeployment.sequenceNumber}.`,
+    correlationId,
+  );
   logger.info('RollbackRelease: rollback complete', { deploymentId, sourceDeploymentId, hostPort });
 
   notifyDeploymentResult({

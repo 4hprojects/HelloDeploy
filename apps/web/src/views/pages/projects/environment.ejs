@@ -16,7 +16,7 @@
       <p class="form-error mb-4"><%= errors.form %></p>
     <% } %>
     <form method="POST" action="/projects/<%= project.slug %>/environment">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label" for="name">Name</label>
@@ -87,8 +87,8 @@
             <td class="text-right">
               <form method="POST"
                     action="/projects/<%= project.slug %>/environment/<%= secret.name %>/delete"
-                    onsubmit="return confirm('Delete <%= secret.name %>? This cannot be undone.')">
-                <%- include('../../../partials/csrf-field') %>
+                    data-confirm='Delete <%= secret.name %>? This cannot be undone.'>
+                <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--danger button--sm">Delete</button>
               </form>
             </td>

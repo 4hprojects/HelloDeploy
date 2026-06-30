@@ -1,5 +1,3 @@
-import { createDeploymentQueue } from '@hellodeploy/queue';
-
 let _queue = null;
 
 /**

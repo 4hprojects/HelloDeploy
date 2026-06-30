@@ -1,4 +1,4 @@
-import { readdir, stat, rm, unlink, realpath } from 'node:fs/promises';
+import { readdir, stat, unlink, realpath } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 
@@ -32,7 +32,9 @@ function assertInsideRoot(rootDir, targetPath) {
 // ─── Directory size ────────────────────────────────────────────────────────────
 
 async function getDirectorySize(dir, depth = 0) {
-  if (depth > 20) return 0;
+  if (depth > 20) {
+    return 0;
+  }
   let total = 0;
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {

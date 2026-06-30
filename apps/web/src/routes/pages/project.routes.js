@@ -23,10 +23,7 @@ import {
   postConnectRepository,
   postDisconnectRepository,
 } from '../../controllers/github.controller.js';
-import {
-  getDetection,
-  postRunDetection,
-} from '../../controllers/detection.controller.js';
+import { getDetection, postRunDetection } from '../../controllers/detection.controller.js';
 import {
   getEnvironment,
   postSetSecret,
@@ -91,8 +88,18 @@ router.post('/:slug/deployments', requireAuth, ownerOrMaintainer, postCreateDepl
 router.post('/:slug/rollback', requireAuth, ownerOrMaintainer, postRollback);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);
 router.get('/:slug/deployments/:deploymentId/logs', requireAuth, anyRole, sseDeploymentLogs);
-router.post('/:slug/deployments/:deploymentId/cancel', requireAuth, ownerOrMaintainer, postCancelDeployment);
-router.post('/:slug/deployments/:deploymentId/retry', requireAuth, ownerOrMaintainer, postRetryDeployment);
+router.post(
+  '/:slug/deployments/:deploymentId/cancel',
+  requireAuth,
+  ownerOrMaintainer,
+  postCancelDeployment,
+);
+router.post(
+  '/:slug/deployments/:deploymentId/retry',
+  requireAuth,
+  ownerOrMaintainer,
+  postRetryDeployment,
+);
 
 // Environment secrets
 router.get('/:slug/environment', requireAuth, ownerOnly, getEnvironment);

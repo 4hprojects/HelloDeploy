@@ -2,7 +2,7 @@
   <div>
     <h1 class="page-header__title">
       Deployment #<%= deployment.sequenceNumber %>
-      <%- include('../../../partials/status-badge', { status: deployment.status }) %>
+      <%- include('../../partials/status-badge', { status: deployment.status }) %>
     </h1>
     <p class="page-header__subtitle text-muted text-sm">
       <a href="/projects/<%= project.slug %>/deployments" class="table-link">&larr; All Deployments</a>
@@ -14,14 +14,14 @@
   <div class="button-group">
     <% if (isActive && canAct) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/cancel"
-          onsubmit="return confirm('Cancel this deployment?')">
-      <%- include('../../../partials/csrf-field') %>
+          data-confirm='Cancel this deployment?'>
+      <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--danger button--sm">Cancel</button>
     </form>
     <% } %>
     <% if (isRetryable && canAct) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--secondary button--sm">Retry</button>
     </form>
     <% } %>

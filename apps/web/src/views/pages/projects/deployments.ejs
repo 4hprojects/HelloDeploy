@@ -9,11 +9,11 @@
   <% if (canDeploy) { %>
   <div class="button-group">
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--primary">Deploy Latest</button>
     </form>
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <input type="hidden" name="noCache" value="true">
       <button type="submit" class="button button--secondary button--sm">Deploy (no cache)</button>
     </form>
@@ -27,8 +27,9 @@
     <h2 class="card__title text-sm">Rollback</h2>
   </div>
   <div class="card__body">
-    <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline">
-      <%- include('../../../partials/csrf-field') %>
+    <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
+          data-confirm="Roll back to this deployment?">
+      <%- include('../../partials/csrf-field') %>
       <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
       <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
         <% rollbackTargets.forEach(d => { %>
@@ -38,8 +39,7 @@
         </option>
         <% }) %>
       </select>
-      <button type="submit" class="button button--warning button--sm"
-              onclick="return confirm('Roll back to this deployment?')">Roll Back</button>
+      <button type="submit" class="button button--warning button--sm">Roll Back</button>
     </form>
   </div>
 </div>
@@ -80,7 +80,7 @@
               #<%= d.sequenceNumber %>
             </a>
           </td>
-          <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
+          <td><%- include('../../partials/status-badge', { status: d.status }) %></td>
           <td>
             <code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code>
             <% if (d.commitMessage) { %>
@@ -107,14 +107,14 @@
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
-                    onsubmit="return confirm('Cancel this deployment?')">
-                <%- include('../../../partials/csrf-field') %>
+                    data-confirm='Cancel this deployment?'>
+                <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--danger button--sm">Cancel</button>
               </form>
               <% } %>
               <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
               <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry">
-                <%- include('../../../partials/csrf-field') %>
+                <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--secondary button--sm">Retry</button>
               </form>
               <% } %>
@@ -126,4 +126,16 @@
     </table>
   </div>
 </div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination mt-4">
+  <% if (page > 1) { %>
+  <a href="?page=<%= page - 1 %>" class="button button--ghost button--sm">← Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %> (<%= total %> deployments)</span>
+  <% if (page < totalPages) { %>
+  <a href="?page=<%= page + 1 %>" class="button button--ghost button--sm">Next →</a>
+  <% } %>
+</div>
+<% } %>
 <% } %>

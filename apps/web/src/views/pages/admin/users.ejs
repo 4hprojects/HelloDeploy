@@ -49,18 +49,18 @@
           <span class="text-muted text-xs d-block"><%= u.email %></span>
         </td>
         <td><span class="role-pill"><%= u.platformRole %></span></td>
-        <td><%- include('../../../partials/status-badge', { status: u.status }) %></td>
-        <td class="text-sm text-muted"><%= new Date(u.createdAt).toLocaleDateString() %></td>
+        <td><%- include('../../partials/status-badge', { status: u.status }) %></td>
+        <td class="text-sm text-muted"><%= new Date(u.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right">
           <% if (u.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/reactivate" style="display:inline;">
-            <%- include('../../../partials/csrf-field') %>
+            <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
           <% } else if (u.status === 'ACTIVE' && u.platformRole !== 'SUPER_ADMIN') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/suspend" style="display:inline;"
-                onsubmit="return confirm('Suspend <%= u.firstName %> <%= u.lastName %>?')">
-            <%- include('../../../partials/csrf-field') %>
+                data-confirm='Suspend <%= u.firstName %> <%= u.lastName %>?'>
+            <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>

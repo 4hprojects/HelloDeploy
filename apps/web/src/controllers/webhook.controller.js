@@ -1,6 +1,6 @@
 import { Repository, Project } from '@hellodeploy/database';
-import { DeploymentMode, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
-import { logger, writeAuditEvent } from '@hellodeploy/observability';
+import { DeploymentMode, ProjectStatus } from '@hellodeploy/contracts';
+import { logger } from '@hellodeploy/observability';
 import { verifyWebhookSignature } from '../services/github.service.js';
 
 // ─── Delivery deduplication (in-memory, 1-hour window) ────────────────────────
@@ -13,7 +13,9 @@ const MAX_TRACKED_DELIVERIES = 2000;
 
 function isRecentDelivery(deliveryId) {
   const expires = recentDeliveries.get(deliveryId);
-  if (!expires) return false;
+  if (!expires) {
+    return false;
+  }
   if (Date.now() > expires) {
     recentDeliveries.delete(deliveryId);
     return false;
@@ -53,7 +55,7 @@ function hasHighRiskChanges(commits) {
 
 // ─── Event handlers ───────────────────────────────────────────────────────────
 
-async function handlePushEvent(payload, correlationId) {
+async function handlePushEvent(payload, _correlationId) {
   const { repository, ref, after: newSha, head_commit, commits, installation } = payload;
   const installationId = installation?.id;
   const repoFullName = repository?.full_name;
@@ -69,7 +71,9 @@ async function handlePushEvent(payload, correlationId) {
     accessStatus: 'ACTIVE',
   });
 
-  if (!repoRecord) return; // Not a tracked repository
+  if (!repoRecord) {
+    return;
+  } // Not a tracked repository
 
   // Always update the latest commit info
   const commitMessage = head_commit?.message?.split('\n')[0]?.slice(0, 200) ?? null;
@@ -79,10 +83,14 @@ async function handlePushEvent(payload, correlationId) {
   await repoRecord.save();
 
   const project = await Project.findById(repoRecord.projectId);
-  if (!project || project.status !== ProjectStatus.ACTIVE) return;
+  if (!project || project.status !== ProjectStatus.ACTIVE) {
+    return;
+  }
 
   // Only the production branch triggers deployment logic
-  if (project.productionBranch !== branch) return;
+  if (project.productionBranch !== branch) {
+    return;
+  }
 
   // Check for high-risk file changes — pause auto-deploy
   if (hasHighRiskChanges(commits)) {

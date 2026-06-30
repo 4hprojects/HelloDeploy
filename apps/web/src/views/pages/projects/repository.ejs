@@ -26,7 +26,7 @@
 <div class="card">
   <div class="card__header">
     <span class="card__title">Connected Repository</span>
-    <%- include('../../../partials/status-badge', { status: currentRepo.accessStatus }) %>
+    <%- include('../../partials/status-badge', { status: currentRepo.accessStatus }) %>
   </div>
   <div class="card__body">
     <dl class="detail-list">
@@ -70,8 +70,8 @@
         <p class="text-sm text-muted">This will stop automatic deploys. Existing deployments are not affected.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/repository/disconnect"
-            onsubmit="return confirm('Disconnect <%= currentRepo.fullName %>?')">
-        <%- include('../../../partials/csrf-field') %>
+            data-confirm='Disconnect <%= currentRepo.fullName %>?'>
+        <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--danger button--sm">Disconnect</button>
       </form>
     </div>
@@ -121,7 +121,7 @@
   </div>
   <div class="card__body">
     <form method="POST" action="/projects/<%= project.slug %>/repository" id="repoForm">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
 
       <div class="form-group">
         <label class="form-label" for="fullName">Repository</label>

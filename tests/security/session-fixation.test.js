@@ -61,7 +61,6 @@ describe('session fixation — req.session.regenerate() on successful sign-in', 
 const { csrfMiddleware } = await import('../../apps/web/src/middleware/csrf.js');
 
 describe('CSRF middleware — safe method exemptions and header-based token', () => {
-
   function invoke({ method, sessionToken, submittedToken, headerToken, cookie } = {}) {
     const req = {
       method,
@@ -78,11 +77,20 @@ describe('CSRF middleware — safe method exemptions and header-based token', ()
     };
     const rendered = {};
     const res = {
-      status(code) { rendered.status = code; return this; },
-      render(view, data) { rendered.view = view; rendered.data = data; return this; },
+      status(code) {
+        rendered.status = code;
+        return this;
+      },
+      render(view, data) {
+        rendered.view = view;
+        rendered.data = data;
+        return this;
+      },
     };
     let calledNext = false;
-    csrfMiddleware(req, res, () => { calledNext = true; });
+    csrfMiddleware(req, res, () => {
+      calledNext = true;
+    });
     return { req, rendered, calledNext };
   }
 
@@ -94,7 +102,11 @@ describe('CSRF middleware — safe method exemptions and header-based token', ()
 
   it('OPTIONS requests skip CSRF validation (preflight)', () => {
     const result = invoke({ method: 'OPTIONS' });
-    assert.equal(result.calledNext, true, 'OPTIONS must pass through — blocking preflight breaks CORS');
+    assert.equal(
+      result.calledNext,
+      true,
+      'OPTIONS must pass through — blocking preflight breaks CORS',
+    );
     assert.ok(!result.rendered.status, 'OPTIONS must not produce a 403');
   });
 

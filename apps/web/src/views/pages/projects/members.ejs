@@ -29,7 +29,7 @@
             <span class="role-pill role-pill--owner">Owner</span>
             <% } else { %>
             <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" style="display: inline;">
-              <%- include('../../../partials/csrf-field') %>
+              <%- include('../../partials/csrf-field') %>
               <select name="role" class="form-select form-select--inline" onchange="this.form.submit()" aria-label="Change role">
                 <option value="MAINTAINER" <%= m.role === 'MAINTAINER' ? 'selected' : '' %>>Maintainer</option>
                 <option value="VIEWER" <%= m.role === 'VIEWER' ? 'selected' : '' %>>Viewer</option>
@@ -38,13 +38,13 @@
             <% } %>
           </td>
           <td class="text-sm text-muted">
-            <%= m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString() : '—' %>
+            <%= m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString('en-GB') : '—' %>
           </td>
           <td class="text-right">
             <% if (m.role !== 'OWNER') { %>
             <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/remove"
-                  onsubmit="return confirm('Remove <%= m.userId.firstName %> from this project?')">
-              <%- include('../../../partials/csrf-field') %>
+                  data-confirm='Remove <%= m.userId.firstName %> from this project?'>
+              <%- include('../../partials/csrf-field') %>
               <button type="submit" class="button button--ghost button--sm">Remove</button>
             </form>
             <% } %>
@@ -61,10 +61,10 @@
     <span class="card__title">Add Member</span>
   </div>
   <div class="card__body">
-    <%- include('../../../partials/form-errors', { errors }) %>
+    <%- include('../../partials/form-errors', { errors }) %>
 
     <form method="POST" action="/projects/<%= project.slug %>/members/invite" novalidate>
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <div class="form-row">
         <div class="form-field">
           <label for="email" class="form-label form-label--required">Email address</label>
@@ -110,8 +110,8 @@
     <h2 class="card__title mb-2">Transfer Ownership</h2>
     <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
     <form method="POST" action="/projects/<%= project.slug %>/transfer-ownership"
-          onsubmit="return confirm('Transfer ownership? You will lose owner privileges.')">
-      <%- include('../../../partials/csrf-field') %>
+          data-confirm='Transfer ownership? You will lose owner privileges.'>
+      <%- include('../../partials/csrf-field') %>
       <div class="form-row">
         <div class="form-field">
           <label for="newOwnerId" class="form-label form-label--required">New owner</label>

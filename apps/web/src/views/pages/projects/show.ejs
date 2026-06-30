@@ -2,7 +2,7 @@
   <div>
     <h1 class="page-header__title">
       <%= project.name %>
-      <%- include('../../../partials/status-badge', { status: project.status }) %>
+      <%- include('../../partials/status-badge', { status: project.status }) %>
     </h1>
     <p class="page-header__subtitle text-muted text-sm"><%= project.slug %></p>
   </div>
@@ -38,7 +38,7 @@
     <div class="card__body">
       <dl class="detail-list">
         <dt>Status</dt>
-        <dd><%- include('../../../partials/status-badge', { status: project.status }) %></dd>
+        <dd><%- include('../../partials/status-badge', { status: project.status }) %></dd>
 
         <dt>Slug</dt>
         <dd><code class="code-inline"><%= project.slug %></code></dd>
@@ -49,7 +49,7 @@
         <dt>Runtime</dt>
         <dd>
           <% if (project.runtimeType) { %>
-            <%- include('../../../partials/status-badge', { status: project.runtimeType }) %>
+            <%- include('../../partials/status-badge', { status: project.runtimeType }) %>
           <% } else { %>
             <a href="/projects/<%= project.slug %>/detection" class="table-link text-sm">Run detection</a>
           <% } %>
@@ -128,7 +128,7 @@
       </p>
       <% if (membership.role === 'OWNER') { %>
       <form method="POST" action="/projects/<%= project.slug %>/deployment-mode">
-        <%- include('../../../partials/csrf-field') %>
+        <%- include('../../partials/csrf-field') %>
         <div class="button-group">
           <% ['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'].forEach(mode => { %>
           <button type="submit" name="deploymentMode" value="<%= mode %>"
@@ -157,7 +157,7 @@
             <% deployments.slice(0, 5).forEach(d => { %>
             <tr>
               <td class="text-muted text-sm"><%= d.sequenceNumber %></td>
-              <td><%- include('../../../partials/status-badge', { status: d.status }) %></td>
+              <td><%- include('../../partials/status-badge', { status: d.status }) %></td>
               <td><code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code></td>
               <td class="text-muted text-sm"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
             </tr>
@@ -184,7 +184,7 @@
     <h2 class="card__title mb-2">Submit for Review</h2>
     <p class="text-sm text-muted mb-4">Once your project is configured, submit it for admin review to enable deployments.</p>
     <form method="POST" action="/projects/<%= project.slug %>/submit-review">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--primary">Submit for Review</button>
     </form>
   </div>
@@ -201,8 +201,8 @@
         <p class="text-sm text-muted">The application will be stopped and the project will be read-only.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/archive"
-            onsubmit="return confirm('Archive <%= project.name %>? The application will be stopped.')">
-        <%- include('../../../partials/csrf-field') %>
+            data-confirm='Archive <%= project.name %>? The application will be stopped.'>
+        <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--danger button--sm">Archive</button>
       </form>
     </div>

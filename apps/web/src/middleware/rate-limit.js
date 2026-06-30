@@ -9,7 +9,9 @@ import { env } from '../config/env.js';
 let _redisClient = null;
 
 function getRedisClient() {
-  if (_redisClient) return _redisClient;
+  if (_redisClient) {
+    return _redisClient;
+  }
   try {
     _redisClient = createRedisConnection({
       host: env.REDIS_HOST,
@@ -21,16 +23,21 @@ function getRedisClient() {
     });
     return _redisClient;
   } catch (err) {
-    logger.warn('[web] Could not connect to Redis for rate limiting, falling back to memory store', {
-      error: err.message,
-    });
+    logger.warn(
+      '[web] Could not connect to Redis for rate limiting, falling back to memory store',
+      {
+        error: err.message,
+      },
+    );
     return null;
   }
 }
 
 function makeStore(prefix) {
   const client = getRedisClient();
-  if (!client) return undefined; // express-rate-limit falls back to memory store
+  if (!client) {
+    return undefined;
+  } // express-rate-limit falls back to memory store
   return new RedisStore({
     sendCommand: (...args) => client.call(...args),
     prefix: `rl:${prefix}:`,

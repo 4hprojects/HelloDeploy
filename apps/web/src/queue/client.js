@@ -10,7 +10,9 @@ let _queue = null;
  * Returns null if Redis is not reachable (deployment features degrade gracefully).
  */
 export function getDeploymentQueue() {
-  if (_queue) return _queue;
+  if (_queue) {
+    return _queue;
+  }
 
   try {
     _redis = createRedisConnection({

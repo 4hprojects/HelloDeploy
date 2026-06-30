@@ -16,15 +16,15 @@ import { resolve } from 'node:path';
 
 const ARGS = process.argv.slice(2);
 const WRITE_MODE = ARGS.includes('--write');
-const ENV_FLAG   = ARGS.indexOf('--output');
-const ENV_PATH   = ENV_FLAG >= 0 ? resolve(ARGS[ENV_FLAG + 1]) : resolve(process.cwd(), '.env');
+const ENV_FLAG = ARGS.indexOf('--output');
+const ENV_PATH = ENV_FLAG >= 0 ? resolve(ARGS[ENV_FLAG + 1]) : resolve(process.cwd(), '.env');
 
 // ─── generate ─────────────────────────────────────────────────────────────────
 
 const secrets = {
-  SESSION_SECRET:         randomBytes(64).toString('hex'),
+  SESSION_SECRET: randomBytes(64).toString('hex'),
   HELLODEPLOY_MASTER_KEY: randomBytes(32).toString('base64'),
-  GITHUB_WEBHOOK_SECRET:  randomBytes(32).toString('hex'),
+  GITHUB_WEBHOOK_SECRET: randomBytes(32).toString('hex'),
 };
 
 // ─── output ───────────────────────────────────────────────────────────────────

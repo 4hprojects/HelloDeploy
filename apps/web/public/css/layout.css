@@ -248,7 +248,9 @@
   transition: background var(--transition-fast);
 }
 @media (max-width: 48rem) {
-  .header__menu-toggle { display: flex; }
+  .header__menu-toggle {
+    display: flex;
+  }
   .sidebar {
     position: fixed;
     top: var(--header-height);
@@ -259,8 +261,12 @@
     transition: transform var(--transition-normal);
     box-shadow: var(--shadow-lg);
   }
-  .sidebar--open { transform: translateX(0); }
-  .layout__main { margin-left: 0 !important; }
+  .sidebar--open {
+    transform: translateX(0);
+  }
+  .layout__main {
+    margin-left: 0 !important;
+  }
 }
 
 /* ── Dark mode toggle ────────────────────────────────────────────── */
@@ -276,9 +282,15 @@
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
-.header__theme-toggle:hover { border-color: var(--color-border-strong); }
-[data-theme='light'] .theme-icon--dark { display: none; }
-[data-theme='dark']  .theme-icon--light { display: none; }
+.header__theme-toggle:hover {
+  border-color: var(--color-border-strong);
+}
+[data-theme='light'] .theme-icon--dark {
+  display: none;
+}
+[data-theme='dark'] .theme-icon--light {
+  display: none;
+}
 
 /* ── Stat card sub-label ─────────────────────────────────────────── */
 .stat-card__sub {
@@ -286,23 +298,33 @@
   color: var(--color-text-subtle);
   margin-top: var(--space-1);
 }
-.stats-grid--sm { gap: var(--space-3); }
-.stat-card--sm  { padding: var(--space-3); }
+.stats-grid--sm {
+  gap: var(--space-3);
+}
+.stat-card--sm {
+  padding: var(--space-3);
+}
 
 /* ── Filter form row ─────────────────────────────────────────────── */
-.filter-form { }
+.filter-form {
+}
 .filter-row {
   display: flex;
   gap: var(--space-3);
   flex-wrap: wrap;
   align-items: flex-end;
 }
-.filter-row .form-group { flex: 1; min-width: 10rem; }
+.filter-row .form-group {
+  flex: 1;
+  min-width: 10rem;
+}
 .form-input--sm {
   padding: var(--space-1) var(--space-2);
   font-size: var(--text-sm);
 }
-.text-nowrap { white-space: nowrap; }
+.text-nowrap {
+  white-space: nowrap;
+}
 
 /* ── Pagination ──────────────────────────────────────────────────── */
 .pagination {
@@ -312,7 +334,9 @@
 }
 
 /* ── DNS instruction card ────────────────────────────────────────── */
-.dns-instructions { margin: var(--space-4) 0; }
+.dns-instructions {
+  margin: var(--space-4) 0;
+}
 .dns-record {
   background: var(--color-bg-subtle);
   border: 1px solid var(--color-border);
@@ -327,7 +351,9 @@
   align-items: baseline;
   gap: var(--space-4);
 }
-.dns-record__label { min-width: 8rem; }
+.dns-record__label {
+  min-width: 8rem;
+}
 .card--highlight {
   border-color: var(--color-blue);
   box-shadow: 0 0 0 2px color-mix(in srgb, var(--color-blue) 15%, transparent);

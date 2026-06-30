@@ -1,5 +1,3 @@
-import { redactObject } from '@hellodeploy/security';
-
 // Patterns that must never appear in stored deployment logs
 const REDACT_PATTERNS = [
   // GitHub tokens

@@ -45,8 +45,12 @@ function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) return `${d}d ${h}h ${m}m`;
-  if (h > 0) return `${h}h ${m}m`;
+  if (d > 0) {
+    return `${d}d ${h}h ${m}m`;
+  }
+  if (h > 0) {
+    return `${h}h ${m}m`;
+  }
   return `${m}m`;
 }
 
@@ -88,9 +92,16 @@ async function getDiskStats() {
 async function getQueueStats() {
   try {
     const queue = getDeploymentQueue();
-    if (!queue) return null;
+    if (!queue) {
+      return null;
+    }
     const counts = await queue.getJobCounts(
-      'waiting', 'active', 'completed', 'failed', 'delayed', 'paused',
+      'waiting',
+      'active',
+      'completed',
+      'failed',
+      'delayed',
+      'paused',
     );
     const isPaused = await queue.isPaused();
     return { ...counts, paused: isPaused };

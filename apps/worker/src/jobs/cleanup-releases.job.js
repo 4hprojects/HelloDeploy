@@ -1,11 +1,8 @@
-import { Deployment, DeploymentEvent } from '@hellodeploy/database';
+import { Deployment } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
-import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
-import { env } from '../config/env.js';
-import { join } from 'node:path';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
 
@@ -40,8 +37,10 @@ export async function handleCleanupReleases(job) {
   let removedContainers = 0;
   let removedImages = 0;
 
-  for (const { _id: pid, excess } of healthyByProject) {
-    if (!excess || excess.length === 0) continue;
+  for (const { excess } of healthyByProject) {
+    if (!excess || excess.length === 0) {
+      continue;
+    }
 
     const oldDeployments = await Deployment.find({ _id: { $in: excess } }).lean();
 
@@ -51,7 +50,10 @@ export async function handleCleanupReleases(job) {
           await stopAndRemoveContainer(dep.activeContainerId);
           removedContainers++;
         } catch (err) {
-          logger.warn('CleanupReleases: failed to stop container', { deploymentId: dep._id, error: err.message });
+          logger.warn('CleanupReleases: failed to stop container', {
+            deploymentId: dep._id,
+            error: err.message,
+          });
         }
       }
 
@@ -60,14 +62,16 @@ export async function handleCleanupReleases(job) {
           await removeDockerImage(dep.imageTag);
           removedImages++;
         } catch (err) {
-          logger.warn('CleanupReleases: failed to remove image', { deploymentId: dep._id, error: err.message });
+          logger.warn('CleanupReleases: failed to remove image', {
+            deploymentId: dep._id,
+            error: err.message,
+          });
         }
       }
 
-      await Deployment.updateOne(
-        { _id: dep._id },
-        { $set: { activeContainerId: null } },
-      ).catch(() => {});
+      await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
+        () => {},
+      );
     }
   }
 

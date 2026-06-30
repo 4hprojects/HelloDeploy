@@ -83,8 +83,8 @@ export async function activateRoute({ configDir, slug, configContent, nginxBinar
   assertSafeSlug(slug);
 
   const confPath = join(configDir, `${slug}.conf`);
-  const tmpPath  = join(configDir, `${slug}.conf.tmp`);
-  const bakPath  = join(configDir, `${slug}.conf.bak`);
+  const tmpPath = join(configDir, `${slug}.conf.tmp`);
+  const bakPath = join(configDir, `${slug}.conf.bak`);
 
   const hadExisting = await fileExists(confPath);
 
@@ -165,7 +165,10 @@ export async function removeRoute({ configDir, slug, nginxBinary = 'nginx' }) {
     await fs.unlink(bakPath).catch(() => {});
   } catch (err) {
     // Restore on failure (unlikely but safe)
-    logger.error('NginxRoute: reload after removal failed, restoring', { slug, error: err.message });
+    logger.error('NginxRoute: reload after removal failed, restoring', {
+      slug,
+      error: err.message,
+    });
     await fs.rename(bakPath, confPath).catch(() => {});
     throw err;
   }

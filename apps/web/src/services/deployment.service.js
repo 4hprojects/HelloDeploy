@@ -41,13 +41,23 @@ export async function createDeployment({
   }
 
   if (!repo.lastCommitSha) {
-    return { success: false, error: 'No commit SHA available. Push a commit to the production branch first.' };
+    return {
+      success: false,
+      error: 'No commit SHA available. Push a commit to the production branch first.',
+    };
   }
 
   // ── One-active-deployment-per-project check ─────────────────────────────────
   const active = await Deployment.findOne({
     projectId,
-    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+    status: {
+      $in: [
+        DeploymentStatus.QUEUED,
+        DeploymentStatus.VALIDATING,
+        DeploymentStatus.BUILDING,
+        DeploymentStatus.DEPLOYING,
+      ],
+    },
   }).lean();
 
   if (active) {
@@ -78,7 +88,14 @@ export async function createDeployment({
     // Redis unavailable — mark deployment failed immediately
     await Deployment.updateOne(
       { _id: deployment._id },
-      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', failureSummary: 'Deployment queue is not available.', completedAt: new Date() } },
+      {
+        $set: {
+          status: DeploymentStatus.FAILED,
+          failureCode: 'QUEUE_UNAVAILABLE',
+          failureSummary: 'Deployment queue is not available.',
+          completedAt: new Date(),
+        },
+      },
     );
     return { success: false, error: 'Deployment queue is unavailable. Contact the administrator.' };
   }
@@ -135,7 +152,10 @@ export async function cancelDeployment(deploymentId, actorId, opts = {}) {
   }
 
   if (!isActive(deployment.status)) {
-    return { success: false, error: `Cannot cancel a deployment with status ${deployment.status}.` };
+    return {
+      success: false,
+      error: `Cannot cancel a deployment with status ${deployment.status}.`,
+    };
   }
 
   await Deployment.updateOne(
@@ -187,7 +207,14 @@ export async function retryDeployment(deploymentId, actorId, opts = {}) {
   // One-active-deployment check
   const active = await Deployment.findOne({
     projectId: original.projectId,
-    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+    status: {
+      $in: [
+        DeploymentStatus.QUEUED,
+        DeploymentStatus.VALIDATING,
+        DeploymentStatus.BUILDING,
+        DeploymentStatus.DEPLOYING,
+      ],
+    },
   }).lean();
   if (active) {
     return { success: false, error: 'A deployment is already in progress.' };
@@ -212,7 +239,13 @@ export async function retryDeployment(deploymentId, actorId, opts = {}) {
   if (!queue) {
     await Deployment.updateOne(
       { _id: deployment._id },
-      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', completedAt: new Date() } },
+      {
+        $set: {
+          status: DeploymentStatus.FAILED,
+          failureCode: 'QUEUE_UNAVAILABLE',
+          completedAt: new Date(),
+        },
+      },
     );
     return { success: false, error: 'Deployment queue is unavailable.' };
   }
@@ -287,7 +320,14 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   // One-active-deployment check
   const active = await Deployment.findOne({
     projectId,
-    status: { $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING, DeploymentStatus.DEPLOYING] },
+    status: {
+      $in: [
+        DeploymentStatus.QUEUED,
+        DeploymentStatus.VALIDATING,
+        DeploymentStatus.BUILDING,
+        DeploymentStatus.DEPLOYING,
+      ],
+    },
   }).lean();
   if (active) {
     return { success: false, error: 'A deployment is already in progress.' };
@@ -312,7 +352,13 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   if (!queue) {
     await Deployment.updateOne(
       { _id: deployment._id },
-      { $set: { status: DeploymentStatus.FAILED, failureCode: 'QUEUE_UNAVAILABLE', completedAt: new Date() } },
+      {
+        $set: {
+          status: DeploymentStatus.FAILED,
+          failureCode: 'QUEUE_UNAVAILABLE',
+          completedAt: new Date(),
+        },
+      },
     );
     return { success: false, error: 'Deployment queue is unavailable.' };
   }
@@ -368,6 +414,35 @@ export async function getDeploymentEvents(deploymentId, opts = {}) {
 
 export async function getDeployments(projectId, limit = 20) {
   return Deployment.find({ projectId }).sort({ sequenceNumber: -1 }).limit(limit).lean();
+}
+
+export async function getDeploymentsPaginated(projectId, { page = 1, limit = 20 } = {}) {
+  const safeLimit = Math.max(1, Number.parseInt(limit, 10) || 20);
+  const requestedPage = Math.max(1, Number.parseInt(page, 10) || 1);
+  const total = await Deployment.countDocuments({ projectId });
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const safePage = Math.min(requestedPage, totalPages);
+  const skip = (safePage - 1) * safeLimit;
+  const deployments = await Deployment.find({ projectId })
+    .sort({ sequenceNumber: -1 })
+    .skip(skip)
+    .limit(safeLimit)
+    .lean();
+
+  return { deployments, total, page: safePage, limit: safeLimit, totalPages };
+}
+
+export async function getRollbackTargets(projectId, activeDeploymentId) {
+  const query = {
+    projectId,
+    status: DeploymentStatus.HEALTHY,
+  };
+
+  if (activeDeploymentId) {
+    query._id = { $ne: activeDeploymentId };
+  }
+
+  return Deployment.find(query).sort({ sequenceNumber: -1 }).lean();
 }
 
 export async function getDeployment(deploymentId) {

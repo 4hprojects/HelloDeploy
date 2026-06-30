@@ -1,9 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { generateServerBlock, generateMaintenanceBlock } = await import(
-  '../../apps/worker/src/nginx/template.js'
-);
+const { generateServerBlock, generateMaintenanceBlock } =
+  await import('../../apps/worker/src/nginx/template.js');
 
 const FIXED_DATE = new Date('2024-01-15T12:00:00.000Z');
 
@@ -101,7 +100,12 @@ describe('generateServerBlock', () => {
   });
 
   it('produces different configs for different ports', () => {
-    const opts = { subdomain: 'app', domain: 'example.com', deploymentId: 'x', generatedAt: FIXED_DATE };
+    const opts = {
+      subdomain: 'app',
+      domain: 'example.com',
+      deploymentId: 'x',
+      generatedAt: FIXED_DATE,
+    };
     const a = generateServerBlock({ ...opts, port: 10000 });
     const b = generateServerBlock({ ...opts, port: 10001 });
     assert.notEqual(a, b);

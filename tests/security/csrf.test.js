@@ -2,9 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 const { csrfMiddleware } = await import('../../apps/web/src/middleware/csrf.js');
-const { createSessionCookieOptions } = await import(
-  '../../apps/web/src/middleware/session.js'
-);
+const { createSessionCookieOptions } = await import('../../apps/web/src/middleware/session.js');
 
 describe('production session cookie', () => {
   it('retains all hardened cookie attributes', () => {
@@ -44,7 +42,9 @@ describe('CSRF middleware', () => {
       },
     };
     let calledNext = false;
-    csrfMiddleware(req, res, () => { calledNext = true; });
+    csrfMiddleware(req, res, () => {
+      calledNext = true;
+    });
     return { req, rendered, calledNext };
   }
 

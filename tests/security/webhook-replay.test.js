@@ -7,9 +7,8 @@ process.env.GITHUB_WEBHOOK_SECRET = 'replay-test-secret';
 process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'hellodeploy-test';
 
-const { handleGithubWebhook } = await import(
-  '../../apps/web/src/controllers/webhook.controller.js'
-);
+const { handleGithubWebhook } =
+  await import('../../apps/web/src/controllers/webhook.controller.js');
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,8 +39,14 @@ function makeRes() {
   const res = {
     _status: null,
     _json: null,
-    status(code) { this._status = code; return this; },
-    json(body) { this._json = body; return this; },
+    status(code) {
+      this._status = code;
+      return this;
+    },
+    json(body) {
+      this._json = body;
+      return this;
+    },
   };
   return res;
 }
@@ -87,7 +92,10 @@ describe('webhook security — replay prevention', () => {
     const res = makeRes();
     await handleGithubWebhook(makeReq({ deliveryId }), res);
     assert.equal(res._status, 200);
-    assert.ok(res._json?.ok === true && !res._json?.note, 'first delivery must not be flagged as duplicate');
+    assert.ok(
+      res._json?.ok === true && !res._json?.note,
+      'first delivery must not be flagged as duplicate',
+    );
   });
 
   it('silently deduplicates a replayed delivery (same X-GitHub-Delivery ID)', async () => {

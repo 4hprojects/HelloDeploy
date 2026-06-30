@@ -22,7 +22,10 @@ describe('secret leakage — global error handler does not expose internals', ()
   it('error handler renders a static, generic message — not err.message', () => {
     // Match the res.status(500).render(...{...}) call specifically
     const renderSection = appSource.match(/res\.status\(500\)\.render\([\s\S]+?\}\)/)?.[0] ?? '';
-    assert.ok(renderSection.length > 0, 'global 500 error handler render call must exist in app.js');
+    assert.ok(
+      renderSection.length > 0,
+      'global 500 error handler render call must exist in app.js',
+    );
     assert.ok(
       renderSection.includes('An unexpected error occurred'),
       'render must use a static, generic user-facing message',

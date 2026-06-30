@@ -1,6 +1,10 @@
 import 'dotenv/config';
 import { connectDatabase } from '@hellodeploy/database';
-import { createRedisConnection, createDeploymentQueue, createDeploymentWorker } from '@hellodeploy/queue';
+import {
+  createRedisConnection,
+  createDeploymentQueue,
+  createDeploymentWorker,
+} from '@hellodeploy/queue';
 import { JobType } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';

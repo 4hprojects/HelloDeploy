@@ -4,9 +4,7 @@ import { mkdtemp, writeFile, symlink, readdir, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const { prepareBuildContext } = await import(
-  '../../apps/worker/src/deployment/build-context.js'
-);
+const { prepareBuildContext } = await import('../../apps/worker/src/deployment/build-context.js');
 
 async function makeContext() {
   return mkdtemp(join(tmpdir(), 'hellodeploy-bc-'));
@@ -90,10 +88,7 @@ describe('prepareBuildContext — symlink containment', () => {
     await symlink('/etc', join(dir, 'escape'));
     await prepareBuildContext(dir);
     const entries = await readdir(dir);
-    assert.ok(
-      !entries.includes('escape'),
-      'symlink pointing outside context root must be removed',
-    );
+    assert.ok(!entries.includes('escape'), 'symlink pointing outside context root must be removed');
     assert.ok(entries.includes('app.js'), 'legitimate files must survive');
     await rm(dir, { recursive: true, force: true });
   });

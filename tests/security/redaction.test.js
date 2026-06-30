@@ -4,9 +4,7 @@ import { describe, it } from 'node:test';
 process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 
-const { redactLogLine } = await import(
-  '../../apps/worker/src/deployment/log-capture.js'
-);
+const { redactLogLine } = await import('../../apps/worker/src/deployment/log-capture.js');
 
 describe('redactLogLine — secret pattern redaction', () => {
   it('redacts bearer tokens', () => {
@@ -33,7 +31,9 @@ describe('redactLogLine — secret pattern redaction', () => {
   });
 
   it('redacts URL userinfo (git clone token in URL)', () => {
-    const result = redactLogLine('Clone from https://x-access-token:ghs_abc123@github.com/owner/repo');
+    const result = redactLogLine(
+      'Clone from https://x-access-token:ghs_abc123@github.com/owner/repo',
+    );
     assert.ok(!result.includes('ghs_abc123'), 'Token in URL userinfo must be redacted');
   });
 

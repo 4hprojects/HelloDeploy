@@ -19,10 +19,16 @@ export const postSetSecret = asyncHandler(async (req, res) => {
   const project = req.project;
   const { name, value } = req.body;
 
-  const result = await setSecret(project._id, name?.trim()?.toUpperCase(), value, req.session.user.id, {
-    sourceIp: req.ip,
-    correlationId: req.correlationId,
-  });
+  const result = await setSecret(
+    project._id,
+    name?.trim()?.toUpperCase(),
+    value,
+    req.session.user.id,
+    {
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    },
+  );
 
   if (!result.success) {
     const secrets = await listSecretNames(project._id);

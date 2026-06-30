@@ -56,6 +56,9 @@ export const env = {
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isGithubConfigured: () =>
-    !!(process.env.GITHUB_APP_ID && process.env.GITHUB_APP_NAME &&
-       (process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY)),
+    !!(
+      process.env.GITHUB_APP_ID &&
+      process.env.GITHUB_APP_NAME &&
+      (process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY)
+    ),
 };

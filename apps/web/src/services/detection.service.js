@@ -135,7 +135,8 @@ export function detectRuntime(files) {
     if (!scripts.start) {
       issues.push({
         level: 'ERROR',
-        message: 'No "start" script found in package.json. Add "start": "node server.js" (or similar).',
+        message:
+          'No "start" script found in package.json. Add "start": "node server.js" (or similar).',
       });
     }
     // Warn if start script hardcodes a port number (not using PORT env var)
@@ -152,7 +153,8 @@ export function detectRuntime(files) {
     if (!scripts.build) {
       issues.push({
         level: 'ERROR',
-        message: 'No "build" script found in package.json. Add "build": "...' + '" to package.json.',
+        message:
+          'No "build" script found in package.json. Add "build": "...' + '" to package.json.',
       });
     }
   }

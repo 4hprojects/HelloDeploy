@@ -13,13 +13,15 @@ export function createSessionCookieOptions(secure = env.isProduction()) {
 }
 
 export function createSessionMiddleware(options = {}) {
-  const store = options.store ?? MongoStore.create({
-    client: mongoose.connection.getClient(),
-    collectionName: 'sessions',
-    ttl: 24 * 60 * 60, // 24 hours in seconds
-    autoRemove: 'interval',
-    autoRemoveInterval: 10, // Minutes between cleanup runs
-  });
+  const store =
+    options.store ??
+    MongoStore.create({
+      client: mongoose.connection.getClient(),
+      collectionName: 'sessions',
+      ttl: 24 * 60 * 60, // 24 hours in seconds
+      autoRemove: 'interval',
+      autoRemoveInterval: 10, // Minutes between cleanup runs
+    });
 
   return session({
     name: 'hellodeploy.sid',

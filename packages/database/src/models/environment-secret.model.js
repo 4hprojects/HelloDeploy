@@ -36,5 +36,4 @@ const environmentSecretSchema = new Schema(
 environmentSecretSchema.index({ projectId: 1, name: 1 }, { unique: true });
 
 export const EnvironmentSecret =
-  mongoose.models.EnvironmentSecret ??
-  mongoose.model('EnvironmentSecret', environmentSecretSchema);
+  mongoose.models.EnvironmentSecret ?? mongoose.model('EnvironmentSecret', environmentSecretSchema);

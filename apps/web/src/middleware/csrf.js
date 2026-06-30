@@ -49,7 +49,6 @@ export function csrfMiddleware(req, res, next) {
       hasSubmittedToken: Boolean(submittedToken),
     });
 
-
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',

@@ -44,7 +44,13 @@ export async function handleStopProject(job) {
 
       await Deployment.updateOne(
         { _id: deployment._id },
-        { $set: { status: DeploymentStatus.ROLLED_BACK, activeContainerId: null, completedAt: new Date() } },
+        {
+          $set: {
+            status: DeploymentStatus.ROLLED_BACK,
+            activeContainerId: null,
+            completedAt: new Date(),
+          },
+        },
       );
     }
   }

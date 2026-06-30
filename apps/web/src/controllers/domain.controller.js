@@ -47,7 +47,10 @@ export const postAddDomain = asyncHandler(async (req, res) => {
   req.session.pendingDomainToken = result.verificationToken;
   req.session.pendingDomainHostname = result.domain.hostnameNormalized;
 
-  req.flash('success', `Domain ${result.domain.hostnameNormalized} added. See the TXT record instructions below.`);
+  req.flash(
+    'success',
+    `Domain ${result.domain.hostnameNormalized} added. See the TXT record instructions below.`,
+  );
   res.redirect(`/projects/${project.slug}/domains`);
 });
 
@@ -63,7 +66,10 @@ export const postVerifyDomain = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'Verification check queued. This may take a few minutes for DNS to propagate.');
+    req.flash(
+      'success',
+      'Verification check queued. This may take a few minutes for DNS to propagate.',
+    );
   }
 
   res.redirect(`/projects/${project.slug}/domains`);

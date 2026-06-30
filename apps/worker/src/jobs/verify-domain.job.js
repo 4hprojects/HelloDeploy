@@ -29,7 +29,9 @@ async function verifyDnsTxtRecord(hostname, tokenHash) {
       if (fullRecord.startsWith(VERIFICATION_TXT_PREFIX)) {
         const token = fullRecord.slice(VERIFICATION_TXT_PREFIX.length);
         const hash = createHash('sha256').update(token).digest('hex');
-        if (hash === tokenHash) return true;
+        if (hash === tokenHash) {
+          return true;
+        }
       }
     }
     return false;
@@ -48,7 +50,13 @@ async function verifyDnsTxtRecord(hostname, tokenHash) {
  *   3. removeRoute: true → remove nginx config for a removed domain
  */
 export async function handleVerifyDomain(job) {
-  const { domainId, projectId, hostname, activateRoute: shouldActivate, removeRoute: shouldRemove } = job.data;
+  const {
+    domainId,
+    projectId,
+    hostname,
+    activateRoute: shouldActivate,
+    removeRoute: shouldRemove,
+  } = job.data;
 
   const domain = await Domain.findById(domainId).lean();
   if (!domain) {
@@ -104,7 +112,9 @@ export async function handleVerifyDomain(job) {
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
 async function activateNginxRoute(domain, projectId, hostname) {
-  if (!env.NGINX_ENABLED) return;
+  if (!env.NGINX_ENABLED) {
+    return;
+  }
 
   const project = await Project.findById(projectId).lean();
   if (!project?.activeDeploymentId) {
@@ -122,16 +132,13 @@ async function activateNginxRoute(domain, projectId, hostname) {
 
   const configContent = generateServerBlock({
     subdomain: hostname, // use full hostname as "subdomain" key (route-manager accepts FQDNs)
-    domain: '',          // empty domain: server_name will be just `hostname`
+    domain: '', // empty domain: server_name will be just `hostname`
     port: deployment.containerPort,
     deploymentId: deployment._id.toString(),
   });
 
   // Override: for custom domains, server_name = full hostname (not subdomain.domain)
-  const customConfig = configContent.replace(
-    /server_name .+;/,
-    `server_name ${hostname};`,
-  );
+  const customConfig = configContent.replace(/server_name .+;/, `server_name ${hostname};`);
 
   // Slug for the nginx config filename: hash the hostname to a safe filename
   const slug = hostname.replace(/\./g, '-').replace(/[^a-z0-9-]/gi, '');
@@ -150,7 +157,9 @@ async function activateNginxRoute(domain, projectId, hostname) {
 }
 
 async function removeNginxRoute(hostname) {
-  if (!env.NGINX_ENABLED) return;
+  if (!env.NGINX_ENABLED) {
+    return;
+  }
 
   const slug = hostname.replace(/\./g, '-').replace(/[^a-z0-9-]/gi, '');
 

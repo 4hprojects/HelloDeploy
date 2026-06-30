@@ -39,7 +39,7 @@
 
       <div class="review-actions">
         <form method="POST" action="/admin/approval-requests/<%= r._id %>/review" class="review-form">
-          <%- include('../../../partials/csrf-field') %>
+          <%- include('../../partials/csrf-field') %>
           <div class="form-field mb-3">
             <label for="note-<%= r._id %>" class="form-label">Admin note <span class="text-muted">(optional)</span></label>
             <textarea
@@ -53,9 +53,14 @@
           </div>
           <div class="button-group">
             <button type="submit" name="decision" value="APPROVED" class="button button--primary button--sm">Approve</button>
-            <button type="submit" name="decision" value="REJECTED" class="button button--danger button--sm"
-                    onclick="return confirm('Reject this request?')">Reject</button>
           </div>
+        </form>
+        <form method="POST" action="/admin/approval-requests/<%= r._id %>/review"
+              data-confirm="Reject this request?"
+              style="display:inline;">
+          <%- include('../../partials/csrf-field') %>
+          <input type="hidden" name="decision" value="REJECTED">
+          <button type="submit" class="button button--danger button--sm">Reject</button>
         </form>
       </div>
     </div>

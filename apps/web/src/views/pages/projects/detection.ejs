@@ -33,7 +33,7 @@
       <dt>Detected runtime</dt>
       <dd>
         <% if (project.runtimeType) { %>
-          <%- include('../../../partials/status-badge', { status: project.runtimeType }) %>
+          <%- include('../../partials/status-badge', { status: project.runtimeType }) %>
         <% } else { %>
           <span class="text-muted text-sm">Not yet detected</span>
         <% } %>
@@ -70,7 +70,7 @@
 <div class="card mt-6">
   <div class="card__header">
     <span class="card__title">Detection Results</span>
-    <%- include('../../../partials/status-badge', { status: detectionResult.isValid ? 'ACTIVE' : 'FAILED' }) %>
+    <%- include('../../partials/status-badge', { status: detectionResult.isValid ? 'ACTIVE' : 'FAILED' }) %>
   </div>
   <div class="card__body">
     <% if (detectionResult.issues.length === 0) { %>
@@ -97,7 +97,7 @@
       Re-run any time after pushing changes.
     </p>
     <form method="POST" action="/projects/<%= project.slug %>/detection">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--primary">Run Detection</button>
     </form>
   </div>

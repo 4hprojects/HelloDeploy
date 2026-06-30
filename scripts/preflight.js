@@ -9,7 +9,7 @@
  *   node scripts/preflight.js
  *   node scripts/preflight.js --json    # machine-readable output
  */
-import { execSync, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, statfsSync } from 'node:fs';
 import os from 'node:os';
 
@@ -17,8 +17,8 @@ const ARGS = process.argv.slice(2);
 const JSON_OUTPUT = ARGS.includes('--json');
 
 const MIN_NODE_MAJOR = 22;
-const MIN_DISK_BYTES = 10 * 1024 ** 3;   // 10 GB free
-const MIN_RAM_BYTES  = 2  * 1024 ** 3;   // 2 GB total
+const MIN_DISK_BYTES = 10 * 1024 ** 3; // 10 GB free
+const MIN_RAM_BYTES = 2 * 1024 ** 3; // 2 GB total
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -46,9 +46,15 @@ function run(cmd, args) {
 // ─── checks ───────────────────────────────────────────────────────────────────
 
 check('OS: Ubuntu 22.04 or 24.04', () => {
-  if (!existsSync('/etc/os-release')) return { ok: false, detail: '/etc/os-release not found' };
+  if (!existsSync('/etc/os-release')) {
+    return { ok: false, detail: '/etc/os-release not found' };
+  }
   const content = readFileSync('/etc/os-release', 'utf8');
-  const id = content.match(/^ID=(.+)$/m)?.[1]?.toLowerCase().replace(/"/g, '') ?? '';
+  const id =
+    content
+      .match(/^ID=(.+)$/m)?.[1]
+      ?.toLowerCase()
+      .replace(/"/g, '') ?? '';
   const version = content.match(/^VERSION_ID="?(.+?)"?$/m)?.[1] ?? '';
   const ok = id === 'ubuntu' && (version === '22.04' || version === '24.04');
   return { ok, detail: ok ? `Ubuntu ${version}` : `Detected: ${id} ${version}` };
@@ -109,27 +115,30 @@ check(`RAM >= 2 GB`, () => {
 
 check('pm2 installed', () => {
   const r = run('pm2', ['--version']);
-  return { ok: r.ok, detail: r.ok ? `pm2 ${r.stdout}` : 'pm2 not found — install with: npm install -g pm2' };
+  return {
+    ok: r.ok,
+    detail: r.ok ? `pm2 ${r.stdout}` : 'pm2 not found — install with: npm install -g pm2',
+  };
 });
 
 // ─── output ───────────────────────────────────────────────────────────────────
 
-const passed = results.filter(r => r.ok).length;
-const failed = results.filter(r => !r.ok).length;
+const passed = results.filter((r) => r.ok).length;
+const failed = results.filter((r) => !r.ok).length;
 
 if (JSON_OUTPUT) {
   process.stdout.write(JSON.stringify({ passed, failed, checks: results }, null, 2) + '\n');
 } else {
-  const GREEN  = '\x1b[32m';
-  const RED    = '\x1b[31m';
+  const GREEN = '\x1b[32m';
+  const RED = '\x1b[31m';
   const YELLOW = '\x1b[33m';
-  const RESET  = '\x1b[0m';
-  const BOLD   = '\x1b[1m';
+  const RESET = '\x1b[0m';
+  const BOLD = '\x1b[1m';
 
   console.log(`\n${BOLD}HelloDeploy Preflight Check${RESET}\n${'─'.repeat(50)}`);
   for (const { label, ok, detail } of results) {
-    const icon  = ok ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
-    const text  = ok ? label : `${RED}${label}${RESET}`;
+    const icon = ok ? `${GREEN}✓${RESET}` : `${RED}✗${RESET}`;
+    const text = ok ? label : `${RED}${label}${RESET}`;
     const extra = detail ? `  ${YELLOW}→ ${detail}${RESET}` : '';
     console.log(`  ${icon}  ${text}${extra}`);
   }
@@ -138,7 +147,9 @@ if (JSON_OUTPUT) {
   if (failed === 0) {
     console.log(`${GREEN}${BOLD}All ${passed} checks passed. Ready to install.${RESET}\n`);
   } else {
-    console.log(`${RED}${BOLD}${failed} check(s) failed. Resolve the issues above before installing.${RESET}\n`);
+    console.log(
+      `${RED}${BOLD}${failed} check(s) failed. Resolve the issues above before installing.${RESET}\n`,
+    );
   }
 }
 

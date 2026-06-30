@@ -11,10 +11,10 @@
     <span class="card__title">General</span>
   </div>
   <div class="card__body">
-    <%- include('../../../partials/form-errors', { errors }) %>
+    <%- include('../../partials/form-errors', { errors }) %>
 
     <form method="POST" action="/projects/<%= project.slug %>/update" novalidate>
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
 
       <div class="form-field">
         <label for="name" class="form-label form-label--required">Project name</label>

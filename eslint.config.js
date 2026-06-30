@@ -39,6 +39,13 @@ export default [
     },
   },
   {
+    // CLI scripts intentionally print user-facing output.
+    files: ['scripts/**/*.js'],
+    rules: {
+      'no-console': 'off',
+    },
+  },
+  {
     ignores: ['node_modules/', 'dist/', 'build/', 'coverage/'],
   },
 ];

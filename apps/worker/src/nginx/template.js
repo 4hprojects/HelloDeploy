@@ -20,7 +20,13 @@
  * }} opts
  * @returns {string} nginx config block
  */
-export function generateServerBlock({ subdomain, domain, port, deploymentId, generatedAt = new Date() }) {
+export function generateServerBlock({
+  subdomain,
+  domain,
+  port,
+  deploymentId,
+  generatedAt = new Date(),
+}) {
   const fqdn = `${subdomain}.${domain}`;
   const ts = generatedAt.toISOString();
 

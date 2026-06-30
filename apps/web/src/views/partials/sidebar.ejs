@@ -24,6 +24,72 @@
     </li>
   </ul>
 
+  <% if (locals.currentProject && currentProject) { %>
+  <div class="sidebar__section">
+    <p class="sidebar__section-title"><%= currentProject.name %></p>
+    <ul class="sidebar__nav" role="list">
+      <li>
+        <a href="/projects/<%= currentProject.slug %>"
+           class="sidebar__link"
+           <%= currentPath === `/projects/${currentProject.slug}` ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">◉</span>
+          <span>Overview</span>
+        </a>
+      </li>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/deployments"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/deployments`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">▶</span>
+          <span>Deployments</span>
+        </a>
+      </li>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/repository"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/repository`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">⎇</span>
+          <span>Repository</span>
+        </a>
+      </li>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/detection"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/detection`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">◎</span>
+          <span>Detection</span>
+        </a>
+      </li>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/domains"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/domains`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">◈</span>
+          <span>Domains</span>
+        </a>
+      </li>
+      <% if (locals.currentMembership && currentMembership.role === 'OWNER') { %>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/environment"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/environment`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">⚿</span>
+          <span>Environment</span>
+        </a>
+      </li>
+      <li>
+        <a href="/projects/<%= currentProject.slug %>/members"
+           class="sidebar__link"
+           <%= currentPath.startsWith(`/projects/${currentProject.slug}/members`) ? 'aria-current="page"' : '' %>>
+          <span aria-hidden="true">◑</span>
+          <span>Members</span>
+        </a>
+      </li>
+      <% } %>
+    </ul>
+  </div>
+  <% } %>
+
   <% if (_user && (_user.platformRole === 'ADMIN' || _user.platformRole === 'SUPER_ADMIN')) { %>
   <div class="sidebar__section">
     <p class="sidebar__section-title">Admin</p>
@@ -66,6 +132,26 @@
         >
           <span aria-hidden="true">◎</span>
           <span>Reviews</span>
+        </a>
+      </li>
+      <li>
+        <a
+          href="/admin/audit-events"
+          class="sidebar__link"
+          <%= currentPath.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
+        >
+          <span aria-hidden="true">◷</span>
+          <span>Audit Log</span>
+        </a>
+      </li>
+      <li>
+        <a
+          href="/admin/server"
+          class="sidebar__link"
+          <%= currentPath.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
+        >
+          <span aria-hidden="true">◫</span>
+          <span>Server</span>
         </a>
       </li>
     </ul>

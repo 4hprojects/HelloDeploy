@@ -15,7 +15,17 @@ import { AuditEvent } from '@hellodeploy/database';
  *   limit?: number,
  * }} opts
  */
-export async function searchAuditEvents({ action, actorId, targetType, targetId, outcome, from, to, page = 1, limit = 50 } = {}) {
+export async function searchAuditEvents({
+  action,
+  actorId,
+  targetType,
+  targetId,
+  outcome,
+  from,
+  to,
+  page = 1,
+  limit = 50,
+} = {}) {
   const query = {};
 
   if (action?.trim()) {
@@ -42,8 +52,12 @@ export async function searchAuditEvents({ action, actorId, targetType, targetId,
 
   if (from || to) {
     query.createdAt = {};
-    if (from) query.createdAt.$gte = new Date(from);
-    if (to) query.createdAt.$lte = new Date(to);
+    if (from) {
+      query.createdAt.$gte = new Date(from);
+    }
+    if (to) {
+      query.createdAt.$lte = new Date(to);
+    }
   }
 
   const skip = (page - 1) * limit;

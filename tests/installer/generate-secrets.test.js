@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, readFileSync, writeFileSync, unlinkSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -11,7 +11,7 @@ describe('generate-secrets — output format', () => {
   it('prints three secret key=value pairs to stdout', () => {
     const r = spawnSync(process.execPath, [SCRIPT], { encoding: 'utf8' });
     assert.equal(r.status, 0, `Script exited ${r.status}: ${r.stderr}`);
-    const lines = r.stdout.split('\n').filter(l => /^[A-Z_]+=/.test(l));
+    const lines = r.stdout.split('\n').filter((l) => /^[A-Z_]+=/.test(l));
     assert.equal(lines.length, 3, `Expected 3 key=value lines, got ${lines.length}`);
   });
 
@@ -51,7 +51,9 @@ describe('generate-secrets — write mode', () => {
   it('writes secrets to the specified env file', () => {
     const dir = mkdtempSync(join(tmpdir(), 'hd-test-'));
     const envPath = join(dir, '.env');
-    const r = spawnSync(process.execPath, [SCRIPT, '--write', '--output', envPath], { encoding: 'utf8' });
+    const r = spawnSync(process.execPath, [SCRIPT, '--write', '--output', envPath], {
+      encoding: 'utf8',
+    });
     assert.equal(r.status, 0, `Script failed: ${r.stderr}`);
     const content = readFileSync(envPath, 'utf8');
     assert.ok(content.includes('SESSION_SECRET='), 'SESSION_SECRET not written');

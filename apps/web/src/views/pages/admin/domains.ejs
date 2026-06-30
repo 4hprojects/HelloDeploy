@@ -42,11 +42,11 @@
           <td class="text-right">
             <div class="button-group button-group--sm">
               <form method="POST" action="/admin/domains/<%= d._id %>/approve">
-                <%- include('../../../partials/csrf-field') %>
+                <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--success button--sm">Approve</button>
               </form>
               <form method="POST" action="/admin/domains/<%= d._id %>/reject">
-                <%- include('../../../partials/csrf-field') %>
+                <%- include('../../partials/csrf-field') %>
                 <input type="text" name="reason" placeholder="Rejection reason (optional)" class="form-input form-input--sm">
                 <button type="submit" class="button button--danger button--sm">Reject</button>
               </form>

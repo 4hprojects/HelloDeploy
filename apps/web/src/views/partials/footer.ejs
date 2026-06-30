@@ -7,3 +7,64 @@
     <a href="/service-limits">Service Limits</a>
   </p>
 </footer>
+<script>
+(function () {
+  var pendingSubmitter = null;
+
+  document.addEventListener('click', function (e) {
+    var submitter = e.target.closest('button[type="submit"], input[type="submit"]');
+    if (submitter && submitter.form) {
+      pendingSubmitter = submitter;
+    }
+  });
+
+  document.addEventListener('submit', function (e) {
+    var form = e.target;
+    var msg = form.getAttribute('data-confirm');
+    if (!msg || form.getAttribute('data-confirmed')) return;
+    e.preventDefault();
+    if (form.querySelector('.confirm-bar')) return;
+
+    var bar = document.createElement('div');
+    bar.className = 'confirm-bar';
+
+    var message = document.createElement('span');
+    message.className = 'confirm-bar__msg';
+    message.textContent = msg;
+
+    var confirmButton = document.createElement('button');
+    confirmButton.type = 'button';
+    confirmButton.className = 'button button--danger button--sm';
+    confirmButton.textContent = 'Confirm';
+
+    var cancelButton = document.createElement('button');
+    cancelButton.type = 'button';
+    cancelButton.className = 'button button--ghost button--sm';
+    cancelButton.textContent = 'Cancel';
+
+    bar.appendChild(message);
+    bar.appendChild(confirmButton);
+    bar.appendChild(cancelButton);
+    form.appendChild(bar);
+
+    confirmButton.addEventListener('click', function () {
+      var submitter = null;
+      if (e.submitter && e.submitter.form === form) {
+        submitter = e.submitter;
+      } else if (pendingSubmitter && pendingSubmitter.form === form) {
+        submitter = pendingSubmitter;
+      }
+
+      form.setAttribute('data-confirmed', '1');
+      if (form.requestSubmit) {
+        form.requestSubmit(submitter || undefined);
+      } else {
+        form.submit();
+      }
+    });
+    cancelButton.addEventListener('click', function () {
+      bar.remove();
+    });
+  });
+})();
+</script>
