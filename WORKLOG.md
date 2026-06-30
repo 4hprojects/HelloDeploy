@@ -1,5 +1,17 @@
 # Worklog
 
+## Worklog and Push Policy
+
+- Status: Completed
+- Started: 2026-06-30T20:47:44+08:00
+- Completed: 2026-06-30T20:47:44+08:00
+
+### Rule
+
+- Before any implementation, create or update a markdown worklog entry for the priority, phase, or task.
+- Each worklog entry must include started and completed timestamps.
+- When a priority, phase, or task is completed, run the relevant verification, commit the completed work, and push it to the remote.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
