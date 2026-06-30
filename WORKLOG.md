@@ -12,6 +12,26 @@
 - Each worklog entry must include started and completed timestamps.
 - When a priority, phase, or task is completed, run the relevant verification, commit the completed work, and push it to the remote.
 
+## P3 MongoDB Connection Check
+
+- Status: Completed
+- Started: 2026-06-30T21:01:49+08:00
+- Completed: 2026-06-30T21:02:34+08:00
+
+### Checklist
+
+- [x] Test MongoDB connection using the project's configured environment.
+- [x] Record the result without exposing credentials.
+- [x] Run verification for the documentation update.
+- [x] Commit and push after completion.
+
+### Result
+
+- Initial sandboxed attempt could not resolve the MongoDB Atlas SRV record because network DNS access was blocked.
+- Escalated credential-safe check succeeded with `readyState: 1`.
+- Connected database: `hellodeploy_db`.
+- Connected topology: `ReplicaSetWithPrimary`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
