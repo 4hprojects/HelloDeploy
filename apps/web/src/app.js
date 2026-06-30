@@ -74,14 +74,23 @@ export function createApp() {
   app.get('/dashboard', requireAuth, getDashboard);
 
   // ── Public policy pages ────────────────────────────────────────────────────
+  app.get('/legal', (_req, res) => res.render('pages/legal', { title: 'Legal' }));
   app.get('/terms', (_req, res) => res.render('pages/terms', { title: 'Terms of Service' }));
   app.get('/privacy', (_req, res) => res.render('pages/privacy', { title: 'Privacy Policy' }));
+  app.get('/cookies', (_req, res) => res.render('pages/cookies', { title: 'Cookie Policy' }));
   app.get('/acceptable-use', (_req, res) =>
     res.render('pages/acceptable-use', { title: 'Acceptable Use Policy' }),
   );
   app.get('/service-limits', (_req, res) =>
     res.render('pages/service-limits', { title: 'Service Limits' }),
   );
+  app.get('/data-processing', (_req, res) =>
+    res.render('pages/data-processing', { title: 'Data Processing Terms' }),
+  );
+  app.get('/copyright', (_req, res) =>
+    res.render('pages/copyright', { title: 'Copyright Policy' }),
+  );
+  app.get('/security', (_req, res) => res.render('pages/security', { title: 'Security Policy' }));
 
   // ── Error pages ────────────────────────────────────────────────────────────
   app.use((_req, res) => {

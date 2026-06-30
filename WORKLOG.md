@@ -89,6 +89,31 @@
 - Added `docs/FAQ.md` covering common user, project, GitHub, deployment, configuration, domain, limit, and support questions.
 - Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
 
+## P5 Legal Policies
+
+- Status: Completed
+- Started: 2026-06-30T21:19:30+08:00
+- Completed: 2026-06-30T21:26:39+08:00
+
+### Checklist
+
+- [x] Review existing public legal pages.
+- [x] Add missing user-facing legal policy coverage.
+- [x] Add markdown legal documents for repository review.
+- [x] Link legal pages from the app and README.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added public legal index at `/legal`.
+- Added public Cookie Policy, Data Processing Terms, Copyright Policy, and Security Policy pages.
+- Updated Terms and Privacy pages with expanded coverage and cross-links.
+- Updated footer navigation and README links.
+- Added `docs/LEGAL_POLICIES.md` for repository-level legal policy review.
+- Smoke-tested `/legal`, `/cookies`, `/data-processing`, `/copyright`, and `/security`; all returned `200 OK`.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
