@@ -114,6 +114,30 @@
 - Smoke-tested `/legal`, `/cookies`, `/data-processing`, `/copyright`, and `/security`; all returned `200 OK`.
 - Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
 
+## P6 Legal UX Integration
+
+- Status: Completed
+- Started: 2026-06-30T22:44:00+08:00
+- Completed: 2026-06-30T22:54:56+08:00
+
+### Checklist
+
+- [x] Update account creation consent wording for the legal policy bundle.
+- [x] Update auth footer legal links.
+- [x] Update user guide and FAQ legal references.
+- [x] Smoke-test auth and legal pages.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Updated registration consent to link Terms, Privacy, Cookies, Acceptable Use, and Legal Policies.
+- Updated shared auth footer to include Legal and Cookies links.
+- Updated `docs/USER_GUIDE.md` and `docs/FAQ.md` with legal bundle references.
+- Smoke-tested `/auth/create-account`, `/auth/sign-in`, `/auth/forgot-password`, `/auth/verify-email`, `/legal`, and `/cookies`; all returned `200 OK`.
+- Confirmed rendered create-account page includes `acceptTerms`, Cookie Policy, Legal Policies, `/cookies`, and `/legal`.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed

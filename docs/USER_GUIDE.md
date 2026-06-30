@@ -26,11 +26,13 @@ Version 1 does not support Python, PHP, Java, Docker Compose submitted by users,
 1. Open HelloDeploy.
 2. Select **Create Account** or go to `/auth/create-account`.
 3. Enter your name, email address, and password.
-4. Accept the required terms.
+4. Review and accept the required legal policies.
 5. Verify your email when the verification message arrives.
 6. Sign in at `/auth/sign-in`.
 
 If you forget your password, use `/auth/forgot-password`. Password recovery uses three steps: email address, verification code, and new password.
+
+The legal policy bundle is available at `/legal`. It links to the Terms of Service, Privacy Policy, Cookie Policy, Acceptable Use Policy, Service Limits, Data Processing Terms, Copyright Policy, and Security Policy.
 
 ## Create a Project
 

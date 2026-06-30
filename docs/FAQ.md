@@ -32,6 +32,10 @@ Version 1 does not support Python, PHP, Java, Docker Compose submitted by users,
 
 Use `/auth/create-account`.
 
+### What legal policies do I accept when creating an account?
+
+The account creation form links to the Terms of Service, Privacy Policy, Cookie Policy, Acceptable Use Policy, and the consolidated Legal Policies page. You can review the full legal bundle at `/legal`.
+
 ### Where do I sign in?
 
 Use `/auth/sign-in`.
