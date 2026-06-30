@@ -67,6 +67,28 @@
 - No browser automation dependency is installed in the repo, so this pass used real HTTP integration smoke checks rather than Playwright/Puppeteer rendering.
 - `/auth/register` returned `404`; this is expected because the implemented registration route is `/auth/create-account`.
 
+## P4 User Guide and FAQ
+
+- Status: Completed
+- Started: 2026-06-30T21:15:23+08:00
+- Completed: 2026-06-30T21:17:29+08:00
+
+### Checklist
+
+- [x] Create a user guide for the main HelloDeploy usage flow.
+- [x] Create an FAQ for users and project owners.
+- [x] Add a root README that links to the user-facing docs.
+- [x] Keep guidance aligned with current V1 scope and implemented routes.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `README.md` with links to user-facing and project documentation.
+- Added `docs/USER_GUIDE.md` covering account setup, projects, GitHub connection, detection, environment variables, approval, deployment, rollback, roles, custom domains, limits, and troubleshooting.
+- Added `docs/FAQ.md` covering common user, project, GitHub, deployment, configuration, domain, limit, and support questions.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
