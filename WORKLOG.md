@@ -32,6 +32,41 @@
 - Connected database: `hellodeploy_db`.
 - Connected topology: `ReplicaSetWithPrimary`.
 
+## P3 Real Local Integration Smoke
+
+- Status: Completed
+- Started: 2026-06-30T21:07:17+08:00
+- Completed: 2026-06-30T21:11:50+08:00
+
+### Checklist
+
+- [x] Confirm configured MongoDB is reachable.
+- [x] Confirm Redis availability.
+- [x] Start the web process with the real `.env`.
+- [x] Confirm `/health` responds from the running server.
+- [x] Smoke-test public/auth pages against the running server.
+- [x] Check worker startup path where local services permit.
+- [x] Record blockers separately from passing checks.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- MongoDB check passed against the configured environment: database `hellodeploy_db`, topology `ReplicaSetWithPrimary`.
+- Redis check passed against `127.0.0.1:6379` with `PONG`.
+- Web process started with `npm run start -w @hellodeploy/web` and connected to MongoDB.
+- `/health` returned `200 OK` with JSON status `ok`.
+- HTTP smoke checks returned `200 OK` for `/`, `/auth/sign-in`, `/auth/create-account`, `/auth/forgot-password`, `/terms`, and `/privacy`.
+- `/dashboard` returned the expected unauthenticated `302` redirect to `/auth/sign-in?returnTo=%2Fdashboard`.
+- Worker process started with `npm run start -w @hellodeploy/worker`, connected to MongoDB and Redis, and reached `ready — listening for jobs`.
+- Worker shut down cleanly on `SIGINT`.
+
+### Notes
+
+- Local socket probes require elevated tool access in this environment; sandboxed `curl` and Redis checks could not open localhost sockets.
+- No browser automation dependency is installed in the repo, so this pass used real HTTP integration smoke checks rather than Playwright/Puppeteer rendering.
+- `/auth/register` returned `404`; this is expected because the implemented registration route is `/auth/create-account`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
