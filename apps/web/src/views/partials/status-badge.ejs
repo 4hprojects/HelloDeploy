@@ -22,4 +22,4 @@ const STATUS_MAP = {
 const _status = typeof status !== 'undefined' ? status : '';
 const { mod, label, hint } = STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
 %>
-<span class="status-badge status-badge--<%= mod %>" tabindex="0" data-tooltip="<%= hint %>"><%= label %></span>
+<span class="status-badge status-badge--<%= mod %>" tabindex="0" aria-label="<%= label %>: <%= hint %>" data-tooltip="<%= hint %>"><%= label %></span>

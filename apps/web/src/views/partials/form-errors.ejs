@@ -1,6 +1,6 @@
 <% if (typeof errors !== 'undefined' && errors && errors.form) { %>
 <div class="alert alert--error form-errors-summary" role="alert" tabindex="-1" id="form-error-summary">
-  <span aria-hidden="true">⚠</span>
+  <%- include('icon', { name: 'info' }) %>
   <%= errors.form %>
 </div>
 <% } %>

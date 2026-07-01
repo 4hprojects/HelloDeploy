@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-07-01T20:30:11+08:00
+Updated: 2026-07-02T00:01:30+08:00
 
 Use this index as the starting point for repository documentation. The top-level README stays concise; this file owns the detailed documentation map.
 
@@ -16,6 +16,7 @@ Use this index as the starting point for repository documentation. The top-level
 - [Self-Hosted Install Guide](SELF_HOSTED_INSTALL.md) - supported Ubuntu versions, install modes, setup steps, required environment keys, and lifecycle commands.
 - [Phase Task Tracker](PHASE_TASK_TRACKER.md) - active checklist for remaining implementation and target-host validation work.
 - [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) - planned usability, efficiency, mobile, confirmation, tooltip, form, and accessibility improvements.
+- [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md) - focused accessibility findings and verification after shared UI component updates.
 - [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md) - implementation handoff notes for custom domains, admin operations, hardening/pilot, and self-hosted distribution.
 
 ## Legal and Policy Documentation
@@ -43,5 +44,6 @@ Use this index as the starting point for repository documentation. The top-level
 - P9-P12 implementation commits are recorded in [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md).
 - Remaining implementation and validation work is tracked in [Phase Task Tracker](PHASE_TASK_TRACKER.md).
 - UI/UX implementation planning is tracked in [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).
+- UI/UX accessibility findings are recorded in [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md).
 - Host-level P11 recovery checks and the noncritical pilot deployment remain pending until run on the target host.
 - The implementation phase checklist uses explicit status labels for completed, partial, blocked, and deferred work.

@@ -1,5 +1,32 @@
 # Worklog
 
+## UX-13 Accessibility Pass
+
+- Status: Completed
+- Started: 2026-07-01T23:58:00+08:00
+- Completed: 2026-07-02T00:01:30+08:00
+
+### Checklist
+
+- [x] Review keyboard and ARIA contracts for updated shared components.
+- [x] Fix critical accessibility issues found during the pass.
+- [x] Record findings and residual risk in a dedicated markdown report.
+- [x] Link the report from the documentation index.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added explicit `type="button"` to header icon buttons.
+- Replaced the form error summary warning glyph with the shared decorative icon partial.
+- Added accessible labels to status badges so focused badges include visible status and tooltip context.
+- Added `docs/UI_UX_ACCESSIBILITY_PASS.md` and linked it from `docs/README.md`.
+- Added `tests/ui/accessibility-pass.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/accessibility-pass.test.js tests/ui/confirmation-modal.test.js tests/ui/mobile-sidebar.test.js tests/ui/tooltips.test.js tests/ui/scroll-top.test.js tests/ui/theme-persistence.test.js tests/ui/icon-consistency.test.js tests/ui/form-pending-states.test.js`.
+
 ## UX-12 Form Pending States
 
 - Status: Completed
