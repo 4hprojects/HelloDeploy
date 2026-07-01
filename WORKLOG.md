@@ -1,5 +1,33 @@
 # Worklog
 
+## UX-07 Deployment Timeline Clarity
+
+- Status: Completed
+- Started: 2026-07-01T23:33:20+08:00
+- Completed: 2026-07-01T23:33:20+08:00
+
+### Checklist
+
+- [x] Fix timeline state class names so visual states render correctly.
+- [x] Normalize deployment statuses and worker event stages.
+- [x] Show per-stage status, latest message, and timestamp.
+- [x] Highlight the failed stage before users need to inspect raw logs.
+- [x] Keep live log updates synchronized with the timeline.
+- [x] Avoid injecting live log messages as HTML.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Reworked the deployment detail timeline in `apps/web/src/views/pages/projects/deployment-detail.ejs`.
+- Replaced the old dot-only timeline CSS with responsive stage summary cards in `apps/web/public/css/components.css`.
+- Updated live deployment log handling to safely append text nodes and refresh the active timeline stage.
+- Added `tests/ui/deployment-timeline.test.js` for timeline stage normalization, state hooks, safe log rendering, and CSS coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, responsive tables, and deployment timeline.
+
 ## UX-06 Responsive Tables
 
 - Status: Completed
