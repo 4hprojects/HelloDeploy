@@ -164,7 +164,15 @@
     <% } %>
   </div>
   <div class="card__body p-0">
-    <div class="log-viewer" id="log-output" aria-live="polite" aria-label="Deployment logs">
+    <div
+      class="log-viewer"
+      id="log-output"
+      aria-live="polite"
+      aria-label="Deployment logs"
+      <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
+      data-stream-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs"
+      <% } %>
+    >
       <% if (events.length === 0 && ['QUEUED','VALIDATING'].includes(deployment.status)) { %>
       <div class="log-line log-line--info">Waiting for worker to pick up job…</div>
       <% } %>
@@ -177,80 +185,3 @@
     </div>
   </div>
 </div>
-
-<% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
-<script>
-(function () {
-  const output = document.getElementById('log-output');
-  const indicator = document.getElementById('live-indicator');
-  const streamUrl = '/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs';
-  const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
-
-  function updateTimeline(ev) {
-    const statusKey = eventStageToStatus[ev.stage];
-    if (!statusKey) return;
-
-    const stage = document.querySelector(`[data-stage-key="${statusKey}"]`);
-    if (!stage) return;
-
-    stage.classList.remove('deployment-stage--pending', 'deployment-stage--complete');
-    stage.classList.add('deployment-stage--active');
-
-    const status = stage.querySelector('[data-stage-status]');
-    const message = stage.querySelector('[data-stage-message]');
-    const time = stage.querySelector('[data-stage-time]');
-    if (status) status.textContent = 'In progress';
-    if (message) message.textContent = ev.message || '';
-    if (time && ev.timestamp) {
-      time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-        day: 'numeric',
-        month: 'short',
-        hour: '2-digit',
-        minute: '2-digit',
-      });
-    }
-  }
-
-  function appendLog(ev) {
-    const line = document.createElement('div');
-    line.className = `log-line log-line--${(ev.level || 'info').toLowerCase()}`;
-    const stage = document.createElement('span');
-    stage.className = 'log-line__stage';
-    stage.textContent = ev.stage || '';
-    const message = document.createElement('span');
-    message.className = 'log-line__msg';
-    message.textContent = ev.message || '';
-    line.append(stage, message);
-    output.appendChild(line);
-    output.scrollTop = output.scrollHeight;
-    updateTimeline(ev);
-  }
-
-  const source = new EventSource(streamUrl);
-
-  source.addEventListener('log', (e) => {
-    try { appendLog(JSON.parse(e.data)); } catch {}
-  });
-
-  source.addEventListener('status', (e) => {
-    try {
-      const { status } = JSON.parse(e.data);
-      if (indicator) { indicator.textContent = status; indicator.className = 'badge text-xs'; }
-      source.close();
-      // Reload page to show final state
-      setTimeout(() => window.location.reload(), 1200);
-    } catch {}
-  });
-
-  source.addEventListener('timeout', () => {
-    if (indicator) indicator.textContent = 'Timed out';
-    source.close();
-  });
-
-  source.onerror = () => {
-    if (indicator) indicator.textContent = 'Disconnected';
-    source.close();
-  };
-})();
-</script>
-<% } %>

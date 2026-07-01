@@ -18,13 +18,14 @@ The most important issue found is a cross-project authorization gap in several m
 Remediation status:
 
 - 2026-07-02: P0 deployment/domain cross-project mutation issues were remediated by scoping cancel/retry and verify/remove service queries to the authorized project ID. Regression tests were added and local quality gates passed.
-- 2026-07-02: CSP blockers were inventoried. Follow-up implementation should externalize shared scripts, remove inline handlers, remove repository `innerHTML` option resets, and introduce nonce/report-only CSP before enforcement.
+- 2026-07-02: Script CSP was implemented. Shared inline browser behavior was moved to `/js/app.js`, inline event handlers were removed, unsafe repository option rendering was replaced with DOM node creation, and Helmet now enforces `script-src 'self'` plus a per-request nonce for the early theme bootstrap.
 - 2026-07-02: Database index review completed. Membership, deployment, and domain indexes already covered the reviewed paths; audit event indexes were expanded for outcome, target type, and target ID filters sorted by creation time.
 
 Automated checks:
 
-- `npm test`: passed, 462 tests, 0 failures.
-- `npm run lint`: failed on one existing lint issue in `tests/deployment/live-progress-sse.test.js` (`no-regex-spaces`).
+- `npm run lint`: passed.
+- `npm test`: passed, 472 tests, 0 failures.
+- `npm run format:check`: passed.
 
 ## Priority Findings
 
@@ -66,22 +67,22 @@ Recommended fix:
 - Add tests for cross-project domain isolation.
 - Consider applying the same ownership pattern to all project-owned resource mutations.
 
-### P1 - Content Security Policy Is Disabled
+### P1 - Content Security Policy Needed Script Enforcement
 
 Evidence:
 
-- `apps/web/src/app.js` uses `helmet({ contentSecurityPolicy: false })`.
-- The code comments state this is because inline scripts are used across templates.
+- Prior to remediation, `apps/web/src/app.js` used `helmet({ contentSecurityPolicy: false })` because inline scripts were spread across templates.
+- The current implementation enables Helmet CSP and keeps only the early theme bootstrap inline with a per-request nonce.
 
 Impact:
 
-EJS escapes normal interpolations, and log rendering avoids `innerHTML`, which reduces XSS risk. However, without CSP, any future template injection or unsafe script sink has a much larger blast radius. This is especially relevant because the app handles deployment logs, repository metadata, custom domains, and user-provided project data.
+EJS escapes normal interpolations, and log rendering avoids `innerHTML`, which reduces XSS risk. Script CSP now reduces the blast radius of future template injection or unsafe script sinks. Remaining inline style attributes still require temporary `style-src 'unsafe-inline'`, so style CSP is not yet strict.
 
 Recommended fix:
 
-- Move inline scripts into static JS assets where practical.
-- For unavoidable inline bootstraps, add per-request nonces and configure Helmet CSP with `script-src 'self' 'nonce-...'`.
-- Include `connect-src` entries for EventSource log streaming and any external services such as Turnstile.
+- Move inline style attributes into CSS classes or safe custom-property patterns.
+- Remove temporary `style-src 'unsafe-inline'` after style attributes are gone.
+- Review external service allowances before enabling integrations that require third-party script/connect targets.
 
 ### P1 - Service Layer Relies Heavily on Caller-Enforced Authorization
 
@@ -148,7 +149,7 @@ Recommended fix:
 ### Security Gaps and Recommendations
 
 - Fix the P0 cross-project deployment and domain mutation paths first.
-- Enable CSP with nonce support.
+- Tighten remaining style CSP after inline styles are removed.
 - Move authorization constraints deeper into project-owned service methods.
 - Make production Redis/rate-limit failures explicit instead of silently degrading.
 - Consider adding HSTS configuration explicitly through Helmet for production if not already handled by the reverse proxy.
@@ -171,13 +172,13 @@ Recommended fix:
 - SSE uses per-connection polling every 1.5 seconds. This is acceptable at low scale but can create database load with many active viewers.
 - `getUserProjects()` populates all memberships for a user and sorts in memory. This is fine for small quotas, but should be paginated or sorted in the database if project counts grow.
 - Several screens perform count plus page queries separately. This is common, but high-cardinality admin pages may need indexes and/or cached counts.
-- Inline scripts in templates limit browser caching benefits and block CSP rollout.
+- Shared browser behavior now lives in a static JS file, improving cacheability and allowing script CSP enforcement.
 
 ### Efficiency Recommendations
 
 - Keep the current SSE approach for pilot scale, but add a cap on simultaneous streams per user/IP and monitor query volume.
 - Add or verify Mongo indexes for high-traffic filters: `ProjectMembership.userId`, `ProjectMembership.projectId`, `Deployment.projectId + sequenceNumber`, `Domain.hostnameNormalized`, `AuditEvent.createdAt/action/outcome`, and session TTL.
-- Move shared inline JavaScript to static files so browsers can cache it.
+- Continue moving remaining inline styles into CSS so the style CSP can be tightened.
 - Consider conditional `Cache-Control` headers for static assets if not already handled upstream.
 
 ## User-Friendliness Assessment
@@ -211,15 +212,19 @@ Recommended fix:
 Command results from this review:
 
 ```text
-npm test
+npm run lint
 Result: passed
-Tests: 462 passed, 0 failed
 ```
 
 ```text
-npm run lint
-Result: failed
-Issue: tests/deployment/live-progress-sse.test.js:38:40 no-regex-spaces
+npm test
+Result: passed
+Tests: 472 passed, 0 failed
+```
+
+```text
+npm run format:check
+Result: passed
 ```
 
 ## Recommended Remediation Order
@@ -228,7 +233,7 @@ Issue: tests/deployment/live-progress-sse.test.js:38:40 no-regex-spaces
 2. Fix cross-project domain verify/remove authorization.
 3. Add regression tests for project-owned object ID isolation.
 4. Fix the lint error so quality gates are green.
-5. Enable CSP using nonces and externalized scripts.
+5. Tighten style CSP by removing inline styles and dropping `style-src 'unsafe-inline'`.
 6. Harden production rate-limit behavior when Redis is unavailable.
 7. Add performance indexes and monitor SSE query load.
 8. Improve operational error copy and reconnect behavior for long-running log streams.

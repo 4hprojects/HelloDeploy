@@ -2,15 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
-const footer = await readFile(
-  new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url),
-  'utf8',
-);
-
 const header = await readFile(
   new URL('../../apps/web/src/views/partials/header.ejs', import.meta.url),
   'utf8',
 );
+
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
 
 const statusBadge = await readFile(
   new URL('../../apps/web/src/views/partials/status-badge.ejs', import.meta.url),
@@ -39,19 +36,19 @@ const quota = await readFile(
 
 describe('accessible tooltip UI', () => {
   it('creates one shared tooltip popover and exposes it with role=tooltip', () => {
-    assert.match(footer, /className = 'tooltip-popover'/);
-    assert.match(footer, /setAttribute\('role', 'tooltip'\)/);
-    assert.match(footer, /aria-describedby/);
+    assert.match(appJs, /className = 'tooltip-popover'/);
+    assert.match(appJs, /setAttribute\('role', 'tooltip'\)/);
+    assert.match(appJs, /aria-describedby/);
   });
 
   it('supports mouse, keyboard focus, escape, scroll, and resize behavior', () => {
-    assert.match(footer, /mouseover/);
-    assert.match(footer, /mouseout/);
-    assert.match(footer, /focusin/);
-    assert.match(footer, /focusout/);
-    assert.match(footer, /e\.key === 'Escape'/);
-    assert.match(footer, /window\.addEventListener\('scroll'/);
-    assert.match(footer, /window\.addEventListener\('resize'/);
+    assert.match(appJs, /mouseover/);
+    assert.match(appJs, /mouseout/);
+    assert.match(appJs, /focusin/);
+    assert.match(appJs, /focusout/);
+    assert.match(appJs, /e\.key === 'Escape'/);
+    assert.match(appJs, /window\.addEventListener\(\s*'scroll'/);
+    assert.match(appJs, /window\.addEventListener\('resize'/);
   });
 
   it('does not rely on native title attributes for header controls', () => {

@@ -11,6 +11,7 @@ const files = {
     new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url),
     'utf8',
   ),
+  appJs: await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8'),
   icon: await readFile(
     new URL('../../apps/web/src/views/partials/icon.ejs', import.meta.url),
     'utf8',
@@ -49,8 +50,8 @@ describe('focused accessibility pass', () => {
     assert.match(files.footer, /aria-modal="true"/);
     assert.match(files.footer, /aria-labelledby="confirm-modal-title"/);
     assert.match(files.footer, /aria-describedby="confirm-modal-message"/);
-    assert.match(files.footer, /role', 'tooltip'/);
-    assert.match(files.footer, /form\.setAttribute\('aria-busy', 'true'\)/);
+    assert.match(files.appJs, /setAttribute\('role', 'tooltip'\)/);
+    assert.match(files.appJs, /form\.setAttribute\('aria-busy', 'true'\)/);
   });
 
   it('keeps decorative icons hidden and status context announced', () => {
@@ -65,7 +66,7 @@ describe('focused accessibility pass', () => {
     assert.match(files.baseCss, /:focus-visible/);
     assert.match(files.baseCss, /\.skip-link/);
     assert.match(files.tokensCss, /prefers-reduced-motion: reduce/);
-    assert.match(files.footer, /prefers-reduced-motion: reduce/);
+    assert.match(files.appJs, /prefers-reduced-motion: reduce/);
   });
 
   it('records the accessibility pass and residual risk', () => {

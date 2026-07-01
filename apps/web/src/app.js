@@ -2,6 +2,7 @@ import express from 'express';
 import expressEjsLayouts from 'express-ejs-layouts';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { randomBytes } from 'crypto';
 
 import { correlationIdMiddleware } from './middleware/correlation-id.js';
 import { createSessionMiddleware } from './middleware/session.js';
@@ -21,15 +22,42 @@ import { logger } from '@hellodeploy/observability';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+function cspNonceMiddleware(_req, res, next) {
+  res.locals.cspNonce = randomBytes(16).toString('base64');
+  next();
+}
+
 export function createApp() {
   const app = express();
 
   // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare)
   app.set('trust proxy', 1);
 
-  // Security headers — CSP is disabled because inline scripts are used throughout
-  // the templates; enabling it requires adding per-request nonces first.
-  app.use(helmet({ contentSecurityPolicy: false }));
+  app.use(cspNonceMiddleware);
+
+  // Security headers. Inline scripts are blocked except the per-request nonce
+  // used by the early theme bootstrap. Inline styles remain temporarily allowed
+  // while legacy style attributes are migrated into CSS classes.
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'self'", (_req, res) => `'nonce-${res.locals.cspNonce}'`],
+          scriptSrcAttr: ["'none'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:'],
+          fontSrc: ["'self'"],
+          connectSrc: ["'self'"],
+          formAction: ["'self'"],
+          frameAncestors: ["'none'"],
+          upgradeInsecureRequests: null,
+        },
+      },
+    }),
+  );
 
   // View engine
   app.set('view engine', 'ejs');

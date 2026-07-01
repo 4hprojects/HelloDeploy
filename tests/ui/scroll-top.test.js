@@ -7,6 +7,8 @@ const footer = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 const componentsCss = await readFile(
   new URL('../../apps/web/public/css/components.css', import.meta.url),
   'utf8',
@@ -21,15 +23,15 @@ describe('scroll-to-top UI', () => {
   });
 
   it('shows only after scrolling and returns to the page top', () => {
-    assert.match(footer, /var threshold = 420/);
-    assert.match(footer, /button\.hidden = window\.scrollY < threshold/);
-    assert.match(footer, /window\.scrollTo/);
-    assert.match(footer, /top: 0/);
+    assert.match(appJs, /const threshold = 420/);
+    assert.match(appJs, /button\.hidden = window\.scrollY < threshold/);
+    assert.match(appJs, /window\.scrollTo/);
+    assert.match(appJs, /top: 0/);
   });
 
   it('respects reduced-motion preferences', () => {
-    assert.match(footer, /prefers-reduced-motion: reduce/);
-    assert.match(footer, /behavior: reduceMotion\.matches \? 'auto' : 'smooth'/);
+    assert.match(appJs, /prefers-reduced-motion: reduce/);
+    assert.match(appJs, /behavior: reduceMotion\.matches \? 'auto' : 'smooth'/);
   });
 
   it('defines responsive fixed-position styles', () => {

@@ -12,6 +12,8 @@ const deploymentDetail = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 describe('live deployment progress SSE', () => {
   it('exposes deployment logs as an event-stream with buffering disabled', () => {
     assert.match(deploymentController, /Content-Type', 'text\/event-stream'/);
@@ -39,11 +41,12 @@ describe('live deployment progress SSE', () => {
   });
 
   it('connects the browser log viewer through EventSource and safe DOM updates', () => {
-    assert.match(deploymentDetail, /new EventSource\(streamUrl\)/);
-    assert.match(deploymentDetail, /source\.addEventListener\('log'/);
-    assert.match(deploymentDetail, /source\.addEventListener\('status'/);
-    assert.match(deploymentDetail, /source\.addEventListener\('timeout'/);
-    assert.match(deploymentDetail, /message\.textContent = ev\.message \|\| ''/);
+    assert.match(deploymentDetail, /data-stream-url=/);
+    assert.match(appJs, /new EventSource\(output\.dataset\.streamUrl\)/);
+    assert.match(appJs, /source\.addEventListener\('log'/);
+    assert.match(appJs, /source\.addEventListener\('status'/);
+    assert.match(appJs, /source\.addEventListener\('timeout'/);
+    assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
     assert.doesNotMatch(deploymentDetail, /innerHTML/);
   });
 });

@@ -7,6 +7,7 @@ const files = {
     new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url),
     'utf8',
   ),
+  appJs: await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8'),
   componentsCss: await readFile(
     new URL('../../apps/web/public/css/components.css', import.meta.url),
     'utf8',
@@ -43,18 +44,18 @@ const files = {
 
 describe('form pending states', () => {
   it('adds a shared submit handler that prevents duplicate submissions', () => {
-    assert.match(files.footer, /data-submitting/);
-    assert.match(files.footer, /e\.preventDefault\(\)/);
-    assert.match(files.footer, /form\.setAttribute\('aria-busy', 'true'\)/);
-    assert.match(files.footer, /form\.classList\.add\('form--pending'\)/);
-    assert.match(files.footer, /button\.disabled = true/);
-    assert.match(files.footer, /setSubmitterText\(submitter, pendingLabel\(form, submitter\)\)/);
+    assert.match(files.appJs, /data-submitting/);
+    assert.match(files.appJs, /e\.preventDefault\(\)/);
+    assert.match(files.appJs, /form\.setAttribute\('aria-busy', 'true'\)/);
+    assert.match(files.appJs, /form\.classList\.add\('form--pending'\)/);
+    assert.match(files.appJs, /button\.disabled = true/);
+    assert.match(files.appJs, /setSubmitterText\(submitter, pendingLabel\(form, submitter\)\)/);
   });
 
   it('uses action-specific labels with a safe fallback', () => {
-    assert.match(files.footer, /data-pending-label/);
-    assert.match(files.footer, /data-confirm-pending-label/);
-    assert.match(files.footer, /'Working\.\.\.'/);
+    assert.match(files.appJs, /data-pending-label/);
+    assert.match(files.appJs, /data-confirm-pending-label/);
+    assert.match(files.appJs, /'Working\.\.\.'/);
     assert.match(files.signIn, /data-pending-label="Signing in\.\.\."/);
     assert.match(files.createAccount, /data-pending-label="Creating\.\.\."/);
     assert.match(files.deployments, /data-pending-label="Deploying\.\.\."/);

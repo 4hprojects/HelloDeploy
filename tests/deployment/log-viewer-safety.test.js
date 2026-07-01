@@ -12,6 +12,8 @@ const deploymentDetail = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 const buildJob = await readFile(
   new URL('../../apps/worker/src/jobs/build-deployment.job.js', import.meta.url),
   'utf8',
@@ -40,8 +42,8 @@ describe('deployment log viewer safety', () => {
   });
 
   it('appends live log messages with textContent instead of HTML injection', () => {
-    assert.match(deploymentDetail, /document\.createElement\('div'\)/);
-    assert.match(deploymentDetail, /message\.textContent = ev\.message \|\| ''/);
+    assert.match(appJs, /document\.createElement\('div'\)/);
+    assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
     assert.doesNotMatch(deploymentDetail, /innerHTML/);
   });
 });

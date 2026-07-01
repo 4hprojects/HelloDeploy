@@ -46,6 +46,14 @@ export default [
     },
   },
   {
+    files: ['apps/web/public/**/*.js'],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+      },
+    },
+  },
+  {
     ignores: ['node_modules/', 'dist/', 'build/', 'coverage/'],
   },
 ];

@@ -7,6 +7,7 @@ const files = {
     new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url),
     'utf8',
   ),
+  appJs: await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8'),
   components: await readFile(
     new URL('../../apps/web/public/css/components.css', import.meta.url),
     'utf8',
@@ -71,12 +72,12 @@ describe('destructive and risky action UX', () => {
   });
 
   it('lets confirmable actions declare title, accept label, severity, and pending copy', () => {
-    assert.match(files.footer, /getAttribute\('data-confirm-title'\)/);
-    assert.match(files.footer, /getAttribute\('data-confirm-accept-label'\)/);
-    assert.match(files.footer, /getAttribute\('data-confirm-variant'\)/);
-    assert.match(files.footer, /getAttribute\('data-confirm-pending-label'\)/);
-    assert.match(files.footer, /modal\.setAttribute\('aria-busy', 'true'\)/);
-    assert.match(files.footer, /form\.setAttribute\('data-submitting', '1'\)/);
+    assert.match(files.appJs, /getAttribute\('data-confirm-title'\)/);
+    assert.match(files.appJs, /getAttribute\('data-confirm-accept-label'\)/);
+    assert.match(files.appJs, /getAttribute\('data-confirm-variant'\)/);
+    assert.match(files.appJs, /getAttribute\('data-confirm-pending-label'\)/);
+    assert.match(files.appJs, /modal\.setAttribute\('aria-busy', 'true'\)/);
+    assert.match(files.appJs, /form\.setAttribute\('data-submitting', '1'\)/);
   });
 
   it('standardizes project destructive actions through the shared confirmation contract', () => {

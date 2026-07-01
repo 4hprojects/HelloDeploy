@@ -7,6 +7,8 @@ const deploymentDetail = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 const componentsCss = await readFile(
   new URL('../../apps/web/public/css/components.css', import.meta.url),
   'utf8',
@@ -15,7 +17,7 @@ const componentsCss = await readFile(
 describe('deployment timeline UI', () => {
   it('normalizes deployment statuses and worker event stages into one timeline', () => {
     assert.match(
-      deploymentDetail,
+      appJs,
       /const eventStageToStatus = \{ VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' \}/,
     );
     assert.match(deploymentDetail, /key: 'VALIDATING', label: 'Validate'/);
@@ -35,11 +37,11 @@ describe('deployment timeline UI', () => {
   });
 
   it('updates the live timeline without injecting log HTML', () => {
-    assert.match(deploymentDetail, /function updateTimeline\(ev\)/);
-    assert.match(deploymentDetail, /stage\.classList\.add\('deployment-stage--active'\)/);
-    assert.match(deploymentDetail, /document\.createElement\('span'\)/);
-    assert.match(deploymentDetail, /message\.textContent = ev\.message \|\| ''/);
-    assert.doesNotMatch(deploymentDetail, /line\.innerHTML/);
+    assert.match(appJs, /function updateTimeline\(ev\)/);
+    assert.match(appJs, /stage\.classList\.add\('deployment-stage--active'\)/);
+    assert.match(appJs, /document\.createElement\('span'\)/);
+    assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
+    assert.doesNotMatch(appJs, /line\.innerHTML/);
   });
 
   it('uses matching deployment-stage modifier classes in CSS', () => {

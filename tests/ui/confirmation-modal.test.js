@@ -12,6 +12,8 @@ const componentsCss = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 describe('confirmation modal UI', () => {
   it('uses shared modal markup for confirmable actions', () => {
     assert.match(footer, /id="confirm-modal"/);
@@ -19,22 +21,22 @@ describe('confirmation modal UI', () => {
     assert.match(footer, /aria-modal="true"/);
     assert.match(footer, /data-confirm-accept/);
     assert.match(footer, /data-confirm-cancel/);
-    assert.match(footer, /acceptButton\.disabled = false/);
-    assert.match(footer, /data-confirm-title/);
-    assert.match(footer, /data-confirm-accept-label/);
-    assert.match(footer, /data-confirm-variant/);
-    assert.match(footer, /data-confirm-pending-label/);
+    assert.match(appJs, /acceptButton\.disabled = false/);
+    assert.match(appJs, /data-confirm-title/);
+    assert.match(appJs, /data-confirm-accept-label/);
+    assert.match(appJs, /data-confirm-variant/);
+    assert.match(appJs, /data-confirm-pending-label/);
   });
 
   it('does not rely on browser default confirm dialogs', () => {
-    assert.doesNotMatch(footer, /window\.confirm|confirm\(/);
+    assert.doesNotMatch(appJs, /window\.confirm|confirm\(/);
   });
 
   it('supports form and link data-confirm targets', () => {
-    assert.match(footer, /a\[data-confirm\]/);
-    assert.match(footer, /getAttribute\('data-confirm'\)/);
-    assert.match(footer, /target\.tagName === 'FORM'/);
-    assert.match(footer, /target\.tagName === 'A'/);
+    assert.match(appJs, /a\[data-confirm\]/);
+    assert.match(appJs, /getAttribute\('data-confirm'\)/);
+    assert.match(appJs, /target\.tagName === 'FORM'/);
+    assert.match(appJs, /target\.tagName === 'A'/);
   });
 
   it('defines modal styling and removes the old inline confirm bar pattern', () => {

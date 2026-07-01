@@ -12,6 +12,8 @@ const header = await readFile(
   'utf8',
 );
 
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
+
 const authLayout = await readFile(
   new URL('../../apps/web/src/views/layouts/auth.ejs', import.meta.url),
   'utf8',
@@ -47,11 +49,11 @@ describe('theme persistence UI', () => {
   it('keeps the header toggle label and pressed state aligned with the active theme', () => {
     assert.match(header, /id="theme-toggle"/);
     assert.match(header, /aria-pressed="false"/);
-    assert.match(header, /syncThemeToggle/);
-    assert.match(header, /btn\.setAttribute\('aria-pressed', String\(isDark\)\)/);
-    assert.match(header, /btn\.setAttribute\('aria-label', label\)/);
-    assert.match(header, /btn\.setAttribute\('data-tooltip', label\)/);
-    assert.match(header, /__setHelloDeployTheme\(next, true\)/);
+    assert.match(appJs, /function syncThemeToggle/);
+    assert.match(appJs, /btn\.setAttribute\('aria-pressed', String\(isDark\)\)/);
+    assert.match(appJs, /btn\.setAttribute\('aria-label', label\)/);
+    assert.match(appJs, /btn\.setAttribute\('data-tooltip', label\)/);
+    assert.match(appJs, /__setHelloDeployTheme\(next, true\)/);
   });
 
   it('declares light and dark color schemes for native controls', () => {

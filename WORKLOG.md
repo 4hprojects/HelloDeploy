@@ -1,5 +1,31 @@
 # Worklog
 
+## Script CSP Implementation
+
+- Status: Completed
+- Started: 2026-07-02T06:47:00+08:00
+- Completed: 2026-07-02T07:34:11+08:00
+
+### Results
+
+- Moved shared browser behavior from EJS inline scripts into `apps/web/public/js/app.js`.
+- Added the static JS bundle to both main and auth layouts.
+- Replaced inline `onchange` behavior with delegated `data-auto-submit` handling.
+- Replaced repository branch `innerHTML` option resets with DOM-created nodes.
+- Added per-request CSP nonces for the early theme bootstrap.
+- Enabled Helmet CSP enforcement for scripts with `script-src 'self'` plus the request nonce.
+- Left `style-src 'unsafe-inline'` as a documented temporary allowance until inline style attributes are moved into CSS.
+- Added CSP regression coverage and updated source-level UI tests to assert behavior in the static JS asset.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/security/csp.test.js tests/ui/theme-persistence.test.js tests/ui/mobile-sidebar.test.js tests/ui/form-pending-states.test.js tests/ui/confirmation-modal.test.js tests/ui/tooltips.test.js tests/deployment/live-progress-sse.test.js tests/deployment/log-viewer-safety.test.js tests/ui/deployment-timeline.test.js` passed.
+- `node --test tests/ui/accessibility-pass.test.js tests/ui/destructive-actions.test.js tests/ui/scroll-top.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 472 tests, 0 failures.
+- `npm run format:check` passed.
+
 ## Web App P0 Tenant-Isolation Remediation
 
 - Status: Completed

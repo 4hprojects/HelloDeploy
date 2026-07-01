@@ -3,7 +3,7 @@
 Date: 2026-07-02
 Source: [Web App Comprehensive Analysis](WEB_APP_COMPREHENSIVE_ANALYSIS.md)
 
-Goal for today: close the immediate tenant-isolation risks, restore green local quality checks, and leave the next security/efficiency work clearly queued.
+Goal for today: close the immediate tenant-isolation risks, restore green local quality checks, implement the script CSP migration, and leave the next security/efficiency work clearly queued.
 
 ## Phase 1: Critical Tenant-Isolation Fixes
 
@@ -59,11 +59,11 @@ Status: completed 2026-07-02T06:40:31+08:00.
   - [x] Result: passed, 465 tests, 0 failures.
 - [x] If failures appear, fix only issues related to today's changes unless a blocker requires otherwise.
 
-## Phase 4: Same-Day Security Hardening Prep
+## Phase 4: Same-Day Security Hardening
 
-Status target: prepare scope today; implement only if Phases 1-3 finish with time remaining.
+Status target: implement script CSP today after Phases 1-3 finish.
 
-Status: completed 2026-07-02T06:43:00+08:00.
+Status: completed 2026-07-02T07:34:11+08:00.
 
 - [x] Inventory inline scripts that block CSP enablement.
   - [x] `apps/web/src/views/partials/head.ejs` theme bootstrap.
@@ -78,16 +78,23 @@ Status: completed 2026-07-02T06:43:00+08:00.
   - [x] Static external JS for reusable behavior.
   - [x] Per-request nonce for the early theme bootstrap if it must remain render-blocking.
   - [x] Helmet CSP directives for `script-src`, `connect-src`, `img-src`, `style-src`, and Turnstile.
-- [x] Create a follow-up CSP implementation task if it cannot be finished today.
+- [x] Move shared browser behavior into a cacheable static JS asset.
+  - [x] Header theme/sidebar behavior.
+  - [x] Footer tooltip, scroll-to-top, confirmation modal, and pending-submit behavior.
+  - [x] Password visibility and password requirement behavior.
+  - [x] Deployment live-log EventSource behavior.
+  - [x] Repository branch loading behavior.
+- [x] Replace the `members.ejs` inline `onchange` handler with delegated `data-auto-submit` behavior.
+- [x] Replace repository `innerHTML` option resets with DOM-created `option` nodes.
+- [x] Add per-request CSP nonces for the early theme bootstrap.
+- [x] Enable Helmet CSP enforcement for scripts with `script-src 'self'` plus the request nonce.
+- [x] Add regression coverage for CSP headers, nonce propagation, removed inline handlers, and removed unsafe JS sinks.
 
-Follow-up CSP implementation order:
+Remaining CSP follow-up:
 
-1. Move shared footer/header/password scripts into `/public/js/app.js`.
-2. Replace `members.ejs` inline `onchange` with a delegated `data-auto-submit` listener.
-3. Replace repository `innerHTML` option resets with DOM-created `option` nodes.
-4. Move deployment live-log and repository branch handlers into page modules using data attributes for dynamic URLs/IDs.
-5. Add a nonce middleware for the head theme bootstrap or move to a tiny blocking static asset.
-6. Enable Helmet CSP in report-only mode first, then enforce after violations are clean.
+1. Move inline `style` attributes into CSS classes/custom properties.
+2. Remove temporary `style-src 'unsafe-inline'` after style attributes are gone.
+3. Review external service allowances before enabling integrations that require third-party script/connect targets.
 
 ## Phase 5: Efficiency and UX Follow-Ups
 
@@ -138,4 +145,5 @@ Status target: complete today before stopping.
 - [x] `npm run lint` passes.
 - [x] `npm test` passes.
 - [x] `npm run format:check` passes.
-- [x] Remaining CSP, Redis-rate-limit, SSE, index, and UX work is either completed or explicitly queued.
+- [x] Script CSP, index work, and the P0 isolation fixes are completed.
+- [x] Remaining inline-style CSP tightening, Redis-rate-limit, SSE, and UX work is explicitly queued.
