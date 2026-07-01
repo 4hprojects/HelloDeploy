@@ -198,12 +198,14 @@
 
 ### Tasks
 
-- [ ] Implement hostname normalization and uniqueness.
-- [ ] Implement ownership-verification records.
-- [ ] Generate provider-neutral DNS instructions.
-- [ ] Implement Admin approval.
-- [ ] Activate routing only after verification.
-- [ ] Verify HTTPS and canonical-domain behavior.
+| Status  | Task                                             | Notes                                                                                            |
+| ------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
+| Done    | Implement hostname normalization and uniqueness. | Covered by domain service validation, unique hostname index, and focused tests.                  |
+| Done    | Implement ownership-verification records.        | Verification tokens are generated for DNS TXT proof and stored hashed.                           |
+| Done    | Generate provider-neutral DNS instructions.      | Project domain UI shows TXT record instructions for domain owners.                               |
+| Done    | Implement Admin approval.                        | Verified domains require administrator approval before route activation is queued.               |
+| Done    | Activate routing only after verification.        | Worker marks domains active only after approved route activation succeeds when Nginx is enabled. |
+| Blocked | Verify HTTPS and canonical-domain behavior.      | Requires target-host ingress, TLS, and canonical-domain checks.                                  |
 
 ### Acceptance Criteria
 
@@ -214,16 +216,18 @@
 
 ### Tasks
 
-- [ ] Build server and capacity dashboard.
-- [ ] Add queue pause/resume and maintenance mode.
-- [ ] Add project suspension and neutral suspension routes.
-- [ ] Add quota editing and consumption views.
-- [ ] Add audit search and export.
-- [ ] Add inactivity reports and notifications.
-- [ ] Add cleanup schedules and disk safeguards.
-- [ ] Write incident, backup, restore, and upgrade runbooks.
-- [ ] Complete responsive mobile sidebar, tables, cards, forms, and dashboard layouts.
-- [ ] Complete light and dark mode behavior and persistence.
+| Status  | Task                                                                             | Notes                                                                                               |
+| ------- | -------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Done    | Build server and capacity dashboard.                                             | Admin server view reports capacity and queue state.                                                 |
+| Done    | Add queue pause/resume and maintenance mode.                                     | Super Admin controls and middleware gating are implemented.                                         |
+| Done    | Add project suspension and neutral suspension routes.                            | Admin suspension/reactivation and worker maintenance route behavior are implemented.                |
+| Done    | Add quota editing and consumption views.                                         | Quota override parsing, storage, audit events, and consumption context are implemented.             |
+| Done    | Add audit search and export.                                                     | Filtered audit CSV export and export audit events are implemented.                                  |
+| Partial | Add inactivity reports and notifications.                                        | Inactivity reporting scaffolding exists; delivery and alert behavior need browser/ops verification. |
+| Done    | Add cleanup schedules and disk safeguards.                                       | Cleanup skips deployments still referenced as active.                                               |
+| Done    | Write incident, backup, restore, and upgrade runbooks.                           | Operations runbooks cover incident, backup, restore, upgrade, rollback, and uninstall workflows.    |
+| Partial | Complete responsive mobile sidebar, tables, cards, forms, and dashboard layouts. | Responsive CSS exists, but final cross-viewport browser verification remains pending.               |
+| Partial | Complete light and dark mode behavior and persistence.                           | Theme tokens and localStorage persistence exist; final browser verification remains pending.        |
 
 ### Acceptance Criteria
 
@@ -235,15 +239,17 @@
 
 ### Tasks
 
-- [x] Complete security test suite and threat review.
-- [ ] Perform load, build concurrency, and resource-exhaustion tests.
-- [ ] Test failure recovery for MongoDB, Redis, Docker, Nginx, worker, and tunnel.
-- [ ] Conduct usability pilot.
-- [x] Finalize acceptable-use, privacy, retention, and service-limit policies.
-- [ ] Establish measured server capacity.
-- [ ] Deploy a noncritical pilot application.
-- [x] Run keyboard, screen-reader landmark, contrast, zoom, and reduced-motion checks.
-- [x] Verify all final favicon, manifest, email-logo, and social-preview assets or approved placeholders.
+| Status  | Task                                                                                                | Notes                                                                                              |
+| ------- | --------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Done    | Complete security test suite and threat review.                                                     | Local full test suite passed during P11.                                                           |
+| Partial | Perform load, build concurrency, and resource-exhaustion tests.                                     | Local capacity snapshot exists; HTTP sampling and build/resource-exhaustion checks remain pending. |
+| Blocked | Test failure recovery for MongoDB, Redis, Docker, Nginx, worker, and tunnel.                        | Requires target-host service control.                                                              |
+| Blocked | Conduct usability pilot.                                                                            | Requires a real noncritical repository and pilot user flow on target host.                         |
+| Done    | Finalize acceptable-use, privacy, retention, and service-limit policies.                            | Legal/policy markdown and public policy surfaces were completed.                                   |
+| Partial | Establish measured server capacity.                                                                 | Local host snapshot exists; safe production thresholds require target-host measurements.           |
+| Blocked | Deploy a noncritical pilot application.                                                             | Requires target-host deployment run.                                                               |
+| Done    | Run keyboard, screen-reader landmark, contrast, zoom, and reduced-motion checks.                    | Documented as completed in the P11 scope.                                                          |
+| Done    | Verify all final favicon, manifest, email-logo, and social-preview assets or approved placeholders. | Documented as completed in the P11 scope.                                                          |
 
 ### Acceptance Criteria
 
@@ -255,14 +261,16 @@
 
 ### Tasks
 
-- [ ] Remove remaining environment assumptions.
-- [ ] Create preflight checker and installer.
-- [ ] Support Ubuntu 22.04 and 24.04.
-- [ ] Generate secure initial secrets.
-- [ ] Create upgrade, rollback, backup, restore, and uninstall workflows.
-- [ ] Create administrator setup wizard.
-- [ ] Document local-only, public-IP, and Cloudflare Tunnel modes.
-- [ ] Choose and document software license.
+| Status  | Task                                                                | Notes                                                                                              |
+| ------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Partial | Remove remaining environment assumptions.                           | Self-hosted docs and checklist reduce assumptions; target-host install validation remains pending. |
+| Done    | Create preflight checker and installer.                             | `scripts/preflight.js` and `infrastructure/install.sh` are present.                                |
+| Done    | Support Ubuntu 22.04 and 24.04.                                     | Installer, preflight, and self-hosted docs declare supported versions.                             |
+| Done    | Generate secure initial secrets.                                    | Setup wizard supports production environment generation.                                           |
+| Done    | Create upgrade, rollback, backup, restore, and uninstall workflows. | Infrastructure scripts and operations docs cover lifecycle workflows.                              |
+| Done    | Create administrator setup wizard.                                  | `scripts/setup.js` and `scripts/self-hosted-checklist.js` are present.                             |
+| Done    | Document local-only, public-IP, and Cloudflare Tunnel modes.        | Covered in the self-hosted install guide and checklist script.                                     |
+| Done    | Choose and document software license.                               | MIT license is present and referenced by self-hosted docs.                                         |
 
 ### Acceptance Criteria
 

@@ -1,5 +1,26 @@
 # Worklog
 
+## Markdown Maintenance Audit
+
+- Status: Completed
+- Started: 2026-07-01T18:39:27+08:00
+- Completed: 2026-07-01T18:39:27+08:00
+
+### Checklist
+
+- [x] Add a documentation index under `docs/`.
+- [x] Reconcile P9-P12 implementation status in the phase blueprint.
+- [x] Clarify known remaining operational validation work.
+- [x] Reconcile the older P2 `/health` checklist item with later P3 integration smoke results.
+- [x] Keep root README concise and point to the documentation index.
+
+### Results
+
+- Added `docs/README.md` as the canonical documentation map.
+- Updated the P9-P12 phase checklist to use explicit status labels instead of stale unchecked boxes.
+- Updated the P9-P12 maintenance summary with current known remaining work.
+- Reconciled the P2 `/health` checklist item by referencing the later P3 real local integration smoke result.
+
 ## P12 Distribution and Self-Hosted Edition
 
 - Status: Completed
@@ -373,7 +394,7 @@
 ### Checklist
 
 - [x] Start the web app locally.
-- [ ] Confirm `/health` responds.
+- [x] Confirm `/health` responds.
 - [x] Smoke-test public pages.
 - [x] Smoke-test authenticated/admin pages where local data permits.
 - [x] Smoke-test project pages where local data permits.
@@ -395,3 +416,7 @@
 - `npm run lint` passed.
 - `npm run format:check` passed.
 - `npm test` passed.
+
+### Reconciliation
+
+- Later P3 real local integration smoke confirmed `/health` returned `200 OK` with JSON status `ok` against the configured environment.

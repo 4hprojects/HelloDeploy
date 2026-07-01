@@ -2,19 +2,12 @@
 
 HelloDeploy is a self-hosted web application deployment platform. It lets users connect GitHub repositories, configure supported applications, deploy them into isolated containers, inspect deployment logs, and roll back to retained healthy releases.
 
-## User Documentation
+## Documentation
 
+- [Documentation Index](docs/README.md)
 - [User Guide](docs/USER_GUIDE.md)
-- [FAQ](docs/FAQ.md)
-- [Legal Policies](docs/LEGAL_POLICIES.md)
-
-## Project Documentation
-
 - [Blueprint](hellodeploy-blueprint/00_MASTER_INDEX.md)
-- [Infrastructure Notes](infrastructure/README.md)
-- [Operations Runbooks](docs/OPERATIONS_RUNBOOKS.md)
-- [Hardening and Pilot Report](docs/HARDENING_AND_PILOT_REPORT.md)
-- [Self-Hosted Install Guide](docs/SELF_HOSTED_INSTALL.md)
+- [P9-P12 Maintenance Summary](docs/P9_P12_MAINTENANCE_SUMMARY.md)
 
 ## Local Development
 
