@@ -10,12 +10,12 @@
   <div class="button-group">
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary">Deploy Latest</button>
+      <button type="submit" class="button button--primary" data-tooltip="Deploy the latest commit from the production branch.">Deploy Latest</button>
     </form>
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
       <%- include('../../partials/csrf-field') %>
       <input type="hidden" name="noCache" value="true">
-      <button type="submit" class="button button--secondary button--sm">Deploy (no cache)</button>
+      <button type="submit" class="button button--secondary button--sm" data-tooltip="Rebuild without using cached build layers.">Deploy (no cache)</button>
     </form>
   </div>
   <% } %>
@@ -39,7 +39,7 @@
         </option>
         <% }) %>
       </select>
-      <button type="submit" class="button button--warning button--sm">Roll Back</button>
+      <button type="submit" class="button button--warning button--sm" data-tooltip="Restore the selected retained healthy deployment.">Roll Back</button>
     </form>
   </div>
 </div>
@@ -103,19 +103,19 @@
           </td>
           <td class="text-right">
             <div class="button-group button-group--sm">
-              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm">Logs</a>
+              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="Open build and runtime logs for this deployment.">Logs</a>
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
                     data-confirm='Cancel this deployment?'>
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--danger button--sm">Cancel</button>
+                <button type="submit" class="button button--danger button--sm" data-tooltip="Cancel this deployment before it completes.">Cancel</button>
               </form>
               <% } %>
               <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
               <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm">Retry</button>
+                <button type="submit" class="button button--secondary button--sm" data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
               </form>
               <% } %>
             </div>

@@ -103,7 +103,7 @@
           <td>
             <code class="code-inline"><%= d.hostnameNormalized %></code>
             <% if (d.status === 'ACTIVE') { %>
-            <a href="https://<%= d.hostnameNormalized %>" class="table-link text-xs ml-2" target="_blank" rel="noopener">↗</a>
+            <a href="https://<%= d.hostnameNormalized %>" class="table-link text-xs ml-2" target="_blank" rel="noopener" data-tooltip="Open this custom domain in a new tab.">↗</a>
             <% } %>
           </td>
           <td><%- include('../../partials/status-badge', { status: d.status }) %></td>
@@ -115,7 +115,7 @@
               <% if (d.status === 'PENDING_VERIFICATION' && membership.role === 'OWNER') { %>
               <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/verify">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm">Check Verification</button>
+                <button type="submit" class="button button--secondary button--sm" data-tooltip="Check whether the required DNS TXT record has propagated.">Check Verification</button>
               </form>
               <% } %>
               <% if (d.status === 'PENDING_ADMIN_APPROVAL') { %>
@@ -125,7 +125,7 @@
               <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/remove"
                     data-confirm='Remove <%= d.hostnameNormalized %>? This cannot be undone.'>
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--danger button--sm">Remove</button>
+                <button type="submit" class="button button--danger button--sm" data-tooltip="Remove this custom domain from the project.">Remove</button>
               </form>
               <% } %>
             </div>

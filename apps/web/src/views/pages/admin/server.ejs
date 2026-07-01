@@ -25,7 +25,7 @@
     <form method="POST" action="/admin/server/maintenance/disable"
           data-confirm="Disable maintenance mode and allow user mutations again?">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--success">Disable Maintenance</button>
+      <button type="submit" class="button button--success" data-tooltip="Allow users to create, update, and deploy again.">Disable Maintenance</button>
     </form>
     <% } else { %>
     <form method="POST" action="/admin/server/maintenance/enable"
@@ -37,7 +37,7 @@
                maxlength="300"
                value="HelloDeploy is temporarily in maintenance mode. Please try again later.">
       </div>
-      <button type="submit" class="button button--warning">Enable Maintenance</button>
+      <button type="submit" class="button button--warning" data-tooltip="Pause user write actions while keeping safe read-only access available.">Enable Maintenance</button>
     </form>
     <% } %>
   </div>
@@ -113,13 +113,13 @@
       <% if (server.queue?.paused) { %>
       <form method="POST" action="/admin/server/queue/resume">
         <%- include('../../partials/csrf-field') %>
-        <button type="submit" class="button button--success">Resume Queue</button>
+        <button type="submit" class="button button--success" data-tooltip="Allow queued deployment jobs to start again.">Resume Queue</button>
       </form>
       <% } else { %>
       <form method="POST" action="/admin/server/queue/pause"
             data-confirm='Pause the deployment queue? Running jobs will finish, but no new jobs will start.'>
         <%- include('../../partials/csrf-field') %>
-        <button type="submit" class="button button--warning">Pause Queue</button>
+        <button type="submit" class="button button--warning" data-tooltip="Stop new deployment jobs from starting; running jobs can finish.">Pause Queue</button>
       </form>
       <% } %>
     </div>

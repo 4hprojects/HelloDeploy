@@ -1,6 +1,6 @@
 <header class="header" role="banner">
   <div class="header__inner">
-    <button class="header__menu-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar">
+    <button class="header__menu-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar" data-tooltip="Open or close the navigation menu">
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
@@ -9,7 +9,7 @@
       <%- include('brand-logo') %>
     </a>
     <nav class="header__nav" aria-label="Primary navigation">
-      <button class="header__theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" title="Toggle dark/light mode">
+      <button class="header__theme-toggle" id="theme-toggle" aria-label="Toggle dark mode" data-tooltip="Switch between light and dark theme">
         <span class="theme-icon theme-icon--light" aria-hidden="true">☀</span>
         <span class="theme-icon theme-icon--dark" aria-hidden="true">☾</span>
       </button>

@@ -35,6 +35,91 @@
 
 <script>
 (function () {
+  var tooltip = document.createElement('div');
+  tooltip.className = 'tooltip-popover';
+  tooltip.id = 'tooltip-popover';
+  tooltip.setAttribute('role', 'tooltip');
+  tooltip.hidden = true;
+  document.body.appendChild(tooltip);
+
+  var activeTooltipTarget = null;
+
+  function positionTooltip(target) {
+    var rect = target.getBoundingClientRect();
+    tooltip.hidden = false;
+
+    var tooltipRect = tooltip.getBoundingClientRect();
+    var top = rect.top - tooltipRect.height - 8;
+    var left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+
+    if (top < 8) {
+      top = rect.bottom + 8;
+      tooltip.classList.add('tooltip-popover--below');
+    } else {
+      tooltip.classList.remove('tooltip-popover--below');
+    }
+
+    left = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
+    tooltip.style.top = top + 'px';
+    tooltip.style.left = left + 'px';
+  }
+
+  function showTooltip(target) {
+    var text = target.getAttribute('data-tooltip');
+    if (!text) return;
+
+    activeTooltipTarget = target;
+    tooltip.textContent = text;
+    target.setAttribute('aria-describedby', tooltip.id);
+    positionTooltip(target);
+  }
+
+  function hideTooltip(target) {
+    if (target && activeTooltipTarget !== target) return;
+
+    if (activeTooltipTarget) {
+      activeTooltipTarget.removeAttribute('aria-describedby');
+    }
+    activeTooltipTarget = null;
+    tooltip.hidden = true;
+    tooltip.textContent = '';
+    tooltip.classList.remove('tooltip-popover--below');
+  }
+
+  document.addEventListener('mouseover', function (e) {
+    var target = e.target.closest('[data-tooltip]');
+    if (target) showTooltip(target);
+  });
+
+  document.addEventListener('mouseout', function (e) {
+    var target = e.target.closest('[data-tooltip]');
+    if (target && !target.contains(e.relatedTarget)) hideTooltip(target);
+  });
+
+  document.addEventListener('focusin', function (e) {
+    if (e.target.matches('[data-tooltip]')) showTooltip(e.target);
+  });
+
+  document.addEventListener('focusout', function (e) {
+    if (e.target.matches('[data-tooltip]')) hideTooltip(e.target);
+  });
+
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') hideTooltip();
+  });
+
+  window.addEventListener('scroll', function () {
+    if (activeTooltipTarget) positionTooltip(activeTooltipTarget);
+  }, true);
+
+  window.addEventListener('resize', function () {
+    if (activeTooltipTarget) positionTooltip(activeTooltipTarget);
+  });
+})();
+</script>
+
+<script>
+(function () {
   var modal = document.getElementById('confirm-modal');
   if (!modal) return;
 

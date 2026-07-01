@@ -16,13 +16,13 @@
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/cancel"
           data-confirm='Cancel this deployment?'>
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--danger button--sm">Cancel</button>
+      <button type="submit" class="button button--danger button--sm" data-tooltip="Cancel this deployment before it completes.">Cancel</button>
     </form>
     <% } %>
     <% if (isRetryable && canAct) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--secondary button--sm">Retry</button>
+      <button type="submit" class="button button--secondary button--sm" data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
     </form>
     <% } %>
   </div>

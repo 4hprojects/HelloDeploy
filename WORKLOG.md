@@ -1,5 +1,32 @@
 # Worklog
 
+## UX-03 Accessible Tooltips
+
+- Status: Completed
+- Started: 2026-07-01T22:58:46+08:00
+- Completed: 2026-07-01T22:58:46+08:00
+
+### Checklist
+
+- [x] Add a shared tooltip behavior for `data-tooltip` targets.
+- [x] Support mouse hover and keyboard focus.
+- [x] Avoid relying on native `title` attributes.
+- [x] Add tooltips to high-value header, status, admin, deployment, domain, and quota controls.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added shared tooltip popover behavior in `apps/web/src/views/partials/footer.ejs`.
+- Added tooltip styling in `apps/web/public/css/components.css`.
+- Added tooltip hints to header controls, status badges, admin server controls, deployment actions, domain actions, audit export, and quota fields.
+- Added `tests/ui/tooltips.test.js` to cover tooltip markup, behavior hooks, styling, and high-value target coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and `node --test tests/ui/tooltips.test.js`.
+- Full `node --test --test-reporter=dot tests/**/*.test.js` is blocked by unrelated installer tests whose child process stdout is empty under the current `node:test` sandbox.
+
 ## UX-02 Mobile Sidebar Drawer
 
 - Status: Completed

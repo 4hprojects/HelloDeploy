@@ -1,24 +1,25 @@
 <%
 // Maps any status value to its CSS modifier and display label.
 const STATUS_MAP = {
-  DRAFT:               { mod: 'draft',     label: 'Draft' },
-  ACTIVE:              { mod: 'healthy',   label: 'Active' },
-  SUSPENDED:           { mod: 'suspended', label: 'Suspended' },
-  ARCHIVED:            { mod: 'archived',  label: 'Archived' },
-  PENDING_VERIFICATION:{ mod: 'pending',   label: 'Pending' },
-  PENDING:             { mod: 'pending',   label: 'Pending' },
-  APPROVED:            { mod: 'healthy',   label: 'Approved' },
-  REJECTED:            { mod: 'failed',    label: 'Rejected' },
-  QUEUED:              { mod: 'queued',    label: 'Queued' },
-  VALIDATING:          { mod: 'building',  label: 'Validating' },
-  BUILDING:            { mod: 'building',  label: 'Building' },
-  DEPLOYING:           { mod: 'deploying', label: 'Deploying' },
-  HEALTHY:             { mod: 'healthy',   label: 'Healthy' },
-  FAILED:              { mod: 'failed',    label: 'Failed' },
-  CANCELLED:           { mod: 'stopped',   label: 'Cancelled' },
-  ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back' },
+  DRAFT:               { mod: 'draft',     label: 'Draft',                  hint: 'Draft item is still being configured.' },
+  ACTIVE:              { mod: 'healthy',   label: 'Active',                 hint: 'Active item is approved and available for normal use.' },
+  SUSPENDED:           { mod: 'suspended', label: 'Suspended',              hint: 'Suspended item is paused by an administrator.' },
+  ARCHIVED:            { mod: 'archived',  label: 'Archived',               hint: 'Archived item is read-only and no longer active.' },
+  PENDING_VERIFICATION:{ mod: 'pending',   label: 'Pending',                hint: 'Waiting for verification before the next step can continue.' },
+  PENDING_ADMIN_APPROVAL:{ mod: 'pending', label: 'Pending admin approval', hint: 'Verified item is waiting for administrator review.' },
+  PENDING:             { mod: 'pending',   label: 'Pending',                hint: 'Waiting for the next required action.' },
+  APPROVED:            { mod: 'healthy',   label: 'Approved',               hint: 'Approved item can move to the next workflow step.' },
+  REJECTED:            { mod: 'failed',    label: 'Rejected',               hint: 'Rejected item needs changes before it can continue.' },
+  QUEUED:              { mod: 'queued',    label: 'Queued',                 hint: 'Deployment is waiting for a worker.' },
+  VALIDATING:          { mod: 'building',  label: 'Validating',             hint: 'Deployment configuration is being checked.' },
+  BUILDING:            { mod: 'building',  label: 'Building',               hint: 'Deployment image or assets are being built.' },
+  DEPLOYING:           { mod: 'deploying', label: 'Deploying',              hint: 'Deployment is being started and routed.' },
+  HEALTHY:             { mod: 'healthy',   label: 'Healthy',                hint: 'Deployment passed health checks.' },
+  FAILED:              { mod: 'failed',    label: 'Failed',                 hint: 'Deployment failed before becoming active.' },
+  CANCELLED:           { mod: 'stopped',   label: 'Cancelled',              hint: 'Deployment was cancelled before completion.' },
+  ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back',            hint: 'A retained healthy release was restored.' },
 };
 const _status = typeof status !== 'undefined' ? status : '';
-const { mod, label } = STATUS_MAP[_status] || { mod: 'draft', label: _status };
+const { mod, label, hint } = STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
 %>
-<span class="status-badge status-badge--<%= mod %>"><%= label %></span>
+<span class="status-badge status-badge--<%= mod %>" tabindex="0" data-tooltip="<%= hint %>"><%= label %></span>
