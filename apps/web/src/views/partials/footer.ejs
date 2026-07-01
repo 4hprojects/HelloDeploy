@@ -33,6 +33,17 @@
   </div>
 </div>
 
+<button
+  type="button"
+  class="scroll-top-button"
+  id="scroll-top-button"
+  aria-label="Scroll to top"
+  data-tooltip="Back to top"
+  hidden
+>
+  <span aria-hidden="true">↑</span>
+</button>
+
 <script>
 (function () {
   var tooltip = document.createElement('div');
@@ -115,6 +126,31 @@
   window.addEventListener('resize', function () {
     if (activeTooltipTarget) positionTooltip(activeTooltipTarget);
   });
+})();
+</script>
+
+<script>
+(function () {
+  var button = document.getElementById('scroll-top-button');
+  if (!button) return;
+
+  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+  var threshold = 420;
+
+  function syncButton() {
+    button.hidden = window.scrollY < threshold;
+  }
+
+  button.addEventListener('click', function () {
+    window.scrollTo({
+      top: 0,
+      behavior: reduceMotion.matches ? 'auto' : 'smooth',
+    });
+  });
+
+  window.addEventListener('scroll', syncButton, { passive: true });
+  window.addEventListener('resize', syncButton);
+  syncButton();
 })();
 </script>
 

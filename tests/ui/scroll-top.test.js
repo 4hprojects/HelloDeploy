@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import { describe, it } from 'node:test';
+
+const footer = await readFile(
+  new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url),
+  'utf8',
+);
+
+const componentsCss = await readFile(
+  new URL('../../apps/web/public/css/components.css', import.meta.url),
+  'utf8',
+);
+
+describe('scroll-to-top UI', () => {
+  it('renders a shared accessible floating button', () => {
+    assert.match(footer, /id="scroll-top-button"/);
+    assert.match(footer, /aria-label="Scroll to top"/);
+    assert.match(footer, /data-tooltip="Back to top"/);
+    assert.match(footer, /hidden/);
+  });
+
+  it('shows only after scrolling and returns to the page top', () => {
+    assert.match(footer, /var threshold = 420/);
+    assert.match(footer, /button\.hidden = window\.scrollY < threshold/);
+    assert.match(footer, /window\.scrollTo/);
+    assert.match(footer, /top: 0/);
+  });
+
+  it('respects reduced-motion preferences', () => {
+    assert.match(footer, /prefers-reduced-motion: reduce/);
+    assert.match(footer, /behavior: reduceMotion\.matches \? 'auto' : 'smooth'/);
+  });
+
+  it('defines responsive fixed-position styles', () => {
+    assert.match(componentsCss, /\.scroll-top-button/);
+    assert.match(componentsCss, /position: fixed/);
+    assert.match(componentsCss, /env\(safe-area-inset-bottom\)/);
+    assert.match(componentsCss, /\.scroll-top-button:focus-visible/);
+    assert.match(componentsCss, /@media \(max-width: 40rem\)/);
+  });
+});

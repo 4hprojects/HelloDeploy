@@ -643,6 +643,59 @@
   gap: var(--space-3);
 }
 
+/* ── Scroll to top ───────────────────────────────────────────────── */
+.scroll-top-button {
+  position: fixed;
+  right: max(var(--space-4), env(safe-area-inset-right));
+  bottom: max(var(--space-4), env(safe-area-inset-bottom));
+  z-index: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: #fff;
+  background: var(--color-orange);
+  border: 1px solid var(--color-orange-hover);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-lg);
+  cursor: pointer;
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    color var(--transition-fast),
+    transform var(--transition-fast);
+}
+
+.scroll-top-button[hidden] {
+  display: none;
+}
+
+.scroll-top-button:hover {
+  background: var(--color-orange-hover);
+  border-color: var(--color-orange-hover);
+  transform: translateY(-2px);
+}
+
+.scroll-top-button:focus-visible {
+  outline: 3px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.scroll-top-button span {
+  font-size: var(--text-xl);
+  line-height: 1;
+}
+
+@media (max-width: 40rem) {
+  .scroll-top-button {
+    right: max(var(--space-3), env(safe-area-inset-right));
+    bottom: max(var(--space-3), env(safe-area-inset-bottom));
+    width: 2.5rem;
+    height: 2.5rem;
+  }
+}
+
 /* ── Tooltips ────────────────────────────────────────────────────── */
 .tooltip-popover {
   position: fixed;

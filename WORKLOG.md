@@ -1,5 +1,31 @@
 # Worklog
 
+## UX-05 Floating Scroll-To-Top Button
+
+- Status: Completed
+- Started: 2026-07-01T23:19:41+08:00
+- Completed: 2026-07-01T23:19:41+08:00
+
+### Checklist
+
+- [x] Add a shared floating scroll-to-top button.
+- [x] Show it only after the user scrolls down.
+- [x] Keep the control keyboard accessible and tooltip-enabled.
+- [x] Respect `prefers-reduced-motion`.
+- [x] Avoid covering primary content on small screens.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added shared scroll-to-top markup and behavior in `apps/web/src/views/partials/footer.ejs`.
+- Added responsive fixed-position styling in `apps/web/public/css/components.css`.
+- Added `tests/ui/scroll-top.test.js` for markup, scroll behavior, reduced-motion behavior, and CSS coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, and scroll-to-top.
+
 ## UX-04 Floating Labels
 
 - Status: Completed
