@@ -1,5 +1,39 @@
 # Worklog
 
+## P11 Hardening and Pilot
+
+- Status: Completed
+- Started: 2026-07-01T18:14:59+08:00
+- Completed: 2026-07-01T18:16:44+08:00
+
+### Plan
+
+- Add a repeatable capacity measurement script that records host, queue, and local HTTP measurements without requiring Docker mutation by default.
+- Document failure-recovery checks for MongoDB, Redis, Docker, Nginx, worker, and Cloudflare Tunnel with pass/blocker status.
+- Document measured operating thresholds and remaining pilot constraints from available local checks.
+- Add a noncritical pilot deployment checklist that proves a user can complete deployment without administrator terminal work.
+- Keep existing security tests as the blocking gate and avoid claiming unmeasured capacity.
+- Add focused tests for the new measurement/reporting helpers.
+- Run final verification commands, then commit and push before moving to P12.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Add repeatable capacity/failure-recovery measurement tooling.
+- [x] Document measured thresholds, recovery checks, and pilot checklist.
+- [x] Add focused hardening/pilot tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `scripts/measure-capacity.js` for non-destructive host snapshots and optional local HTTP sampling.
+- Captured a local host snapshot: 8 CPU cores, 31% memory used, 5% workspace filesystem used, and 894.1 GB free on the workspace filesystem.
+- Added `docs/HARDENING_AND_PILOT_REPORT.md` with conservative pilot thresholds, failure-recovery checklist status, and a noncritical pilot deployment checklist.
+- Documented that host-level MongoDB, Redis, Docker, Nginx, worker, and Cloudflare Tunnel recovery tests still require service control on the target host.
+- Added focused tests for capacity helper clamping and latency summaries.
+- Ran `node scripts/measure-capacity.js --json`, targeted operations tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P10 Administration and Operations
 
 - Status: Completed
