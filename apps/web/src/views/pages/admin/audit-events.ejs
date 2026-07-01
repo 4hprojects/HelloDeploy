@@ -1,5 +1,8 @@
-<div class="page-header">
+<div class="page-header page-header--actions">
   <h1 class="page-header__title">Audit Events</h1>
+  <a href="/admin/audit-events/export?<%= new URLSearchParams(filters) %>"
+     class="button button--secondary button--sm"
+     data-confirm="Export the filtered audit events as CSV?">Export CSV</a>
 </div>
 
 <!-- Filter form -->

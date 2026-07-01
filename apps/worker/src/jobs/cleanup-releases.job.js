@@ -1,10 +1,14 @@
-import { Deployment } from '@hellodeploy/database';
+import { Deployment, Project } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
+
+export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
+  return activeDeploymentIds.has(deployment._id?.toString());
+}
 
 /**
  * CLEANUP_RELEASES job handler.
@@ -43,8 +47,22 @@ export async function handleCleanupReleases(job) {
     }
 
     const oldDeployments = await Deployment.find({ _id: { $in: excess } }).lean();
+    const projectIds = [...new Set(oldDeployments.map((dep) => dep.projectId?.toString()))].filter(
+      Boolean,
+    );
+    const projects = await Project.find({ _id: { $in: projectIds } })
+      .select('activeDeploymentId')
+      .lean();
+    const activeDeploymentIds = new Set(
+      projects.map((project) => project.activeDeploymentId?.toString()).filter(Boolean),
+    );
 
     for (const dep of oldDeployments) {
+      if (isActiveDeploymentProtected(dep, activeDeploymentIds)) {
+        logger.info('CleanupReleases: skipped active deployment', { deploymentId: dep._id });
+        continue;
+      }
+
       if (dep.activeContainerId) {
         try {
           await stopAndRemoveContainer(dep.activeContainerId);

@@ -6,6 +6,43 @@
   </p>
 </div>
 
+<!-- Maintenance mode -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Maintenance Mode</h2>
+    <span class="badge <%= maintenance?.enabled ? 'badge--warning' : 'badge--success' %>">
+      <%= maintenance?.enabled ? 'Enabled' : 'Disabled' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (maintenance?.enabled) { %>
+    <p class="text-sm mb-4">
+      Mutating user actions are paused. Super Admin actions and safe read-only requests remain available.
+    </p>
+    <% if (maintenance.message) { %>
+    <p class="text-muted text-sm mb-4"><%= maintenance.message %></p>
+    <% } %>
+    <form method="POST" action="/admin/server/maintenance/disable"
+          data-confirm="Disable maintenance mode and allow user mutations again?">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--success">Disable Maintenance</button>
+    </form>
+    <% } else { %>
+    <form method="POST" action="/admin/server/maintenance/enable"
+          data-confirm="Enable maintenance mode? User mutations will be paused.">
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-group mb-4">
+        <label class="form-label" for="maintenance-message">User-facing message</label>
+        <input id="maintenance-message" name="message" class="form-input"
+               maxlength="300"
+               value="HelloDeploy is temporarily in maintenance mode. Please try again later.">
+      </div>
+      <button type="submit" class="button button--warning">Enable Maintenance</button>
+    </form>
+    <% } %>
+  </div>
+</div>
+
 <!-- System stats -->
 <div class="stats-grid mb-6">
   <% if (server.cpu) { %>

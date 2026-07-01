@@ -1,4 +1,12 @@
-import { User, Project, ApprovalRequest, Quota } from '@hellodeploy/database';
+import {
+  User,
+  Project,
+  ProjectMembership,
+  ApprovalRequest,
+  Quota,
+  Deployment,
+  Domain,
+} from '@hellodeploy/database';
 import {
   UserStatus,
   ProjectStatus,
@@ -6,6 +14,8 @@ import {
   AuditOutcome,
   QuotaScope,
   JobType,
+  DeploymentStatus,
+  DomainStatus,
 } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -242,9 +252,32 @@ export async function setQuotaOverride({
     return { success: false, error: 'Invalid quota scope type.' };
   }
 
+  const allowedLimits = [
+    'maxOwnedProjects',
+    'maxRunningApps',
+    'maxProjectMembers',
+    'memoryMb',
+    'cpuCores',
+    'deploymentsPerMonth',
+    'buildTimeoutSeconds',
+    'maxCustomDomains',
+    'maxRollbackReleases',
+    'logRetentionDays',
+  ];
+  const cleanLimits = {};
+  for (const key of allowedLimits) {
+    if (limits[key] === undefined) {
+      continue;
+    }
+    if (!Number.isFinite(limits[key]) || limits[key] < 0) {
+      return { success: false, error: `Invalid quota value for ${key}.` };
+    }
+    cleanLimits[key] = limits[key];
+  }
+
   const quota = await Quota.findOneAndUpdate(
     { scopeType, scopeId },
-    { $set: { ...limits, updatedBy: adminId, reason: reason?.trim() || null } },
+    { $set: { ...cleanLimits, createdBy: adminId, reason: reason?.trim() || null } },
     { upsert: true, new: true, setDefaultsOnInsert: true },
   );
 
@@ -257,7 +290,7 @@ export async function setQuotaOverride({
     targetId: scopeId?.toString(),
     sourceIp,
     correlationId,
-    metadata: { scopeType, limits: Object.keys(limits) },
+    metadata: { scopeType, limits: Object.keys(cleanLimits) },
   });
 
   return { success: true, quota };
@@ -265,6 +298,46 @@ export async function setQuotaOverride({
 
 export async function getQuotaOverride(scopeType, scopeId) {
   return Quota.findOne({ scopeType, scopeId }).lean();
+}
+
+export async function getQuotaConsumption(scopeType, scopeId) {
+  if (scopeType === QuotaScope.USER) {
+    const projects = await Project.find({
+      ownerId: scopeId,
+      status: { $ne: ProjectStatus.ARCHIVED },
+    })
+      .select('_id')
+      .lean();
+    const projectIds = projects.map((project) => project._id);
+    const [ownedProjects, runningApps, customDomains] = await Promise.all([
+      Project.countDocuments({ ownerId: scopeId, status: { $ne: ProjectStatus.ARCHIVED } }),
+      Deployment.countDocuments({
+        projectId: { $in: projectIds },
+        status: DeploymentStatus.HEALTHY,
+        activeContainerId: { $ne: null },
+      }),
+      Domain.countDocuments({
+        projectId: { $in: projectIds },
+        status: { $ne: DomainStatus.REMOVED },
+      }),
+    ]);
+    return { ownedProjects, runningApps, customDomains };
+  }
+
+  if (scopeType === QuotaScope.PROJECT) {
+    const [runningApps, projectMembers, customDomains] = await Promise.all([
+      Deployment.countDocuments({
+        projectId: scopeId,
+        status: DeploymentStatus.HEALTHY,
+        activeContainerId: { $ne: null },
+      }),
+      ProjectMembership.countDocuments({ projectId: scopeId }),
+      Domain.countDocuments({ projectId: scopeId, status: { $ne: DomainStatus.REMOVED } }),
+    ]);
+    return { runningApps, projectMembers, customDomains };
+  }
+
+  return {};
 }
 
 // ─── Suspend project with nginx maintenance ────────────────────────────────────

@@ -8,19 +8,41 @@
 </div>
 
 <%- include('../../../partials/flash-banner') %>
+<% const quotaFields = [
+  ['maxOwnedProjects', 'Max Owned Projects'],
+  ['maxRunningApps', 'Max Running Apps'],
+  ['maxProjectMembers', 'Max Project Members'],
+  ['memoryMb', 'Memory (MB)'],
+  ['cpuCores', 'CPU Cores'],
+  ['deploymentsPerMonth', 'Deployments / Month'],
+  ['buildTimeoutSeconds', 'Build Timeout (seconds)'],
+  ['maxCustomDomains', 'Max Custom Domains'],
+  ['maxRollbackReleases', 'Max Rollback Releases'],
+  ['logRetentionDays', 'Log Retention (days)'],
+]; %>
+<% const quotaValue = (key) => quota?.[key] ?? ''; %>
 
 <div class="card">
   <div class="card__header">
     <span class="card__title">Current Limits</span>
   </div>
   <div class="card__body">
-    <% if (quota && quota.limits && Object.keys(quota.limits).length > 0) { %>
+    <% if (quota && quotaFields.some(([key]) => quota[key] !== null && quota[key] !== undefined)) { %>
     <dl class="detail-list">
-      <% Object.entries(quota.limits).forEach(([k, v]) => { %>
+      <% quotaFields.forEach(([key, label]) => { if (quota[key] !== null && quota[key] !== undefined) { %>
+      <dt><%= label %></dt>
+      <dd><%= quota[key] %></dd>
+      <% } }) %>
+    </dl>
+    <% if (consumption && Object.keys(consumption).length > 0) { %>
+    <h3 class="text-sm mt-4 mb-2">Current Consumption</h3>
+    <dl class="detail-list">
+      <% Object.entries(consumption).forEach(([k, v]) => { %>
       <dt><%= k %></dt>
       <dd><%= v %></dd>
       <% }) %>
     </dl>
+    <% } %>
     <% if (quota.reason) { %>
     <p class="text-sm text-muted mt-4">Reason: <%= quota.reason %></p>
     <% } %>
@@ -42,61 +64,61 @@
         <div class="form-group">
           <label class="form-label" for="maxOwnedProjects">Max Owned Projects</label>
           <input type="number" id="maxOwnedProjects" name="maxOwnedProjects" class="form-input"
-                 min="0" value="<%= quota?.limits?.maxOwnedProjects ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('maxOwnedProjects') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="maxRunningApps">Max Running Apps</label>
           <input type="number" id="maxRunningApps" name="maxRunningApps" class="form-input"
-                 min="0" value="<%= quota?.limits?.maxRunningApps ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('maxRunningApps') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="maxProjectMembers">Max Project Members</label>
           <input type="number" id="maxProjectMembers" name="maxProjectMembers" class="form-input"
-                 min="0" value="<%= quota?.limits?.maxProjectMembers ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('maxProjectMembers') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="memoryMb">Memory (MB)</label>
           <input type="number" id="memoryMb" name="memoryMb" class="form-input"
-                 min="0" value="<%= quota?.limits?.memoryMb ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('memoryMb') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="cpuCores">CPU Cores</label>
           <input type="number" id="cpuCores" name="cpuCores" class="form-input"
-                 min="0" step="0.1" value="<%= quota?.limits?.cpuCores ?? '' %>" placeholder="Platform default" />
+                 min="0" step="0.1" value="<%= quotaValue('cpuCores') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="deploymentsPerMonth">Deployments / Month</label>
           <input type="number" id="deploymentsPerMonth" name="deploymentsPerMonth" class="form-input"
-                 min="0" value="<%= quota?.limits?.deploymentsPerMonth ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('deploymentsPerMonth') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="buildTimeoutSeconds">Build Timeout (seconds)</label>
           <input type="number" id="buildTimeoutSeconds" name="buildTimeoutSeconds" class="form-input"
-                 min="0" value="<%= quota?.limits?.buildTimeoutSeconds ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('buildTimeoutSeconds') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="maxCustomDomains">Max Custom Domains</label>
           <input type="number" id="maxCustomDomains" name="maxCustomDomains" class="form-input"
-                 min="0" value="<%= quota?.limits?.maxCustomDomains ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('maxCustomDomains') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="maxRollbackReleases">Max Rollback Releases</label>
           <input type="number" id="maxRollbackReleases" name="maxRollbackReleases" class="form-input"
-                 min="0" value="<%= quota?.limits?.maxRollbackReleases ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('maxRollbackReleases') %>" placeholder="Platform default" />
         </div>
 
         <div class="form-group">
           <label class="form-label" for="logRetentionDays">Log Retention (days)</label>
           <input type="number" id="logRetentionDays" name="logRetentionDays" class="form-input"
-                 min="0" value="<%= quota?.limits?.logRetentionDays ?? '' %>" placeholder="Platform default" />
+                 min="0" value="<%= quotaValue('logRetentionDays') %>" placeholder="Platform default" />
         </div>
       </div>
 

@@ -7,6 +7,7 @@ import { correlationIdMiddleware } from './middleware/correlation-id.js';
 import { createSessionMiddleware } from './middleware/session.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import { localsMiddleware } from './middleware/locals.js';
+import { maintenanceModeMiddleware } from './middleware/maintenance-mode.js';
 import { generalLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/require-auth.js';
 import authRoutes from './routes/pages/auth.routes.js';
@@ -51,6 +52,7 @@ export function createApp() {
   app.use(createSessionMiddleware());
   app.use(csrfMiddleware);
   app.use(localsMiddleware);
+  app.use(maintenanceModeMiddleware);
   app.use(generalLimiter);
 
   // ── Health ─────────────────────────────────────────────────────────────────

@@ -1,31 +1,6 @@
 import { AuditEvent } from '@hellodeploy/database';
 
-/**
- * Search audit events with filters.
- *
- * @param {{
- *   action?: string,
- *   actorId?: string,
- *   targetType?: string,
- *   targetId?: string,
- *   outcome?: string,
- *   from?: Date | string,
- *   to?: Date | string,
- *   page?: number,
- *   limit?: number,
- * }} opts
- */
-export async function searchAuditEvents({
-  action,
-  actorId,
-  targetType,
-  targetId,
-  outcome,
-  from,
-  to,
-  page = 1,
-  limit = 50,
-} = {}) {
+function buildAuditQuery({ action, actorId, targetType, targetId, outcome, from, to } = {}) {
   const query = {};
 
   if (action?.trim()) {
@@ -60,6 +35,37 @@ export async function searchAuditEvents({
     }
   }
 
+  return query;
+}
+
+/**
+ * Search audit events with filters.
+ *
+ * @param {{
+ *   action?: string,
+ *   actorId?: string,
+ *   targetType?: string,
+ *   targetId?: string,
+ *   outcome?: string,
+ *   from?: Date | string,
+ *   to?: Date | string,
+ *   page?: number,
+ *   limit?: number,
+ * }} opts
+ */
+export async function searchAuditEvents({
+  action,
+  actorId,
+  targetType,
+  targetId,
+  outcome,
+  from,
+  to,
+  page = 1,
+  limit = 50,
+} = {}) {
+  const query = buildAuditQuery({ action, actorId, targetType, targetId, outcome, from, to });
+
   const skip = (page - 1) * limit;
 
   const [events, total] = await Promise.all([
@@ -68,4 +74,9 @@ export async function searchAuditEvents({
   ]);
 
   return { events, total, page, limit, totalPages: Math.ceil(total / limit) };
+}
+
+export async function exportAuditEvents(filters = {}, { limit = 5000 } = {}) {
+  const query = buildAuditQuery(filters);
+  return AuditEvent.find(query).sort({ createdAt: -1 }).limit(limit).lean();
 }

@@ -1,5 +1,7 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { ApprovalStatus } from '@hellodeploy/contracts';
+import { AuditOutcome } from '@hellodeploy/contracts';
+import { writeAuditEvent } from '@hellodeploy/observability';
 import {
   getAdminOverview,
   getUsers,
@@ -14,9 +16,11 @@ import {
   resumeQueue,
   setQuotaOverride,
   getQuotaOverride,
+  getQuotaConsumption,
 } from '../services/admin.service.js';
 import { collectServerStats } from '../services/server-stats.service.js';
-import { searchAuditEvents } from '../services/audit-search.service.js';
+import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
+import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
@@ -32,10 +36,11 @@ export const getAdminIndex = asyncHandler(async (req, res) => {
 // ─── Server dashboard ──────────────────────────────────────────────────────────
 
 export const getAdminServer = asyncHandler(async (req, res) => {
-  const server = await collectServerStats();
+  const [server, maintenance] = await Promise.all([collectServerStats(), getMaintenanceMode()]);
   res.render('pages/admin/server', {
     title: 'Server & Queue',
     server,
+    maintenance,
   });
 });
 
@@ -62,6 +67,40 @@ export const postResumeQueue = asyncHandler(async (req, res) => {
   } else {
     req.flash('success', 'Deployment queue resumed.');
   }
+  res.redirect('/admin/server');
+});
+
+export const postEnableMaintenance = asyncHandler(async (req, res) => {
+  const result = await setMaintenanceMode({
+    enabled: true,
+    message: req.body.message,
+    adminId: req.session.user.id,
+    adminRole: req.session.user.platformRole,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  req.flash(
+    result.success ? 'success' : 'error',
+    result.success ? 'Maintenance mode enabled.' : result.error,
+  );
+  res.redirect('/admin/server');
+});
+
+export const postDisableMaintenance = asyncHandler(async (req, res) => {
+  const result = await setMaintenanceMode({
+    enabled: false,
+    message: null,
+    adminId: req.session.user.id,
+    adminRole: req.session.user.platformRole,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  req.flash(
+    result.success ? 'success' : 'error',
+    result.success ? 'Maintenance mode disabled.' : result.error,
+  );
   res.redirect('/admin/server');
 });
 
@@ -95,14 +134,68 @@ export const getAdminAuditEvents = asyncHandler(async (req, res) => {
   });
 });
 
+function csvCell(value) {
+  const normalized = value === null || value === undefined ? '' : String(value);
+  return `"${normalized.replaceAll('"', '""')}"`;
+}
+
+export const getAdminAuditExport = asyncHandler(async (req, res) => {
+  const { action, actorId, targetType, outcome, from, to } = req.query;
+  const events = await exportAuditEvents({ action, actorId, targetType, outcome, from, to });
+
+  await writeAuditEvent({
+    action: 'admin.audit_events_exported',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    actorRole: req.session.user.platformRole,
+    targetType: 'audit_events',
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { count: events.length, filters: { action, actorId, targetType, outcome, from, to } },
+  });
+
+  const header = [
+    'createdAt',
+    'action',
+    'outcome',
+    'actorId',
+    'actorRole',
+    'targetType',
+    'targetId',
+    'correlationId',
+  ];
+  const rows = events.map((event) =>
+    [
+      event.createdAt?.toISOString?.() ?? event.createdAt,
+      event.action,
+      event.outcome,
+      event.actorId?.toString?.() ?? event.actorId,
+      event.actorRole,
+      event.targetType,
+      event.targetId,
+      event.correlationId,
+    ]
+      .map(csvCell)
+      .join(','),
+  );
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="hellodeploy-audit-events.csv"');
+  res.send(`${header.map(csvCell).join(',')}\n${rows.join('\n')}\n`);
+});
+
 // ─── Quota management ──────────────────────────────────────────────────────────
 
 export const getAdminQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
-  const quota = await getQuotaOverride(scopeType, scopeId);
+  const [quota, consumption] = await Promise.all([
+    getQuotaOverride(scopeType, scopeId),
+    getQuotaConsumption(scopeType, scopeId),
+  ]);
   res.render('pages/admin/quota', {
     title: 'Quota Override',
     quota,
+    consumption,
     scopeType,
     scopeId,
   });
@@ -140,12 +233,18 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
 
   for (const [k, v] of Object.entries(numericFields)) {
     if (v !== '' && v !== undefined) {
-      limits[k] = parseInt(v, 10);
+      const parsed = parseInt(v, 10);
+      if (!Number.isNaN(parsed)) {
+        limits[k] = parsed;
+      }
     }
   }
   for (const [k, v] of Object.entries(floatFields)) {
     if (v !== '' && v !== undefined) {
-      limits[k] = parseFloat(v);
+      const parsed = parseFloat(v);
+      if (!Number.isNaN(parsed)) {
+        limits[k] = parsed;
+      }
     }
   }
 

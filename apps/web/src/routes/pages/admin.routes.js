@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { requireAdmin } from '../../middleware/require-auth.js';
+import { requireSuperAdmin } from '../../middleware/require-auth.js';
 import {
   getAdminIndex,
   getAdminUsers,
@@ -14,7 +15,10 @@ import {
   getAdminServer,
   postPauseQueue,
   postResumeQueue,
+  postEnableMaintenance,
+  postDisableMaintenance,
   getAdminAuditEvents,
+  getAdminAuditExport,
   getAdminQuota,
   postAdminSetQuota,
 } from '../../controllers/admin.controller.js';
@@ -48,8 +52,11 @@ router.post('/domains/:domainId/reject', postRejectDomain);
 router.get('/server', getAdminServer);
 router.post('/server/queue/pause', postPauseQueue);
 router.post('/server/queue/resume', postResumeQueue);
+router.post('/server/maintenance/enable', requireSuperAdmin, postEnableMaintenance);
+router.post('/server/maintenance/disable', requireSuperAdmin, postDisableMaintenance);
 
 router.get('/audit-events', getAdminAuditEvents);
+router.get('/audit-events/export', getAdminAuditExport);
 
 router.get('/quotas/:scopeType/:scopeId', getAdminQuota);
 router.post('/quotas/:scopeType/:scopeId', postAdminSetQuota);

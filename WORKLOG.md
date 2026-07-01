@@ -1,5 +1,45 @@
 # Worklog
 
+## P10 Administration and Operations
+
+- Status: Completed
+- Started: 2026-07-01T18:07:46+08:00
+- Completed: 2026-07-01T18:14:20+08:00
+
+### Plan
+
+- Complete the admin operations surface by hardening server capacity display, queue controls, and maintenance-mode controls.
+- Add neutral suspension/maintenance routing behavior where the worker already owns Nginx changes.
+- Improve quota override visibility and validation so Super Admins can safely edit limits and see consumption context.
+- Add audit export support with explicit privileged-action handling.
+- Add inactivity reporting and operational alert scaffolding without sending secrets or inventing deferred billing/multi-server behavior.
+- Add cleanup safeguards so active and retained release assets are protected.
+- Add incident, backup, restore, and upgrade runbooks for routine operations.
+- Tighten responsive admin layouts and theme persistence where existing CSS/templates are incomplete.
+- Run final verification commands, then commit and push before moving to P11.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Complete admin operations controls and maintenance mode.
+- [x] Add audit export, inactivity reporting, and quota consumption visibility.
+- [x] Add cleanup safeguards and operations runbooks.
+- [x] Tighten responsive admin/theme behavior where needed.
+- [x] Add focused administration and operations tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added database-backed maintenance mode with Super Admin controls on `/admin/server`.
+- Maintenance mode now blocks non-Super-Admin mutating requests while allowing safe read-only requests and maintenance control paths.
+- Added filtered audit CSV export and an audit event for export activity.
+- Hardened quota override parsing/validation and updated the quota view to show stored root quota fields plus user/project consumption context.
+- Added cleanup safeguards so release cleanup skips deployments still referenced as a project's active deployment.
+- Added `docs/OPERATIONS_RUNBOOKS.md` covering incident response, backup, restore, upgrade, rollback, and uninstall operations.
+- Added focused tests for maintenance-mode request gating and cleanup active-deployment protection.
+- Ran targeted admin tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P9 Custom Domains
 
 - Status: Completed
