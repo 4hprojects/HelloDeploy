@@ -26,6 +26,36 @@ export function validateProjectDeploymentEligibility(project) {
   return null;
 }
 
+export function buildDeploymentJobPayload({
+  project,
+  deployment,
+  commitSha,
+  repositoryId,
+  runtimeType,
+  imageTag,
+  actorId,
+  noCache = false,
+  correlationId,
+}) {
+  return {
+    version: 1,
+    correlationId,
+    actorId,
+    actorRole: 'USER',
+    projectId: project._id.toString(),
+    deploymentId: deployment._id.toString(),
+    commitSha,
+    repositoryId: repositoryId.toString(),
+    runtimeType,
+    imageTag,
+    noCache,
+  };
+}
+
+export function parseNoCacheFlag(value) {
+  return value === 'true' || value === '1';
+}
+
 /**
  * Create a new deployment record and enqueue the build job.
  * Enforces one-active-deployment-per-project invariant.
@@ -129,19 +159,17 @@ export async function createDeployment({
   await enqueueJob(
     queue,
     JobType.BUILD_DEPLOYMENT,
-    {
-      version: 1,
-      correlationId,
-      actorId,
-      actorRole: 'USER',
-      projectId: projectId.toString(),
-      deploymentId: deployment._id.toString(),
+    buildDeploymentJobPayload({
+      project,
+      deployment,
       commitSha: repo.lastCommitSha,
-      repositoryId: project.repositoryId.toString(),
+      repositoryId: project.repositoryId,
       runtimeType: project.runtimeType,
       imageTag,
+      actorId,
       noCache,
-    },
+      correlationId,
+    }),
     { jobId: `deploy-${deployment._id.toString()}` }, // deduplication key
   );
 
@@ -277,19 +305,17 @@ export async function retryDeployment(deploymentId, actorId, opts = {}) {
   await enqueueJob(
     queue,
     JobType.BUILD_DEPLOYMENT,
-    {
-      version: 1,
-      correlationId: opts.correlationId,
-      actorId,
-      actorRole: 'USER',
-      projectId: original.projectId.toString(),
-      deploymentId: deployment._id.toString(),
+    buildDeploymentJobPayload({
+      project: { ...project, _id: original.projectId },
+      deployment,
       commitSha: original.commitSha,
-      repositoryId: project.repositoryId.toString(),
+      repositoryId: project.repositoryId,
       runtimeType: project.runtimeType,
       imageTag,
+      actorId,
       noCache: false,
-    },
+      correlationId: opts.correlationId,
+    }),
     { jobId: `deploy-${deployment._id.toString()}` },
   );
 

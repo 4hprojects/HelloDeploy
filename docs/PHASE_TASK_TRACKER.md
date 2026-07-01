@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-02T00:01:30+08:00
+Updated: 2026-07-02T00:05:17+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -22,15 +22,15 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 
 ## Phase 8: Deployment Experience and Rollback
 
-| ID    | Status  | Task                                                                         | Acceptance Evidence                                                           | Updated                   |
-| ----- | ------- | ---------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------- |
-| P8-01 | Pending | Verify deploy latest, selected commit, current commit, and no-cache options. | Browser or integration evidence for each option.                              | 2026-07-01T18:50:24+08:00 |
-| P8-02 | Pending | Verify deployment timeline and stage display.                                | Deployment page shows validation, build, startup, health, and routing stages. | 2026-07-01T18:50:24+08:00 |
-| P8-03 | Pending | Verify safe build and runtime log viewers.                                   | Logs render redacted output and do not expose secrets.                        | 2026-07-01T18:50:24+08:00 |
-| P8-04 | Pending | Verify cancellation and manual retry flows.                                  | Cancel and retry actions work without corrupting deployment state.            | 2026-07-01T18:50:24+08:00 |
-| P8-05 | Pending | Verify retained healthy release rollback.                                    | Rollback restores a retained healthy release without manual server commands.  | 2026-07-01T18:50:24+08:00 |
-| P8-06 | Partial | Verify deployment notifications.                                             | Notification helper exists; delivery behavior needs end-to-end verification.  | 2026-07-01T18:50:24+08:00 |
-| P8-07 | Pending | Verify live deployment progress behavior.                                    | Server-Sent Events or equivalent live progress behavior is proven in browser. | 2026-07-01T18:50:24+08:00 |
+| ID    | Status  | Task                                                                         | Acceptance Evidence                                                                                                                         | Updated                   |
+| ----- | ------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| P8-01 | Partial | Verify deploy latest, selected commit, current commit, and no-cache options. | Local tests verify latest-commit/no-cache payloads plus retry/current-commit reuse; selected-commit deployment path is not implemented yet. | 2026-07-02T00:05:17+08:00 |
+| P8-02 | Pending | Verify deployment timeline and stage display.                                | Deployment page shows validation, build, startup, health, and routing stages.                                                               | 2026-07-01T18:50:24+08:00 |
+| P8-03 | Pending | Verify safe build and runtime log viewers.                                   | Logs render redacted output and do not expose secrets.                                                                                      | 2026-07-01T18:50:24+08:00 |
+| P8-04 | Pending | Verify cancellation and manual retry flows.                                  | Cancel and retry actions work without corrupting deployment state.                                                                          | 2026-07-01T18:50:24+08:00 |
+| P8-05 | Pending | Verify retained healthy release rollback.                                    | Rollback restores a retained healthy release without manual server commands.                                                                | 2026-07-01T18:50:24+08:00 |
+| P8-06 | Partial | Verify deployment notifications.                                             | Notification helper exists; delivery behavior needs end-to-end verification.                                                                | 2026-07-01T18:50:24+08:00 |
+| P8-07 | Pending | Verify live deployment progress behavior.                                    | Server-Sent Events or equivalent live progress behavior is proven in browser.                                                               | 2026-07-01T18:50:24+08:00 |
 
 ## Phase 9: Custom Domains
 
@@ -79,5 +79,5 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | X-01 | Pending | Keep tracker updated during implementation.  | Each future implementation commit updates changed tracker rows.                                                                 | 2026-07-01T18:50:24+08:00 |
 | X-02 | Done    | Keep documentation index aligned.            | [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md) is linked from [Documentation Index](README.md).                        | 2026-07-02T00:01:30+08:00 |
 | X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).            | 2026-07-01T18:50:24+08:00 |
-| X-04 | Pending | Keep worklog entries timestamped.            | Each implementation pass has started/completed timestamps in [WORKLOG.md](../WORKLOG.md).                                       | 2026-07-01T18:50:24+08:00 |
+| X-04 | Done    | Keep worklog entries timestamped.            | P8-01 local verification pass recorded in [WORKLOG.md](../WORKLOG.md).                                                          | 2026-07-02T00:05:17+08:00 |
 | X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 through UX-13 implementations updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence. | 2026-07-02T00:01:30+08:00 |

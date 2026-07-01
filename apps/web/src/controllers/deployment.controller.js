@@ -4,6 +4,7 @@ import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
 import {
   createDeployment,
+  parseNoCacheFlag,
   cancelDeployment,
   retryDeployment,
   rollbackDeployment,
@@ -67,7 +68,7 @@ export const postCreateDeployment = asyncHandler(async (req, res) => {
     projectId: project._id,
     actorId: req.session.user.id,
     triggerType: DeploymentTrigger.MANUAL,
-    noCache: noCache === 'true' || noCache === '1',
+    noCache: parseNoCacheFlag(noCache),
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });

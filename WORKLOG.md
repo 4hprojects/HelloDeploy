@@ -1,5 +1,34 @@
 # Worklog
 
+## P8-01 Deployment Option Verification
+
+- Status: Partial
+- Started: 2026-07-02T00:02:00+08:00
+- Completed: 2026-07-02T00:05:17+08:00
+
+### Checklist
+
+- [x] Verify no-cache request parsing.
+- [x] Verify latest-commit deployment job payload shape.
+- [x] Verify retry/current-commit payload uses the original deployment commit.
+- [x] Keep deployment controller parsing aligned with the shared helper.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+- [ ] Verify or implement a selected-commit deployment path.
+- [ ] Run browser or integration evidence for all deployment options.
+
+### Results
+
+- Added `parseNoCacheFlag` and `buildDeploymentJobPayload` helpers in `apps/web/src/services/deployment.service.js`.
+- Updated `apps/web/src/controllers/deployment.controller.js` to use the shared no-cache parser.
+- Added `tests/deployment/deployment-options.test.js`.
+- Confirmed that deploy-latest/no-cache and retry/current-commit payloads are locally covered.
+- Recorded the remaining gap: there is no dedicated selected-commit deploy path in the current service/UI.
+
+### Verification
+
+- Passed `node --test tests/deployment/deployment-options.test.js tests/deployment/create-deployment-guards.test.js tests/github/webhook-push.test.js`.
+
 ## UX-13 Accessibility Pass
 
 - Status: Completed
