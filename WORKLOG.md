@@ -1,5 +1,32 @@
 # Worklog
 
+## P8-06 Deployment Notification Verification
+
+- Status: Partial
+- Started: 2026-07-02T00:15:00+08:00
+- Completed: 2026-07-02T00:16:59+08:00
+
+### Checklist
+
+- [x] Verify deployment notification email composition locally.
+- [x] Escape HTML interpolated into notification bodies.
+- [x] Verify activation and rollback workers invoke deployment notifications.
+- [x] Verify notification failures remain nonblocking.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+- [ ] Verify configured provider delivery end to end.
+
+### Results
+
+- Added `escapeNotificationHtml` and `buildDeploymentNotificationEmail` in `apps/worker/src/notification/deployment-notification.js`.
+- Updated notification sending to use the escaped email builder.
+- Added `tests/deployment/deployment-notification.test.js`.
+- Kept P8-06 `Partial` because real provider delivery still needs an end-to-end environment check.
+
+### Verification
+
+- Passed `node --test tests/deployment/deployment-notification.test.js`.
+
 ## P8-05 Rollback Verification
 
 - Status: Completed

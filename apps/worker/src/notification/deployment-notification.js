@@ -41,6 +41,66 @@ async function sendEmail({ to, subject, html, text }) {
   }
 }
 
+export function escapeNotificationHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
+export function buildDeploymentNotificationEmail(opts, owner) {
+  const {
+    projectName,
+    projectSlug,
+    sequenceNumber,
+    status,
+    commitSha,
+    failureCode,
+    failureSummary,
+    platformDomain,
+  } = opts;
+
+  const dashboardUrl = `https://${platformDomain}/projects/${projectSlug}/deployments`;
+  const isHealthy = status === 'HEALTHY';
+  const shortSha = commitSha?.slice(0, 7) ?? '?';
+  const safeOwnerName = escapeNotificationHtml(owner.name || owner.email);
+  const safeProjectName = escapeNotificationHtml(projectName);
+  const safeDashboardUrl = escapeNotificationHtml(dashboardUrl);
+  const safeShortSha = escapeNotificationHtml(shortSha);
+  const safeFailureCode = escapeNotificationHtml(failureCode);
+  const safeFailureSummary = escapeNotificationHtml(failureSummary?.slice(0, 200));
+
+  if (isHealthy) {
+    return {
+      to: owner.email,
+      subject: `Deployment #${sequenceNumber} succeeded – ${projectName}`,
+      html: `
+          <p>Hi ${safeOwnerName},</p>
+          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${safeProjectName}</strong> is now live.</p>
+          <p>Commit: <code>${safeShortSha}</code></p>
+          <p><a href="${safeDashboardUrl}">View deployments</a></p>
+        `,
+      text: `Deployment #${sequenceNumber} of ${projectName} succeeded (commit ${shortSha}).\n\nView: ${dashboardUrl}`,
+    };
+  }
+
+  return {
+    to: owner.email,
+    subject: `Deployment #${sequenceNumber} failed – ${projectName}`,
+    html: `
+          <p>Hi ${safeOwnerName},</p>
+          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${safeProjectName}</strong> failed.</p>
+          <p>Commit: <code>${safeShortSha}</code></p>
+          ${failureCode ? `<p>Reason: <code>${safeFailureCode}</code></p>` : ''}
+          ${failureSummary ? `<p>${safeFailureSummary}</p>` : ''}
+          <p><a href="${safeDashboardUrl}">View deployment logs</a></p>
+        `,
+    text: `Deployment #${sequenceNumber} of ${projectName} failed (commit ${shortSha}).\n\n${failureSummary ?? ''}\n\nView: ${dashboardUrl}`,
+  };
+}
+
 /**
  * Notify the project owner when a deployment completes (HEALTHY or FAILED).
  * Failures are logged but never rethrown — notifications must never block the deployment pipeline.
@@ -76,37 +136,21 @@ export async function notifyDeploymentResult(opts) {
       return;
     }
 
-    const dashboardUrl = `https://${platformDomain}/projects/${projectSlug}/deployments`;
-    const isHealthy = status === 'HEALTHY';
-    const shortSha = commitSha?.slice(0, 7) ?? '?';
-
-    if (isHealthy) {
-      await sendEmail({
-        to: owner.email,
-        subject: `Deployment #${sequenceNumber} succeeded – ${projectName}`,
-        html: `
-          <p>Hi ${owner.name},</p>
-          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${projectName}</strong> is now live.</p>
-          <p>Commit: <code>${shortSha}</code></p>
-          <p><a href="${dashboardUrl}">View deployments</a></p>
-        `,
-        text: `Deployment #${sequenceNumber} of ${projectName} succeeded (commit ${shortSha}).\n\nView: ${dashboardUrl}`,
-      });
-    } else {
-      await sendEmail({
-        to: owner.email,
-        subject: `Deployment #${sequenceNumber} failed – ${projectName}`,
-        html: `
-          <p>Hi ${owner.name},</p>
-          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${projectName}</strong> failed.</p>
-          <p>Commit: <code>${shortSha}</code></p>
-          ${failureCode ? `<p>Reason: <code>${failureCode}</code></p>` : ''}
-          ${failureSummary ? `<p>${failureSummary.slice(0, 200)}</p>` : ''}
-          <p><a href="${dashboardUrl}">View deployment logs</a></p>
-        `,
-        text: `Deployment #${sequenceNumber} of ${projectName} failed (commit ${shortSha}).\n\n${failureSummary ?? ''}\n\nView: ${dashboardUrl}`,
-      });
-    }
+    await sendEmail(
+      buildDeploymentNotificationEmail(
+        {
+          projectName,
+          projectSlug,
+          sequenceNumber,
+          status,
+          commitSha,
+          failureCode,
+          failureSummary,
+          platformDomain,
+        },
+        owner,
+      ),
+    );
   } catch (err) {
     logger.warn('[notification] Error sending deployment notification', {
       ownerId,
