@@ -1,5 +1,32 @@
 # Worklog
 
+## UX-06 Responsive Tables
+
+- Status: Completed
+- Started: 2026-07-01T23:28:53+08:00
+- Completed: 2026-07-01T23:28:53+08:00
+
+### Checklist
+
+- [x] Add shared responsive table styles.
+- [x] Convert admin operational tables to mobile row summaries.
+- [x] Convert project operational tables to mobile row summaries.
+- [x] Preserve desktop table layout.
+- [x] Keep compact legal/static tables unchanged.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `.table-responsive`, `.table-responsive--flush`, and `.table--responsive` mobile styles in `apps/web/public/css/components.css`.
+- Added `data-label` row summary labels to key admin and project tables.
+- Removed inline flush wrapper styles from dashboard/member tables in favor of shared classes.
+- Added `tests/ui/responsive-tables.test.js` for CSS, admin table, and project table coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, and responsive tables.
+
 ## UX-05 Floating Scroll-To-Top Button
 
 - Status: Completed

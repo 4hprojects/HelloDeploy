@@ -67,7 +67,8 @@
         <p class="empty-state__description">No secrets yet. Add your first one above.</p>
       </div>
     <% } else { %>
-      <table class="table">
+      <div class="table-wrapper table-responsive table-responsive--flush">
+      <table class="table table--responsive">
         <thead>
           <tr>
             <th scope="col">Name</th>
@@ -79,12 +80,12 @@
         <tbody>
           <% secrets.forEach(secret => { %>
           <tr>
-            <td><code class="code-inline"><%= secret.name %></code></td>
-            <td class="text-muted text-sm">••••••••</td>
-            <td class="text-muted text-sm">
+            <td data-label="Name"><code class="code-inline"><%= secret.name %></code></td>
+            <td class="text-muted text-sm" data-label="Value">••••••••</td>
+            <td class="text-muted text-sm" data-label="Last updated">
               <%= new Date(secret.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %>
             </td>
-            <td class="text-right">
+            <td class="text-right" data-label="Actions">
               <form method="POST"
                     action="/projects/<%= project.slug %>/environment/<%= secret.name %>/delete"
                     data-confirm='Delete <%= secret.name %>? This cannot be undone.'>
@@ -96,6 +97,7 @@
           <% }) %>
         </tbody>
       </table>
+      </div>
     <% } %>
   </div>
 </div>

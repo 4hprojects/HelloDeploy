@@ -30,8 +30,8 @@
   <p class="empty-state__description">No users match your filters.</p>
 </div>
 <% } else { %>
-<div class="table-wrapper">
-  <table class="table">
+<div class="table-wrapper table-responsive">
+  <table class="table table--responsive">
     <thead>
       <tr>
         <th scope="col">User</th>
@@ -44,14 +44,14 @@
     <tbody>
       <% users.forEach(u => { %>
       <tr>
-        <td>
+        <td data-label="User">
           <strong><%= u.firstName %> <%= u.lastName %></strong>
           <span class="text-muted text-xs d-block"><%= u.email %></span>
         </td>
-        <td><span class="role-pill"><%= u.platformRole %></span></td>
-        <td><%- include('../../partials/status-badge', { status: u.status }) %></td>
-        <td class="text-sm text-muted"><%= new Date(u.createdAt).toLocaleDateString('en-GB') %></td>
-        <td class="text-right">
+        <td data-label="Role"><span class="role-pill"><%= u.platformRole %></span></td>
+        <td data-label="Status"><%- include('../../partials/status-badge', { status: u.status }) %></td>
+        <td class="text-sm text-muted" data-label="Joined"><%= new Date(u.createdAt).toLocaleDateString('en-GB') %></td>
+        <td class="text-right" data-label="Actions">
           <% if (u.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/reactivate" style="display:inline;">
             <%- include('../../partials/csrf-field') %>

@@ -14,7 +14,8 @@
 <% } else { %>
 <div class="card">
   <div class="card__body">
-    <table class="table">
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
       <thead>
         <tr>
           <th scope="col">Hostname</th>
@@ -26,20 +27,20 @@
       <tbody>
         <% domains.forEach(d => { %>
         <tr>
-          <td><code class="code-inline"><%= d.hostnameNormalized %></code></td>
-          <td>
+          <td data-label="Hostname"><code class="code-inline"><%= d.hostnameNormalized %></code></td>
+          <td data-label="Project">
             <% if (d.projectId && d.projectId.name) { %>
               <a href="/projects/<%= d.projectId.slug %>" class="table-link"><%= d.projectId.name %></a>
             <% } else { %>
               <span class="text-muted">Unknown</span>
             <% } %>
           </td>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="Verified">
             <% if (d.verifiedAt) { %>
               <%= new Date(d.verifiedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
             <% } else { %> — <% } %>
           </td>
-          <td class="text-right">
+          <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">
               <form method="POST" action="/admin/domains/<%= d._id %>/approve">
                 <%- include('../../partials/csrf-field') %>
@@ -56,6 +57,7 @@
         <% }) %>
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 <% } %>

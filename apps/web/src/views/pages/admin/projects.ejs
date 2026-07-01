@@ -22,8 +22,8 @@
   <p class="empty-state__description">No projects match your filters.</p>
 </div>
 <% } else { %>
-<div class="table-wrapper">
-  <table class="table">
+<div class="table-wrapper table-responsive">
+  <table class="table table--responsive">
     <thead>
       <tr>
         <th scope="col">Project</th>
@@ -36,11 +36,11 @@
     <tbody>
       <% projects.forEach(p => { %>
       <tr>
-        <td>
+        <td data-label="Project">
           <a href="/projects/<%= p.slug %>" class="table-link"><strong><%= p.name %></strong></a>
           <span class="text-muted text-xs d-block"><%= p.slug %></span>
         </td>
-        <td>
+        <td data-label="Owner">
           <% if (p.ownerId) { %>
           <span><%= p.ownerId.firstName %> <%= p.ownerId.lastName %></span>
           <span class="text-muted text-xs d-block"><%= p.ownerId.email %></span>
@@ -48,9 +48,9 @@
           <span class="text-muted">—</span>
           <% } %>
         </td>
-        <td><%- include('../../partials/status-badge', { status: p.status }) %></td>
-        <td class="text-sm text-muted"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
-        <td class="text-right">
+        <td data-label="Status"><%- include('../../partials/status-badge', { status: p.status }) %></td>
+        <td class="text-sm text-muted" data-label="Created"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
+        <td class="text-right" data-label="Actions">
           <% if (p.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" style="display:inline;">
             <%- include('../../partials/csrf-field') %>

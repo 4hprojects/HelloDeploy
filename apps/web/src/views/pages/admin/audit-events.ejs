@@ -62,7 +62,8 @@
       <p class="empty-state__title">No audit events found</p>
     </div>
     <% } else { %>
-    <table class="table table--sm">
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--sm table--responsive">
       <thead>
         <tr>
           <th scope="col">Time</th>
@@ -75,23 +76,23 @@
       <tbody>
         <% events.forEach(ev => { %>
         <tr>
-          <td class="text-muted text-xs text-nowrap">
+          <td class="text-muted text-xs text-nowrap" data-label="Time">
             <%= new Date(ev.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) %>
           </td>
-          <td><code class="code-inline text-xs"><%= ev.action %></code></td>
-          <td>
+          <td data-label="Action"><code class="code-inline text-xs"><%= ev.action %></code></td>
+          <td data-label="Outcome">
             <span class="badge badge--<%= ev.outcome === 'SUCCESS' ? 'success' : ev.outcome === 'DENIED' ? 'warning' : 'danger' %> badge--sm">
               <%= ev.outcome %>
             </span>
           </td>
-          <td class="text-muted text-xs">
+          <td class="text-muted text-xs" data-label="Actor">
             <% if (ev.actorId) { %>
               <code class="code-inline"><%= ev.actorId.toString().slice(-8) %></code>
             <% } else { %>
               system
             <% } %>
           </td>
-          <td class="text-muted text-xs">
+          <td class="text-muted text-xs" data-label="Target">
             <% if (ev.targetType) { %>
               <%= ev.targetType %> / <code class="code-inline"><%= ev.targetId?.toString().slice(-8) ?? '—' %></code>
             <% } else { %> — <% } %>
@@ -100,6 +101,7 @@
         <% }) %>
       </tbody>
     </table>
+    </div>
 
     <!-- Pagination -->
     <% if (totalPages > 1) { %>

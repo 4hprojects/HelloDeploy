@@ -19,8 +19,8 @@
     <span class="card__title">Your Projects</span>
     <a href="/projects" class="button button--ghost button--sm">View all</a>
   </div>
-  <div class="table-wrapper" style="border: none; border-radius: 0;">
-    <table class="table">
+  <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
       <thead>
         <tr>
           <th scope="col">Name</th>
@@ -33,16 +33,16 @@
       <tbody>
         <% projects.slice(0, 5).forEach(({ project, role }) => { %>
         <tr>
-          <td>
+          <td data-label="Name">
             <a href="/projects/<%= project.slug %>" class="table-link"><%= project.name %></a>
             <span class="text-muted text-xs d-block"><%= project.slug %></span>
           </td>
-          <td>
+          <td data-label="Status">
             <%- include('../partials/status-badge', { status: project.status }) %>
           </td>
-          <td><span class="role-pill"><%= role %></span></td>
-          <td class="text-muted text-sm"><%= new Date(project.createdAt).toLocaleDateString('en-GB') %></td>
-          <td class="text-right">
+          <td data-label="Role"><span class="role-pill"><%= role %></span></td>
+          <td class="text-muted text-sm" data-label="Created"><%= new Date(project.createdAt).toLocaleDateString('en-GB') %></td>
+          <td class="text-right" data-label="Actions">
             <a href="/projects/<%= project.slug %>" class="button button--ghost button--sm">Open</a>
           </td>
         </tr>

@@ -60,7 +60,8 @@
 <% } else { %>
 <div class="card">
   <div class="card__body">
-    <table class="table">
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
       <thead>
         <tr>
           <th scope="col">#</th>
@@ -75,25 +76,25 @@
       <tbody>
         <% deployments.forEach(d => { %>
         <tr>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="#">
             <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="table-link">
               #<%= d.sequenceNumber %>
             </a>
           </td>
-          <td><%- include('../../partials/status-badge', { status: d.status }) %></td>
-          <td>
+          <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
+          <td data-label="Commit">
             <code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code>
             <% if (d.commitMessage) { %>
               <span class="text-muted text-sm d-block"><%= d.commitMessage.slice(0, 60) %></span>
             <% } %>
           </td>
-          <td class="text-muted text-sm"><%= d.triggerType %></td>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="Trigger"><%= d.triggerType %></td>
+          <td class="text-muted text-sm" data-label="Started">
             <% if (d.startedAt) { %>
               <%= new Date(d.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
             <% } else { %> — <% } %>
           </td>
-          <td class="text-muted text-sm">
+          <td class="text-muted text-sm" data-label="Duration">
             <% if (d.startedAt && d.completedAt) { %>
               <% const secs = Math.round((new Date(d.completedAt) - new Date(d.startedAt)) / 1000); %>
               <%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %>
@@ -101,7 +102,7 @@
               <span class="text-muted">Running…</span>
             <% } else { %> — <% } %>
           </td>
-          <td class="text-right">
+          <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">
               <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="Open build and runtime logs for this deployment.">Logs</a>
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
@@ -124,6 +125,7 @@
         <% }) %>
       </tbody>
     </table>
+    </div>
   </div>
 </div>
 

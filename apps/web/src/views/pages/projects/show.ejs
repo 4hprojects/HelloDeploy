@@ -149,21 +149,23 @@
     </div>
     <div class="card__body">
       <% if (locals.deployments && deployments.length > 0) { %>
-        <table class="table">
+        <div class="table-wrapper table-responsive table-responsive--flush">
+        <table class="table table--responsive">
           <thead>
             <tr><th scope="col">#</th><th scope="col">Status</th><th scope="col">Commit</th><th scope="col">Started</th></tr>
           </thead>
           <tbody>
             <% deployments.slice(0, 5).forEach(d => { %>
             <tr>
-              <td class="text-muted text-sm"><%= d.sequenceNumber %></td>
-              <td><%- include('../../partials/status-badge', { status: d.status }) %></td>
-              <td><code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code></td>
-              <td class="text-muted text-sm"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
+              <td class="text-muted text-sm" data-label="#"><%= d.sequenceNumber %></td>
+              <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
+              <td data-label="Commit"><code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code></td>
+              <td class="text-muted text-sm" data-label="Started"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
             </tr>
             <% }) %>
           </tbody>
         </table>
+        </div>
       <% } else { %>
         <div class="empty-state empty-state--compact">
           <p class="empty-state__description">

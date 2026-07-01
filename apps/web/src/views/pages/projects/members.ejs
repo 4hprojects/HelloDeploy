@@ -7,8 +7,8 @@
 </div>
 
 <div class="card mb-6">
-  <div class="table-wrapper" style="border: none; border-radius: 0;">
-    <table class="table">
+  <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
       <thead>
         <tr>
           <th scope="col">Member</th>
@@ -20,11 +20,11 @@
       <tbody>
         <% members.forEach(m => { %>
         <tr>
-          <td>
+          <td data-label="Member">
             <strong><%= m.userId.firstName %> <%= m.userId.lastName %></strong>
             <span class="text-muted text-xs d-block"><%= m.userId.email %></span>
           </td>
-          <td>
+          <td data-label="Role">
             <% if (m.role === 'OWNER') { %>
             <span class="role-pill role-pill--owner">Owner</span>
             <% } else { %>
@@ -37,10 +37,10 @@
             </form>
             <% } %>
           </td>
-          <td class="text-sm text-muted">
+          <td class="text-sm text-muted" data-label="Added">
             <%= m.acceptedAt ? new Date(m.acceptedAt).toLocaleDateString('en-GB') : '—' %>
           </td>
-          <td class="text-right">
+          <td class="text-right" data-label="Actions">
             <% if (m.role !== 'OWNER') { %>
             <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/remove"
                   data-confirm='Remove <%= m.userId.firstName %> from this project?'>
