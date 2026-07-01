@@ -9,13 +9,10 @@
   const _type = typeof type !== 'undefined' ? type : 'text';
   const _value = typeof value !== 'undefined' ? value : '';
 %>
-<div class="form-field">
+<div class="form-field form-field--floating">
   <label for="<%= fieldId %>" class="form-label<% if (_required) { %> form-label--required<% } %>">
     <%= label %>
   </label>
-  <% if (_hint) { %>
-  <p class="form-hint" id="<%= fieldId %>-hint"><%= _hint %></p>
-  <% } %>
   <input
     type="<%= _type %>"
     id="<%= fieldId %>"
@@ -25,9 +22,11 @@
     autocomplete="<%= _autocomplete %>"
     <% if (_required) { %>aria-required="true"<% } %>
     <% if (_error) { %>aria-describedby="<%= fieldId %>-error"<% } else if (_hint) { %>aria-describedby="<%= fieldId %>-hint"<% } %>
-    <% if (_placeholder) { %>placeholder="<%= _placeholder %>"<% } %>
+    placeholder="<%= _placeholder || ' ' %>"
   />
   <% if (_error) { %>
   <p class="form-error" id="<%= fieldId %>-error" role="alert"><%= _error %></p>
+  <% } else if (_hint) { %>
+  <p class="form-hint" id="<%= fieldId %>-hint"><%= _hint %></p>
   <% } %>
 </div>

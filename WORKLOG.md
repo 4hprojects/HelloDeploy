@@ -1,5 +1,31 @@
 # Worklog
 
+## UX-04 Floating Labels
+
+- Status: Completed
+- Started: 2026-07-01T23:08:24+08:00
+- Completed: 2026-07-01T23:08:24+08:00
+
+### Checklist
+
+- [x] Add a scoped floating-label pattern for main form fields.
+- [x] Preserve hints, errors, required state, autocomplete, and password visibility behavior.
+- [x] Apply floating labels to auth, project, admin, quota, domain, environment, repository, and member forms.
+- [x] Leave compact filters and inline table controls unchanged.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `form-field--floating` and `form-group--floating` CSS in `apps/web/public/css/components.css`.
+- Updated reusable form partials in `apps/web/src/views/partials/form-field.ejs` and `apps/web/src/views/partials/password-field.ejs`.
+- Applied floating labels to core hand-written forms across project and admin pages.
+- Added `tests/ui/floating-labels.test.js` for floating-label style, partial, and page coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, and floating labels.
+
 ## UX-03 Accessible Tooltips
 
 - Status: Completed

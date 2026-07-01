@@ -10,7 +10,7 @@
     <form method="POST" action="/projects" novalidate>
       <%- include('../../partials/csrf-field') %>
 
-      <div class="form-field">
+      <div class="form-field form-field--floating">
         <label for="name" class="form-label form-label--required">Project name</label>
         <input
           type="text"
@@ -20,6 +20,7 @@
           value="<%= values.name %>"
           maxlength="100"
           autocomplete="off"
+          placeholder=" "
           autofocus
           required
           aria-describedby="<%= errors.name ? 'name-error' : 'name-hint' %>"

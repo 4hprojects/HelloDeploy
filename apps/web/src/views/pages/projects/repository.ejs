@@ -123,7 +123,7 @@
     <form method="POST" action="/projects/<%= project.slug %>/repository" id="repoForm">
       <%- include('../../partials/csrf-field') %>
 
-      <div class="form-group">
+      <div class="form-group form-group--floating">
         <label class="form-label" for="fullName">Repository</label>
         <select class="form-input" name="fullName" id="fullName" required>
           <option value="">— choose a repository —</option>
@@ -152,7 +152,7 @@
       <input type="hidden" name="defaultBranch" id="defaultBranch">
       <input type="hidden" name="visibility" id="visibility">
 
-      <div class="form-group" id="branchGroup" style="display:none">
+      <div class="form-group form-group--floating" id="branchGroup" style="display:none">
         <label class="form-label" for="productionBranch">Production branch</label>
         <select class="form-input" name="productionBranch" id="productionBranch" required>
           <option value="">— choose a branch —</option>

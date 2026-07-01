@@ -40,7 +40,7 @@
       <div class="review-actions">
         <form method="POST" action="/admin/approval-requests/<%= r._id %>/review" class="review-form">
           <%- include('../../partials/csrf-field') %>
-          <div class="form-field mb-3">
+          <div class="form-field form-field--floating mb-3">
             <label for="note-<%= r._id %>" class="form-label">Admin note <span class="text-muted">(optional)</span></label>
             <textarea
               id="note-<%= r._id %>"

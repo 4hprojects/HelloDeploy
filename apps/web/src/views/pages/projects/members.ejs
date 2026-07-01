@@ -66,7 +66,7 @@
     <form method="POST" action="/projects/<%= project.slug %>/members/invite" novalidate>
       <%- include('../../partials/csrf-field') %>
       <div class="form-row">
-        <div class="form-field">
+        <div class="form-field form-field--floating">
           <label for="email" class="form-label form-label--required">Email address</label>
           <input
             type="email"
@@ -81,7 +81,7 @@
           <span id="email-error" class="form-error" role="alert"><%= errors.email %></span>
           <% } %>
         </div>
-        <div class="form-field">
+        <div class="form-field form-field--floating">
           <label for="role" class="form-label form-label--required">Role</label>
           <select
             id="role"
@@ -113,7 +113,7 @@
           data-confirm='Transfer ownership? You will lose owner privileges.'>
       <%- include('../../partials/csrf-field') %>
       <div class="form-row">
-        <div class="form-field">
+        <div class="form-field form-field--floating">
           <label for="newOwnerId" class="form-label form-label--required">New owner</label>
           <select id="newOwnerId" name="newOwnerId" class="form-select">
             <option value="">Select member…</option>

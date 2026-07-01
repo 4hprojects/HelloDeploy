@@ -54,7 +54,7 @@
   <div class="card__body">
     <form method="POST" action="/projects/<%= project.slug %>/domains">
       <%- include('../../partials/csrf-field') %>
-      <div class="form-group">
+      <div class="form-group form-group--floating">
         <label for="hostname" class="form-label">Domain</label>
         <input type="text"
                id="hostname"

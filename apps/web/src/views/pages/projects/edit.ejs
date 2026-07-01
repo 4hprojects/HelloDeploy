@@ -16,7 +16,7 @@
     <form method="POST" action="/projects/<%= project.slug %>/update" novalidate>
       <%- include('../../partials/csrf-field') %>
 
-      <div class="form-field">
+      <div class="form-field form-field--floating">
         <label for="name" class="form-label form-label--required">Project name</label>
         <input
           type="text"
@@ -25,6 +25,7 @@
           class="form-input<%= errors.name ? ' form-input--error' : '' %>"
           value="<%= values.name %>"
           maxlength="100"
+          placeholder=" "
           required
           aria-describedby="<%= errors.name ? 'name-error' : '' %>"
         />

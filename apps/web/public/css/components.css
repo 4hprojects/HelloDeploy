@@ -228,6 +228,34 @@
   color: var(--color-error);
 }
 
+.form-field--floating,
+.form-group--floating {
+  position: relative;
+}
+
+.form-field--floating .form-label,
+.form-group--floating .form-label {
+  position: absolute;
+  top: 0.72rem;
+  left: calc(var(--space-3) - 2px);
+  z-index: 1;
+  max-width: calc(100% - var(--space-6));
+  padding: 0 var(--space-1);
+  color: var(--color-text-muted);
+  background: var(--color-bg);
+  border-radius: var(--radius-sm);
+  line-height: 1.2;
+  pointer-events: none;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform-origin: left top;
+  transition:
+    color var(--transition-fast),
+    transform var(--transition-fast),
+    top var(--transition-fast);
+}
+
 .form-input,
 .form-select,
 .form-textarea {
@@ -242,6 +270,45 @@
     border-color var(--transition-fast),
     box-shadow var(--transition-fast);
   appearance: none;
+}
+
+.form-field--floating .form-input,
+.form-field--floating .form-select,
+.form-field--floating .form-textarea,
+.form-group--floating .form-input,
+.form-group--floating .form-select,
+.form-group--floating .form-textarea {
+  padding-top: var(--space-4);
+  padding-bottom: var(--space-2);
+}
+
+.form-field--floating .form-input::placeholder,
+.form-field--floating .form-textarea::placeholder,
+.form-group--floating .form-input::placeholder,
+.form-group--floating .form-textarea::placeholder {
+  color: transparent;
+}
+
+.form-field--floating:focus-within .form-input::placeholder,
+.form-field--floating:focus-within .form-textarea::placeholder,
+.form-group--floating:focus-within .form-input::placeholder,
+.form-group--floating:focus-within .form-textarea::placeholder {
+  color: var(--color-text-muted);
+}
+
+.form-field--floating:focus-within .form-label,
+.form-field--floating:has(.form-input:not(:placeholder-shown)) .form-label,
+.form-field--floating:has(.form-textarea:not(:placeholder-shown)) .form-label,
+.form-field--floating:has(.form-select) .form-label,
+.form-field--floating:has(.form-input:-webkit-autofill) .form-label,
+.form-group--floating:focus-within .form-label,
+.form-group--floating:has(.form-input:not(:placeholder-shown)) .form-label,
+.form-group--floating:has(.form-textarea:not(:placeholder-shown)) .form-label,
+.form-group--floating:has(.form-select) .form-label,
+.form-group--floating:has(.form-input:-webkit-autofill) .form-label {
+  top: -0.45rem;
+  color: var(--color-blue);
+  transform: scale(0.82);
 }
 
 .form-input:focus,
