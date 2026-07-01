@@ -1,5 +1,30 @@
 # Worklog
 
+## P8-03 Deployment Log Viewer Safety
+
+- Status: Completed
+- Started: 2026-07-02T00:07:30+08:00
+- Completed: 2026-07-02T00:08:42+08:00
+
+### Checklist
+
+- [x] Verify worker deployment events are stored through log redaction.
+- [x] Verify SSE log payloads use `messageRedacted`.
+- [x] Verify server-rendered logs use escaped redacted messages.
+- [x] Verify live log appends use DOM text nodes instead of HTML injection.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added `tests/deployment/log-viewer-safety.test.js`.
+- Confirmed existing redaction and deployment timeline tests cover secret redaction and safe live rendering.
+- Updated P8-03 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/log-viewer-safety.test.js tests/security/redaction.test.js tests/ui/deployment-timeline.test.js`.
+
 ## P8-02 Deployment Timeline Verification
 
 - Status: Completed
