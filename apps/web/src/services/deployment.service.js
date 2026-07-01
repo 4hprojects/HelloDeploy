@@ -244,8 +244,8 @@ export async function createDeployment({
 /**
  * Cancel a deployment that is in a cancellable state (QUEUED or BUILDING).
  */
-export async function cancelDeployment(deploymentId, actorId, opts = {}) {
-  const deployment = await Deployment.findById(deploymentId);
+export async function cancelDeployment(deploymentId, projectId, actorId, opts = {}) {
+  const deployment = await Deployment.findOne({ _id: deploymentId, projectId });
   if (!deployment) {
     return { success: false, error: 'Deployment not found.' };
   }
@@ -281,8 +281,8 @@ export async function cancelDeployment(deploymentId, actorId, opts = {}) {
 /**
  * Retry a failed/cancelled deployment using the exact same commit SHA.
  */
-export async function retryDeployment(deploymentId, actorId, opts = {}) {
-  const original = await Deployment.findById(deploymentId).lean();
+export async function retryDeployment(deploymentId, projectId, actorId, opts = {}) {
+  const original = await Deployment.findOne({ _id: deploymentId, projectId }).lean();
   if (!original) {
     return { success: false, error: 'Deployment not found.' };
   }

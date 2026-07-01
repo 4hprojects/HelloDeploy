@@ -145,8 +145,8 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
 /**
  * Enqueue a VERIFY_DOMAIN job to check the TXT record.
  */
-export async function requestVerification(domainId, actorId, opts = {}) {
-  const domain = await Domain.findById(domainId).lean();
+export async function requestVerification(domainId, projectId, actorId, opts = {}) {
+  const domain = await Domain.findOne({ _id: domainId, projectId }).lean();
   if (!domain) {
     return { success: false, error: 'Domain not found.' };
   }
@@ -285,8 +285,8 @@ export async function rejectDomain(domainId, adminId, reason, opts = {}) {
 
 // ─── Remove domain ─────────────────────────────────────────────────────────────
 
-export async function removeDomain(domainId, actorId, opts = {}) {
-  const domain = await Domain.findById(domainId);
+export async function removeDomain(domainId, projectId, actorId, opts = {}) {
+  const domain = await Domain.findOne({ _id: domainId, projectId });
   if (!domain) {
     return { success: false, error: 'Domain not found.' };
   }

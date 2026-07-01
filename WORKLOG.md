@@ -1,5 +1,26 @@
 # Worklog
 
+## Web App P0 Tenant-Isolation Remediation
+
+- Status: Completed
+- Started: 2026-07-02T06:31:00+08:00
+- Completed: 2026-07-02T06:40:31+08:00
+
+### Results
+
+- Scoped deployment cancel and retry mutations to the authorized route project.
+- Scoped custom-domain verification and removal mutations to the authorized route project.
+- Added regression coverage for deployment and domain project isolation.
+- Fixed the existing `no-regex-spaces` lint issue in the live progress SSE test.
+- Updated today's remediation checklist, the web app analysis report, and the phase tracker.
+
+### Verification
+
+- `node --test tests/deployment/cancel-retry-flow.test.js tests/domain/domain-isolation.test.js tests/deployment/live-progress-sse.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 465 tests, 0 failures.
+- `npm run format:check` passed.
+
 ## P8-07 Live Progress Verification
 
 - Status: Completed

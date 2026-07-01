@@ -58,7 +58,7 @@ export const postVerifyDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const project = req.project;
 
-  const result = await requestVerification(domainId, req.session.user.id, {
+  const result = await requestVerification(domainId, project._id, req.session.user.id, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
@@ -79,7 +79,7 @@ export const postRemoveDomain = asyncHandler(async (req, res) => {
   const { domainId } = req.params;
   const project = req.project;
 
-  const result = await removeDomain(domainId, req.session.user.id, {
+  const result = await removeDomain(domainId, project._id, req.session.user.id, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });

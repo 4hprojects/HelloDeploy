@@ -22,6 +22,11 @@ const deploymentViews = {
   ),
 };
 
+const deploymentController = await readFile(
+  new URL('../../apps/web/src/controllers/deployment.controller.js', import.meta.url),
+  'utf8',
+);
+
 function id(value) {
   return { toString: () => value };
 }
@@ -53,9 +58,27 @@ describe('deployment cancel and retry flows', () => {
   });
 
   it('guards cancellation through active deployment states', () => {
+    assert.match(
+      deploymentService,
+      /export async function cancelDeployment\(deploymentId, projectId, actorId, opts = \{\}\)/,
+    );
+    assert.match(deploymentService, /Deployment\.findOne\(\{ _id: deploymentId, projectId \}\)/);
+    assert.match(deploymentController, /cancelDeployment\(deploymentId, project\._id/);
     assert.match(deploymentService, /if \(!isActive\(deployment\.status\)\)/);
     assert.match(deploymentService, /status: DeploymentStatus\.CANCELLED/);
     assert.match(deploymentService, /action: 'deployment\.cancelled'/);
+  });
+
+  it('scopes retry to the current project before enqueueing replacement work', () => {
+    assert.match(
+      deploymentService,
+      /export async function retryDeployment\(deploymentId, projectId, actorId, opts = \{\}\)/,
+    );
+    assert.match(
+      deploymentService,
+      /Deployment\.findOne\(\{ _id: deploymentId, projectId \}\)\.lean\(\)/,
+    );
+    assert.match(deploymentController, /retryDeployment\(deploymentId, project\._id/);
   });
 
   it('shows cancel and retry actions only in matching UI states', () => {

@@ -86,7 +86,7 @@ export const postCancelDeployment = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
-  const result = await cancelDeployment(deploymentId, req.session.user.id, {
+  const result = await cancelDeployment(deploymentId, project._id, req.session.user.id, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
@@ -104,7 +104,7 @@ export const postRetryDeployment = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
   const project = req.project;
 
-  const result = await retryDeployment(deploymentId, req.session.user.id, {
+  const result = await retryDeployment(deploymentId, project._id, req.session.user.id, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });

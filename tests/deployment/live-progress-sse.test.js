@@ -35,7 +35,7 @@ describe('live deployment progress SSE', () => {
       deploymentController,
       /sendEvent\('timeout', \{ message: 'Log stream timed out\.' \}\)/,
     );
-    assert.match(deploymentController, /catch \{\n      \/\/ Non-fatal/);
+    assert.match(deploymentController, /catch \{\n {6}\/\/ Non-fatal/);
   });
 
   it('connects the browser log viewer through EventSource and safe DOM updates', () => {
