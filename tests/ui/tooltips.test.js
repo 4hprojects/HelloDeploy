@@ -57,7 +57,7 @@ describe('accessible tooltip UI', () => {
   it('does not rely on native title attributes for header controls', () => {
     assert.doesNotMatch(header, /title=/);
     assert.match(header, /data-tooltip="Open or close the navigation menu"/);
-    assert.match(header, /data-tooltip="Switch between light and dark theme"/);
+    assert.match(header, /data-tooltip="Switch to dark theme"/);
   });
 
   it('adds tooltip hints to reusable status badges', () => {

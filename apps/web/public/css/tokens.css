@@ -5,6 +5,8 @@
 
 :root,
 [data-theme='light'] {
+  color-scheme: light;
+
   /* ── Brand colors ──────────────────────────────────────────── */
   --color-orange: #e95420; /* Primary CTA, logo, selected nav */
   --color-orange-hover: #c9461a;
@@ -130,6 +132,8 @@
 
 /* ── Dark theme ───────────────────────────────────────────────── */
 [data-theme='dark'] {
+  color-scheme: dark;
+
   --color-bg: #0f172a;
   --color-bg-subtle: #1e293b;
   --color-bg-muted: #334155;

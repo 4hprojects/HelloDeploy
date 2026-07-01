@@ -16,16 +16,50 @@
   <meta name="twitter:card" content="summary" />
   <meta name="twitter:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
   <meta name="twitter:image" content="/assets/icons/icon-512.png" />
+  <meta name="theme-color" content="#ffffff" />
 
-  <!-- Dark mode applied before stylesheet parse to prevent flash -->
+  <!-- Theme applied before stylesheet parse to prevent flash -->
   <script>
     (function () {
+      var root = document.documentElement;
+      var storageKey = 'hd-theme';
+      var theme = 'light';
+
+      function syncThemeColor(nextTheme) {
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', nextTheme === 'dark' ? '#0f172a' : '#ffffff');
+      }
+
+      function applyTheme(nextTheme, persist) {
+        var safeTheme = nextTheme === 'dark' ? 'dark' : 'light';
+        root.setAttribute('data-theme', safeTheme);
+        root.style.colorScheme = safeTheme;
+        syncThemeColor(safeTheme);
+
+        if (persist) {
+          try {
+            localStorage.setItem(storageKey, safeTheme);
+          } catch (e) {}
+        }
+
+        try {
+          window.dispatchEvent(new CustomEvent('hellodeploy:themechange', { detail: { theme: safeTheme } }));
+        } catch (e) {}
+      }
+
       try {
-        var t = localStorage.getItem('hd-theme');
-        if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-          document.documentElement.setAttribute('data-theme', 'dark');
+        var storedTheme = localStorage.getItem(storageKey);
+        var prefersDark =
+          window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (storedTheme === 'dark' || storedTheme === 'light') {
+          theme = storedTheme;
+        } else if (prefersDark) {
+          theme = 'dark';
         }
       } catch (e) {}
+
+      applyTheme(theme, false);
+      window.__setHelloDeployTheme = applyTheme;
     })();
   </script>
 

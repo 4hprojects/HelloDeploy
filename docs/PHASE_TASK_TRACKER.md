@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-01T23:44:58+08:00
+Updated: 2026-07-01T23:48:06+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -42,12 +42,12 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 
 ## Phase 10: Administration and Operations
 
-| ID     | Status  | Task                                                     | Acceptance Evidence                                                                               | Updated                   |
-| ------ | ------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------- | ------------------------- |
-| P10-01 | Partial | Verify inactivity reports and operational notifications. | Admin-facing report and notification delivery are proven without leaking secrets.                 | 2026-07-01T18:50:24+08:00 |
-| P10-02 | Partial | Verify responsive admin layouts.                         | Admin sidebar, tables, cards, forms, and dashboards are checked across mobile and desktop widths. | 2026-07-01T18:50:24+08:00 |
-| P10-03 | Partial | Verify light/dark theme persistence.                     | Theme selection survives reload and works across public, auth, dashboard, and admin pages.        | 2026-07-01T18:50:24+08:00 |
-| P10-04 | Pending | Verify operational alert path.                           | Configured Super Admin receives expected operational alerts in a safe test.                       | 2026-07-01T18:50:24+08:00 |
+| ID     | Status  | Task                                                     | Acceptance Evidence                                                                                                                                     | Updated                   |
+| ------ | ------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| P10-01 | Partial | Verify inactivity reports and operational notifications. | Admin-facing report and notification delivery are proven without leaking secrets.                                                                       | 2026-07-01T18:50:24+08:00 |
+| P10-02 | Partial | Verify responsive admin layouts.                         | Admin sidebar, tables, cards, forms, and dashboards are checked across mobile and desktop widths.                                                       | 2026-07-01T18:50:24+08:00 |
+| P10-03 | Done    | Verify light/dark theme persistence.                     | Shared theme bootstrap persists selection across main/auth layouts, syncs browser theme chrome, and is covered by `tests/ui/theme-persistence.test.js`. | 2026-07-01T23:48:06+08:00 |
+| P10-04 | Pending | Verify operational alert path.                           | Configured Super Admin receives expected operational alerts in a safe test.                                                                             | 2026-07-01T18:50:24+08:00 |
 
 ## Phase 11: Hardening and Pilot
 
@@ -80,4 +80,4 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | X-02 | Pending | Keep documentation index aligned.            | New or moved markdown files are linked from [Documentation Index](README.md).                                                   | 2026-07-01T18:50:24+08:00 |
 | X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).            | 2026-07-01T18:50:24+08:00 |
 | X-04 | Pending | Keep worklog entries timestamped.            | Each implementation pass has started/completed timestamps in [WORKLOG.md](../WORKLOG.md).                                       | 2026-07-01T18:50:24+08:00 |
-| X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 through UX-09 implementations updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence. | 2026-07-01T23:44:58+08:00 |
+| X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 through UX-10 implementations updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence. | 2026-07-01T23:48:06+08:00 |

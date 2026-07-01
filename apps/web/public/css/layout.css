@@ -321,6 +321,11 @@
 .header__theme-toggle:hover {
   border-color: var(--color-border-strong);
 }
+.header__theme-toggle[aria-pressed='true'] {
+  background: var(--color-bg-muted);
+  border-color: var(--color-border-strong);
+  color: var(--color-text);
+}
 [data-theme='light'] .theme-icon--dark {
   display: none;
 }

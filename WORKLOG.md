@@ -1,5 +1,33 @@
 # Worklog
 
+## UX-10 Theme Persistence Polish
+
+- Status: Completed
+- Started: 2026-07-01T23:45:00+08:00
+- Completed: 2026-07-01T23:48:06+08:00
+
+### Checklist
+
+- [x] Centralize theme bootstrap for main and auth layouts.
+- [x] Preserve stored light/dark preference before stylesheets load.
+- [x] Respect system dark preference when no stored preference exists.
+- [x] Sync browser `theme-color` and native `color-scheme`.
+- [x] Keep theme toggle label, tooltip, and pressed state aligned with the active theme.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Consolidated theme persistence in `apps/web/src/views/partials/head.ejs`.
+- Removed duplicate pre-HTML auth layout theme script from `apps/web/src/views/layouts/auth.ejs`.
+- Updated `apps/web/src/views/partials/header.ejs` so the theme toggle reflects the active state and persists explicit user selection through the shared helper.
+- Added color-scheme tokens and active toggle styling in `apps/web/public/css/tokens.css` and `apps/web/public/css/layout.css`.
+- Added `tests/ui/theme-persistence.test.js` and updated the tooltip expectation for the dynamic theme toggle label.
+
+### Verification
+
+- Passed `node --test tests/ui/theme-persistence.test.js tests/ui/tooltips.test.js`.
+
 ## UX-09 Destructive Action Consistency
 
 - Status: Completed
