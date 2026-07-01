@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-02T00:16:59+08:00
+Updated: 2026-07-02T00:18:59+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -30,7 +30,7 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | P8-04 | Done    | Verify cancellation and manual retry flows.                                  | Cancel/retry flow tests verify retry eligibility, exact-commit retry payloads, cancellation state guard, and matching UI actions.                   | 2026-07-02T00:11:00+08:00 |
 | P8-05 | Done    | Verify retained healthy release rollback.                                    | Rollback flow tests verify healthy retained target selection, active target exclusion, image availability, and rollback queue payloads.             | 2026-07-02T00:13:54+08:00 |
 | P8-06 | Partial | Verify deployment notifications.                                             | Local tests verify notification email composition, HTML escaping, and worker invocation; configured provider delivery still needs E2E verification. | 2026-07-02T00:16:59+08:00 |
-| P8-07 | Pending | Verify live deployment progress behavior.                                    | Server-Sent Events or equivalent live progress behavior is proven in browser.                                                                       | 2026-07-01T18:50:24+08:00 |
+| P8-07 | Done    | Verify live deployment progress behavior.                                    | Live progress SSE tests verify stream headers, redacted log events, terminal status, timeout behavior, and EventSource client handling.             | 2026-07-02T00:18:59+08:00 |
 
 ## Phase 9: Custom Domains
 
