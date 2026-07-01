@@ -1,5 +1,45 @@
 # Worklog
 
+## P8 Deployment Approval + Mode Guard Hardening
+
+- Status: Completed
+- Started: 2026-07-01T12:26:32+08:00
+- Completed: 2026-07-01T12:27:49+08:00
+
+### Plan
+
+- Harden `createDeployment` as the final service-level deployment gate so controller or webhook mistakes cannot bypass project approval requirements.
+- Enforce project lifecycle eligibility before repository/runtime/job work:
+  - Block deployments unless the project status is `ACTIVE`.
+  - Block deployments while the project deployment mode is `APPROVAL_REQUIRED`.
+  - Continue allowing active projects in `MANUAL` or `AUTOMATIC` mode to proceed through the existing deployment validation path.
+- Keep the change scoped to deployment creation; retry and rollback flows will remain unchanged unless verification exposes a direct bypass tied to this task.
+- Add focused tests for the deployment eligibility guard:
+  - Draft projects are blocked.
+  - Suspended projects are blocked.
+  - Archived projects are blocked.
+  - Active projects in approval-required mode are blocked.
+  - Active projects in manual or automatic mode are allowed by the new guard.
+- Run formatting, lint, format check, and the full test suite.
+- Update this worklog with completion timestamp and results, then commit and push after completion.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Enforce project status and deployment mode in deployment creation.
+- [x] Add focused deployment guard tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `validateProjectDeploymentEligibility` and wired it into `createDeployment` before repository/runtime/job checks.
+- Deployments are now blocked unless the project is `ACTIVE`.
+- Deployments are now blocked while the project mode is `APPROVAL_REQUIRED`.
+- Active projects in `MANUAL` and `AUTOMATIC` mode continue through the existing deployment validation path.
+- Added focused tests for draft, suspended, archived, approval-required, manual, and automatic guard behavior.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## Worklog and Push Policy
 
 - Status: Completed

@@ -1,11 +1,30 @@
 import { Project, Repository, Deployment } from '@hellodeploy/database';
-import { DeploymentStatus, DeploymentTrigger, JobType, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  DeploymentMode,
+  DeploymentStatus,
+  DeploymentTrigger,
+  JobType,
+  AuditOutcome,
+  ProjectStatus,
+} from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 
 // ─── Create deployment ─────────────────────────────────────────────────────────
+
+export function validateProjectDeploymentEligibility(project) {
+  if (project.status !== ProjectStatus.ACTIVE) {
+    return 'Project must be approved and active before deployment.';
+  }
+
+  if (project.deploymentMode === DeploymentMode.APPROVAL_REQUIRED) {
+    return 'This project requires admin approval before deployments can run.';
+  }
+
+  return null;
+}
 
 /**
  * Create a new deployment record and enqueue the build job.
@@ -25,6 +44,11 @@ export async function createDeployment({
   const project = await Project.findById(projectId).lean();
   if (!project) {
     return { success: false, error: 'Project not found.' };
+  }
+
+  const eligibilityError = validateProjectDeploymentEligibility(project);
+  if (eligibilityError) {
+    return { success: false, error: eligibilityError };
   }
 
   if (!project.repositoryId) {
