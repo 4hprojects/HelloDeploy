@@ -1,5 +1,24 @@
 # Worklog
 
+## Phase Task Tracker
+
+- Status: Completed
+- Started: 2026-07-01T18:50:24+08:00
+- Completed: 2026-07-01T18:50:24+08:00
+
+### Checklist
+
+- [x] Create a dedicated markdown tracker for remaining phase tasks.
+- [x] Organize remaining work by phase and status.
+- [x] Link the tracker from the documentation index.
+- [x] Document update rules for future implementation passes.
+
+### Results
+
+- Added `docs/PHASE_TASK_TRACKER.md` as the active checklist for remaining implementation and target-host validation work.
+- Linked the tracker from `docs/README.md`.
+- Recorded that future implementation work should update tracker status, acceptance evidence, and timestamps before commit and push.
+
 ## Markdown Maintenance Audit
 
 - Status: Completed
