@@ -1,5 +1,26 @@
 # Worklog
 
+## P8-02 Deployment Timeline Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:06:30+08:00
+- Completed: 2026-07-02T00:06:51+08:00
+
+### Checklist
+
+- [x] Verify deployment timeline static coverage.
+- [x] Confirm stage display includes normalized stage state behavior.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Confirmed existing `tests/ui/deployment-timeline.test.js` covers timeline stage normalization, state hooks, safe log rendering, and CSS coverage.
+- Updated P8-02 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/ui/deployment-timeline.test.js`.
+
 ## P8-01 Deployment Option Verification
 
 - Status: Partial
