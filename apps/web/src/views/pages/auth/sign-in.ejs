@@ -16,7 +16,7 @@
     <form method="POST" action="/auth/verify-email/resend" class="inline-form">
       <%- include('../../partials/csrf-field') %>
       <input type="hidden" name="email" value="<%= typeof verificationEmail !== 'undefined' ? verificationEmail : '' %>" />
-      <button type="submit" class="button button--ghost button--sm">Resend verification email</button>
+      <button type="submit" class="button button--ghost button--sm" data-pending-label="Sending...">Resend verification email</button>
     </form>
   </div>
   <% } %>
@@ -50,20 +50,8 @@
       <a href="/auth/forgot-password" class="form-link">Forgot Password?</a>
     </div>
 
-    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
+    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn" data-pending-label="Signing in...">
       Sign In
     </button>
   </form>
 </div>
-
-<script>
-  (function () {
-    const form = document.getElementById('sign-in-form');
-    const btn = document.getElementById('submit-btn');
-    if (!form || !btn) return;
-    form.addEventListener('submit', function () {
-      btn.disabled = true;
-      btn.textContent = 'Signing in…';
-    });
-  })();
-</script>

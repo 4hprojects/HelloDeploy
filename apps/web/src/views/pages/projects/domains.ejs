@@ -69,7 +69,7 @@
           After verification, an administrator will review and activate the domain.
         </p>
       </div>
-      <button type="submit" class="button button--primary">Add Domain</button>
+      <button type="submit" class="button button--primary" data-pending-label="Adding...">Add Domain</button>
     </form>
   </div>
 </div>
@@ -126,7 +126,7 @@
               <% if (d.status === 'PENDING_VERIFICATION' && membership.role === 'OWNER') { %>
               <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/verify">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm" data-tooltip="Check whether the required DNS TXT record has propagated.">Check Verification</button>
+                <button type="submit" class="button button--secondary button--sm" data-pending-label="Checking..." data-tooltip="Check whether the required DNS TXT record has propagated.">Check Verification</button>
               </form>
               <% } %>
               <% if (d.status === 'PENDING_ADMIN_APPROVAL') { %>

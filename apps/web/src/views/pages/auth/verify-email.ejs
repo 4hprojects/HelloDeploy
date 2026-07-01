@@ -19,7 +19,7 @@
         required: true,
         error: null
       }) %>
-      <button type="submit" class="button button--secondary mt-4">Resend Verification Email</button>
+      <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Resend Verification Email</button>
     </form>
 
   <% } else if (typeof resent !== 'undefined' && resent) { %>
@@ -47,7 +47,7 @@
         required: true,
         error: null
       }) %>
-      <button type="submit" class="button button--secondary mt-4">Resend Verification Email</button>
+      <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Resend Verification Email</button>
     </form>
 
   <% } else { %>
@@ -64,7 +64,7 @@
         required: true,
         error: null
       }) %>
-      <button type="submit" class="button button--secondary mt-4">Send Verification Email</button>
+      <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Send Verification Email</button>
     </form>
   <% } %>
 </div>

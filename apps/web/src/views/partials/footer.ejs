@@ -236,7 +236,6 @@
       acceptButton.disabled = true;
       acceptButton.textContent = target.getAttribute('data-confirm-pending-label') || 'Working...';
     }
-    if (submitter) submitter.disabled = true;
 
     pendingTarget = null;
     pendingSubmitter = null;
@@ -318,6 +317,63 @@
       e.preventDefault();
       first.focus();
     }
+  });
+})();
+</script>
+
+<script>
+(function () {
+  function submitButtons(form) {
+    return Array.prototype.slice.call(form.querySelectorAll('button[type="submit"], input[type="submit"]'));
+  }
+
+  function pendingLabel(form, submitter) {
+    if (submitter) {
+      return (
+        submitter.getAttribute('data-pending-label') ||
+        submitter.getAttribute('data-confirm-pending-label') ||
+        form.getAttribute('data-pending-label') ||
+        form.getAttribute('data-confirm-pending-label') ||
+        'Working...'
+      );
+    }
+    return form.getAttribute('data-pending-label') || form.getAttribute('data-confirm-pending-label') || 'Working...';
+  }
+
+  function setSubmitterText(submitter, label) {
+    if (!submitter) return;
+
+    if (submitter.tagName === 'INPUT') {
+      if (!submitter.dataset.originalValue) submitter.dataset.originalValue = submitter.value;
+      submitter.value = label;
+      return;
+    }
+
+    if (!submitter.dataset.originalText) submitter.dataset.originalText = submitter.textContent;
+    submitter.textContent = label;
+  }
+
+  document.addEventListener('submit', function (e) {
+    if (e.defaultPrevented) return;
+
+    var form = e.target;
+    if (!form || form.tagName !== 'FORM' || form.getAttribute('data-pending') === 'off') return;
+
+    if (form.getAttribute('data-submitting') === '1') {
+      e.preventDefault();
+      return;
+    }
+
+    var submitter = e.submitter && e.submitter.form === form ? e.submitter : null;
+    form.setAttribute('data-submitting', '1');
+    form.setAttribute('aria-busy', 'true');
+    form.classList.add('form--pending');
+
+    submitButtons(form).forEach(function (button) {
+      button.disabled = true;
+      button.setAttribute('aria-disabled', 'true');
+    });
+    setSubmitterText(submitter, pendingLabel(form, submitter));
   });
 })();
 </script>

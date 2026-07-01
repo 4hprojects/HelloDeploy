@@ -22,7 +22,7 @@
       error: typeof errors !== 'undefined' ? errors.code || errors.form : null
     }) %>
 
-    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn">
+    <button type="submit" class="button button--primary button--full mt-6" id="submit-btn" data-pending-label="Verifying...">
       Verify Code
     </button>
   </form>
@@ -32,15 +32,3 @@
     <a href="/auth/forgot-password">Request a new one</a>
   </p>
 </div>
-
-<script>
-  (function () {
-    const form = document.getElementById('verify-code-form');
-    const btn = document.getElementById('submit-btn');
-    if (!form || !btn) return;
-    form.addEventListener('submit', function () {
-      btn.disabled = true;
-      btn.textContent = 'Verifying…';
-    });
-  })();
-</script>

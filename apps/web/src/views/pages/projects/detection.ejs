@@ -105,7 +105,7 @@
     </p>
     <form method="POST" action="/projects/<%= project.slug %>/detection">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary">Run Detection</button>
+      <button type="submit" class="button button--primary" data-pending-label="Running...">Run Detection</button>
     </form>
   </div>
 </div>

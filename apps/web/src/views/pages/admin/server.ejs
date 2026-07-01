@@ -122,7 +122,7 @@
       <% if (server.queue?.paused) { %>
       <form method="POST" action="/admin/server/queue/resume">
         <%- include('../../partials/csrf-field') %>
-        <button type="submit" class="button button--success" data-tooltip="Allow queued deployment jobs to start again.">Resume Queue</button>
+        <button type="submit" class="button button--success" data-pending-label="Resuming..." data-tooltip="Allow queued deployment jobs to start again.">Resume Queue</button>
       </form>
       <% } else { %>
       <form method="POST" action="/admin/server/queue/pause"

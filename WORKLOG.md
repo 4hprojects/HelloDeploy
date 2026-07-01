@@ -1,5 +1,34 @@
 # Worklog
 
+## UX-12 Form Pending States
+
+- Status: Completed
+- Started: 2026-07-01T23:54:00+08:00
+- Completed: 2026-07-01T23:57:56+08:00
+
+### Checklist
+
+- [x] Add a shared form submit-pending handler.
+- [x] Prevent duplicate submissions after a valid submit event.
+- [x] Mark submitting forms busy for assistive technology.
+- [x] Disable submit buttons while the request is in progress.
+- [x] Add action-specific pending labels to high-value forms.
+- [x] Remove duplicate one-off auth submit scripts.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Extended `apps/web/src/views/partials/footer.ejs` with a generic pending-state submit handler.
+- Added `.form--pending` styling in `apps/web/public/css/components.css`.
+- Added `data-pending-label` coverage for auth, deployment, repository, domain, detection, environment, quota, and admin queue actions.
+- Removed older per-page auth submit-disable scripts in favor of the shared handler.
+- Added `tests/ui/form-pending-states.test.js` and updated destructive-action coverage for the shared form guard.
+
+### Verification
+
+- Passed `node --test tests/ui/form-pending-states.test.js tests/ui/confirmation-modal.test.js tests/ui/destructive-actions.test.js`.
+
 ## UX-11 Icon Consistency
 
 - Status: Completed

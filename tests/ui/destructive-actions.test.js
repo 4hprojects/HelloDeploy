@@ -76,7 +76,7 @@ describe('destructive and risky action UX', () => {
     assert.match(files.footer, /getAttribute\('data-confirm-variant'\)/);
     assert.match(files.footer, /getAttribute\('data-confirm-pending-label'\)/);
     assert.match(files.footer, /modal\.setAttribute\('aria-busy', 'true'\)/);
-    assert.match(files.footer, /submitter\.disabled = true/);
+    assert.match(files.footer, /form\.setAttribute\('data-submitting', '1'\)/);
   });
 
   it('standardizes project destructive actions through the shared confirmation contract', () => {

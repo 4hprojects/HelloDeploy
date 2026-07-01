@@ -26,7 +26,7 @@
     <% if (isRetryable && canAct) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--secondary button--sm" data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
+      <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying..." data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
     </form>
     <% } %>
   </div>

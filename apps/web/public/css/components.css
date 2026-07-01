@@ -815,6 +815,14 @@
   align-items: center;
 }
 
+.form--pending {
+  cursor: progress;
+}
+
+.form--pending .button[aria-disabled='true'] {
+  cursor: progress;
+}
+
 /* ── Pagination ──────────────────────────────────────────────────── */
 .pagination {
   display: flex;

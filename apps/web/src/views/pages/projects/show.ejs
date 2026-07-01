@@ -199,7 +199,7 @@
     <p class="text-sm text-muted mb-4">Once your project is configured, submit it for admin review to enable deployments.</p>
     <form method="POST" action="/projects/<%= project.slug %>/submit-review">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary">Submit for Review</button>
+      <button type="submit" class="button button--primary" data-pending-label="Submitting...">Submit for Review</button>
     </form>
   </div>
 </div>
