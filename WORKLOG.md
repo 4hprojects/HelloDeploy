@@ -1,5 +1,30 @@
 # Worklog
 
+## P8-05 Rollback Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:12:00+08:00
+- Completed: 2026-07-02T00:13:54+08:00
+
+### Checklist
+
+- [x] Verify rollback targets are retained healthy deployments.
+- [x] Verify current active deployment is excluded from rollback targets.
+- [x] Verify rollback targets require an available image.
+- [x] Verify rollback queue payload includes project, rollback deployment, and source deployment IDs.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added rollback helper functions in `apps/web/src/services/deployment.service.js`.
+- Added `tests/deployment/rollback-flow.test.js`.
+- Updated P8-05 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/rollback-flow.test.js tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js`.
+
 ## P8-04 Cancel And Retry Verification
 
 - Status: Completed

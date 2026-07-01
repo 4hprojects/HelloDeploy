@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-02T00:11:00+08:00
+Updated: 2026-07-02T00:13:54+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -28,7 +28,7 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | P8-02 | Done    | Verify deployment timeline and stage display.                                | `tests/ui/deployment-timeline.test.js` verifies normalized stages, active/failed state display, safe log updates, and timeline CSS.         | 2026-07-02T00:06:51+08:00 |
 | P8-03 | Done    | Verify safe build and runtime log viewers.                                   | Log safety, redaction, and timeline UI tests verify redacted storage, SSE payloads, escaped server rendering, and safe DOM updates.         | 2026-07-02T00:08:42+08:00 |
 | P8-04 | Done    | Verify cancellation and manual retry flows.                                  | Cancel/retry flow tests verify retry eligibility, exact-commit retry payloads, cancellation state guard, and matching UI actions.           | 2026-07-02T00:11:00+08:00 |
-| P8-05 | Pending | Verify retained healthy release rollback.                                    | Rollback restores a retained healthy release without manual server commands.                                                                | 2026-07-01T18:50:24+08:00 |
+| P8-05 | Done    | Verify retained healthy release rollback.                                    | Rollback flow tests verify healthy retained target selection, active target exclusion, image availability, and rollback queue payloads.     | 2026-07-02T00:13:54+08:00 |
 | P8-06 | Partial | Verify deployment notifications.                                             | Notification helper exists; delivery behavior needs end-to-end verification.                                                                | 2026-07-01T18:50:24+08:00 |
 | P8-07 | Pending | Verify live deployment progress behavior.                                    | Server-Sent Events or equivalent live progress behavior is proven in browser.                                                               | 2026-07-01T18:50:24+08:00 |
 

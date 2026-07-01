@@ -60,6 +60,49 @@ export function isRetryableDeploymentStatus(status) {
   return [DeploymentStatus.FAILED, DeploymentStatus.CANCELLED].includes(status);
 }
 
+export function isRollbackTargetEligible(targetDeployment, projectId, activeDeploymentId) {
+  if (!targetDeployment || targetDeployment.projectId.toString() !== projectId.toString()) {
+    return false;
+  }
+
+  if (targetDeployment.status !== DeploymentStatus.HEALTHY || !targetDeployment.imageTag) {
+    return false;
+  }
+
+  return activeDeploymentId?.toString() !== targetDeployment._id.toString();
+}
+
+export function buildRollbackReleaseJobPayload({
+  projectId,
+  deployment,
+  targetDeploymentId,
+  actorId,
+  correlationId,
+}) {
+  return {
+    version: 1,
+    correlationId,
+    actorId,
+    actorRole: 'USER',
+    projectId: projectId.toString(),
+    deploymentId: deployment._id.toString(),
+    sourceDeploymentId: targetDeploymentId.toString(),
+  };
+}
+
+export function buildRollbackTargetQuery(projectId, activeDeploymentId) {
+  const query = {
+    projectId,
+    status: DeploymentStatus.HEALTHY,
+  };
+
+  if (activeDeploymentId) {
+    query._id = { $ne: activeDeploymentId };
+  }
+
+  return query;
+}
+
 /**
  * Create a new deployment record and enqueue the build job.
  * Enforces one-active-deployment-per-project invariant.
@@ -366,7 +409,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   }
 
   // Cannot rollback to the currently active deployment
-  if (project.activeDeploymentId?.toString() === targetDeploymentId.toString()) {
+  if (!isRollbackTargetEligible(targetDeployment, projectId, project.activeDeploymentId)) {
     return { success: false, error: 'Target deployment is already active.' };
   }
 
@@ -419,15 +462,13 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   await enqueueJob(
     queue,
     JobType.ROLLBACK_RELEASE,
-    {
-      version: 1,
-      correlationId: opts.correlationId,
+    buildRollbackReleaseJobPayload({
+      projectId,
+      deployment,
+      targetDeploymentId,
       actorId,
-      actorRole: 'USER',
-      projectId: projectId.toString(),
-      deploymentId: deployment._id.toString(),
-      sourceDeploymentId: targetDeploymentId.toString(),
-    },
+      correlationId: opts.correlationId,
+    }),
     { jobId: `rollback-${deployment._id.toString()}` },
   );
 
@@ -486,16 +527,9 @@ export async function getDeploymentsPaginated(projectId, { page = 1, limit = 20 
 }
 
 export async function getRollbackTargets(projectId, activeDeploymentId) {
-  const query = {
-    projectId,
-    status: DeploymentStatus.HEALTHY,
-  };
-
-  if (activeDeploymentId) {
-    query._id = { $ne: activeDeploymentId };
-  }
-
-  return Deployment.find(query).sort({ sequenceNumber: -1 }).lean();
+  return Deployment.find(buildRollbackTargetQuery(projectId, activeDeploymentId))
+    .sort({ sequenceNumber: -1 })
+    .lean();
 }
 
 export async function getDeployment(deploymentId) {
