@@ -1,5 +1,38 @@
 # Worklog
 
+## P12 Distribution and Self-Hosted Edition
+
+- Status: Completed
+- Started: 2026-07-01T18:17:24+08:00
+- Completed: 2026-07-01T18:19:44+08:00
+
+### Plan
+
+- Review installer, preflight, setup, backup, restore, upgrade, and uninstall scripts for environment assumptions and documented Ubuntu 22.04/24.04 support.
+- Add a non-mutating administrator setup wizard that can generate an install checklist and required environment variable template without embedding credentials.
+- Document self-hosted install modes: local-only, public-IP, and Cloudflare Tunnel.
+- Document the MIT license selection already present in `LICENSE`.
+- Add tests for setup wizard output and distribution-safe defaults.
+- Run final verification commands, then commit and push.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Add setup wizard and distribution documentation.
+- [x] Verify installer/preflight coverage and license documentation.
+- [x] Add focused distribution tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `scripts/self-hosted-checklist.js` for non-mutating local-only, public-IP, and Cloudflare Tunnel install planning.
+- Added `docs/SELF_HOSTED_INSTALL.md` covering supported Ubuntu versions, install modes, required environment keys, clean install steps, backup/restore commands, and MIT license reference.
+- Linked the self-hosted install guide from `README.md`.
+- Added focused tests for setup checklist defaults, Ubuntu support, required secret keys, public-IP mode, and fallback behavior.
+- Confirmed the existing `LICENSE` is MIT.
+- Ran `node scripts/self-hosted-checklist.js --mode cloudflare_tunnel --domain hellodeploy.example.com --json`, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P11 Hardening and Pilot
 
 - Status: Completed

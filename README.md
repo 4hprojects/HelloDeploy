@@ -14,6 +14,7 @@ HelloDeploy is a self-hosted web application deployment platform. It lets users 
 - [Infrastructure Notes](infrastructure/README.md)
 - [Operations Runbooks](docs/OPERATIONS_RUNBOOKS.md)
 - [Hardening and Pilot Report](docs/HARDENING_AND_PILOT_REPORT.md)
+- [Self-Hosted Install Guide](docs/SELF_HOSTED_INSTALL.md)
 
 ## Local Development
 

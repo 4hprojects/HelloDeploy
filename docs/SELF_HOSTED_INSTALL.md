@@ -1,0 +1,100 @@
+# HelloDeploy Self-Hosted Install Guide
+
+HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
+
+License: MIT. See [`LICENSE`](../LICENSE).
+
+## Install Modes
+
+### Local-only
+
+Use this mode for development, demos, or LAN-only testing.
+
+- Public DNS is not required.
+- Cloudflare Tunnel is not required.
+- Nginx can be disabled or used only as a local reverse proxy.
+- Custom domains should not be considered publicly reachable in this mode.
+
+### Public IP
+
+Use this mode when the server has a stable public IP and inbound HTTP/HTTPS traffic is allowed.
+
+- Point the platform hostname to the server public IP.
+- Point the wildcard app hostname to the server public IP.
+- Configure TLS before production use.
+- Keep existing non-HelloDeploy Nginx routes backed up and separate.
+
+### Cloudflare Tunnel
+
+Use this mode when the server should not expose inbound router ports.
+
+- Route the platform hostname through the tunnel.
+- Route wildcard app hostnames through the tunnel.
+- Keep Cloudflare Tunnel configuration backed up outside the server.
+- Use `/admin/server` to pause the queue or enable maintenance mode during tunnel incidents.
+
+## Clean Install Steps
+
+1. Start from a clean Ubuntu 22.04 or 24.04 server.
+2. Run `node scripts/preflight.js` if the repo is already present, or run the installer preflight after cloning.
+3. Install with `sudo bash infrastructure/install.sh`.
+4. Complete `node scripts/setup.js` when prompted by the installer.
+5. Back up `HELLODEPLOY_MASTER_KEY` outside the server.
+6. Seed the first Super Admin with `node scripts/seed-super-admin.js`.
+7. Confirm `/health` returns `ok`.
+8. Open `/admin/server` and verify queue, memory, disk, and maintenance controls.
+9. Run `sudo bash infrastructure/backup.sh`.
+10. Test restore on a second supported Ubuntu machine before production use.
+
+## Planning Checklist
+
+Generate a mode-specific install checklist without writing files:
+
+```sh
+node scripts/self-hosted-checklist.js --mode cloudflare_tunnel --domain hellodeploy.example.com
+```
+
+Machine-readable output:
+
+```sh
+node scripts/self-hosted-checklist.js --mode public_ip --domain hellodeploy.example.com --json
+```
+
+## Required Environment
+
+The setup wizard and secret generator populate the production `.env`. Required keys include:
+
+- `NODE_ENV`
+- `PORT`
+- `HOST`
+- `PLATFORM_DOMAIN`
+- `MONGODB_URI`
+- `REDIS_HOST`
+- `REDIS_PORT`
+- `SESSION_SECRET`
+- `HELLODEPLOY_MASTER_KEY`
+- `GITHUB_WEBHOOK_SECRET`
+- `GITHUB_APP_ID`
+- `GITHUB_APP_NAME`
+- `GITHUB_APP_PRIVATE_KEY_PATH`
+- `RESEND_API_KEY`
+- `TURNSTILE_SITE_KEY`
+- `TURNSTILE_SECRET_KEY`
+- `BUILD_WORKSPACE_ROOT`
+- `RELEASE_METADATA_ROOT`
+- `PROJECT_VOLUME_ROOT`
+- `NGINX_HELLODEPLOY_CONFIG_DIR`
+- `NGINX_ENABLED`
+- `WORKER_CONCURRENCY`
+
+Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, or webhook secrets.
+
+## Backup And Restore
+
+- Backup: `sudo bash infrastructure/backup.sh`
+- Restore: `sudo bash infrastructure/restore.sh <backup-directory>`
+- Upgrade: `sudo bash infrastructure/upgrade.sh`
+- Rollback: use the previous release and `docs/OPERATIONS_RUNBOOKS.md`
+- Uninstall: `sudo bash infrastructure/uninstall.sh`
+
+Backups must include MongoDB data, protected configuration, Nginx route files, Cloudflare Tunnel configuration, and HelloDeploy release metadata.
