@@ -1,5 +1,31 @@
 # Worklog
 
+## UX-11 Icon Consistency
+
+- Status: Completed
+- Started: 2026-07-01T23:49:00+08:00
+- Completed: 2026-07-01T23:53:29+08:00
+
+### Checklist
+
+- [x] Add a shared inline SVG icon partial.
+- [x] Replace sidebar navigation glyphs with named icons.
+- [x] Replace high-visibility symbolic controls with shared icons.
+- [x] Keep icons decorative where text already provides the accessible name.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `apps/web/src/views/partials/icon.ejs` and shared `.ui-icon` styling.
+- Replaced ad hoc sidebar, theme toggle, scroll-to-top, external-link, flash, password-toggle, empty-state, and landing feature glyphs.
+- Removed pagination arrow glyphs from repeated table pagination controls.
+- Added `tests/ui/icon-consistency.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/icon-consistency.test.js tests/ui/tooltips.test.js tests/ui/scroll-top.test.js tests/ui/guided-empty-states.test.js tests/ui/theme-persistence.test.js`.
+
 ## UX-10 Theme Persistence Polish
 
 - Status: Completed

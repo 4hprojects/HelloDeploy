@@ -8,7 +8,7 @@
         class="sidebar__link"
         <%= _path === '/dashboard' ? 'aria-current="page"' : '' %>
       >
-        <span aria-hidden="true">⊞</span>
+        <%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %>
         <span>Dashboard</span>
       </a>
     </li>
@@ -18,7 +18,7 @@
         class="sidebar__link"
         <%= _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
       >
-        <span aria-hidden="true">◫</span>
+        <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
         <span>Projects</span>
       </a>
     </li>
@@ -32,7 +32,7 @@
         <a href="/projects/<%= currentProject.slug %>"
            class="sidebar__link"
            <%= currentPath === `/projects/${currentProject.slug}` ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">◉</span>
+          <%- include('icon', { name: 'overview', className: 'sidebar__icon' }) %>
           <span>Overview</span>
         </a>
       </li>
@@ -40,7 +40,7 @@
         <a href="/projects/<%= currentProject.slug %>/deployments"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/deployments`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">▶</span>
+          <%- include('icon', { name: 'deploy', className: 'sidebar__icon' }) %>
           <span>Deployments</span>
         </a>
       </li>
@@ -48,7 +48,7 @@
         <a href="/projects/<%= currentProject.slug %>/repository"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/repository`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">⎇</span>
+          <%- include('icon', { name: 'repository', className: 'sidebar__icon' }) %>
           <span>Repository</span>
         </a>
       </li>
@@ -56,7 +56,7 @@
         <a href="/projects/<%= currentProject.slug %>/detection"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/detection`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">◎</span>
+          <%- include('icon', { name: 'detection', className: 'sidebar__icon' }) %>
           <span>Detection</span>
         </a>
       </li>
@@ -64,7 +64,7 @@
         <a href="/projects/<%= currentProject.slug %>/domains"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/domains`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">◈</span>
+          <%- include('icon', { name: 'domain', className: 'sidebar__icon' }) %>
           <span>Domains</span>
         </a>
       </li>
@@ -73,7 +73,7 @@
         <a href="/projects/<%= currentProject.slug %>/environment"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/environment`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">⚿</span>
+          <%- include('icon', { name: 'environment', className: 'sidebar__icon' }) %>
           <span>Environment</span>
         </a>
       </li>
@@ -81,7 +81,7 @@
         <a href="/projects/<%= currentProject.slug %>/members"
            class="sidebar__link"
            <%= currentPath.startsWith(`/projects/${currentProject.slug}/members`) ? 'aria-current="page"' : '' %>>
-          <span aria-hidden="true">◑</span>
+          <%- include('icon', { name: 'users', className: 'sidebar__icon' }) %>
           <span>Members</span>
         </a>
       </li>
@@ -100,7 +100,7 @@
           class="sidebar__link"
           <%= _path === '/admin' ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◈</span>
+          <%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %>
           <span>Overview</span>
         </a>
       </li>
@@ -110,7 +110,7 @@
           class="sidebar__link"
           <%= _path.startsWith('/admin/users') ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◉</span>
+          <%- include('icon', { name: 'users', className: 'sidebar__icon' }) %>
           <span>Users</span>
         </a>
       </li>
@@ -120,7 +120,7 @@
           class="sidebar__link"
           <%= _path.startsWith('/admin/projects') ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◧</span>
+          <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
           <span>All Projects</span>
         </a>
       </li>
@@ -130,7 +130,7 @@
           class="sidebar__link"
           <%= _path.startsWith('/admin/approval-requests') ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◎</span>
+          <%- include('icon', { name: 'reviews', className: 'sidebar__icon' }) %>
           <span>Reviews</span>
         </a>
       </li>
@@ -140,7 +140,7 @@
           class="sidebar__link"
           <%= currentPath.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◷</span>
+          <%- include('icon', { name: 'audit', className: 'sidebar__icon' }) %>
           <span>Audit Log</span>
         </a>
       </li>
@@ -150,7 +150,7 @@
           class="sidebar__link"
           <%= currentPath.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
         >
-          <span aria-hidden="true">◫</span>
+          <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
           <span>Server</span>
         </a>
       </li>

@@ -8,7 +8,7 @@
 
 <% if (projects.length === 0) { %>
 <div class="empty-state">
-  <div class="empty-state__icon" aria-hidden="true">◫</div>
+  <div class="empty-state__icon"><%- include('../partials/icon', { name: 'projects' }) %></div>
   <h2 class="empty-state__title">No projects yet</h2>
   <p class="empty-state__description">Start with a project, then connect source code and run detection before the first deploy.</p>
   <ul class="empty-state__steps">

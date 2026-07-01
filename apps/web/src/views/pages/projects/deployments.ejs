@@ -154,11 +154,11 @@
 <% if (totalPages > 1) { %>
 <div class="pagination mt-4">
   <% if (page > 1) { %>
-  <a href="?page=<%= page - 1 %>" class="button button--ghost button--sm">← Previous</a>
+  <a href="?page=<%= page - 1 %>" class="button button--ghost button--sm">Previous</a>
   <% } %>
   <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %> (<%= total %> deployments)</span>
   <% if (page < totalPages) { %>
-  <a href="?page=<%= page + 1 %>" class="button button--ghost button--sm">Next →</a>
+  <a href="?page=<%= page + 1 %>" class="button button--ghost button--sm">Next</a>
   <% } %>
 </div>
 <% } %>

@@ -10,8 +10,8 @@
     </a>
     <nav class="header__nav" aria-label="Primary navigation">
       <button class="header__theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" aria-pressed="false" data-tooltip="Switch to dark theme">
-        <span class="theme-icon theme-icon--light" aria-hidden="true">☀</span>
-        <span class="theme-icon theme-icon--dark" aria-hidden="true">☾</span>
+        <%- include('icon', { name: 'sun', className: 'theme-icon theme-icon--light' }) %>
+        <%- include('icon', { name: 'moon', className: 'theme-icon theme-icon--dark' }) %>
       </button>
     </nav>
   </div>

@@ -1,19 +1,19 @@
 <% var _flash = locals.flash || {}; %>
 <% if (_flash.success) { %>
 <div class="flash flash--success" role="alert" aria-live="polite">
-  <span class="flash__icon" aria-hidden="true">✓</span>
+  <%- include('icon', { name: 'check', className: 'flash__icon' }) %>
   <span><%= _flash.success %></span>
 </div>
 <% } %>
 <% if (_flash.error) { %>
 <div class="flash flash--error" role="alert" aria-live="assertive">
-  <span class="flash__icon" aria-hidden="true">✕</span>
+  <%- include('icon', { name: 'x', className: 'flash__icon' }) %>
   <span><%= _flash.error %></span>
 </div>
 <% } %>
 <% if (_flash.info) { %>
 <div class="flash flash--info" role="status" aria-live="polite">
-  <span class="flash__icon" aria-hidden="true">ℹ</span>
+  <%- include('icon', { name: 'info', className: 'flash__icon' }) %>
   <span><%= _flash.info %></span>
 </div>
 <% } %>

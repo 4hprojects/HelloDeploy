@@ -94,6 +94,10 @@
   background: var(--color-orange-light);
   color: var(--color-orange);
 }
+.sidebar__icon {
+  width: 1rem;
+  height: 1rem;
+}
 
 /* ── Main content ────────────────────────────────────────────────── */
 .layout__main {
