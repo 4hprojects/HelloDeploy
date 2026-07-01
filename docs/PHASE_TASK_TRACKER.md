@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-01T18:50:24+08:00
+Updated: 2026-07-01T20:30:11+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -17,7 +17,7 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 
 - Update `Status`, `Acceptance Evidence`, and `Updated` whenever a tracker item changes.
 - Link to supporting docs, commits, test output summaries, or reports where applicable.
-- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md), and [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).
+- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md), [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md), and [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).
 - Do not mark host-level validation `Done` unless it was run against the target host or an equivalent explicitly documented environment.
 
 ## Phase 8: Deployment Experience and Rollback
@@ -80,3 +80,4 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | X-02 | Pending | Keep documentation index aligned.            | New or moved markdown files are linked from [Documentation Index](README.md).                                        | 2026-07-01T18:50:24+08:00 |
 | X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md). | 2026-07-01T18:50:24+08:00 |
 | X-04 | Pending | Keep worklog entries timestamped.            | Each implementation pass has started/completed timestamps in [WORKLOG.md](../WORKLOG.md).                            | 2026-07-01T18:50:24+08:00 |
+| X-05 | Pending | Keep UI/UX backlog aligned.                  | UI/UX implementation changes update [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).                       | 2026-07-01T20:30:11+08:00 |

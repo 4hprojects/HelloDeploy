@@ -1,5 +1,25 @@
 # Worklog
 
+## UI/UX Improvement Backlog
+
+- Status: Completed
+- Started: 2026-07-01T20:30:11+08:00
+- Completed: 2026-07-01T20:30:11+08:00
+
+### Checklist
+
+- [x] Create a dedicated markdown backlog for UI/UX improvements.
+- [x] Organize planned work by priority, area, status, implementation notes, and acceptance evidence.
+- [x] Link the backlog from the documentation index.
+- [x] Cross-reference the backlog from the phase task tracker.
+- [x] Document update rules for future UI/UX implementation passes.
+
+### Results
+
+- Added `docs/UI_UX_IMPROVEMENT_BACKLOG.md` for planned usability, efficiency, confirmation, tooltip, floating-label, scroll-to-top, responsive, theme, and accessibility work.
+- Linked the backlog from `docs/README.md`.
+- Updated `docs/PHASE_TASK_TRACKER.md` so future UI/UX implementation changes keep the backlog aligned.
+
 ## Phase Task Tracker
 
 - Status: Completed
