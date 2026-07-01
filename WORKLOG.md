@@ -39,6 +39,27 @@
 - Source scan used `rg -n "<script|on[a-z]+=" apps/web/src/views apps/web/public`.
 - Sink scan used `rg -n "javascript:|innerHTML|insertAdjacentHTML|document\\.write|eval\\(|new Function" apps/web/src/views apps/web/public apps/web/src`.
 
+## Efficiency And UX Follow-Up Pass
+
+- Status: Completed
+- Started: 2026-07-02T06:43:00+08:00
+- Completed: 2026-07-02T06:47:00+08:00
+
+### Results
+
+- Reviewed project membership, deployment, domain, and audit event model indexes.
+- Confirmed membership, deployment, and domain indexes already cover the reviewed high-traffic paths.
+- Added audit event compound indexes for `outcome`, `targetType`, and `targetId` filters with `createdAt` sort support.
+- Added source-level regression coverage for the high-traffic model indexes.
+- Queued SSE stream cap/reconnect UX and operational error-copy follow-ups in today's remediation checklist.
+
+### Verification
+
+- `node --test tests/operations/database-indexes.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 469 tests, 0 failures.
+- `npm run format:check` passed.
+
 ## P8-07 Live Progress Verification
 
 - Status: Completed

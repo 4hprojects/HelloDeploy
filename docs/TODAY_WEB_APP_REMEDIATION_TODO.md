@@ -93,22 +93,29 @@ Follow-up CSP implementation order:
 
 Status target: document and queue today; implement only if low-risk and time remains.
 
-Status: pending; next task after CSP prep unless priorities change.
+Status: completed 2026-07-02T06:47:00+08:00.
 
-- [ ] Review Mongo indexes needed by high-traffic paths.
-  - [ ] `ProjectMembership.userId`
-  - [ ] `ProjectMembership.projectId`
-  - [ ] `Deployment.projectId + sequenceNumber`
-  - [ ] `Domain.hostnameNormalized`
-  - [ ] `AuditEvent.createdAt/action/outcome`
-- [ ] Add an SSE scalability follow-up.
-  - [ ] Track simultaneous stream limits per user/IP.
-  - [ ] Consider reconnect UX after the 6-minute stream timeout.
-- [ ] Improve operational error copy for common deployment/domain failures.
-  - [ ] queue unavailable
-  - [ ] repository access inactive
-  - [ ] DNS not propagated
-  - [ ] deployment already in progress
+- [x] Review Mongo indexes needed by high-traffic paths.
+  - [x] `ProjectMembership.userId`: already indexed.
+  - [x] `ProjectMembership.projectId`: covered by existing project/role and project/user indexes.
+  - [x] `Deployment.projectId + sequenceNumber`: already indexed and unique.
+  - [x] `Domain.hostnameNormalized`: already indexed and unique.
+  - [x] `AuditEvent.createdAt/action/outcome`: action/date existed; added outcome/date, targetType/date, and targetId/date indexes for audit search/export filters.
+- [x] Add an SSE scalability follow-up.
+  - [x] Track simultaneous stream limits per user/IP.
+  - [x] Consider reconnect UX after the 6-minute stream timeout.
+- [x] Improve operational error copy for common deployment/domain failures.
+  - [x] queue unavailable
+  - [x] repository access inactive
+  - [x] DNS not propagated
+  - [x] deployment already in progress
+
+Follow-up implementation queue:
+
+1. Add per-user/IP caps for active SSE deployment log streams.
+2. Add browser reconnect behavior or an explicit reconnect control after SSE timeout.
+3. Rewrite common deployment/domain service errors into action-oriented UI copy.
+4. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
 
 ## Phase 6: Documentation and Closeout
 

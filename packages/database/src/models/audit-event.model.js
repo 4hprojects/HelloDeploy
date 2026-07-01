@@ -65,6 +65,9 @@ const auditEventSchema = new Schema(
 
 auditEventSchema.index({ actorId: 1, createdAt: -1 });
 auditEventSchema.index({ action: 1, createdAt: -1 });
+auditEventSchema.index({ outcome: 1, createdAt: -1 });
+auditEventSchema.index({ targetType: 1, createdAt: -1 });
+auditEventSchema.index({ targetId: 1, createdAt: -1 });
 auditEventSchema.index({ correlationId: 1 });
 // 7-day retention policy enforced by TTL index (per blueprint)
 auditEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
