@@ -63,17 +63,31 @@ Status: completed 2026-07-02T06:40:31+08:00.
 
 Status target: prepare scope today; implement only if Phases 1-3 finish with time remaining.
 
-Status: pending; next task after this commit.
+Status: completed 2026-07-02T06:43:00+08:00.
 
-- [ ] Inventory inline scripts that block CSP enablement.
-  - [ ] `apps/web/src/views/partials/head.ejs`
-  - [ ] reusable password/theme/form/modal/sidebar/log-viewer scripts
-  - [ ] any page-specific inline scripts
-- [ ] Decide CSP path.
-  - [ ] Static external JS for reusable behavior.
-  - [ ] Per-request nonce for unavoidable inline bootstraps.
-  - [ ] Helmet CSP directives for `script-src`, `connect-src`, `img-src`, `style-src`, and Turnstile.
-- [ ] Create a follow-up CSP implementation task if it cannot be finished today.
+- [x] Inventory inline scripts that block CSP enablement.
+  - [x] `apps/web/src/views/partials/head.ejs` theme bootstrap.
+  - [x] `apps/web/src/views/partials/footer.ejs` tooltip, scroll-to-top, confirmation modal, and pending-submit handlers.
+  - [x] `apps/web/src/views/partials/header.ejs` mobile sidebar/theme toggle handler.
+  - [x] `apps/web/src/views/partials/password-field.ejs` password visibility handler.
+  - [x] `apps/web/src/views/partials/password-requirements.ejs` password strength handler.
+  - [x] `apps/web/src/views/pages/projects/deployment-detail.ejs` EventSource live log handler.
+  - [x] `apps/web/src/views/pages/projects/repository.ejs` repository branch loading handler.
+  - [x] `apps/web/src/views/pages/projects/members.ejs` inline `onchange="this.form.submit()"`.
+- [x] Decide CSP path.
+  - [x] Static external JS for reusable behavior.
+  - [x] Per-request nonce for the early theme bootstrap if it must remain render-blocking.
+  - [x] Helmet CSP directives for `script-src`, `connect-src`, `img-src`, `style-src`, and Turnstile.
+- [x] Create a follow-up CSP implementation task if it cannot be finished today.
+
+Follow-up CSP implementation order:
+
+1. Move shared footer/header/password scripts into `/public/js/app.js`.
+2. Replace `members.ejs` inline `onchange` with a delegated `data-auto-submit` listener.
+3. Replace repository `innerHTML` option resets with DOM-created `option` nodes.
+4. Move deployment live-log and repository branch handlers into page modules using data attributes for dynamic URLs/IDs.
+5. Add a nonce middleware for the head theme bootstrap or move to a tiny blocking static asset.
+6. Enable Helmet CSP in report-only mode first, then enforce after violations are clean.
 
 ## Phase 5: Efficiency and UX Follow-Ups
 

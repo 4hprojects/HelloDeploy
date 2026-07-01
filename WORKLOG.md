@@ -21,6 +21,24 @@
 - `npm test` passed: 465 tests, 0 failures.
 - `npm run format:check` passed.
 
+## CSP Migration Prep
+
+- Status: Completed
+- Started: 2026-07-02T06:41:00+08:00
+- Completed: 2026-07-02T06:43:00+08:00
+
+### Results
+
+- Inventoried current inline script and inline handler blockers for CSP.
+- Identified reusable scripts that should move into static JS.
+- Identified one inline event handler and repository `innerHTML` assignments to remove before CSP enforcement.
+- Queued the CSP migration order in today's remediation checklist.
+
+### Verification
+
+- Source scan used `rg -n "<script|on[a-z]+=" apps/web/src/views apps/web/public`.
+- Sink scan used `rg -n "javascript:|innerHTML|insertAdjacentHTML|document\\.write|eval\\(|new Function" apps/web/src/views apps/web/public apps/web/src`.
+
 ## P8-07 Live Progress Verification
 
 - Status: Completed

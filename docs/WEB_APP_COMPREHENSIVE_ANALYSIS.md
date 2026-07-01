@@ -18,6 +18,7 @@ The most important issue found is a cross-project authorization gap in several m
 Remediation status:
 
 - 2026-07-02: P0 deployment/domain cross-project mutation issues were remediated by scoping cancel/retry and verify/remove service queries to the authorized project ID. Regression tests were added and local quality gates passed.
+- 2026-07-02: CSP blockers were inventoried. Follow-up implementation should externalize shared scripts, remove inline handlers, remove repository `innerHTML` option resets, and introduce nonce/report-only CSP before enforcement.
 
 Automated checks:
 
