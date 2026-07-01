@@ -215,7 +215,11 @@
         <p class="text-sm text-muted">The application will be stopped and the project will be read-only.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/archive"
-            data-confirm='Archive <%= project.name %>? The application will be stopped.'>
+            data-confirm="Archive <%= project.name %>? The application will be stopped and the project will become read-only."
+            data-confirm-title="Archive project"
+            data-confirm-accept-label="Archive Project"
+            data-confirm-pending-label="Archiving..."
+            data-confirm-variant="danger">
         <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--danger button--sm">Archive</button>
       </form>

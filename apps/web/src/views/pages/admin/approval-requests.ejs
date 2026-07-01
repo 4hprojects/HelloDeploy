@@ -65,7 +65,11 @@
           </div>
         </form>
         <form method="POST" action="/admin/approval-requests/<%= r._id %>/review"
-              data-confirm="Reject this request?"
+              data-confirm="Reject this review request and keep the project from being approved?"
+              data-confirm-title="Reject request"
+              data-confirm-accept-label="Reject Request"
+              data-confirm-pending-label="Rejecting..."
+              data-confirm-variant="danger"
               style="display:inline;">
           <%- include('../../partials/csrf-field') %>
           <input type="hidden" name="decision" value="REJECTED">

@@ -1,5 +1,32 @@
 # Worklog
 
+## UX-09 Destructive Action Consistency
+
+- Status: Completed
+- Started: 2026-07-01T23:42:50+08:00
+- Completed: 2026-07-01T23:44:58+08:00
+
+### Checklist
+
+- [x] Add severity-aware confirmation modal metadata.
+- [x] Add pending/disabled state for confirmed risky submissions.
+- [x] Style warning and success button variants already used by risky controls.
+- [x] Standardize confirm copy, titles, accept labels, and severity on project risky actions.
+- [x] Standardize confirm copy, titles, accept labels, and severity on admin risky actions.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Extended `apps/web/src/views/partials/footer.ejs` so `data-confirm` actions can define title, severity, accept label, and pending copy.
+- Added shared warning/success button styling and severity-specific confirmation modal eyebrow styling in `apps/web/public/css/components.css`.
+- Updated archive, suspend, delete, disconnect, rollback, cancel, queue, member, and domain review actions with consistent safety copy.
+- Added `tests/ui/destructive-actions.test.js` and expanded `tests/ui/confirmation-modal.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/confirmation-modal.test.js tests/ui/destructive-actions.test.js`.
+
 ## UX-08 Guided Empty States
 
 - Status: Completed

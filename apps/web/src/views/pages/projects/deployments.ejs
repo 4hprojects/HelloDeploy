@@ -28,7 +28,11 @@
   </div>
   <div class="card__body">
     <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
-          data-confirm="Roll back to this deployment?">
+          data-confirm="Roll back production traffic to the selected retained healthy deployment?"
+          data-confirm-title="Roll back deployment"
+          data-confirm-accept-label="Roll Back"
+          data-confirm-pending-label="Rolling back..."
+          data-confirm-variant="warning">
       <%- include('../../partials/csrf-field') %>
       <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
       <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
@@ -122,7 +126,11 @@
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
-                    data-confirm='Cancel this deployment?'>
+                    data-confirm="Cancel this deployment before it completes?"
+                    data-confirm-title="Cancel deployment"
+                    data-confirm-accept-label="Cancel Deployment"
+                    data-confirm-pending-label="Cancelling..."
+                    data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--danger button--sm" data-tooltip="Cancel this deployment before it completes.">Cancel</button>
               </form>

@@ -47,11 +47,21 @@
           </td>
           <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">
-              <form method="POST" action="/admin/domains/<%= d._id %>/approve">
+              <form method="POST" action="/admin/domains/<%= d._id %>/approve"
+                    data-confirm="Approve <%= d.hostnameNormalized %> and queue route activation?"
+                    data-confirm-title="Approve domain"
+                    data-confirm-accept-label="Approve Domain"
+                    data-confirm-pending-label="Approving..."
+                    data-confirm-variant="success">
                 <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--success button--sm" data-tooltip="Approve this verified domain and queue route activation.">Approve</button>
               </form>
-              <form method="POST" action="/admin/domains/<%= d._id %>/reject">
+              <form method="POST" action="/admin/domains/<%= d._id %>/reject"
+                    data-confirm="Reject <%= d.hostnameNormalized %> and keep routing inactive?"
+                    data-confirm-title="Reject domain"
+                    data-confirm-accept-label="Reject Domain"
+                    data-confirm-pending-label="Rejecting..."
+                    data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
                 <input type="text" name="reason" placeholder="Rejection reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the rejection.">
                 <button type="submit" class="button button--danger button--sm" data-tooltip="Reject this domain request and keep routing inactive.">Reject</button>

@@ -160,12 +160,20 @@
   if (!modal) return;
 
   var dialog = modal.querySelector('.confirm-modal__dialog');
+  var eyebrow = modal.querySelector('.confirm-modal__eyebrow');
+  var title = document.getElementById('confirm-modal-title');
   var message = document.getElementById('confirm-modal-message');
   var acceptButton = modal.querySelector('[data-confirm-accept]');
   var cancelButtons = modal.querySelectorAll('[data-confirm-cancel]');
   var pendingTarget = null;
   var pendingSubmitter = null;
   var lastFocus = null;
+  var acceptLabel = 'Confirm';
+  var acceptClassByVariant = {
+    danger: 'button--danger',
+    warning: 'button--warning',
+    success: 'button--success',
+  };
 
   function focusableElements() {
     return Array.prototype.slice.call(
@@ -179,20 +187,38 @@
 
   function closeModal() {
     modal.hidden = true;
+    modal.removeAttribute('aria-busy');
     document.body.classList.remove('confirm-modal-open');
     pendingTarget = null;
     pendingSubmitter = null;
+    if (acceptButton) acceptButton.disabled = false;
     if (lastFocus && typeof lastFocus.focus === 'function') {
       lastFocus.focus();
     }
     lastFocus = null;
   }
 
+  function setAcceptButton(target) {
+    if (!acceptButton) return;
+    var variant = target.getAttribute('data-confirm-variant') || 'danger';
+    var variantClass = acceptClassByVariant[variant] || acceptClassByVariant.danger;
+
+    acceptLabel = target.getAttribute('data-confirm-accept-label') || 'Confirm';
+    acceptButton.textContent = acceptLabel;
+    acceptButton.className = 'button ' + variantClass;
+    acceptButton.disabled = false;
+  }
+
   function openModal(msg, target, trigger) {
     pendingTarget = target;
     lastFocus = trigger || document.activeElement;
+    modal.removeAttribute('aria-busy');
+    modal.classList.remove('confirm-modal--danger', 'confirm-modal--warning', 'confirm-modal--success');
+    modal.classList.add('confirm-modal--' + (target.getAttribute('data-confirm-variant') || 'danger'));
+    if (eyebrow) eyebrow.textContent = target.getAttribute('data-confirm-eyebrow') || 'Confirm action';
+    if (title) title.textContent = target.getAttribute('data-confirm-title') || 'Continue?';
     message.textContent = msg;
-    if (acceptButton) acceptButton.disabled = false;
+    setAcceptButton(target);
     modal.hidden = false;
     document.body.classList.add('confirm-modal-open');
     requestAnimationFrame(function () {
@@ -205,14 +231,18 @@
     var target = pendingTarget;
     var submitter = pendingSubmitter && pendingSubmitter.form === target ? pendingSubmitter : null;
 
-    modal.hidden = true;
-    document.body.classList.remove('confirm-modal-open');
+    modal.setAttribute('aria-busy', 'true');
+    if (acceptButton) {
+      acceptButton.disabled = true;
+      acceptButton.textContent = target.getAttribute('data-confirm-pending-label') || 'Working...';
+    }
+    if (submitter) submitter.disabled = true;
+
     pendingTarget = null;
     pendingSubmitter = null;
 
     if (target.tagName === 'FORM') {
       target.setAttribute('data-confirmed', '1');
-      if (acceptButton) acceptButton.disabled = true;
       if (target.requestSubmit) {
         target.requestSubmit(submitter || undefined);
       } else {
@@ -224,6 +254,9 @@
     if (target.tagName === 'A' && target.href) {
       window.location.assign(target.href);
     }
+
+    modal.hidden = true;
+    document.body.classList.remove('confirm-modal-open');
   }
 
   document.addEventListener('click', function (e) {

@@ -23,13 +23,21 @@
     <p class="text-muted text-sm mb-4"><%= maintenance.message %></p>
     <% } %>
     <form method="POST" action="/admin/server/maintenance/disable"
-          data-confirm="Disable maintenance mode and allow user mutations again?">
+          data-confirm="Disable maintenance mode and allow user mutations again?"
+          data-confirm-title="Disable maintenance"
+          data-confirm-accept-label="Disable Maintenance"
+          data-confirm-pending-label="Disabling..."
+          data-confirm-variant="success">
       <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--success" data-tooltip="Allow users to create, update, and deploy again.">Disable Maintenance</button>
     </form>
     <% } else { %>
     <form method="POST" action="/admin/server/maintenance/enable"
-          data-confirm="Enable maintenance mode? User mutations will be paused.">
+          data-confirm="Enable maintenance mode? User mutations will be paused."
+          data-confirm-title="Enable maintenance"
+          data-confirm-accept-label="Enable Maintenance"
+          data-confirm-pending-label="Enabling..."
+          data-confirm-variant="warning">
       <%- include('../../partials/csrf-field') %>
       <div class="form-group form-group--floating mb-4">
         <label class="form-label" for="maintenance-message">User-facing message</label>
@@ -118,7 +126,11 @@
       </form>
       <% } else { %>
       <form method="POST" action="/admin/server/queue/pause"
-            data-confirm='Pause the deployment queue? Running jobs will finish, but no new jobs will start.'>
+            data-confirm="Pause the deployment queue? Running jobs will finish, but no new jobs will start."
+            data-confirm-title="Pause deployment queue"
+            data-confirm-accept-label="Pause Queue"
+            data-confirm-pending-label="Pausing..."
+            data-confirm-variant="warning">
         <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--warning" data-tooltip="Stop new deployment jobs from starting; running jobs can finish.">Pause Queue</button>
       </form>

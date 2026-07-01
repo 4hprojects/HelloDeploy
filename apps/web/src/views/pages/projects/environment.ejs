@@ -94,7 +94,11 @@
             <td class="text-right" data-label="Actions">
               <form method="POST"
                     action="/projects/<%= project.slug %>/environment/<%= secret.name %>/delete"
-                    data-confirm='Delete <%= secret.name %>? This cannot be undone.'>
+                    data-confirm="Delete <%= secret.name %>? This cannot be undone and the value cannot be recovered."
+                    data-confirm-title="Delete secret"
+                    data-confirm-accept-label="Delete Secret"
+                    data-confirm-pending-label="Deleting..."
+                    data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--danger button--sm">Delete</button>
               </form>

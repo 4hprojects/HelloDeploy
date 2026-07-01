@@ -63,7 +63,11 @@
           </form>
           <% } else if (u.status === 'ACTIVE' && u.platformRole !== 'SUPER_ADMIN') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/suspend" style="display:inline;"
-                data-confirm='Suspend <%= u.firstName %> <%= u.lastName %>?'>
+                data-confirm="Suspend <%= u.firstName %> <%= u.lastName %> and block account access?"
+                data-confirm-title="Suspend user"
+                data-confirm-accept-label="Suspend User"
+                data-confirm-pending-label="Suspending..."
+                data-confirm-variant="warning">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>

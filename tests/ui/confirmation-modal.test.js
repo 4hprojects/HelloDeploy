@@ -20,6 +20,10 @@ describe('confirmation modal UI', () => {
     assert.match(footer, /data-confirm-accept/);
     assert.match(footer, /data-confirm-cancel/);
     assert.match(footer, /acceptButton\.disabled = false/);
+    assert.match(footer, /data-confirm-title/);
+    assert.match(footer, /data-confirm-accept-label/);
+    assert.match(footer, /data-confirm-variant/);
+    assert.match(footer, /data-confirm-pending-label/);
   });
 
   it('does not rely on browser default confirm dialogs', () => {
@@ -36,6 +40,8 @@ describe('confirmation modal UI', () => {
   it('defines modal styling and removes the old inline confirm bar pattern', () => {
     assert.match(componentsCss, /\.confirm-modal/);
     assert.match(componentsCss, /\.confirm-modal__dialog/);
+    assert.match(componentsCss, /\.confirm-modal--warning/);
+    assert.match(componentsCss, /\.confirm-modal--success/);
     assert.doesNotMatch(componentsCss, /\.confirm-bar/);
   });
 });

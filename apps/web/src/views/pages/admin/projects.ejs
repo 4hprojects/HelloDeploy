@@ -62,7 +62,11 @@
           </form>
           <% } else if (p.status === 'ACTIVE' || p.status === 'DRAFT') { %>
           <form method="POST" action="/admin/projects/<%= p._id %>/suspend" style="display:inline;"
-                data-confirm='Suspend project <%= p.name %>?'>
+                data-confirm="Suspend project <%= p.name %> and pause user access to it?"
+                data-confirm-title="Suspend project"
+                data-confirm-accept-label="Suspend Project"
+                data-confirm-pending-label="Suspending..."
+                data-confirm-variant="warning">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>

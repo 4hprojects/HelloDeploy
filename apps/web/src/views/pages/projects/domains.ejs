@@ -134,7 +134,11 @@
               <% } %>
               <% if (membership.role === 'OWNER') { %>
               <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/remove"
-                    data-confirm='Remove <%= d.hostnameNormalized %>? This cannot be undone.'>
+                    data-confirm="Remove <%= d.hostnameNormalized %> from this project?"
+                    data-confirm-title="Remove domain"
+                    data-confirm-accept-label="Remove Domain"
+                    data-confirm-pending-label="Removing..."
+                    data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
                 <button type="submit" class="button button--danger button--sm" data-tooltip="Remove this custom domain from the project.">Remove</button>
               </form>

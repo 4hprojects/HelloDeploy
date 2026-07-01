@@ -43,7 +43,11 @@
           <td class="text-right" data-label="Actions">
             <% if (m.role !== 'OWNER') { %>
             <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/remove"
-                  data-confirm='Remove <%= m.userId.firstName %> from this project?'>
+                  data-confirm="Remove <%= m.userId.firstName %> from this project?"
+                  data-confirm-title="Remove member"
+                  data-confirm-accept-label="Remove Member"
+                  data-confirm-pending-label="Removing..."
+                  data-confirm-variant="danger">
               <%- include('../../partials/csrf-field') %>
               <button type="submit" class="button button--ghost button--sm">Remove</button>
             </form>
@@ -110,12 +114,16 @@
     <h2 class="card__title mb-2">Transfer Ownership</h2>
     <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
     <form method="POST" action="/projects/<%= project.slug %>/transfer-ownership"
-          data-confirm='Transfer ownership? You will lose owner privileges.'>
+          data-confirm="Transfer ownership? You will become a Maintainer and lose owner privileges."
+          data-confirm-title="Transfer ownership"
+          data-confirm-accept-label="Transfer Ownership"
+          data-confirm-pending-label="Transferring..."
+          data-confirm-variant="warning">
       <%- include('../../partials/csrf-field') %>
       <div class="form-row">
         <div class="form-field form-field--floating">
           <label for="newOwnerId" class="form-label form-label--required">New owner</label>
-          <select id="newOwnerId" name="newOwnerId" class="form-select">
+          <select id="newOwnerId" name="newOwnerId" class="form-select" required>
             <option value="">Select member…</option>
             <% members.filter(m => m.role !== 'OWNER').forEach(m => { %>
             <option value="<%= m.userId._id %>">

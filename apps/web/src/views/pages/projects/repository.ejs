@@ -75,7 +75,11 @@
         <p class="text-sm text-muted">This will stop automatic deploys. Existing deployments are not affected.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/repository/disconnect"
-            data-confirm='Disconnect <%= currentRepo.fullName %>?'>
+            data-confirm="Disconnect <%= currentRepo.fullName %> and stop automatic deploys?"
+            data-confirm-title="Disconnect repository"
+            data-confirm-accept-label="Disconnect"
+            data-confirm-pending-label="Disconnecting..."
+            data-confirm-variant="danger">
         <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--danger button--sm">Disconnect</button>
       </form>
