@@ -1,7 +1,8 @@
 import { Repository, Project } from '@hellodeploy/database';
-import { DeploymentMode, ProjectStatus } from '@hellodeploy/contracts';
+import { DeploymentMode, ProjectStatus, DeploymentTrigger } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { verifyWebhookSignature } from '../services/github.service.js';
+import { createDeployment } from '../services/deployment.service.js';
 
 // ─── Delivery deduplication (in-memory, 1-hour window) ────────────────────────
 // Replaced with Redis-backed set in Phase 5.
@@ -55,7 +56,13 @@ function hasHighRiskChanges(commits) {
 
 // ─── Event handlers ───────────────────────────────────────────────────────────
 
-async function handlePushEvent(payload, _correlationId) {
+const defaultPushDeps = {
+  Repository,
+  Project,
+  createDeployment,
+};
+
+export async function handlePushEvent(payload, correlationId, deps = defaultPushDeps) {
   const { repository, ref, after: newSha, head_commit, commits, installation } = payload;
   const installationId = installation?.id;
   const repoFullName = repository?.full_name;
@@ -65,7 +72,7 @@ async function handlePushEvent(payload, _correlationId) {
     return; // Branch deletion push — ignore
   }
 
-  const repoRecord = await Repository.findOne({
+  const repoRecord = await deps.Repository.findOne({
     installationId,
     fullName: repoFullName,
     accessStatus: 'ACTIVE',
@@ -82,7 +89,7 @@ async function handlePushEvent(payload, _correlationId) {
   repoRecord.lastCommitAt = new Date();
   await repoRecord.save();
 
-  const project = await Project.findById(repoRecord.projectId);
+  const project = await deps.Project.findById(repoRecord.projectId);
   if (!project || project.status !== ProjectStatus.ACTIVE) {
     return;
   }
@@ -104,10 +111,26 @@ async function handlePushEvent(payload, _correlationId) {
   }
 
   if (project.deploymentMode === DeploymentMode.AUTOMATIC) {
-    // TODO Phase 5: enqueue VALIDATE_PROJECT + BUILD_DEPLOYMENT jobs
-    logger.info('Webhook: automatic deployment would be queued here', {
+    const result = await deps.createDeployment({
+      projectId: project._id,
+      actorId: project.ownerId,
+      triggerType: DeploymentTrigger.AUTOMATIC,
+      correlationId,
+    });
+
+    if (!result.success) {
+      logger.warn('Webhook: automatic deployment was not queued', {
+        projectId: project._id.toString(),
+        commitSha: newSha.slice(0, 7),
+        error: result.error,
+      });
+      return;
+    }
+
+    logger.info('Webhook: automatic deployment queued', {
       projectId: project._id.toString(),
       commitSha: newSha.slice(0, 7),
+      deploymentId: result.deployment?._id?.toString(),
     });
   }
   // MANUAL mode: commit indicator already updated via repoRecord.lastCommitSha

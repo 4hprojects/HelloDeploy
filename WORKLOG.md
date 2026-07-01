@@ -138,6 +138,52 @@
 - Confirmed rendered create-account page includes `acceptTerms`, Cookie Policy, Legal Policies, `/cookies`, and `/legal`.
 - Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
 
+## P7 GitHub Webhook Deployment Queue Integration
+
+- Status: Completed
+- Started: 2026-07-01T08:04:09+08:00
+- Completed: 2026-07-01T08:05:58+08:00
+
+### Plan
+
+- Reuse `createDeployment` from the deployment service for automatic deployments instead of duplicating deployment record, queue, and audit logic.
+- Keep webhook response behavior unchanged: validate signature/replay, return `200 OK` quickly, then process the event asynchronously.
+- Preserve current push handling:
+  - Ignore branch deletion pushes.
+  - Ignore repositories not tracked by HelloDeploy.
+  - Always update repository latest commit metadata for tracked repositories.
+  - Ignore inactive, suspended, draft, or archived projects.
+  - Ignore pushes to non-production branches.
+  - Pause deployment for high-risk file changes and log the pause.
+  - Do not deploy when the project is in manual mode.
+- For `AUTOMATIC` mode on the production branch with safe changes:
+  - Use `project.ownerId` as the actor because deployment records require `requestedBy`.
+  - Call `createDeployment` with `triggerType: AUTOMATIC`, `projectId`, `actorId`, and webhook `correlationId`.
+  - Log successful queueing with project ID, short commit SHA, and deployment ID.
+  - Log failed queueing with project ID, short commit SHA, and the returned error; do not fail the already-acknowledged webhook response.
+- Add focused tests for webhook push behavior using dependency injection around the push handler:
+  - Automatic production-branch push creates one automatic deployment request.
+  - Manual production-branch push updates commit metadata but does not create a deployment.
+  - Non-production branch push updates commit metadata but does not create a deployment.
+  - High-risk file changes do not create a deployment.
+- Run final verification commands and push after completion.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Wire automatic webhook push handling to `createDeployment`.
+- [x] Add focused tests for automatic/manual/non-production/high-risk behavior.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Automatic production-branch push webhooks now call `createDeployment` with `triggerType: AUTOMATIC`.
+- Manual mode, non-production branch pushes, and high-risk file changes do not queue deployments.
+- Webhook commit metadata updates remain intact for tracked repositories.
+- Added focused tests for automatic/manual/non-production/high-risk push behavior.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P2 Browser Smoke Test
 
 - Status: Completed
