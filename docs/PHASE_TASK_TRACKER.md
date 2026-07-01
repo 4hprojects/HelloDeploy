@@ -1,6 +1,6 @@
 # Phase Task Tracker
 
-Updated: 2026-07-01T20:30:11+08:00
+Updated: 2026-07-01T20:38:24+08:00
 
 This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
 
@@ -80,4 +80,4 @@ This is the active tracker for remaining HelloDeploy implementation and validati
 | X-02 | Pending | Keep documentation index aligned.            | New or moved markdown files are linked from [Documentation Index](README.md).                                        | 2026-07-01T18:50:24+08:00 |
 | X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md). | 2026-07-01T18:50:24+08:00 |
 | X-04 | Pending | Keep worklog entries timestamped.            | Each implementation pass has started/completed timestamps in [WORKLOG.md](../WORKLOG.md).                            | 2026-07-01T18:50:24+08:00 |
-| X-05 | Pending | Keep UI/UX backlog aligned.                  | UI/UX implementation changes update [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).                       | 2026-07-01T20:30:11+08:00 |
+| X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 implementation updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence.     | 2026-07-01T20:38:24+08:00 |

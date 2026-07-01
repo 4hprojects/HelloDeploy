@@ -9,11 +9,110 @@
     <a href="/service-limits">Service Limits</a>
   </p>
 </footer>
+
+<div
+  class="confirm-modal"
+  id="confirm-modal"
+  role="dialog"
+  aria-modal="true"
+  aria-labelledby="confirm-modal-title"
+  aria-describedby="confirm-modal-message"
+  hidden
+>
+  <div class="confirm-modal__backdrop" data-confirm-cancel></div>
+  <div class="confirm-modal__dialog" role="document" tabindex="-1">
+    <div class="confirm-modal__body">
+      <p class="confirm-modal__eyebrow">Confirm action</p>
+      <h2 class="confirm-modal__title" id="confirm-modal-title">Continue?</h2>
+      <p class="confirm-modal__message" id="confirm-modal-message"></p>
+    </div>
+    <div class="confirm-modal__actions">
+      <button type="button" class="button button--ghost" data-confirm-cancel>Cancel</button>
+      <button type="button" class="button button--danger" data-confirm-accept>Confirm</button>
+    </div>
+  </div>
+</div>
+
 <script>
 (function () {
+  var modal = document.getElementById('confirm-modal');
+  if (!modal) return;
+
+  var dialog = modal.querySelector('.confirm-modal__dialog');
+  var message = document.getElementById('confirm-modal-message');
+  var acceptButton = modal.querySelector('[data-confirm-accept]');
+  var cancelButtons = modal.querySelectorAll('[data-confirm-cancel]');
+  var pendingTarget = null;
   var pendingSubmitter = null;
+  var lastFocus = null;
+
+  function focusableElements() {
+    return Array.prototype.slice.call(
+      modal.querySelectorAll(
+        'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+      ),
+    ).filter(function (el) {
+      return el.offsetParent !== null || el === dialog;
+    });
+  }
+
+  function closeModal() {
+    modal.hidden = true;
+    document.body.classList.remove('confirm-modal-open');
+    pendingTarget = null;
+    pendingSubmitter = null;
+    if (lastFocus && typeof lastFocus.focus === 'function') {
+      lastFocus.focus();
+    }
+    lastFocus = null;
+  }
+
+  function openModal(msg, target, trigger) {
+    pendingTarget = target;
+    lastFocus = trigger || document.activeElement;
+    message.textContent = msg;
+    if (acceptButton) acceptButton.disabled = false;
+    modal.hidden = false;
+    document.body.classList.add('confirm-modal-open');
+    requestAnimationFrame(function () {
+      dialog.focus();
+    });
+  }
+
+  function confirmPending() {
+    if (!pendingTarget) return;
+    var target = pendingTarget;
+    var submitter = pendingSubmitter && pendingSubmitter.form === target ? pendingSubmitter : null;
+
+    modal.hidden = true;
+    document.body.classList.remove('confirm-modal-open');
+    pendingTarget = null;
+    pendingSubmitter = null;
+
+    if (target.tagName === 'FORM') {
+      target.setAttribute('data-confirmed', '1');
+      if (acceptButton) acceptButton.disabled = true;
+      if (target.requestSubmit) {
+        target.requestSubmit(submitter || undefined);
+      } else {
+        target.submit();
+      }
+      return;
+    }
+
+    if (target.tagName === 'A' && target.href) {
+      window.location.assign(target.href);
+    }
+  }
 
   document.addEventListener('click', function (e) {
+    var link = e.target.closest('a[data-confirm]');
+    if (link) {
+      e.preventDefault();
+      openModal(link.getAttribute('data-confirm'), link, link);
+      return;
+    }
+
     var submitter = e.target.closest('button[type="submit"], input[type="submit"]');
     if (submitter && submitter.form) {
       pendingSubmitter = submitter;
@@ -25,48 +124,46 @@
     var msg = form.getAttribute('data-confirm');
     if (!msg || form.getAttribute('data-confirmed')) return;
     e.preventDefault();
-    if (form.querySelector('.confirm-bar')) return;
+    pendingSubmitter = e.submitter && e.submitter.form === form ? e.submitter : pendingSubmitter;
+    openModal(msg, form, pendingSubmitter || form);
+  });
 
-    var bar = document.createElement('div');
-    bar.className = 'confirm-bar';
+  if (acceptButton) {
+    acceptButton.addEventListener('click', confirmPending);
+  }
 
-    var message = document.createElement('span');
-    message.className = 'confirm-bar__msg';
-    message.textContent = msg;
+  cancelButtons.forEach(function (button) {
+    button.addEventListener('click', closeModal);
+  });
 
-    var confirmButton = document.createElement('button');
-    confirmButton.type = 'button';
-    confirmButton.className = 'button button--danger button--sm';
-    confirmButton.textContent = 'Confirm';
+  document.addEventListener('keydown', function (e) {
+    if (modal.hidden) return;
 
-    var cancelButton = document.createElement('button');
-    cancelButton.type = 'button';
-    cancelButton.className = 'button button--ghost button--sm';
-    cancelButton.textContent = 'Cancel';
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      closeModal();
+      return;
+    }
 
-    bar.appendChild(message);
-    bar.appendChild(confirmButton);
-    bar.appendChild(cancelButton);
-    form.appendChild(bar);
+    if (e.key !== 'Tab') return;
 
-    confirmButton.addEventListener('click', function () {
-      var submitter = null;
-      if (e.submitter && e.submitter.form === form) {
-        submitter = e.submitter;
-      } else if (pendingSubmitter && pendingSubmitter.form === form) {
-        submitter = pendingSubmitter;
-      }
+    var focusable = focusableElements();
+    if (focusable.length === 0) {
+      e.preventDefault();
+      dialog.focus();
+      return;
+    }
 
-      form.setAttribute('data-confirmed', '1');
-      if (form.requestSubmit) {
-        form.requestSubmit(submitter || undefined);
-      } else {
-        form.submit();
-      }
-    });
-    cancelButton.addEventListener('click', function () {
-      bar.remove();
-    });
+    var first = focusable[0];
+    var last = focusable[focusable.length - 1];
+
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
   });
 })();
 </script>

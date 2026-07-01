@@ -1,5 +1,27 @@
 # Worklog
 
+## UX-01 Custom Confirmation Modal
+
+- Status: Completed
+- Started: 2026-07-01T20:38:24+08:00
+- Completed: 2026-07-01T20:38:24+08:00
+
+### Checklist
+
+- [x] Replace browser-default confirmation behavior for existing `data-confirm` actions.
+- [x] Support both confirmable forms and links.
+- [x] Add accessible modal markup, focus handling, Escape close, backdrop close, and focus restoration.
+- [x] Add shared modal styling.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Replaced the old inline confirmation bar in `apps/web/src/views/partials/footer.ejs` with a shared modal dialog.
+- Added link and form handling for existing `data-confirm` attributes without broad template rewrites.
+- Added modal styling in `apps/web/public/css/components.css`.
+- Added `tests/ui/confirmation-modal.test.js` to verify modal markup, form/link support, and removal of browser-default confirmation usage.
+
 ## UI/UX Improvement Backlog
 
 - Status: Completed
