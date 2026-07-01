@@ -50,6 +50,21 @@ async function verifyDnsTxtRecord(hostname, tokenHash) {
  *   3. removeRoute: true → remove nginx config for a removed domain
  */
 export async function handleVerifyDomain(job) {
+  return handleVerifyDomainWithDependencies(job);
+}
+
+export async function handleVerifyDomainWithDependencies(
+  job,
+  {
+    DomainModel = Domain,
+    ProjectModel = Project,
+    DeploymentModel = Deployment,
+    verifyDns = verifyDnsTxtRecord,
+    routeActivator = activateRoute,
+    routeRemover = removeRoute,
+    workerEnv = env,
+  } = {},
+) {
   const {
     domainId,
     projectId,
@@ -58,7 +73,7 @@ export async function handleVerifyDomain(job) {
     removeRoute: shouldRemove,
   } = job.data;
 
-  const domain = await Domain.findById(domainId).lean();
+  const domain = await DomainModel.findById(domainId).lean();
   if (!domain) {
     logger.warn('VerifyDomain: domain not found', { domainId });
     return;
@@ -66,13 +81,19 @@ export async function handleVerifyDomain(job) {
 
   // ── Mode: activate nginx route (called after admin approval) ──────────────
   if (shouldActivate) {
-    await activateNginxRoute(domain, projectId, hostname);
+    await activateNginxRoute(domain, projectId, hostname, {
+      DomainModel,
+      ProjectModel,
+      DeploymentModel,
+      routeActivator,
+      workerEnv,
+    });
     return;
   }
 
   // ── Mode: remove nginx route (called on domain removal) ───────────────────
   if (shouldRemove) {
-    await removeNginxRoute(hostname);
+    await removeNginxRoute(hostname, { routeRemover, workerEnv });
     return;
   }
 
@@ -90,10 +111,10 @@ export async function handleVerifyDomain(job) {
     return;
   }
 
-  const verified = await verifyDnsTxtRecord(hostname, domain.verificationTokenHash);
+  const verified = await verifyDns(hostname, domain.verificationTokenHash);
 
   if (verified) {
-    await Domain.updateOne(
+    await DomainModel.updateOne(
       { _id: domainId },
       {
         $set: {
@@ -111,18 +132,39 @@ export async function handleVerifyDomain(job) {
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-async function activateNginxRoute(domain, projectId, hostname) {
-  if (!env.NGINX_ENABLED) {
+export function customDomainRouteSlug(hostname) {
+  const hash = createHash('sha256').update(hostname).digest('hex').slice(0, 16);
+  return `custom-${hash}`;
+}
+
+async function activateNginxRoute(
+  domain,
+  projectId,
+  hostname,
+  { DomainModel, ProjectModel, DeploymentModel, routeActivator, workerEnv },
+) {
+  if (domain.status !== DomainStatus.PENDING_ADMIN_APPROVAL || !domain.approvedAt) {
+    logger.warn('VerifyDomain: custom domain is not approved for route activation', {
+      domainId: domain._id?.toString(),
+      status: domain.status,
+    });
     return;
   }
 
-  const project = await Project.findById(projectId).lean();
+  if (!workerEnv.NGINX_ENABLED) {
+    logger.info('VerifyDomain: nginx disabled, custom domain route activation skipped', {
+      hostname,
+    });
+    return;
+  }
+
+  const project = await ProjectModel.findById(projectId).lean();
   if (!project?.activeDeploymentId) {
     logger.warn('VerifyDomain: no active deployment for nginx route', { projectId });
     return;
   }
 
-  const deployment = await Deployment.findById(project.activeDeploymentId).lean();
+  const deployment = await DeploymentModel.findById(project.activeDeploymentId).lean();
   if (!deployment?.containerPort) {
     logger.warn('VerifyDomain: active deployment has no container port', {
       deploymentId: project.activeDeploymentId,
@@ -140,34 +182,43 @@ async function activateNginxRoute(domain, projectId, hostname) {
   // Override: for custom domains, server_name = full hostname (not subdomain.domain)
   const customConfig = configContent.replace(/server_name .+;/, `server_name ${hostname};`);
 
-  // Slug for the nginx config filename: hash the hostname to a safe filename
-  const slug = hostname.replace(/\./g, '-').replace(/[^a-z0-9-]/gi, '');
+  const slug = customDomainRouteSlug(hostname);
 
   try {
-    await activateRoute({
-      configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
+    await routeActivator({
+      configDir: workerEnv.NGINX_HELLODEPLOY_CONFIG_DIR,
       slug,
       configContent: customConfig,
-      nginxBinary: env.NGINX_BINARY_PATH,
+      nginxBinary: workerEnv.NGINX_BINARY_PATH,
     });
+    await DomainModel.updateOne(
+      { _id: domain._id },
+      {
+        $set: {
+          status: DomainStatus.ACTIVE,
+          activatedAt: new Date(),
+        },
+      },
+    );
     logger.info('VerifyDomain: nginx route activated for custom domain', { hostname });
   } catch (err) {
     logger.error('VerifyDomain: failed to activate nginx route', { hostname, error: err.message });
+    throw err;
   }
 }
 
-async function removeNginxRoute(hostname) {
-  if (!env.NGINX_ENABLED) {
+async function removeNginxRoute(hostname, { routeRemover, workerEnv }) {
+  if (!workerEnv.NGINX_ENABLED) {
     return;
   }
 
-  const slug = hostname.replace(/\./g, '-').replace(/[^a-z0-9-]/gi, '');
+  const slug = customDomainRouteSlug(hostname);
 
   try {
-    await removeRoute({
-      configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
+    await routeRemover({
+      configDir: workerEnv.NGINX_HELLODEPLOY_CONFIG_DIR,
       slug,
-      nginxBinary: env.NGINX_BINARY_PATH,
+      nginxBinary: workerEnv.NGINX_BINARY_PATH,
     });
     logger.info('VerifyDomain: nginx route removed for custom domain', { hostname });
   } catch (err) {

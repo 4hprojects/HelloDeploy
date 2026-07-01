@@ -1,5 +1,38 @@
 # Worklog
 
+## P9 Custom Domains
+
+- Status: Completed
+- Started: 2026-07-01T18:03:54+08:00
+- Completed: 2026-07-01T18:06:49+08:00
+
+### Plan
+
+- Harden custom-domain registration so normalized hostnames cannot be claimed by more than one active project and previously removed domains can be safely reclaimed.
+- Keep ownership verification token values one-time only, store only token hashes, and show provider-neutral DNS instructions to project owners.
+- Ensure only verified domains can enter admin approval and only admin-approved domains can request route activation.
+- Tighten worker route activation/removal behavior so custom-domain routing is never marked active unless Nginx route activation succeeds when Nginx is enabled.
+- Add focused tests for normalization, uniqueness, verification job state transitions, admin approval route enqueueing, and activation failure handling.
+- Run final verification commands, then commit and push before moving to P10.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Harden domain service and worker route activation behavior.
+- [x] Update domain UI/docs where needed for provider-neutral instructions and status clarity.
+- [x] Add focused custom-domain tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Admin approval now records the approval and queues route activation without marking the domain active early.
+- The worker now marks a custom domain `ACTIVE` only after custom-domain Nginx route activation succeeds while Nginx is enabled.
+- Custom-domain route filenames now use stable hash-based slugs, avoiding invalid filename labels for long valid hostnames.
+- Activation failures leave the domain non-active and bubble the worker error for retry/failure handling.
+- Added focused worker job tests for DNS verification, activation success, activation failure, and unapproved activation attempts.
+- Ran targeted domain/Nginx tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
 ## P8 Deployment Approval + Mode Guard Hardening
 
 - Status: Completed

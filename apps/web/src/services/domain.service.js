@@ -199,21 +199,23 @@ export async function approveDomain(domainId, adminId, opts = {}) {
     return { success: false, error: 'Project has no active deployment. Deploy first.' };
   }
 
+  const queue = getDeploymentQueue();
+  if (!queue) {
+    return { success: false, error: 'Queue is unavailable.' };
+  }
+
   await Domain.updateOne(
     { _id: domainId },
     {
       $set: {
-        status: DomainStatus.ACTIVE,
         approvedBy: adminId,
         approvedAt: new Date(),
-        activatedAt: new Date(),
+        rejectionReason: null,
       },
     },
   );
 
-  // Enqueue nginx route update for the custom domain
-  const queue = getDeploymentQueue();
-  if (queue) {
+  try {
     await enqueueJob(
       queue,
       JobType.VERIFY_DOMAIN,
@@ -229,6 +231,17 @@ export async function approveDomain(domainId, adminId, opts = {}) {
       },
       { jobId: `activate-domain-${domainId}` },
     );
+  } catch {
+    await Domain.updateOne(
+      { _id: domainId },
+      {
+        $set: {
+          approvedBy: null,
+          approvedAt: null,
+        },
+      },
+    );
+    return { success: false, error: 'Could not queue domain route activation.' };
   }
 
   await writeAuditEvent({

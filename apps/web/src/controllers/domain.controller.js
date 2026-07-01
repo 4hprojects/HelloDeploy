@@ -115,7 +115,7 @@ export const postApproveDomain = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'Domain approved and routing activated.');
+    req.flash('success', 'Domain approved. Routing activation has been queued.');
   }
 
   res.redirect('/admin/domains');
