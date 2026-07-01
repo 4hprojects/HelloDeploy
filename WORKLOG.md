@@ -1,5 +1,27 @@
 # Worklog
 
+## UX-02 Mobile Sidebar Drawer
+
+- Status: Completed
+- Started: 2026-07-01T20:48:46+08:00
+- Completed: 2026-07-01T20:48:46+08:00
+
+### Checklist
+
+- [x] Fix mobile sidebar initialization so it runs after sidebar markup exists.
+- [x] Add a real mobile sidebar backdrop.
+- [x] Add Escape close, backdrop close, nav-link close, focus trapping, and body scroll lock.
+- [x] Improve hamburger toggle contrast and open state.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `#sidebar-backdrop` to the main layout next to the sidebar.
+- Updated `apps/web/src/views/partials/header.ejs` so sidebar drawer behavior initializes after `DOMContentLoaded`.
+- Updated `apps/web/public/css/layout.css` so the mobile sidebar drawer displays correctly, locks scroll, and uses a proper backdrop.
+- Added `tests/ui/mobile-sidebar.test.js` to cover drawer markup, initialization timing, accessibility behavior, and mobile CSS.
+
 ## UX-01 Custom Confirmation Modal
 
 - Status: Completed
