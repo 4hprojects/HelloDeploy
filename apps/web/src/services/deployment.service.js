@@ -56,6 +56,10 @@ export function parseNoCacheFlag(value) {
   return value === 'true' || value === '1';
 }
 
+export function isRetryableDeploymentStatus(status) {
+  return [DeploymentStatus.FAILED, DeploymentStatus.CANCELLED].includes(status);
+}
+
 /**
  * Create a new deployment record and enqueue the build job.
  * Enforces one-active-deployment-per-project invariant.
@@ -246,8 +250,7 @@ export async function retryDeployment(deploymentId, actorId, opts = {}) {
   }
 
   // Only allow retry on terminal non-HEALTHY states
-  const retryable = ['FAILED', 'CANCELLED'];
-  if (!retryable.includes(original.status)) {
+  if (!isRetryableDeploymentStatus(original.status)) {
     return { success: false, error: `Cannot retry a deployment with status ${original.status}.` };
   }
 

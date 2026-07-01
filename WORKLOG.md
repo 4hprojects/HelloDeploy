@@ -1,5 +1,31 @@
 # Worklog
 
+## P8-04 Cancel And Retry Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:09:40+08:00
+- Completed: 2026-07-02T00:11:00+08:00
+
+### Checklist
+
+- [x] Make retryable deployment status checks explicit.
+- [x] Verify retry is limited to failed and cancelled deployments.
+- [x] Verify retry payloads use the original deployment commit and cache behavior.
+- [x] Verify cancellation remains guarded by active deployment states.
+- [x] Verify UI shows cancel/retry actions only for matching states.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added `isRetryableDeploymentStatus` in `apps/web/src/services/deployment.service.js`.
+- Added `tests/deployment/cancel-retry-flow.test.js`.
+- Updated P8-04 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js tests/ui/destructive-actions.test.js`.
+
 ## P8-03 Deployment Log Viewer Safety
 
 - Status: Completed
