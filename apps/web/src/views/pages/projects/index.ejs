@@ -9,8 +9,15 @@
 <div class="empty-state">
   <div class="empty-state__icon" aria-hidden="true">◫</div>
   <h2 class="empty-state__title">No projects yet</h2>
-  <p class="empty-state__description">Create your first project and get your app running.</p>
-  <a href="/projects/new" class="button button--primary">Create Project</a>
+  <p class="empty-state__description">Create a project, connect a repository, then prepare it for deployment.</p>
+  <ul class="empty-state__steps">
+    <li>Create the project shell.</li>
+    <li>Connect GitHub and choose the production branch.</li>
+    <li>Run detection, configure secrets, then deploy.</li>
+  </ul>
+  <div class="empty-state__actions">
+    <a href="/projects/new" class="button button--primary">Create Project</a>
+  </div>
 </div>
 <% } else { %>
 <div class="table-wrapper table-responsive">

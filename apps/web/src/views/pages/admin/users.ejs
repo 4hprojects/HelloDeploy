@@ -27,7 +27,11 @@
 
 <% if (users.length === 0) { %>
 <div class="empty-state">
-  <p class="empty-state__description">No users match your filters.</p>
+  <p class="empty-state__title">No users match your filters</p>
+  <p class="empty-state__description">Adjust the search or status filter to broaden the result set.</p>
+  <div class="empty-state__actions">
+    <a href="/admin/users" class="button button--ghost">Clear Filters</a>
+  </div>
 </div>
 <% } else { %>
 <div class="table-wrapper table-responsive">

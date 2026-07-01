@@ -10,8 +10,15 @@
 <div class="empty-state">
   <div class="empty-state__icon" aria-hidden="true">◫</div>
   <h2 class="empty-state__title">No projects yet</h2>
-  <p class="empty-state__description">Create your first project to get started.</p>
-  <a href="/projects/new" class="button button--primary">Create Project</a>
+  <p class="empty-state__description">Start with a project, then connect source code and run detection before the first deploy.</p>
+  <ul class="empty-state__steps">
+    <li>Create a project name and slug.</li>
+    <li>Connect the GitHub repository you want to deploy.</li>
+    <li>Run detection, add required secrets, and deploy when ready.</li>
+  </ul>
+  <div class="empty-state__actions">
+    <a href="/projects/new" class="button button--primary">Create Project</a>
+  </div>
 </div>
 <% } else { %>
 <div class="card">

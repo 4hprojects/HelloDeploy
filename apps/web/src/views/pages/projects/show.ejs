@@ -101,12 +101,18 @@
         </dl>
       <% } else { %>
         <div class="empty-state empty-state--compact">
-          <p class="empty-state__description">
-            No repository connected.
-            <% if (membership.role === 'OWNER') { %>
-              <a href="/projects/<%= project.slug %>/repository" class="table-link">Connect one</a>
-            <% } %>
-          </p>
+          <p class="empty-state__title">No repository connected</p>
+          <p class="empty-state__description">Connect source code before detection or deployment.</p>
+          <ul class="empty-state__steps">
+            <li>Install or update GitHub App access.</li>
+            <li>Select a repository and production branch.</li>
+            <li>Run detection after the repository is connected.</li>
+          </ul>
+          <% if (membership.role === 'OWNER') { %>
+          <div class="empty-state__actions">
+            <a href="/projects/<%= project.slug %>/repository" class="button button--secondary button--sm">Connect Repository</a>
+          </div>
+          <% } %>
         </div>
       <% } %>
     </div>
@@ -168,12 +174,18 @@
         </div>
       <% } else { %>
         <div class="empty-state empty-state--compact">
-          <p class="empty-state__description">
-            No deployments yet.
-            <% if (membership.role === 'OWNER' || membership.role === 'MAINTAINER') { %>
-              <a href="/projects/<%= project.slug %>/deployments" class="table-link">Deploy now</a>
-            <% } %>
-          </p>
+          <p class="empty-state__title">No deployments yet</p>
+          <p class="empty-state__description">Prepare the project, then deploy the latest commit.</p>
+          <ul class="empty-state__steps">
+            <li>Connect a repository.</li>
+            <li>Run detection and add required secrets.</li>
+            <li>Deploy from the deployments page.</li>
+          </ul>
+          <% if (membership.role === 'OWNER' || membership.role === 'MAINTAINER') { %>
+          <div class="empty-state__actions">
+            <a href="/projects/<%= project.slug %>/deployments" class="button button--secondary button--sm">Open Deployments</a>
+          </div>
+          <% } %>
         </div>
       <% } %>
     </div>

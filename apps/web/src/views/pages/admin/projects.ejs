@@ -19,7 +19,11 @@
 
 <% if (projects.length === 0) { %>
 <div class="empty-state">
-  <p class="empty-state__description">No projects match your filters.</p>
+  <p class="empty-state__title">No projects match your filters</p>
+  <p class="empty-state__description">Clear the status filter to see every project.</p>
+  <div class="empty-state__actions">
+    <a href="/admin/projects" class="button button--ghost">Clear Filters</a>
+  </div>
 </div>
 <% } else { %>
 <div class="table-wrapper table-responsive">

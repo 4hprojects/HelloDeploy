@@ -64,7 +64,13 @@
   <div class="card__body">
     <% if (secrets.length === 0) { %>
       <div class="empty-state empty-state--compact">
-        <p class="empty-state__description">No secrets yet. Add your first one above.</p>
+        <p class="empty-state__title">No secrets yet</p>
+        <p class="empty-state__description">Add only the variables your app needs at runtime.</p>
+        <ul class="empty-state__steps">
+          <li>Use uppercase names such as DATABASE_URL or API_KEY.</li>
+          <li>Paste the value once; it is encrypted immediately.</li>
+          <li>Redeploy after changing secrets so containers receive the new values.</li>
+        </ul>
       </div>
     <% } else { %>
       <div class="table-wrapper table-responsive table-responsive--flush">

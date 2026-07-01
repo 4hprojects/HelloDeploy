@@ -1,5 +1,31 @@
 # Worklog
 
+## UX-08 Guided Empty States
+
+- Status: Completed
+- Started: 2026-07-01T23:38:16+08:00
+- Completed: 2026-07-01T23:38:16+08:00
+
+### Checklist
+
+- [x] Add shared empty-state step and action styling.
+- [x] Guide first-time users through project creation, repository connection, detection, secrets, and deployment.
+- [x] Guide optional setup states for custom domains and project overview cards.
+- [x] Add useful admin empty-state actions for queues and filtered results.
+- [x] Keep guidance limited to empty paths.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `.empty-state__steps` and `.empty-state__actions` in `apps/web/public/css/components.css`.
+- Updated project, repository, detection, deployment, environment, domain, dashboard, and admin empty states with concise next-step flows.
+- Added `tests/ui/guided-empty-states.test.js` for shared styling and key guided empty-state coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, responsive tables, deployment timeline, and guided empty states.
+
 ## UX-07 Deployment Timeline Clarity
 
 - Status: Completed

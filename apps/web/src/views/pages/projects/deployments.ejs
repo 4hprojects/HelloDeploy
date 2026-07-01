@@ -51,9 +51,23 @@
     <div class="empty-state">
       <p class="empty-state__title">No deployments yet</p>
       <p class="empty-state__description">
-        Trigger your first deployment using the button above.
-        Make sure you have connected a repository and run detection first.
+        Complete the setup path before the first deployment.
       </p>
+      <ul class="empty-state__steps">
+        <li>Connect a repository and select the production branch.</li>
+        <li>Run detection so HelloDeploy knows how to build the app.</li>
+        <li>Add required environment secrets, then deploy the latest commit.</li>
+      </ul>
+      <div class="empty-state__actions">
+        <a href="/projects/<%= project.slug %>/repository" class="button button--secondary">Repository</a>
+        <a href="/projects/<%= project.slug %>/detection" class="button button--secondary">Detection</a>
+        <% if (canDeploy) { %>
+        <form method="POST" action="/projects/<%= project.slug %>/deployments">
+          <%- include('../../partials/csrf-field') %>
+          <button type="submit" class="button button--primary">Deploy Latest</button>
+        </form>
+        <% } %>
+      </div>
     </div>
   </div>
 </div>

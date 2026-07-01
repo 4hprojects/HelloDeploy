@@ -83,7 +83,17 @@
   <div class="card__body">
     <div class="empty-state">
       <p class="empty-state__title">No custom domains</p>
-      <p class="empty-state__description">Add a domain above to serve this project from your own hostname.</p>
+      <p class="empty-state__description">Use your own hostname after the first working deployment is ready.</p>
+      <ul class="empty-state__steps">
+        <li>Add a fully qualified domain name.</li>
+        <li>Create the DNS TXT record shown after submission.</li>
+        <li>Verify ownership, then wait for administrator approval.</li>
+      </ul>
+      <% if (membership.role === 'OWNER') { %>
+      <div class="empty-state__actions">
+        <a href="#hostname" class="button button--secondary">Add Domain</a>
+      </div>
+      <% } %>
     </div>
   </div>
   <% } else { %>

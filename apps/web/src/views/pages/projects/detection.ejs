@@ -15,9 +15,16 @@
       <p class="empty-state__description">
         Connect a GitHub repository before running detection.
       </p>
-      <a href="/projects/<%= project.slug %>/repository" class="button button--primary mt-4">
-        Connect Repository
-      </a>
+      <ul class="empty-state__steps">
+        <li>Connect the repository that contains this application.</li>
+        <li>Choose the production branch HelloDeploy should watch.</li>
+        <li>Run detection to identify runtime, build command, and port.</li>
+      </ul>
+      <div class="empty-state__actions">
+        <a href="/projects/<%= project.slug %>/repository" class="button button--primary">
+          Connect Repository
+        </a>
+      </div>
     </div>
   </div>
 </div>

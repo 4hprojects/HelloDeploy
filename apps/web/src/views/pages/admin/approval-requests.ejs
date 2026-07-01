@@ -8,6 +8,15 @@
   <div class="empty-state__icon" aria-hidden="true">◎</div>
   <h2 class="empty-state__title">No pending requests</h2>
   <p class="empty-state__description">There are no project reviews waiting for your decision.</p>
+  <ul class="empty-state__steps">
+    <li>New project review submissions appear here automatically.</li>
+    <li>Use the audit log to review recent admin activity.</li>
+    <li>Check the projects list if you need to inspect active project status.</li>
+  </ul>
+  <div class="empty-state__actions">
+    <a href="/admin/projects" class="button button--secondary">View Projects</a>
+    <a href="/admin/audit-events" class="button button--ghost">Audit Log</a>
+  </div>
 </div>
 <% } else { %>
 <div class="review-list">

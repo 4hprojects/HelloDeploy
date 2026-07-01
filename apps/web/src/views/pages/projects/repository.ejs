@@ -17,6 +17,11 @@
         The GitHub App is not configured on this server.
         Contact the platform administrator to enable repository integration.
       </p>
+      <ul class="empty-state__steps">
+        <li>Ask an administrator to configure the GitHub App credentials.</li>
+        <li>Return here after GitHub integration is enabled.</li>
+        <li>Connect a repository and run detection before deploying.</li>
+      </ul>
     </div>
   </div>
 </div>
@@ -89,9 +94,16 @@
         Install the HelloDeploy GitHub App to grant repository access.
         You control exactly which repositories are shared.
       </p>
-      <a href="/github/connect?project=<%= project.slug %>" class="button button--primary mt-4">
-        Install GitHub App
-      </a>
+      <ul class="empty-state__steps">
+        <li>Install the GitHub App on your account or organization.</li>
+        <li>Select the repositories HelloDeploy can access.</li>
+        <li>Choose a repository and production branch on this page.</li>
+      </ul>
+      <div class="empty-state__actions">
+        <a href="/github/connect?project=<%= project.slug %>" class="button button--primary">
+          Install GitHub App
+        </a>
+      </div>
     </div>
   </div>
 </div>
@@ -106,9 +118,16 @@
         The GitHub App is installed but no repositories are accessible.
         Update your installation to grant access to specific repositories.
       </p>
-      <a href="/github/connect?project=<%= project.slug %>" class="button button--secondary mt-4">
-        Update GitHub App access
-      </a>
+      <ul class="empty-state__steps">
+        <li>Open GitHub App access settings.</li>
+        <li>Grant access to the repository you want to deploy.</li>
+        <li>Return here and select the production branch.</li>
+      </ul>
+      <div class="empty-state__actions">
+        <a href="/github/connect?project=<%= project.slug %>" class="button button--secondary">
+          Update GitHub App access
+        </a>
+      </div>
     </div>
   </div>
 </div>
