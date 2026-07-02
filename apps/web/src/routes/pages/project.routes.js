@@ -10,6 +10,9 @@ import {
   getEditProject,
   postEditProject,
   postArchiveProject,
+  postDeleteProject,
+  postEnableMaintenance,
+  postDisableMaintenance,
   postSubmitForReview,
   getProjectMembersPage,
   postInviteMember,
@@ -17,13 +20,24 @@ import {
   postUpdateMemberRole,
   postTransferOwnership,
   postUpdateDeploymentMode,
+  postUpdateNotificationPreference,
 } from '../../controllers/project.controller.js';
 import {
   getRepository,
   postConnectRepository,
   postDisconnectRepository,
 } from '../../controllers/github.controller.js';
-import { getDetection, postRunDetection } from '../../controllers/detection.controller.js';
+import {
+  getDetection,
+  postRunDetection,
+  postUpdateBuildConfiguration,
+  postUpdateBuildFilters,
+} from '../../controllers/detection.controller.js';
+import {
+  getDeployHookSettings,
+  postGenerateDeployHook,
+  postRevokeDeployHook,
+} from '../../controllers/deploy-hook.controller.js';
 import {
   getEnvironment,
   postSetSecret,
@@ -61,6 +75,9 @@ router.get('/:slug', requireAuth, anyRole, getProject);
 router.get('/:slug/edit', requireAuth, ownerOnly, getEditProject);
 router.post('/:slug/update', requireAuth, ownerOnly, postEditProject);
 router.post('/:slug/archive', requireAuth, ownerOnly, postArchiveProject);
+router.post('/:slug/delete', requireAuth, ownerOnly, postDeleteProject);
+router.post('/:slug/maintenance/enable', requireAuth, ownerOnly, postEnableMaintenance);
+router.post('/:slug/maintenance/disable', requireAuth, ownerOnly, postDisableMaintenance);
 router.post('/:slug/submit-review', requireAuth, ownerOnly, postSubmitForReview);
 
 // Members
@@ -78,9 +95,29 @@ router.post('/:slug/repository/disconnect', requireAuth, ownerOnly, postDisconne
 // Deployment mode
 router.post('/:slug/deployment-mode', requireAuth, ownerOnly, postUpdateDeploymentMode);
 
+// Notification preference
+router.post(
+  '/:slug/notification-preference',
+  requireAuth,
+  ownerOnly,
+  postUpdateNotificationPreference,
+);
+
+// Deploy hook
+router.get('/:slug/deploy-hook', requireAuth, ownerOnly, getDeployHookSettings);
+router.post('/:slug/deploy-hook/generate', requireAuth, ownerOnly, postGenerateDeployHook);
+router.post('/:slug/deploy-hook/revoke', requireAuth, ownerOnly, postRevokeDeployHook);
+
 // Detection
 router.get('/:slug/detection', requireAuth, anyRole, getDetection);
 router.post('/:slug/detection', requireAuth, ownerOnly, postRunDetection);
+router.post(
+  '/:slug/build-configuration',
+  requireAuth,
+  ownerOnly,
+  postUpdateBuildConfiguration,
+);
+router.post('/:slug/build-filters', requireAuth, ownerOnly, postUpdateBuildFilters);
 
 // Deployments
 router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);

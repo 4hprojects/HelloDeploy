@@ -26,6 +26,7 @@
         <% if (membership.role === 'OWNER') { %>
           <a href="/projects/<%= project.slug %>/environment" class="table-link text-sm">Environment</a>
           <a href="/projects/<%= project.slug %>/members" class="table-link text-sm">Members</a>
+          <a href="/projects/<%= project.slug %>/deploy-hook" class="table-link text-sm">Deploy Hook</a>
         <% } %>
       </nav>
     </div>
@@ -150,6 +151,36 @@
 
   <div class="card">
     <div class="card__header">
+      <span class="card__title">Notifications</span>
+    </div>
+    <div class="card__body">
+      <p class="text-sm text-muted mb-4">
+        <% if (project.notificationPreference === 'FAILURE_ONLY') { %>
+          You'll only be emailed when a deployment fails.
+        <% } else if (project.notificationPreference === 'NONE') { %>
+          Deployment email notifications are turned off for this project.
+        <% } else { %>
+          You'll be emailed on every deployment outcome.
+        <% } %>
+      </p>
+      <% if (membership.role === 'OWNER') { %>
+      <form method="POST" action="/projects/<%= project.slug %>/notification-preference">
+        <%- include('../../partials/csrf-field') %>
+        <div class="button-group">
+          <% ['ALL', 'FAILURE_ONLY', 'NONE'].forEach(pref => { %>
+          <button type="submit" name="notificationPreference" value="<%= pref %>"
+                  class="button button--sm <%= (project.notificationPreference || 'ALL') === pref ? 'button--primary' : 'button--secondary' %>">
+            <%= pref === 'ALL' ? 'All' : pref === 'FAILURE_ONLY' ? 'Failures only' : 'None' %>
+          </button>
+          <% }) %>
+        </div>
+      </form>
+      <% } %>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__header">
       <span class="card__title">Deployments</span>
       <a href="/projects/<%= project.slug %>/deployments" class="button button--ghost button--sm">View all</a>
     </div>
@@ -201,6 +232,53 @@
       <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--primary" data-pending-label="Submitting...">Submit for Review</button>
     </form>
+  </div>
+</div>
+<% } %>
+
+<% if (membership.role === 'OWNER' && project.status !== 'ARCHIVED') { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <h2 class="card__title">Maintenance Mode</h2>
+    <span class="badge <%= project.maintenanceMode?.enabled ? 'badge--warning' : 'badge--success' %>">
+      <%= project.maintenanceMode?.enabled ? 'Enabled' : 'Disabled' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (project.maintenanceMode?.enabled) { %>
+    <p class="text-sm mb-4">
+      Visitors to this project's URL see a maintenance page instead of the app. The running
+      container is not stopped — disabling maintenance instantly restores traffic.
+    </p>
+    <% if (project.maintenanceMode.message) { %>
+    <p class="text-muted text-sm mb-4"><%= project.maintenanceMode.message %></p>
+    <% } %>
+    <form method="POST" action="/projects/<%= project.slug %>/maintenance/disable"
+          data-confirm="Disable maintenance mode and resume traffic to this project?"
+          data-confirm-title="Disable maintenance"
+          data-confirm-accept-label="Disable Maintenance"
+          data-confirm-pending-label="Disabling..."
+          data-confirm-variant="success">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--success">Disable Maintenance</button>
+    </form>
+    <% } else { %>
+    <form method="POST" action="/projects/<%= project.slug %>/maintenance/enable"
+          data-confirm="Enable maintenance mode? Visitors will see a maintenance page instead of the app."
+          data-confirm-title="Enable maintenance"
+          data-confirm-accept-label="Enable Maintenance"
+          data-confirm-pending-label="Enabling..."
+          data-confirm-variant="warning">
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-field form-field--floating mb-4">
+        <label class="form-label" for="maintenance-message">Custom message (optional)</label>
+        <input id="maintenance-message" name="message" class="form-input"
+               maxlength="200"
+               placeholder=" ">
+      </div>
+      <button type="submit" class="button button--warning">Enable Maintenance</button>
+    </form>
+    <% } %>
   </div>
 </div>
 <% } %>

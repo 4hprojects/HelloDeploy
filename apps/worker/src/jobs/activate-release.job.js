@@ -46,11 +46,27 @@ async function logEvent(deploymentId, stage, level, message, correlationId) {
   });
 }
 
-async function updateStatus(deploymentId, toStatus, extra = {}) {
+async function updateStatus(deploymentId, toStatus, extra = {}, project = null) {
   await Deployment.updateOne(
     { _id: deploymentId },
     { $set: { status: toStatus, currentStage: toStatus, ...extra } },
   );
+
+  if (project && (toStatus === DeploymentStatus.HEALTHY || toStatus === DeploymentStatus.FAILED)) {
+    const freshDeployment = await Deployment.findById(deploymentId).lean();
+    notifyDeploymentResult({
+      ownerId: project.ownerId.toString(),
+      projectName: project.name,
+      projectSlug: project.slug,
+      sequenceNumber: freshDeployment?.sequenceNumber ?? '?',
+      status: toStatus,
+      commitSha: freshDeployment?.commitSha ?? '',
+      failureCode: freshDeployment?.failureCode,
+      failureSummary: freshDeployment?.failureSummary,
+      platformDomain: env.PLATFORM_DOMAIN,
+      notificationPreference: project.notificationPreference,
+    }).catch(() => {}); // notification failures must never affect the deployment pipeline
+  }
 }
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
@@ -117,11 +133,12 @@ export async function handleActivateRelease(job) {
     await logEvent(deploymentId, 'DEPLOY', 'INFO', `Allocated port ${hostPort}.`, correlationId);
   } catch (err) {
     await logEvent(deploymentId, 'DEPLOY', 'ERROR', err.message, correlationId);
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'PORT_ALLOCATION_FAILED',
-      failureSummary: err.message,
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      { failureCode: 'PORT_ALLOCATION_FAILED', failureSummary: err.message, completedAt: new Date() },
+      project,
+    );
     return;
   }
 
@@ -136,11 +153,12 @@ export async function handleActivateRelease(job) {
       `Network setup failed: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'NETWORK_SETUP_FAILED',
-      failureSummary: err.message,
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      { failureCode: 'NETWORK_SETUP_FAILED', failureSummary: err.message, completedAt: new Date() },
+      project,
+    );
     return;
   }
 
@@ -163,11 +181,16 @@ export async function handleActivateRelease(job) {
       'Failed to decrypt environment secrets.',
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'SECRET_DECRYPTION_FAILED',
-      failureSummary: 'Could not decrypt environment secrets.',
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'SECRET_DECRYPTION_FAILED',
+        failureSummary: 'Could not decrypt environment secrets.',
+        completedAt: new Date(),
+      },
+      project,
+    );
     return;
   }
 
@@ -202,11 +225,16 @@ export async function handleActivateRelease(job) {
       `Failed to start container: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'CONTAINER_START_FAILED',
-      failureSummary: err.message.slice(0, 1000),
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'CONTAINER_START_FAILED',
+        failureSummary: err.message.slice(0, 1000),
+        completedAt: new Date(),
+      },
+      project,
+    );
     return;
   }
 
@@ -223,16 +251,25 @@ export async function handleActivateRelease(job) {
       correlationId,
     );
     await stopAndRemoveContainer(cName);
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'CONTAINER_CRASHED_ON_STARTUP',
-      failureSummary: `Container exited with code ${state.exitCode} immediately after start.`,
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'CONTAINER_CRASHED_ON_STARTUP',
+        failureSummary: `Container exited with code ${state.exitCode} immediately after start.`,
+        completedAt: new Date(),
+      },
+      project,
+    );
     return;
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
-  const healthUrl = `http://127.0.0.1:${hostPort}/`;
+  const rawHealthCheckPath = project.buildConfiguration?.healthCheckPath || '/';
+  const healthCheckPath = rawHealthCheckPath.startsWith('/')
+    ? rawHealthCheckPath
+    : `/${rawHealthCheckPath}`;
+  const healthUrl = `http://127.0.0.1:${hostPort}${healthCheckPath}`;
   await logEvent(
     deploymentId,
     'DEPLOY',
@@ -252,12 +289,17 @@ export async function handleActivateRelease(job) {
       correlationId,
     );
     await stopAndRemoveContainer(cName);
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'HEALTH_CHECK_FAILED',
-      failureSummary:
-        `Health check did not pass: ${health.error ?? 'no response within timeout'}`.slice(0, 1000),
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'HEALTH_CHECK_FAILED',
+        failureSummary:
+          `Health check did not pass: ${health.error ?? 'no response within timeout'}`.slice(0, 1000),
+        completedAt: new Date(),
+      },
+      project,
+    );
     return;
   }
 
@@ -283,11 +325,16 @@ export async function handleActivateRelease(job) {
         correlationId,
       );
       await stopAndRemoveContainer(cName);
-      await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-        failureCode: 'SUBDOMAIN_INVALID',
-        failureSummary: `Subdomain "${subdomain}" cannot be used.`,
-        completedAt: new Date(),
-      });
+      await updateStatus(
+        deploymentId,
+        DeploymentStatus.FAILED,
+        {
+          failureCode: 'SUBDOMAIN_INVALID',
+          failureSummary: `Subdomain "${subdomain}" cannot be used.`,
+          completedAt: new Date(),
+        },
+        project,
+      );
       return;
     }
 
@@ -321,11 +368,16 @@ export async function handleActivateRelease(job) {
         correlationId,
       );
       await stopAndRemoveContainer(cName);
-      await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-        failureCode: 'NGINX_ROUTE_FAILED',
-        failureSummary: `Nginx configuration failed: ${err.message}`.slice(0, 1000),
-        completedAt: new Date(),
-      });
+      await updateStatus(
+        deploymentId,
+        DeploymentStatus.FAILED,
+        {
+          failureCode: 'NGINX_ROUTE_FAILED',
+          failureSummary: `Nginx configuration failed: ${err.message}`.slice(0, 1000),
+          completedAt: new Date(),
+        },
+        project,
+      );
       return;
     }
 
@@ -351,10 +403,12 @@ export async function handleActivateRelease(job) {
   }
 
   // ── Mark HEALTHY ────────────────────────────────────────────────────────────
-  await updateStatus(deploymentId, DeploymentStatus.HEALTHY, {
-    activeContainerId: containerId,
-    completedAt: new Date(),
-  });
+  await updateStatus(
+    deploymentId,
+    DeploymentStatus.HEALTHY,
+    { activeContainerId: containerId, completedAt: new Date() },
+    project,
+  );
 
   await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deployment._id } });
 
@@ -367,20 +421,9 @@ export async function handleActivateRelease(job) {
   );
   logger.info('ActivateRelease: deployment healthy', { deploymentId, hostPort, cName });
 
-  // ── Post-activation: retention cleanup + owner notification ────────────────
-  // Both are fire-and-forget — failures must not affect the HEALTHY status.
+  // ── Post-activation: retention cleanup ──────────────────────────────────────
+  // Fire-and-forget — failures must not affect the HEALTHY status.
   cleanupOldReleases(projectId).catch((err) => {
     logger.warn('ActivateRelease: retention cleanup error', { projectId, error: err.message });
   });
-
-  const freshDeployment = await Deployment.findById(deploymentId).lean();
-  notifyDeploymentResult({
-    ownerId: project.ownerId.toString(),
-    projectName: project.name,
-    projectSlug: project.slug,
-    sequenceNumber: freshDeployment?.sequenceNumber ?? '?',
-    status: 'HEALTHY',
-    commitSha: freshDeployment?.commitSha ?? '',
-    platformDomain: env.PLATFORM_DOMAIN,
-  }).catch(() => {}); // already handled internally
 }

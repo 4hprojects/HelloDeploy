@@ -1,7 +1,19 @@
 import { randomBytes } from 'node:crypto';
-import { Project, ProjectMembership, ApprovalRequest, User } from '@hellodeploy/database';
-import { ProjectRole, ProjectStatus, ApprovalStatus, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  Project,
+  ProjectMembership,
+  ApprovalRequest,
+  User,
+  Deployment,
+  DeploymentEvent,
+  EnvironmentSecret,
+  Domain,
+} from '@hellodeploy/database';
+import { ProjectRole, ProjectStatus, ApprovalStatus, AuditOutcome, JobType } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
+import { enqueueJob } from '@hellodeploy/queue';
+import { generateToken, hashToken } from '@hellodeploy/security';
+import { getDeploymentQueue } from '../queue/client.js';
 import { checkCanCreateProject, checkCanAddMember } from './quota.service.js';
 
 function slugify(name) {
@@ -126,6 +138,240 @@ export async function updateProject({ projectId, name, actorId, sourceIp, correl
   return { success: true, project: project.toObject() };
 }
 
+export async function updateBuildConfiguration({
+  projectId,
+  buildCommand,
+  startCommand,
+  outputDirectory,
+  applicationPort,
+  healthCheckPath,
+  actorId,
+  sourceIp,
+  correlationId,
+}) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  if (project.status === ProjectStatus.ARCHIVED) {
+    return { success: false, error: 'Archived projects cannot be edited.' };
+  }
+
+  project.buildConfiguration = {
+    buildCommand: buildCommand?.trim() || null,
+    startCommand: startCommand?.trim() || null,
+    outputDirectory: outputDirectory?.trim() || null,
+    applicationPort: applicationPort?.trim() ? Number(applicationPort.trim()) : null,
+    healthCheckPath: healthCheckPath?.trim() || '/',
+  };
+  project.configurationVersion += 1;
+  await project.save();
+
+  await writeAuditEvent({
+    action: 'project.build_configuration_updated',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { buildConfiguration: project.buildConfiguration },
+  });
+
+  return { success: true, project: project.toObject() };
+}
+
+/**
+ * Generates a new deploy hook token for a project, replacing any existing one.
+ * Only the hash is persisted — the raw token is returned once and must be
+ * shown to the caller immediately; it cannot be recovered afterward.
+ */
+export async function generateDeployHookToken({ projectId, actorId, sourceIp, correlationId }) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  const { raw, hash } = generateToken();
+  project.deployHookTokenHash = hash;
+  await project.save();
+
+  await writeAuditEvent({
+    action: 'project.deploy_hook_token_generated',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true, rawToken: raw };
+}
+
+export async function revokeDeployHookToken({ projectId, actorId, sourceIp, correlationId }) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  project.deployHookTokenHash = null;
+  await project.save();
+
+  await writeAuditEvent({
+    action: 'project.deploy_hook_token_revoked',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true };
+}
+
+/**
+ * Verifies a raw deploy hook token against the project's stored hash.
+ * Used by the unauthenticated /api/deploy-hooks route.
+ */
+export async function verifyDeployHookToken(projectId, rawToken) {
+  if (!rawToken) {
+    return null;
+  }
+
+  const project = await Project.findById(projectId).lean();
+  if (!project?.deployHookTokenHash) {
+    return null;
+  }
+
+  return hashToken(rawToken) === project.deployHookTokenHash ? project : null;
+}
+
+export async function updateBuildFilters({
+  projectId,
+  includedPaths,
+  ignoredPaths,
+  actorId,
+  sourceIp,
+  correlationId,
+}) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  if (project.status === ProjectStatus.ARCHIVED) {
+    return { success: false, error: 'Archived projects cannot be edited.' };
+  }
+
+  project.buildFilters = { includedPaths, ignoredPaths };
+  await project.save();
+
+  await writeAuditEvent({
+    action: 'project.build_filters_updated',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { includedPaths, ignoredPaths },
+  });
+
+  return { success: true, project: project.toObject() };
+}
+
+export async function enableProjectMaintenance({
+  projectId,
+  message,
+  actorId,
+  sourceIp,
+  correlationId,
+}) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  project.maintenanceMode = {
+    enabled: true,
+    message: message?.trim() || null,
+    enabledAt: new Date(),
+  };
+  await project.save();
+
+  const queue = getDeploymentQueue();
+  if (queue) {
+    await enqueueJob(
+      queue,
+      JobType.SET_PROJECT_MAINTENANCE,
+      {
+        version: 1,
+        correlationId,
+        actorId: actorId.toString(),
+        actorRole: 'OWNER',
+        projectId: projectId.toString(),
+        enabled: true,
+        message: project.maintenanceMode.message,
+      },
+      { jobId: `maintenance-${projectId}-${Date.now()}` },
+    );
+  }
+
+  await writeAuditEvent({
+    action: 'project.maintenance_enabled',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true };
+}
+
+export async function disableProjectMaintenance({ projectId, actorId, sourceIp, correlationId }) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  project.maintenanceMode = { enabled: false, message: null, enabledAt: null };
+  await project.save();
+
+  const queue = getDeploymentQueue();
+  if (queue) {
+    await enqueueJob(
+      queue,
+      JobType.SET_PROJECT_MAINTENANCE,
+      {
+        version: 1,
+        correlationId,
+        actorId: actorId.toString(),
+        actorRole: 'OWNER',
+        projectId: projectId.toString(),
+        enabled: false,
+      },
+      { jobId: `maintenance-${projectId}-${Date.now()}` },
+    );
+  }
+
+  await writeAuditEvent({
+    action: 'project.maintenance_disabled',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true };
+}
+
 export async function archiveProject({ projectId, actorId, sourceIp, correlationId }) {
   const project = await Project.findById(projectId);
   if (!project) {
@@ -148,6 +394,69 @@ export async function archiveProject({ projectId, actorId, sourceIp, correlation
     targetId: project._id.toString(),
     sourceIp,
     correlationId,
+  });
+
+  return { success: true };
+}
+
+/**
+ * Permanently deletes a project: tears down its running container/nginx route
+ * (via a worker job, since only the worker can reach docker/nginx) and
+ * cascade-deletes all associated database records. Unlike archiveProject,
+ * this is irreversible.
+ */
+export async function deleteProject({ projectId, actorId, sourceIp, correlationId }) {
+  const project = await Project.findById(projectId).lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+
+  let activeContainerId = null;
+  if (project.activeDeploymentId) {
+    const activeDeployment = await Deployment.findById(project.activeDeploymentId, 'activeContainerId').lean();
+    activeContainerId = activeDeployment?.activeContainerId ?? null;
+  }
+
+  const queue = getDeploymentQueue();
+  if (queue) {
+    await enqueueJob(
+      queue,
+      JobType.DELETE_PROJECT,
+      {
+        version: 1,
+        correlationId,
+        actorId: actorId.toString(),
+        actorRole: 'OWNER',
+        projectId: projectId.toString(),
+        subdomain: project.platformSubdomain ?? project.slug,
+        activeContainerId,
+      },
+      { jobId: `delete-${projectId}` },
+    );
+  }
+
+  const deploymentIds = await Deployment.find({ projectId }).distinct('_id');
+
+  await Promise.all([
+    ProjectMembership.deleteMany({ projectId }),
+    ApprovalRequest.deleteMany({ projectId }),
+    EnvironmentSecret.deleteMany({ projectId }),
+    Domain.deleteMany({ projectId }),
+    DeploymentEvent.deleteMany({ deploymentId: { $in: deploymentIds } }),
+    Deployment.deleteMany({ projectId }),
+  ]);
+
+  await Project.deleteOne({ _id: projectId });
+
+  await writeAuditEvent({
+    action: 'project.deleted',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: projectId.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { name: project.name, slug: project.slug },
   });
 
   return { success: true };

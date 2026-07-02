@@ -46,12 +46,63 @@ const HIGH_RISK_PATTERNS = [
   /^\.platform\//,
 ];
 
+function collectChangedPaths(commits) {
+  const paths = new Set();
+  for (const commit of commits ?? []) {
+    for (const f of [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])]) {
+      paths.add(f);
+    }
+  }
+  return [...paths];
+}
+
 function hasHighRiskChanges(commits) {
-  return (commits ?? []).some((commit) =>
-    [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])].some((f) =>
-      HIGH_RISK_PATTERNS.some((p) => p.test(f)),
-    ),
-  );
+  return collectChangedPaths(commits).some((f) => HIGH_RISK_PATTERNS.some((p) => p.test(f)));
+}
+
+// ─── Build filters (included/ignored paths) ────────────────────────────────────
+
+/** Minimal glob matcher: `**` matches across path segments, `*` matches within one. */
+function globToRegExp(glob) {
+  const DOUBLE_STAR_MARKER = '\u0000';
+  const escaped = glob.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+  const pattern = escaped
+    .replace(/\*\*/g, DOUBLE_STAR_MARKER)
+    .replace(/\*/g, '[^/]*')
+    .split(DOUBLE_STAR_MARKER)
+    .join('.*');
+  return new RegExp(`^${pattern}$`);
+}
+
+function matchesAnyGlob(path, globs) {
+  return globs.some((glob) => globToRegExp(glob).test(path));
+}
+
+/**
+ * Determines whether a build should be skipped because none of the changed
+ * paths are relevant, per the project's included/ignored path filters.
+ * `includedPaths` (if non-empty) is an allowlist; `ignoredPaths` is a denylist
+ * applied on top of it. If every changed path is filtered out, the build is skipped.
+ */
+function shouldSkipBuild(changedPaths, buildFilters) {
+  const includedPaths = buildFilters?.includedPaths ?? [];
+  const ignoredPaths = buildFilters?.ignoredPaths ?? [];
+
+  if (changedPaths.length === 0 || (includedPaths.length === 0 && ignoredPaths.length === 0)) {
+    return false;
+  }
+
+  const relevantPaths = changedPaths.filter((path) => {
+    if (includedPaths.length > 0 && !matchesAnyGlob(path, includedPaths)) {
+      return false;
+    }
+    if (ignoredPaths.length > 0 && matchesAnyGlob(path, ignoredPaths)) {
+      return false;
+    }
+    return true;
+  });
+
+  return relevantPaths.length === 0;
 }
 
 // ─── Event handlers ───────────────────────────────────────────────────────────
@@ -107,6 +158,18 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
       branch,
     });
     // TODO Phase 8: notify owner and flag project for review
+    return;
+  }
+
+  // Build filters — skip the build entirely if no changed path is relevant
+  const changedPaths = collectChangedPaths(commits);
+  if (shouldSkipBuild(changedPaths, project.buildFilters)) {
+    logger.info('Webhook: build skipped — no changed paths match build filters', {
+      projectId: project._id.toString(),
+      repoFullName,
+      branch,
+      changedPaths,
+    });
     return;
   }
 

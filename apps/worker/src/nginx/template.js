@@ -73,15 +73,37 @@ server {
 `;
 }
 
+const DEFAULT_MAINTENANCE_MESSAGE = 'Service temporarily unavailable.';
+
 /**
- * Generate a maintenance server block for a suspended project.
+ * Sanitizes an owner-supplied maintenance message for safe interpolation into
+ * an Nginx `return` string literal. Strips quotes/control characters and caps
+ * length rather than attempting to escape them, since this value ends up
+ * inside a generated config file that `nginx -t` will parse.
+ */
+export function sanitizeMaintenanceMessage(message) {
+  if (!message) {
+    return DEFAULT_MAINTENANCE_MESSAGE;
+  }
+
+  const cleaned = String(message)
+    .replace(/[\r\n"\\;{}]/g, '')
+    .trim()
+    .slice(0, 200);
+
+  return cleaned || DEFAULT_MAINTENANCE_MESSAGE;
+}
+
+/**
+ * Generate a maintenance server block for a suspended or maintenance-mode project.
  * Returns 503 with a Retry-After header.
  *
- * @param {{ subdomain: string, domain: string }} opts
+ * @param {{ subdomain: string, domain: string, message?: string }} opts
  * @returns {string}
  */
-export function generateMaintenanceBlock({ subdomain, domain }) {
+export function generateMaintenanceBlock({ subdomain, domain, message }) {
   const fqdn = `${subdomain}.${domain}`;
+  const safeMessage = sanitizeMaintenanceMessage(message);
 
   return `# hellodeploy-maintenance: ${subdomain}
 server {
@@ -90,7 +112,7 @@ server {
 
     location / {
         add_header Retry-After 300 always;
-        return 503 "Service temporarily unavailable.";
+        return 503 "${safeMessage}";
     }
 }
 `;

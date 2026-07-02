@@ -127,3 +127,14 @@ export const passwordResetLimiter = rateLimit({
   store: makeStore('pwd-reset'),
   handler: onLimitReached,
 });
+
+/** Deploy hook triggers — token-authenticated external callers (CI systems) */
+export const deployHookLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('deploy-hook'),
+  handler: onLimitReached,
+});

@@ -16,6 +16,8 @@ export const JobType = Object.freeze({
   ROLLBACK_RELEASE: 'ROLLBACK_RELEASE',
   STOP_PROJECT: 'STOP_PROJECT',
   RESTART_PROJECT: 'RESTART_PROJECT',
+  DELETE_PROJECT: 'DELETE_PROJECT',
+  SET_PROJECT_MAINTENANCE: 'SET_PROJECT_MAINTENANCE',
   VERIFY_DOMAIN: 'VERIFY_DOMAIN',
   CLEANUP_RELEASES: 'CLEANUP_RELEASES',
   COLLECT_METRICS: 'COLLECT_METRICS',
@@ -87,6 +89,20 @@ export const JobType = Object.freeze({
 
 /**
  * @typedef {BaseJobPayload & {
+ *   projectId: string;
+ * }} DeleteProjectPayload
+ */
+
+/**
+ * @typedef {BaseJobPayload & {
+ *   projectId: string;
+ *   enabled: boolean;
+ *   message?: string;
+ * }} SetProjectMaintenancePayload
+ */
+
+/**
+ * @typedef {BaseJobPayload & {
  *   domainId: string;
  *   projectId: string;
  *   hostname: string;
@@ -121,6 +137,8 @@ export const JobRetryPolicy = Object.freeze({
   [JobType.ROLLBACK_RELEASE]: { attempts: 2, backoff: { type: 'exponential', delay: 3000 } },
   [JobType.STOP_PROJECT]: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
   [JobType.RESTART_PROJECT]: { attempts: 2, backoff: { type: 'exponential', delay: 3000 } },
+  [JobType.DELETE_PROJECT]: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
+  [JobType.SET_PROJECT_MAINTENANCE]: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
   [JobType.VERIFY_DOMAIN]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   [JobType.CLEANUP_RELEASES]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   [JobType.COLLECT_METRICS]: { attempts: 2, backoff: { type: 'fixed', delay: 1000 } },

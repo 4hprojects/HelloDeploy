@@ -8,6 +8,9 @@ import {
   getUserProjects,
   updateProject,
   archiveProject,
+  deleteProject,
+  enableProjectMaintenance,
+  disableProjectMaintenance,
   getProjectMembers,
   inviteMember,
   removeMember,
@@ -18,6 +21,7 @@ import {
 import {
   validateCreateProject,
   validateUpdateProject,
+  validateMaintenanceMessage,
   validateInviteMember,
 } from '../validators/project.validator.js';
 
@@ -162,6 +166,79 @@ export const postArchiveProject = asyncHandler(async (req, res) => {
 
   req.flash('success', `Project "${req.project.name}" has been archived.`);
   res.redirect('/projects');
+});
+
+// ─── Delete project ────────────────────────────────────────────────────────────
+
+export const postDeleteProject = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const confirmSlug = req.body.confirmSlug?.trim();
+
+  if (confirmSlug !== project.slug) {
+    req.flash('error', 'Type the project slug exactly to confirm deletion.');
+    return res.redirect(`/projects/${project.slug}/edit`);
+  }
+
+  const result = await deleteProject({
+    projectId: project._id,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+    return res.redirect(`/projects/${project.slug}/edit`);
+  }
+
+  req.flash('success', `Project "${project.name}" has been permanently deleted.`);
+  res.redirect('/projects');
+});
+
+// ─── Maintenance mode ──────────────────────────────────────────────────────────
+
+export const postEnableMaintenance = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { errors, hasErrors } = validateMaintenanceMessage(req.body);
+
+  if (hasErrors) {
+    req.flash('error', Object.values(errors)[0]);
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  const result = await enableProjectMaintenance({
+    projectId: project._id,
+    message: req.body.message,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Maintenance mode enabled. Visitors will see a maintenance page shortly.');
+  }
+
+  res.redirect(`/projects/${project.slug}`);
+});
+
+export const postDisableMaintenance = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const result = await disableProjectMaintenance({
+    projectId: project._id,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Maintenance mode disabled. Traffic will resume shortly.');
+  }
+
+  res.redirect(`/projects/${project.slug}`);
 });
 
 // ─── Submit for review ─────────────────────────────────────────────────────────
@@ -332,5 +409,34 @@ export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
   });
 
   req.flash('success', `Deployment mode set to ${deploymentMode.toLowerCase().replace('_', ' ')}.`);
+  res.redirect(`/projects/${project.slug}`);
+});
+
+// ─── Notification preference ──────────────────────────────────────────────────
+
+export const postUpdateNotificationPreference = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { notificationPreference } = req.body;
+  const allowed = ['ALL', 'FAILURE_ONLY', 'NONE'];
+
+  if (!allowed.includes(notificationPreference)) {
+    req.flash('error', 'Invalid notification preference.');
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  await Project.updateOne({ _id: project._id }, { $set: { notificationPreference } });
+
+  await writeAuditEvent({
+    action: 'project.notification_preference_updated',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { notificationPreference },
+  });
+
+  req.flash('success', 'Notification preference updated.');
   res.redirect(`/projects/${project.slug}`);
 });

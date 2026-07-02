@@ -115,6 +115,7 @@ export function buildDeploymentNotificationEmail(opts, owner) {
  *   failureCode?: string,
  *   failureSummary?: string,
  *   platformDomain: string,
+ *   notificationPreference?: 'ALL' | 'FAILURE_ONLY' | 'NONE',
  * }} opts
  */
 export async function notifyDeploymentResult(opts) {
@@ -128,7 +129,15 @@ export async function notifyDeploymentResult(opts) {
     failureCode,
     failureSummary,
     platformDomain,
+    notificationPreference = 'ALL',
   } = opts;
+
+  if (notificationPreference === 'NONE') {
+    return;
+  }
+  if (notificationPreference === 'FAILURE_ONLY' && status === 'HEALTHY') {
+    return;
+  }
 
   try {
     const owner = await User.findById(ownerId).select('email name').lean();

@@ -9,6 +9,24 @@ const buildConfigurationSchema = new Schema(
     startCommand: { type: String, default: null },
     outputDirectory: { type: String, default: null },
     applicationPort: { type: Number, default: null, min: 1, max: 65535 },
+    healthCheckPath: { type: String, default: '/' },
+  },
+  { _id: false },
+);
+
+const buildFiltersSchema = new Schema(
+  {
+    includedPaths: { type: [String], default: [] },
+    ignoredPaths: { type: [String], default: [] },
+  },
+  { _id: false },
+);
+
+const maintenanceModeSchema = new Schema(
+  {
+    enabled: { type: Boolean, default: false },
+    message: { type: String, default: null },
+    enabledAt: { type: Date, default: null },
   },
   { _id: false },
 );
@@ -43,6 +61,7 @@ const projectSchema = new Schema(
       default: DeploymentMode.MANUAL,
     },
     buildConfiguration: { type: buildConfigurationSchema, default: () => ({}) },
+    buildFilters: { type: buildFiltersSchema, default: () => ({}) },
     platformSubdomain: {
       type: String,
       default: null,
@@ -51,8 +70,15 @@ const projectSchema = new Schema(
       maxlength: 63,
     },
     activeDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
+    deployHookTokenHash: { type: String, default: null },
     quotaOverrideId: { type: Schema.Types.ObjectId, ref: 'Quota', default: null },
     configurationVersion: { type: Number, default: 1 },
+    notificationPreference: {
+      type: String,
+      enum: ['ALL', 'FAILURE_ONLY', 'NONE'],
+      default: 'ALL',
+    },
+    maintenanceMode: { type: maintenanceModeSchema, default: () => ({}) },
     archivedAt: { type: Date, default: null },
   },
   {

@@ -14,6 +14,8 @@ import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
 import { handleVerifyDomain } from './jobs/verify-domain.job.js';
 import { handleStopProject } from './jobs/stop-project.job.js';
+import { handleDeleteProject } from './jobs/delete-project.job.js';
+import { handleSetProjectMaintenance } from './jobs/set-project-maintenance.job.js';
 import { handleCleanupReleases } from './jobs/cleanup-releases.job.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
@@ -70,6 +72,12 @@ async function processJob(job) {
       break;
     case JobType.STOP_PROJECT:
       await handleStopProject(job);
+      break;
+    case JobType.DELETE_PROJECT:
+      await handleDeleteProject(job);
+      break;
+    case JobType.SET_PROJECT_MAINTENANCE:
+      await handleSetProjectMaintenance(job);
       break;
     case JobType.CLEANUP_RELEASES:
       await handleCleanupReleases(job);

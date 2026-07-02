@@ -1,0 +1,64 @@
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Deploy Hook</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
+    </p>
+  </div>
+</div>
+
+<% if (revealedUrl) { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Your new deploy hook URL</span>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Copy this now — it won't be shown again. Anyone with this URL can trigger a deploy.
+    </p>
+    <div class="form-field">
+      <input type="text" class="form-input code-inline" value="<%= revealedUrl %>" readonly onclick="this.select()" />
+    </div>
+  </div>
+</div>
+<% } %>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Deploy Hook</span>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Trigger a deploy of this project's production branch with a single unauthenticated
+      <code class="code-inline">POST</code> request — useful for CI pipelines or external
+      integrations. Keep the URL secret; anyone who has it can deploy this project.
+    </p>
+
+    <% if (project.deployHookTokenHash) { %>
+      <p class="text-sm text-success mb-4">A deploy hook is currently configured.</p>
+    <% } else { %>
+      <p class="text-sm text-muted mb-4">No deploy hook has been generated yet.</p>
+    <% } %>
+
+    <div class="button-group">
+      <form method="POST" action="/projects/<%= project.slug %>/deploy-hook/generate">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--primary" data-pending-label="Generating...">
+          <%= project.deployHookTokenHash ? 'Regenerate' : 'Generate' %> Deploy Hook
+        </button>
+      </form>
+
+      <% if (project.deployHookTokenHash) { %>
+      <form method="POST" action="/projects/<%= project.slug %>/deploy-hook/revoke"
+            data-confirm="Revoke the deploy hook? The current URL will stop working immediately."
+            data-confirm-title="Revoke deploy hook"
+            data-confirm-accept-label="Revoke"
+            data-confirm-pending-label="Revoking..."
+            data-confirm-variant="danger">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--danger">Revoke</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+</div>

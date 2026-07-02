@@ -40,3 +40,41 @@
     </form>
   </div>
 </div>
+
+<div class="card card--danger mt-6">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Danger Zone</h2>
+    <div class="danger-action">
+      <div>
+        <strong>Delete this project</strong>
+        <p class="text-sm text-muted">
+          Permanently stops the running application and deletes all deployments,
+          domains, secrets, and membership records. This cannot be undone.
+        </p>
+      </div>
+    </div>
+    <form method="POST" action="/projects/<%= project.slug %>/delete"
+          data-confirm="This permanently deletes &quot;<%= project.name %>&quot; and all of its data. This cannot be undone."
+          data-confirm-title="Delete project"
+          data-confirm-accept-label="Delete Project"
+          data-confirm-pending-label="Deleting..."
+          data-confirm-variant="danger"
+          class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-field form-field--floating">
+        <label for="confirmSlug" class="form-label">
+          Type <code class="code-inline"><%= project.slug %></code> to confirm
+        </label>
+        <input
+          type="text"
+          id="confirmSlug"
+          name="confirmSlug"
+          class="form-input"
+          autocomplete="off"
+          placeholder=" "
+        />
+      </div>
+      <button type="submit" class="button button--danger button--sm">Delete Project</button>
+    </form>
+  </div>
+</div>

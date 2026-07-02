@@ -46,8 +46,98 @@
         <% } %>
       </dd>
 
-      <% if (project.buildConfiguration) { %>
-      <% const bc = project.buildConfiguration; %>
+      <dt>Repository</dt>
+      <dd><code class="code-inline"><%= repo.fullName %></code></dd>
+    </dl>
+  </div>
+</div>
+
+<% const bc = project.buildConfiguration || {}; %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Build &amp; Deploy Configuration</span>
+  </div>
+  <div class="card__body">
+    <% if (membership.role === 'OWNER') { %>
+    <p class="text-sm text-muted mb-4">
+      These values override auto-detected settings. Leave a field blank to fall back to detection defaults.
+    </p>
+    <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
+      <%- include('../../partials/csrf-field') %>
+
+      <div class="form-field form-field--floating">
+        <label for="buildCommand" class="form-label">Build command</label>
+        <input
+          type="text"
+          id="buildCommand"
+          name="buildCommand"
+          class="form-input"
+          value="<%= bc.buildCommand || '' %>"
+          maxlength="500"
+          placeholder=" "
+        />
+      </div>
+
+      <div class="form-field form-field--floating">
+        <label for="startCommand" class="form-label">Start command</label>
+        <input
+          type="text"
+          id="startCommand"
+          name="startCommand"
+          class="form-input"
+          value="<%= bc.startCommand || '' %>"
+          maxlength="500"
+          placeholder=" "
+        />
+      </div>
+
+      <div class="form-field form-field--floating">
+        <label for="outputDirectory" class="form-label">Output directory</label>
+        <input
+          type="text"
+          id="outputDirectory"
+          name="outputDirectory"
+          class="form-input"
+          value="<%= bc.outputDirectory || '' %>"
+          maxlength="255"
+          placeholder=" "
+        />
+      </div>
+
+      <div class="form-field form-field--floating">
+        <label for="applicationPort" class="form-label">Application port</label>
+        <input
+          type="number"
+          id="applicationPort"
+          name="applicationPort"
+          class="form-input"
+          value="<%= bc.applicationPort || '' %>"
+          min="1"
+          max="65535"
+          placeholder=" "
+        />
+      </div>
+
+      <div class="form-field form-field--floating">
+        <label for="healthCheckPath" class="form-label">Health check path</label>
+        <input
+          type="text"
+          id="healthCheckPath"
+          name="healthCheckPath"
+          class="form-input"
+          value="<%= bc.healthCheckPath || '/' %>"
+          maxlength="255"
+          placeholder=" "
+        />
+        <span class="form-hint">HTTP path HelloDeploy polls after each deploy to confirm the app is healthy.</span>
+      </div>
+
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary">Save Configuration</button>
+      </div>
+    </form>
+    <% } else { %>
+    <dl class="detail-list">
       <% if (bc.buildCommand) { %>
       <dt>Build command</dt>
       <dd><code class="code-inline"><%= bc.buildCommand %></code></dd>
@@ -64,11 +154,67 @@
       <dt>Application port</dt>
       <dd><code class="code-inline"><%= bc.applicationPort %></code></dd>
       <% } %>
-      <% } %>
-
-      <dt>Repository</dt>
-      <dd><code class="code-inline"><%= repo.fullName %></code></dd>
+      <dt>Health check path</dt>
+      <dd><code class="code-inline"><%= bc.healthCheckPath || '/' %></code></dd>
     </dl>
+    <% } %>
+  </div>
+</div>
+
+<% const bf = project.buildFilters || {}; %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Build Filters</span>
+  </div>
+  <div class="card__body">
+    <% if (membership.role === 'OWNER') { %>
+    <p class="text-sm text-muted mb-4">
+      Control which pushes trigger a build in this repository. One glob pattern per line
+      (e.g. <code class="code-inline">docs/**</code>, <code class="code-inline">*.md</code>).
+      If a push only touches ignored or non-included paths, the build is skipped.
+    </p>
+    <form method="POST" action="/projects/<%= project.slug %>/build-filters" novalidate>
+      <%- include('../../partials/csrf-field') %>
+
+      <div class="form-field">
+        <label for="includedPaths" class="form-label">Included paths</label>
+        <textarea
+          id="includedPaths"
+          name="includedPaths"
+          class="form-textarea"
+          rows="3"
+          placeholder="src/**"
+        ><%= (bf.includedPaths || []).join('\n') %></textarea>
+        <span class="form-hint">Leave blank to include all paths by default.</span>
+      </div>
+
+      <div class="form-field">
+        <label for="ignoredPaths" class="form-label">Ignored paths</label>
+        <textarea
+          id="ignoredPaths"
+          name="ignoredPaths"
+          class="form-textarea"
+          rows="3"
+          placeholder="docs/**"
+        ><%= (bf.ignoredPaths || []).join('\n') %></textarea>
+      </div>
+
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary">Save Build Filters</button>
+      </div>
+    </form>
+    <% } else if ((bf.includedPaths && bf.includedPaths.length) || (bf.ignoredPaths && bf.ignoredPaths.length)) { %>
+    <dl class="detail-list">
+      <% if (bf.includedPaths && bf.includedPaths.length) { %>
+      <dt>Included paths</dt>
+      <dd><code class="code-inline"><%= bf.includedPaths.join(', ') %></code></dd>
+      <% } %>
+      <% if (bf.ignoredPaths && bf.ignoredPaths.length) { %>
+      <dt>Ignored paths</dt>
+      <dd><code class="code-inline"><%= bf.ignoredPaths.join(', ') %></code></dd>
+      <% } %>
+    </dl>
+    <% } %>
   </div>
 </div>
 
