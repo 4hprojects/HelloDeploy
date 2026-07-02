@@ -99,6 +99,14 @@
   height: 1rem;
 }
 
+.sidebar__link--button {
+  width: 100%;
+  background: none;
+  border: none;
+  font: inherit;
+  cursor: pointer;
+}
+
 /* ── Main content ────────────────────────────────────────────────── */
 .layout__main {
   flex: 1;
