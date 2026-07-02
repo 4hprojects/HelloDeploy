@@ -21,6 +21,7 @@ Remediation status:
 - 2026-07-02: Script and app-rendered style CSP were implemented. Shared inline browser behavior was moved to `/js/app.js`, inline event handlers were removed, unsafe repository option rendering was replaced with DOM node creation, app view `style` attributes were moved into CSS classes, and Helmet now enforces `script-src 'self'` plus a per-request nonce, `style-src 'self'`, and `style-src-attr 'none'`.
 - 2026-07-02: Database index review completed. Membership, deployment, and domain indexes already covered the reviewed paths; audit event indexes were expanded for outcome, target type, and target ID filters sorted by creation time.
 - 2026-07-02: Production rate-limit behavior was hardened. Redis-backed rate limiting now fails production startup/store creation instead of silently falling back to memory, while development/test fallback remains available.
+- 2026-07-02: Deployment log SSE scalability and UX were improved with per-user and per-IP active stream caps, `429`/`Retry-After` responses when caps are exceeded, and a reconnect control after timeout or disconnect.
 
 Automated checks:
 
@@ -170,14 +171,14 @@ Recommended fix:
 
 ### Efficiency Risks
 
-- SSE uses per-connection polling every 1.5 seconds. This is acceptable at low scale but can create database load with many active viewers.
+- SSE uses per-connection polling every 1.5 seconds. Active stream caps now limit worst-case fan-out per signed-in user and source IP, but database query volume should still be monitored as usage grows.
 - `getUserProjects()` populates all memberships for a user and sorts in memory. This is fine for small quotas, but should be paginated or sorted in the database if project counts grow.
 - Several screens perform count plus page queries separately. This is common, but high-cardinality admin pages may need indexes and/or cached counts.
 - Shared browser behavior now lives in a static JS file, improving cacheability and allowing script CSP enforcement.
 
 ### Efficiency Recommendations
 
-- Keep the current SSE approach for pilot scale, but add a cap on simultaneous streams per user/IP and monitor query volume.
+- Keep the current SSE approach for pilot scale and monitor query volume under real usage.
 - Add or verify Mongo indexes for high-traffic filters: `ProjectMembership.userId`, `ProjectMembership.projectId`, `Deployment.projectId + sequenceNumber`, `Domain.hostnameNormalized`, `AuditEvent.createdAt/action/outcome`, and session TTL.
 - Keep app-rendered styles in CSS classes so `style-src-attr 'none'` can remain enforced.
 - Consider conditional `Cache-Control` headers for static assets if not already handled upstream.
@@ -198,13 +199,13 @@ Recommended fix:
 
 - Some service-layer failures are surfaced as generic flash messages. For operational workflows, users may need clearer remediation steps, especially for queue unavailable, repository access inactive, DNS not propagated, and deployment already in progress.
 - Project/member/domain IDs in URLs are opaque where secondary resources are involved. This is normal, but it makes authorization bugs harder for users/admins to reason about.
-- A 6-minute SSE timeout may surprise users watching long builds unless the UI clearly marks the stream as timed out while the deployment continues.
+- A 6-minute SSE timeout now exposes a reconnect control, but users may still benefit from richer progress copy on very long builds.
 - Admin pages with large audit/project/user lists may become harder to scan without richer filters or saved views.
 
 ### User-Friendliness Recommendations
 
 - Add targeted recovery copy for common deployment/domain failures.
-- On log stream timeout, provide a visible reconnect control or automatic reconnect status.
+- Continue refining long-build progress copy around stream timeout and reconnect states.
 - Add admin filters for project owner, repository status, deployment mode, and last activity.
 - Keep table responsiveness, but consider denser desktop admin tables for repeated operational use.
 

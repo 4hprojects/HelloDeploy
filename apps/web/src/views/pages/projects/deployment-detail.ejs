@@ -161,6 +161,7 @@
     <h2 class="card__title text-sm">Deployment Logs</h2>
     <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
     <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
+    <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>
     <% } %>
   </div>
   <div class="card__body p-0">

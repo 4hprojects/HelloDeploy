@@ -103,7 +103,7 @@ Remaining CSP follow-up:
 
 Status target: document and queue today; implement only if low-risk and time remains.
 
-Status: completed 2026-07-02T12:02:22+08:00.
+Status: completed 2026-07-02T12:05:51+08:00.
 
 - [x] Review Mongo indexes needed by high-traffic paths.
   - [x] `ProjectMembership.userId`: already indexed.
@@ -114,6 +114,11 @@ Status: completed 2026-07-02T12:02:22+08:00.
 - [x] Add an SSE scalability follow-up.
   - [x] Track simultaneous stream limits per user/IP.
   - [x] Consider reconnect UX after the 6-minute stream timeout.
+- [x] Implement SSE stream cap and reconnect UX.
+  - [x] Cap simultaneous deployment log streams per signed-in user.
+  - [x] Cap simultaneous deployment log streams per source IP.
+  - [x] Return `429` with `Retry-After` when the stream cap is exceeded.
+  - [x] Add a reconnect control after stream timeout or disconnect.
 - [x] Harden Redis-backed rate limiting for production.
   - [x] Keep memory fallback for development/test.
   - [x] Throw during production store creation if Redis-backed rate limiting cannot be configured.
@@ -126,10 +131,8 @@ Status: completed 2026-07-02T12:02:22+08:00.
 
 Follow-up implementation queue:
 
-1. Add per-user/IP caps for active SSE deployment log streams.
-2. Add browser reconnect behavior or an explicit reconnect control after SSE timeout.
-3. Rewrite common deployment/domain service errors into action-oriented UI copy.
-4. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
+1. Rewrite common deployment/domain service errors into action-oriented UI copy.
+2. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
 
 ## Phase 6: Documentation and Closeout
 
@@ -153,4 +156,4 @@ Status target: complete today before stopping.
 - [x] `npm test` passes.
 - [x] `npm run format:check` passes.
 - [x] Script CSP, index work, and the P0 isolation fixes are completed.
-- [x] Remaining SSE and UX work is explicitly queued.
+- [x] Remaining UX/admin filter work is explicitly queued.

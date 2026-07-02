@@ -1,5 +1,25 @@
 # Worklog
 
+## Deployment Log SSE Cap And Reconnect
+
+- Status: Completed
+- Started: 2026-07-02T12:02:22+08:00
+- Completed: 2026-07-02T12:05:51+08:00
+
+### Results
+
+- Added in-process active SSE stream counters by signed-in user and source IP.
+- Capped deployment log streams at 3 per user and 6 per source IP.
+- Return `429` with `Retry-After: 30` when stream caps are exceeded before opening the SSE response.
+- Release stream counters on client close, terminal deployment status, timeout, and pre-stream errors.
+- Added a reconnect button for live deployment logs after timeout or disconnect.
+- Added regression coverage for stream caps and reconnect behavior.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/deployment/live-progress-sse.test.js tests/deployment/log-viewer-safety.test.js tests/ui/deployment-timeline.test.js` passed.
+
 ## Production Rate Limit Hardening
 
 - Status: Completed

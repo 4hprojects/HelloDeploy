@@ -40,12 +40,27 @@ describe('live deployment progress SSE', () => {
     assert.match(deploymentController, /catch \{\n {6}\/\/ Non-fatal/);
   });
 
+  it('caps simultaneous log streams per user and network', () => {
+    assert.match(deploymentController, /SSE_MAX_STREAMS_PER_USER = 3/);
+    assert.match(deploymentController, /SSE_MAX_STREAMS_PER_IP = 6/);
+    assert.match(deploymentController, /activeSseStreamsByUser = new Map\(\)/);
+    assert.match(deploymentController, /activeSseStreamsByIp = new Map\(\)/);
+    assert.match(deploymentController, /Too many live log streams/);
+    assert.match(deploymentController, /Retry-After', '30'/);
+    assert.match(deploymentController, /releaseSseSlot\(activeSseStreamsByUser, userStreamKey\)/);
+    assert.match(deploymentController, /releaseSseSlot\(activeSseStreamsByIp, ipStreamKey\)/);
+  });
+
   it('connects the browser log viewer through EventSource and safe DOM updates', () => {
     assert.match(deploymentDetail, /data-stream-url=/);
+    assert.match(deploymentDetail, /id="log-reconnect-button"/);
     assert.match(appJs, /new EventSource\(output\.dataset\.streamUrl\)/);
+    assert.match(appJs, /function connectLogStream\(\)/);
+    assert.match(appJs, /reconnectButton\.addEventListener\('click', connectLogStream\)/);
     assert.match(appJs, /source\.addEventListener\('log'/);
     assert.match(appJs, /source\.addEventListener\('status'/);
     assert.match(appJs, /source\.addEventListener\('timeout'/);
+    assert.match(appJs, /setReconnectVisible\(true\)/);
     assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
     assert.doesNotMatch(deploymentDetail, /innerHTML/);
   });

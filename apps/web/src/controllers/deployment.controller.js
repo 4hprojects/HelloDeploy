@@ -145,6 +145,28 @@ export const postRollback = asyncHandler(async (req, res) => {
 
 const SSE_MAX_DURATION_MS = 6 * 60 * 1000; // 6 minutes
 const SSE_POLL_INTERVAL_MS = 1_500;
+const SSE_MAX_STREAMS_PER_USER = 3;
+const SSE_MAX_STREAMS_PER_IP = 6;
+const activeSseStreamsByUser = new Map();
+const activeSseStreamsByIp = new Map();
+
+function acquireSseSlot(map, key, limit) {
+  const current = map.get(key) ?? 0;
+  if (current >= limit) {
+    return false;
+  }
+  map.set(key, current + 1);
+  return true;
+}
+
+function releaseSseSlot(map, key) {
+  const current = map.get(key) ?? 0;
+  if (current <= 1) {
+    map.delete(key);
+    return;
+  }
+  map.set(key, current - 1);
+}
 
 export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
@@ -153,6 +175,18 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   const deployment = await getDeployment(deploymentId);
   if (!deployment || deployment.projectId.toString() !== project._id.toString()) {
     return res.status(404).end();
+  }
+
+  const userStreamKey = String(req.session.user.id);
+  const ipStreamKey = req.ip || 'unknown';
+  if (!acquireSseSlot(activeSseStreamsByUser, userStreamKey, SSE_MAX_STREAMS_PER_USER)) {
+    res.setHeader('Retry-After', '30');
+    return res.status(429).end('Too many live log streams. Close another tab and try again.');
+  }
+  if (!acquireSseSlot(activeSseStreamsByIp, ipStreamKey, SSE_MAX_STREAMS_PER_IP)) {
+    releaseSseSlot(activeSseStreamsByUser, userStreamKey);
+    res.setHeader('Retry-After', '30');
+    return res.status(429).end('Too many live log streams from this network.');
   }
 
   res.setHeader('Content-Type', 'text/event-stream');
@@ -165,12 +199,19 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   let closed = false;
   let poll = null;
 
-  req.on('close', () => {
+  const closeStream = () => {
+    if (closed) {
+      return;
+    }
     closed = true;
     if (poll) {
       clearInterval(poll);
     }
-  });
+    releaseSseSlot(activeSseStreamsByUser, userStreamKey);
+    releaseSseSlot(activeSseStreamsByIp, ipStreamKey);
+  };
+
+  req.on('close', closeStream);
 
   const sendEvent = (eventType, data) => {
     if (closed) {
@@ -181,24 +222,30 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   };
 
   // Send existing events first
-  const existing = await getDeploymentEvents(deploymentId);
-  for (const ev of existing) {
-    sendEvent('log', {
-      id: ev._id.toString(),
-      stage: ev.stage,
-      level: ev.level,
-      message: ev.messageRedacted,
-      timestamp: ev.createdAt,
-    });
-    lastId = ev._id;
-  }
+  try {
+    const existing = await getDeploymentEvents(deploymentId);
+    for (const ev of existing) {
+      sendEvent('log', {
+        id: ev._id.toString(),
+        stage: ev.stage,
+        level: ev.level,
+        message: ev.messageRedacted,
+        timestamp: ev.createdAt,
+      });
+      lastId = ev._id;
+    }
 
-  // If already terminal, send status and close
-  const currentDeployment = await getDeployment(deploymentId);
-  if (isTerminal(currentDeployment?.status)) {
-    sendEvent('status', { status: currentDeployment.status });
-    res.end();
-    return;
+    // If already terminal, send status and close
+    const currentDeployment = await getDeployment(deploymentId);
+    if (isTerminal(currentDeployment?.status)) {
+      sendEvent('status', { status: currentDeployment.status });
+      closeStream();
+      res.end();
+      return;
+    }
+  } catch (err) {
+    closeStream();
+    throw err;
   }
 
   // Poll for new events
@@ -209,6 +256,7 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       clearInterval(poll);
       if (!closed) {
         sendEvent('timeout', { message: 'Log stream timed out.' });
+        closeStream();
         res.end();
       }
       return;
@@ -238,7 +286,7 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       const dep = await getDeployment(deploymentId);
       if (isTerminal(dep?.status)) {
         sendEvent('status', { status: dep.status });
-        clearInterval(poll);
+        closeStream();
         res.end();
       }
     } catch {

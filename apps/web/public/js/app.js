@@ -683,6 +683,7 @@
     }
 
     const indicator = document.getElementById('live-indicator');
+    const reconnectButton = document.getElementById('log-reconnect-button');
     const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
 
     function updateTimeline(ev) {
@@ -733,45 +734,73 @@
       updateTimeline(ev);
     }
 
-    const source = new EventSource(output.dataset.streamUrl);
+    let source = null;
 
-    source.addEventListener('log', (e) => {
-      try {
-        appendLog(JSON.parse(e.data));
-      } catch {
-        // Ignore malformed SSE payloads and wait for the next event.
+    function setReconnectVisible(visible) {
+      if (reconnectButton) {
+        reconnectButton.classList.toggle('d-none', !visible);
       }
-    });
+    }
 
-    source.addEventListener('status', (e) => {
-      try {
-        const data = JSON.parse(e.data);
-        if (indicator) {
-          indicator.textContent = data.status;
-          indicator.className = 'badge text-xs';
-        }
+    function connectLogStream() {
+      if (source) {
         source.close();
-        setTimeout(() => {
-          window.location.reload();
-        }, 1200);
-      } catch {
-        // Ignore malformed SSE status payloads; the stream error handler will close if needed.
       }
-    });
 
-    source.addEventListener('timeout', () => {
+      setReconnectVisible(false);
       if (indicator) {
-        indicator.textContent = 'Timed out';
+        indicator.textContent = '● Live';
       }
-      source.close();
-    });
 
-    source.onerror = function () {
-      if (indicator) {
-        indicator.textContent = 'Disconnected';
-      }
-      source.close();
-    };
+      source = new EventSource(output.dataset.streamUrl);
+
+      source.addEventListener('log', (e) => {
+        try {
+          appendLog(JSON.parse(e.data));
+        } catch {
+          // Ignore malformed SSE payloads and wait for the next event.
+        }
+      });
+
+      source.addEventListener('status', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (indicator) {
+            indicator.textContent = data.status;
+            indicator.className = 'badge text-xs';
+          }
+          setReconnectVisible(false);
+          source.close();
+          setTimeout(() => {
+            window.location.reload();
+          }, 1200);
+        } catch {
+          // Ignore malformed SSE status payloads; the stream error handler will close if needed.
+        }
+      });
+
+      source.addEventListener('timeout', () => {
+        if (indicator) {
+          indicator.textContent = 'Timed out';
+        }
+        setReconnectVisible(true);
+        source.close();
+      });
+
+      source.onerror = function () {
+        if (indicator) {
+          indicator.textContent = 'Disconnected';
+        }
+        setReconnectVisible(true);
+        source.close();
+      };
+    }
+
+    if (reconnectButton) {
+      reconnectButton.addEventListener('click', connectLogStream);
+    }
+
+    connectLogStream();
   }
 
   function init() {
