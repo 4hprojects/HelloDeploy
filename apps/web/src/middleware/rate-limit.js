@@ -4,8 +4,10 @@ import { createRedisConnection } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 
+const RATE_LIMIT_REDIS_REQUIRED_MESSAGE = 'Redis-backed rate limiting is required in production.';
+
 // One shared Redis client for all rate limit stores.
-// Falls back to in-memory if Redis is unavailable.
+// Development/test may fall back to in-memory; production must not silently degrade.
 let _redisClient = null;
 
 function getRedisClient() {
@@ -19,10 +21,18 @@ function getRedisClient() {
       password: env.REDIS_PASSWORD,
     });
     _redisClient.on('error', (err) => {
-      logger.warn('[web] Rate limit Redis error', { error: err.message });
+      const log = env.isProduction() ? logger.error : logger.warn;
+      log('[web] Rate limit Redis error', { error: err.message });
     });
     return _redisClient;
   } catch (err) {
+    if (env.isProduction()) {
+      logger.error(`[web] ${RATE_LIMIT_REDIS_REQUIRED_MESSAGE}`, {
+        error: err.message,
+      });
+      throw new Error(RATE_LIMIT_REDIS_REQUIRED_MESSAGE);
+    }
+
     logger.warn(
       '[web] Could not connect to Redis for rate limiting, falling back to memory store',
       {
@@ -36,8 +46,12 @@ function getRedisClient() {
 function makeStore(prefix) {
   const client = getRedisClient();
   if (!client) {
+    if (env.isProduction()) {
+      throw new Error(RATE_LIMIT_REDIS_REQUIRED_MESSAGE);
+    }
+
     return undefined;
-  } // express-rate-limit falls back to memory store
+  } // express-rate-limit falls back to memory store outside production.
   return new RedisStore({
     sendCommand: (...args) => client.call(...args),
     prefix: `rl:${prefix}:`,
@@ -65,6 +79,7 @@ export const generalLimiter = rateLimit({
   limit: 300,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: false,
   store: makeStore('general'),
   handler: onLimitReached,
 });
@@ -75,6 +90,7 @@ export const registrationLimiter = rateLimit({
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: false,
   store: makeStore('register'),
   handler: onLimitReached,
 });
@@ -85,6 +101,7 @@ export const signInLimiter = rateLimit({
   limit: 10,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: false,
   store: makeStore('signin'),
   handler: onLimitReached,
 });
@@ -95,6 +112,7 @@ export const resendVerificationLimiter = rateLimit({
   limit: 3,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: false,
   store: makeStore('resend-verify'),
   handler: onLimitReached,
 });
@@ -105,6 +123,7 @@ export const passwordResetLimiter = rateLimit({
   limit: 5,
   standardHeaders: true,
   legacyHeaders: false,
+  passOnStoreError: false,
   store: makeStore('pwd-reset'),
   handler: onLimitReached,
 });

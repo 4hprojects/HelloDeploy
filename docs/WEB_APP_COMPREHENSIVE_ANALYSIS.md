@@ -20,6 +20,7 @@ Remediation status:
 - 2026-07-02: P0 deployment/domain cross-project mutation issues were remediated by scoping cancel/retry and verify/remove service queries to the authorized project ID. Regression tests were added and local quality gates passed.
 - 2026-07-02: Script and app-rendered style CSP were implemented. Shared inline browser behavior was moved to `/js/app.js`, inline event handlers were removed, unsafe repository option rendering was replaced with DOM node creation, app view `style` attributes were moved into CSS classes, and Helmet now enforces `script-src 'self'` plus a per-request nonce, `style-src 'self'`, and `style-src-attr 'none'`.
 - 2026-07-02: Database index review completed. Membership, deployment, and domain indexes already covered the reviewed paths; audit event indexes were expanded for outcome, target type, and target ID filters sorted by creation time.
+- 2026-07-02: Production rate-limit behavior was hardened. Redis-backed rate limiting now fails production startup/store creation instead of silently falling back to memory, while development/test fallback remains available.
 
 Automated checks:
 
@@ -100,11 +101,11 @@ Recommended fix:
 - Use service method names/signatures that force scope, such as `cancelProjectDeployment({ projectId, deploymentId, actorId })`.
 - Prefer "not found" for both nonexistent and out-of-scope objects.
 
-### P2 - Rate Limit Redis Fallback Can Weaken Production Controls
+### P2 - Rate Limit Redis Fallback Could Weaken Production Controls
 
 Evidence:
 
-- `apps/web/src/middleware/rate-limit.js` falls back to the default in-memory store if Redis setup fails.
+- Prior to remediation, `apps/web/src/middleware/rate-limit.js` fell back to the default in-memory store if Redis setup failed.
 
 Impact:
 
@@ -112,8 +113,9 @@ In production, in-memory rate limits are per-process and reset on restart. With 
 
 Recommended fix:
 
-- In production, fail startup or emit a hard health-check failure when Redis-backed rate limiting is unavailable.
-- Keep memory fallback only for development/test.
+- Completed: production Redis store creation failures now throw with an explicit error.
+- Completed: development/test may still use memory fallback.
+- Completed: limiter store errors explicitly use `passOnStoreError: false`, preserving fail-closed behavior.
 
 ### P2 - Lint Fails Despite Passing Tests
 
@@ -232,14 +234,13 @@ Result: passed
 2. Fix cross-project domain verify/remove authorization.
 3. Add regression tests for project-owned object ID isolation.
 4. Fix the lint error so quality gates are green.
-5. Harden production rate-limit behavior when Redis is unavailable.
-6. Add performance indexes and monitor SSE query load.
-7. Improve operational error copy and reconnect behavior for long-running log streams.
+5. Add performance indexes and monitor SSE query load.
+6. Improve operational error copy and reconnect behavior for long-running log streams.
 
 ## Overall Rating
 
 Security: needs immediate P0 fixes before production multi-tenant use.
 
-Efficiency: good for pilot/self-hosted scale, with predictable scaling pressure around SSE polling, admin list queries, and Redis-backed rate limits.
+Efficiency: good for pilot/self-hosted scale, with predictable scaling pressure around SSE polling and admin list queries.
 
 User friendliness: strong baseline for an operational deployment tool, with good accessibility and responsive coverage already represented in tests.

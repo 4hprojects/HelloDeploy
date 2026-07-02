@@ -1,5 +1,24 @@
 # Worklog
 
+## Production Rate Limit Hardening
+
+- Status: Completed
+- Started: 2026-07-02T12:00:02+08:00
+- Completed: 2026-07-02T12:02:22+08:00
+
+### Results
+
+- Kept development/test memory-store fallback for local use.
+- Changed production Redis store creation failures to throw instead of silently falling back to in-memory rate limits.
+- Logged production Redis client errors as errors instead of warnings.
+- Set `passOnStoreError: false` explicitly on all five rate limiters so Redis store errors fail closed.
+- Added source-level regression coverage for production fail-closed behavior.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/security/rate-limit.test.js` passed.
+
 ## Inline Style CSP Tightening
 
 - Status: Completed

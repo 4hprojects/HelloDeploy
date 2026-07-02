@@ -1,6 +1,12 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import rateLimit from 'express-rate-limit';
+
+const rateLimitSource = await readFile(
+  new URL('../../apps/web/src/middleware/rate-limit.js', import.meta.url),
+  'utf8',
+);
 
 // Test limiters use the default in-memory store (no Redis required).
 // Handler signature matches the production onLimitReached in rate-limit.js.
@@ -32,6 +38,11 @@ function invoke(limiter, ip, acceptsHtml = false) {
       ip,
       method: 'POST',
       headers: {},
+      app: {
+        get() {
+          return false;
+        },
+      },
       accepts: (type) => (acceptsHtml && type === 'html' ? 'html' : false),
     };
     let capturedStatus = null;
@@ -149,5 +160,28 @@ describe('brute-force protection — rate limit behaviour', () => {
     }
     const blocked = await invoke(registrationPattern, ip);
     assert.equal(blocked.status, 429, '6th registration attempt must be blocked (limit=5)');
+  });
+
+  it('does not silently fall back to memory rate limits in production', () => {
+    assert.match(
+      rateLimitSource,
+      /Redis-backed rate limiting is required in production/,
+      'production failure message should be explicit',
+    );
+    assert.match(
+      rateLimitSource,
+      /if \(env\.isProduction\(\)\) \{\s+logger\.error\(`\[web\] \$\{RATE_LIMIT_REDIS_REQUIRED_MESSAGE\}`[\s\S]+throw new Error\(RATE_LIMIT_REDIS_REQUIRED_MESSAGE\);/,
+      'production Redis store creation failures should stop startup',
+    );
+    assert.match(
+      rateLimitSource,
+      /Could not connect to Redis for rate limiting, falling back to memory store/,
+      'non-production fallback should remain documented',
+    );
+  });
+
+  it('fails closed when the Redis rate-limit store errors', () => {
+    const failClosedCount = (rateLimitSource.match(/passOnStoreError: false/g) || []).length;
+    assert.equal(failClosedCount, 5, 'each production limiter should fail closed on store errors');
   });
 });

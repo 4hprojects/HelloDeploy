@@ -103,7 +103,7 @@ Remaining CSP follow-up:
 
 Status target: document and queue today; implement only if low-risk and time remains.
 
-Status: completed 2026-07-02T06:47:00+08:00.
+Status: completed 2026-07-02T12:02:22+08:00.
 
 - [x] Review Mongo indexes needed by high-traffic paths.
   - [x] `ProjectMembership.userId`: already indexed.
@@ -114,6 +114,10 @@ Status: completed 2026-07-02T06:47:00+08:00.
 - [x] Add an SSE scalability follow-up.
   - [x] Track simultaneous stream limits per user/IP.
   - [x] Consider reconnect UX after the 6-minute stream timeout.
+- [x] Harden Redis-backed rate limiting for production.
+  - [x] Keep memory fallback for development/test.
+  - [x] Throw during production store creation if Redis-backed rate limiting cannot be configured.
+  - [x] Explicitly fail closed on Redis store errors with `passOnStoreError: false`.
 - [x] Improve operational error copy for common deployment/domain failures.
   - [x] queue unavailable
   - [x] repository access inactive
@@ -149,4 +153,4 @@ Status target: complete today before stopping.
 - [x] `npm test` passes.
 - [x] `npm run format:check` passes.
 - [x] Script CSP, index work, and the P0 isolation fixes are completed.
-- [x] Remaining Redis-rate-limit, SSE, and UX work is explicitly queued.
+- [x] Remaining SSE and UX work is explicitly queued.
