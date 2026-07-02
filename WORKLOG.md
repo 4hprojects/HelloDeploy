@@ -1,5 +1,25 @@
 # Worklog
 
+## Inline Style CSP Tightening
+
+- Status: Completed
+- Started: 2026-07-02T11:52:00+08:00
+- Completed: 2026-07-02T12:00:02+08:00
+
+### Results
+
+- Replaced app-rendered EJS `style` attributes with reusable CSS classes.
+- Added narrow utility/component classes for inline forms, hidden blocks, constrained filters/cards, success text, uppercase inputs, warning cards, and aligned form controls.
+- Switched repository branch visibility from `element.style.display` to `d-none`.
+- Reworked tooltip positioning to use CSS anchoring classes instead of JS-written `top`/`left` inline styles.
+- Tightened Helmet CSP from `style-src 'self' 'unsafe-inline'` to `style-src 'self'` and added `style-src-attr 'none'`.
+- Extended CSP tests to scan all EJS views for inline style attributes.
+
+### Verification
+
+- Source scan found no app view `style=` attributes, unsafe script sinks, or JS `element.style` usage in the checked browser paths.
+- `node --test tests/security/csp.test.js tests/ui/tooltips.test.js tests/ui/destructive-actions.test.js tests/ui/form-pending-states.test.js` passed.
+
 ## Script CSP Implementation
 
 - Status: Completed
@@ -14,7 +34,7 @@
 - Replaced repository branch `innerHTML` option resets with DOM-created nodes.
 - Added per-request CSP nonces for the early theme bootstrap.
 - Enabled Helmet CSP enforcement for scripts with `script-src 'self'` plus the request nonce.
-- Left `style-src 'unsafe-inline'` as a documented temporary allowance until inline style attributes are moved into CSS.
+- Initially left `style-src 'unsafe-inline'` as a documented temporary allowance until inline style attributes were moved into CSS; this was removed in the follow-up inline style CSP pass.
 - Added CSP regression coverage and updated source-level UI tests to assert behavior in the static JS asset.
 - Updated today's remediation checklist and the comprehensive analysis report.
 

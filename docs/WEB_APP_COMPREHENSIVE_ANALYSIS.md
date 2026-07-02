@@ -18,7 +18,7 @@ The most important issue found is a cross-project authorization gap in several m
 Remediation status:
 
 - 2026-07-02: P0 deployment/domain cross-project mutation issues were remediated by scoping cancel/retry and verify/remove service queries to the authorized project ID. Regression tests were added and local quality gates passed.
-- 2026-07-02: Script CSP was implemented. Shared inline browser behavior was moved to `/js/app.js`, inline event handlers were removed, unsafe repository option rendering was replaced with DOM node creation, and Helmet now enforces `script-src 'self'` plus a per-request nonce for the early theme bootstrap.
+- 2026-07-02: Script and app-rendered style CSP were implemented. Shared inline browser behavior was moved to `/js/app.js`, inline event handlers were removed, unsafe repository option rendering was replaced with DOM node creation, app view `style` attributes were moved into CSS classes, and Helmet now enforces `script-src 'self'` plus a per-request nonce, `style-src 'self'`, and `style-src-attr 'none'`.
 - 2026-07-02: Database index review completed. Membership, deployment, and domain indexes already covered the reviewed paths; audit event indexes were expanded for outcome, target type, and target ID filters sorted by creation time.
 
 Automated checks:
@@ -76,13 +76,12 @@ Evidence:
 
 Impact:
 
-EJS escapes normal interpolations, and log rendering avoids `innerHTML`, which reduces XSS risk. Script CSP now reduces the blast radius of future template injection or unsafe script sinks. Remaining inline style attributes still require temporary `style-src 'unsafe-inline'`, so style CSP is not yet strict.
+EJS escapes normal interpolations, and log rendering avoids `innerHTML`, which reduces XSS risk. Script and app-rendered style CSP now reduce the blast radius of future template injection, unsafe script sinks, and inline style injection.
 
 Recommended fix:
 
-- Move inline style attributes into CSS classes or safe custom-property patterns.
-- Remove temporary `style-src 'unsafe-inline'` after style attributes are gone.
 - Review external service allowances before enabling integrations that require third-party script/connect targets.
+- Keep email-template inline styles documented separately from browser CSP because email client rendering commonly depends on inline styles.
 
 ### P1 - Service Layer Relies Heavily on Caller-Enforced Authorization
 
@@ -149,7 +148,7 @@ Recommended fix:
 ### Security Gaps and Recommendations
 
 - Fix the P0 cross-project deployment and domain mutation paths first.
-- Tighten remaining style CSP after inline styles are removed.
+- Keep CSP regression tests covering nonce usage, removed inline handlers, removed unsafe JS sinks, and absent app view `style` attributes.
 - Move authorization constraints deeper into project-owned service methods.
 - Make production Redis/rate-limit failures explicit instead of silently degrading.
 - Consider adding HSTS configuration explicitly through Helmet for production if not already handled by the reverse proxy.
@@ -178,7 +177,7 @@ Recommended fix:
 
 - Keep the current SSE approach for pilot scale, but add a cap on simultaneous streams per user/IP and monitor query volume.
 - Add or verify Mongo indexes for high-traffic filters: `ProjectMembership.userId`, `ProjectMembership.projectId`, `Deployment.projectId + sequenceNumber`, `Domain.hostnameNormalized`, `AuditEvent.createdAt/action/outcome`, and session TTL.
-- Continue moving remaining inline styles into CSS so the style CSP can be tightened.
+- Keep app-rendered styles in CSS classes so `style-src-attr 'none'` can remain enforced.
 - Consider conditional `Cache-Control` headers for static assets if not already handled upstream.
 
 ## User-Friendliness Assessment
@@ -233,10 +232,9 @@ Result: passed
 2. Fix cross-project domain verify/remove authorization.
 3. Add regression tests for project-owned object ID isolation.
 4. Fix the lint error so quality gates are green.
-5. Tighten style CSP by removing inline styles and dropping `style-src 'unsafe-inline'`.
-6. Harden production rate-limit behavior when Redis is unavailable.
-7. Add performance indexes and monitor SSE query load.
-8. Improve operational error copy and reconnect behavior for long-running log streams.
+5. Harden production rate-limit behavior when Redis is unavailable.
+6. Add performance indexes and monitor SSE query load.
+7. Improve operational error copy and reconnect behavior for long-running log streams.
 
 ## Overall Rating
 

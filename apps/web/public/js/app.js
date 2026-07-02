@@ -171,19 +171,13 @@
       tooltip.hidden = false;
 
       const tooltipRect = tooltip.getBoundingClientRect();
-      let top = rect.top - tooltipRect.height - 8;
-      let left = rect.left + rect.width / 2 - tooltipRect.width / 2;
+      const top = rect.top - tooltipRect.height - 8;
 
       if (top < 8) {
-        top = rect.bottom + 8;
         tooltip.classList.add('tooltip-popover--below');
       } else {
         tooltip.classList.remove('tooltip-popover--below');
       }
-
-      left = Math.max(8, Math.min(left, window.innerWidth - tooltipRect.width - 8));
-      tooltip.style.top = top + 'px';
-      tooltip.style.left = left + 'px';
     }
 
     function showTooltip(target) {
@@ -194,6 +188,8 @@
 
       activeTooltipTarget = target;
       tooltip.textContent = text;
+      target.classList.add('tooltip-anchor');
+      target.appendChild(tooltip);
       target.setAttribute('aria-describedby', tooltip.id);
       positionTooltip(target);
     }
@@ -205,10 +201,12 @@
 
       if (activeTooltipTarget) {
         activeTooltipTarget.removeAttribute('aria-describedby');
+        activeTooltipTarget.classList.remove('tooltip-anchor');
       }
       activeTooltipTarget = null;
       tooltip.hidden = true;
       tooltip.textContent = '';
+      document.body.appendChild(tooltip);
       tooltip.classList.remove('tooltip-popover--below');
     }
 
@@ -638,7 +636,7 @@
       const fullName = opt.value;
 
       branchSelect.replaceChildren(option('', 'Loading branches...'));
-      branchGroup.style.display = 'none';
+      branchGroup.classList.add('d-none');
       connectBtn.disabled = true;
 
       if (!fullName) {
@@ -665,11 +663,11 @@
           }
           branchSelect.appendChild(branchOption);
         });
-        branchGroup.style.display = '';
+        branchGroup.classList.remove('d-none');
         connectBtn.disabled = !branchSelect.value;
       } catch {
         branchSelect.replaceChildren(option('', 'Could not load branches'));
-        branchGroup.style.display = '';
+        branchGroup.classList.remove('d-none');
       }
     });
 

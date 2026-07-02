@@ -4,7 +4,7 @@
 </div>
 
 <form method="GET" action="/admin/projects" class="filter-bar mb-6">
-  <select name="status" class="form-select" style="max-width: 12rem;">
+  <select name="status" class="form-select filter-select--status">
     <option value="">All statuses</option>
     <option value="DRAFT" <%= filters.status === 'DRAFT' ? 'selected' : '' %>>Draft</option>
     <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
@@ -56,12 +56,12 @@
         <td class="text-sm text-muted" data-label="Created"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right" data-label="Actions">
           <% if (p.status === 'SUSPENDED') { %>
-          <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" style="display:inline;">
+          <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" class="d-inline">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
           <% } else if (p.status === 'ACTIVE' || p.status === 'DRAFT') { %>
-          <form method="POST" action="/admin/projects/<%= p._id %>/suspend" style="display:inline;"
+          <form method="POST" action="/admin/projects/<%= p._id %>/suspend" class="d-inline"
                 data-confirm="Suspend project <%= p.name %> and pause user access to it?"
                 data-confirm-title="Suspend project"
                 data-confirm-accept-label="Suspend Project"

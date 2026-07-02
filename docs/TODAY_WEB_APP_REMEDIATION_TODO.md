@@ -90,11 +90,14 @@ Status: completed 2026-07-02T07:34:11+08:00.
 - [x] Enable Helmet CSP enforcement for scripts with `script-src 'self'` plus the request nonce.
 - [x] Add regression coverage for CSP headers, nonce propagation, removed inline handlers, and removed unsafe JS sinks.
 
+- [x] Move app-rendered inline `style` attributes into CSS classes.
+- [x] Remove temporary `style-src 'unsafe-inline'`.
+- [x] Add `style-src-attr 'none'` to block future inline style attributes.
+
 Remaining CSP follow-up:
 
-1. Move inline `style` attributes into CSS classes/custom properties.
-2. Remove temporary `style-src 'unsafe-inline'` after style attributes are gone.
-3. Review external service allowances before enabling integrations that require third-party script/connect targets.
+1. Review external service allowances before enabling integrations that require third-party script/connect targets.
+2. Keep email-template inline styles separate from browser CSP; email client rendering depends on inline styling.
 
 ## Phase 5: Efficiency and UX Follow-Ups
 
@@ -146,4 +149,4 @@ Status target: complete today before stopping.
 - [x] `npm test` passes.
 - [x] `npm run format:check` passes.
 - [x] Script CSP, index work, and the P0 isolation fixes are completed.
-- [x] Remaining inline-style CSP tightening, Redis-rate-limit, SSE, and UX work is explicitly queued.
+- [x] Remaining Redis-rate-limit, SSE, and UX work is explicitly queued.

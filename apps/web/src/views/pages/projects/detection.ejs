@@ -81,7 +81,7 @@
   </div>
   <div class="card__body">
     <% if (detectionResult.issues.length === 0) { %>
-      <p class="text-sm" style="color: var(--color-success);">No issues found. Your project looks good!</p>
+      <p class="text-sm text-success">No issues found. Your project looks good!</p>
     <% } else { %>
       <ul class="detection-issues">
         <% detectionResult.issues.forEach(issue => { %>

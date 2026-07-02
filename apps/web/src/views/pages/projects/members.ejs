@@ -28,7 +28,7 @@
             <% if (m.role === 'OWNER') { %>
             <span class="role-pill role-pill--owner">Owner</span>
             <% } else { %>
-            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" style="display: inline;">
+            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" class="d-inline">
               <%- include('../../partials/csrf-field') %>
               <select name="role" class="form-select form-select--inline" data-auto-submit aria-label="Change role">
                 <option value="MAINTAINER" <%= m.role === 'MAINTAINER' ? 'selected' : '' %>>Maintainer</option>
@@ -132,7 +132,7 @@
             <% }) %>
           </select>
         </div>
-        <div class="form-field" style="align-self: flex-end;">
+        <div class="form-field align-self-end">
           <button type="submit" class="button button--danger">Transfer Ownership</button>
         </div>
       </div>

@@ -22,7 +22,7 @@
           <label class="form-label" for="name">Name</label>
           <input
             type="text"
-            class="form-input"
+            class="form-input text-uppercase"
             id="name"
             name="name"
             placeholder="DATABASE_URL"
@@ -31,7 +31,6 @@
             maxlength="128"
             required
             autocomplete="off"
-            style="text-transform:uppercase"
           >
           <p class="form-hint text-xs text-muted">Uppercase letters, digits, underscores. Example: DATABASE_URL</p>
         </div>
@@ -112,7 +111,7 @@
   </div>
 </div>
 
-<div class="card mt-6" style="border-color: var(--color-warning, #f59e0b)">
+<div class="card card--warning mt-6">
   <div class="card__body">
     <p class="text-sm">
       <strong>Security notice:</strong>
