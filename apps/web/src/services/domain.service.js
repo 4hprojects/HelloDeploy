@@ -9,6 +9,20 @@ import { JobType } from '@hellodeploy/contracts';
 // ─── Hostname normalization ────────────────────────────────────────────────────
 
 const PLATFORM_DOMAINS = new Set(['hellodeploy.online', 'hellodeploy.com', 'localhost']);
+const DOMAIN_QUEUE_UNAVAILABLE_COPY =
+  'Domain verification queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
+const DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY =
+  'Could not queue domain route activation. Ask an administrator to check Redis and worker health, then approve the domain again.';
+
+function domainVerificationStateCopy(status) {
+  if (status === DomainStatus.PENDING_ADMIN_APPROVAL) {
+    return 'DNS is already verified and this domain is awaiting admin approval.';
+  }
+  if (status === DomainStatus.ACTIVE) {
+    return 'This domain is already active.';
+  }
+  return `Domain cannot be verified in status ${status}.`;
+}
 
 /**
  * Normalize and validate a user-submitted hostname.
@@ -152,12 +166,12 @@ export async function requestVerification(domainId, projectId, actorId, opts = {
   }
 
   if (domain.status !== DomainStatus.PENDING_VERIFICATION) {
-    return { success: false, error: `Domain cannot be verified in status ${domain.status}.` };
+    return { success: false, error: domainVerificationStateCopy(domain.status) };
   }
 
   const queue = getDeploymentQueue();
   if (!queue) {
-    return { success: false, error: 'Queue is unavailable.' };
+    return { success: false, error: DOMAIN_QUEUE_UNAVAILABLE_COPY };
   }
 
   await enqueueJob(
@@ -196,12 +210,16 @@ export async function approveDomain(domainId, adminId, opts = {}) {
   // Check the project has an active deployment to route to
   const project = await Project.findById(domain.projectId).lean();
   if (!project?.activeDeploymentId) {
-    return { success: false, error: 'Project has no active deployment. Deploy first.' };
+    return {
+      success: false,
+      error:
+        'Project has no active deployment. Deploy a healthy release before activating this domain.',
+    };
   }
 
   const queue = getDeploymentQueue();
   if (!queue) {
-    return { success: false, error: 'Queue is unavailable.' };
+    return { success: false, error: DOMAIN_QUEUE_UNAVAILABLE_COPY };
   }
 
   await Domain.updateOne(
@@ -241,7 +259,7 @@ export async function approveDomain(domainId, adminId, opts = {}) {
         },
       },
     );
-    return { success: false, error: 'Could not queue domain route activation.' };
+    return { success: false, error: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY };
   }
 
   await writeAuditEvent({

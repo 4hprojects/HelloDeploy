@@ -68,7 +68,7 @@ export const postVerifyDomain = asyncHandler(async (req, res) => {
   } else {
     req.flash(
       'success',
-      'Verification check queued. This may take a few minutes for DNS to propagate.',
+      'Verification check queued. DNS can take 1-30 minutes to propagate; if it is not approved after the check finishes, confirm the TXT record name/value and try again.',
     );
   }
 

@@ -22,6 +22,7 @@ Remediation status:
 - 2026-07-02: Database index review completed. Membership, deployment, and domain indexes already covered the reviewed paths; audit event indexes were expanded for outcome, target type, and target ID filters sorted by creation time.
 - 2026-07-02: Production rate-limit behavior was hardened. Redis-backed rate limiting now fails production startup/store creation instead of silently falling back to memory, while development/test fallback remains available.
 - 2026-07-02: Deployment log SSE scalability and UX were improved with per-user and per-IP active stream caps, `429`/`Retry-After` responses when caps are exceeded, and a reconnect control after timeout or disconnect.
+- 2026-07-02: Common operational error copy was improved for deployment queue outages, inactive repository access, deployment-in-progress conflicts, DNS propagation checks, and domain activation prerequisites.
 
 Automated checks:
 
@@ -197,14 +198,14 @@ Recommended fix:
 
 ### Usability Risks
 
-- Some service-layer failures are surfaced as generic flash messages. For operational workflows, users may need clearer remediation steps, especially for queue unavailable, repository access inactive, DNS not propagated, and deployment already in progress.
+- Common deployment/domain service-layer failures now include recovery steps for queue unavailable, repository access inactive, DNS propagation checks, and deployment already in progress.
 - Project/member/domain IDs in URLs are opaque where secondary resources are involved. This is normal, but it makes authorization bugs harder for users/admins to reason about.
 - A 6-minute SSE timeout now exposes a reconnect control, but users may still benefit from richer progress copy on very long builds.
 - Admin pages with large audit/project/user lists may become harder to scan without richer filters or saved views.
 
 ### User-Friendliness Recommendations
 
-- Add targeted recovery copy for common deployment/domain failures.
+- Continue reviewing less common admin-only errors for targeted recovery copy as operational usage grows.
 - Continue refining long-build progress copy around stream timeout and reconnect states.
 - Add admin filters for project owner, repository status, deployment mode, and last activity.
 - Keep table responsiveness, but consider denser desktop admin tables for repeated operational use.
@@ -236,7 +237,7 @@ Result: passed
 3. Add regression tests for project-owned object ID isolation.
 4. Fix the lint error so quality gates are green.
 5. Add performance indexes and monitor SSE query load.
-6. Improve operational error copy and reconnect behavior for long-running log streams.
+6. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
 
 ## Overall Rating
 

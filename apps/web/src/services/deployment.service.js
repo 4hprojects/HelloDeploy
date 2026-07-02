@@ -12,6 +12,16 @@ import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 
+const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
+  'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
+const REPOSITORY_ACCESS_INACTIVE_COPY =
+  'Repository access is inactive. Reconnect the GitHub App or update installation access, then retry.';
+
+function deploymentInProgressCopy(status) {
+  const suffix = status ? ` (${status.toLowerCase()})` : '';
+  return `A deployment is already in progress${suffix}. Wait for it to finish, or cancel it from Deployments before starting another.`;
+}
+
 // ─── Create deployment ─────────────────────────────────────────────────────────
 
 export function validateProjectDeploymentEligibility(project) {
@@ -138,7 +148,7 @@ export async function createDeployment({
 
   const repo = await Repository.findById(project.repositoryId).lean();
   if (!repo || repo.accessStatus !== 'ACTIVE') {
-    return { success: false, error: 'Repository access is not active.' };
+    return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
   }
 
   if (!repo.lastCommitSha) {
@@ -164,7 +174,7 @@ export async function createDeployment({
   if (active) {
     return {
       success: false,
-      error: `A deployment is already in progress (${active.status.toLowerCase()}). Wait for it to complete or cancel it first.`,
+      error: deploymentInProgressCopy(active.status),
     };
   }
 
@@ -198,7 +208,7 @@ export async function createDeployment({
         },
       },
     );
-    return { success: false, error: 'Deployment queue is unavailable. Contact the administrator.' };
+    return { success: false, error: DEPLOYMENT_QUEUE_UNAVAILABLE_COPY };
   }
 
   const imageTag = buildImageTag(project.slug, repo.lastCommitSha, seqNum);
@@ -299,7 +309,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
 
   const repo = await Repository.findById(project.repositoryId).lean();
   if (!repo || repo.accessStatus !== 'ACTIVE') {
-    return { success: false, error: 'Repository access is not active.' };
+    return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
   }
 
   // One-active-deployment check
@@ -315,7 +325,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     },
   }).lean();
   if (active) {
-    return { success: false, error: 'A deployment is already in progress.' };
+    return { success: false, error: deploymentInProgressCopy(active.status) };
   }
 
   const seqNum = await nextSequenceNumber(Deployment, original.projectId);
@@ -345,7 +355,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
         },
       },
     );
-    return { success: false, error: 'Deployment queue is unavailable.' };
+    return { success: false, error: DEPLOYMENT_QUEUE_UNAVAILABLE_COPY };
   }
 
   await enqueueJob(
@@ -426,7 +436,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     },
   }).lean();
   if (active) {
-    return { success: false, error: 'A deployment is already in progress.' };
+    return { success: false, error: deploymentInProgressCopy(active.status) };
   }
 
   const seqNum = await nextSequenceNumber(Deployment, projectId);
@@ -456,7 +466,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
         },
       },
     );
-    return { success: false, error: 'Deployment queue is unavailable.' };
+    return { success: false, error: DEPLOYMENT_QUEUE_UNAVAILABLE_COPY };
   }
 
   await enqueueJob(

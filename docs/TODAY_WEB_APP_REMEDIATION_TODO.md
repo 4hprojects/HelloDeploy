@@ -103,7 +103,7 @@ Remaining CSP follow-up:
 
 Status target: document and queue today; implement only if low-risk and time remains.
 
-Status: completed 2026-07-02T12:05:51+08:00.
+Status: completed 2026-07-02T12:08:22+08:00.
 
 - [x] Review Mongo indexes needed by high-traffic paths.
   - [x] `ProjectMembership.userId`: already indexed.
@@ -131,8 +131,7 @@ Status: completed 2026-07-02T12:05:51+08:00.
 
 Follow-up implementation queue:
 
-1. Rewrite common deployment/domain service errors into action-oriented UI copy.
-2. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
+1. Consider admin saved filters for audit/project/user workflows after index changes are deployed.
 
 ## Phase 6: Documentation and Closeout
 
@@ -156,4 +155,4 @@ Status target: complete today before stopping.
 - [x] `npm test` passes.
 - [x] `npm run format:check` passes.
 - [x] Script CSP, index work, and the P0 isolation fixes are completed.
-- [x] Remaining UX/admin filter work is explicitly queued.
+- [x] Optional admin saved-filter work is explicitly queued.

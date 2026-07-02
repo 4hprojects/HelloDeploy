@@ -1,5 +1,25 @@
 # Worklog
 
+## Operational Error Copy
+
+- Status: Completed
+- Started: 2026-07-02T12:05:51+08:00
+- Completed: 2026-07-02T12:08:22+08:00
+
+### Results
+
+- Added action-oriented deployment queue outage copy that points admins to Redis and worker health.
+- Added repository access inactive copy that tells users to reconnect or update GitHub App installation access.
+- Rewrote deployment-in-progress copy to point users to wait or cancel from Deployments.
+- Added domain queue and route activation copy with administrator recovery steps.
+- Added DNS propagation guidance to the verification queued flash message.
+- Added regression coverage for the operational error-copy strings.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/ui/operational-error-copy.test.js tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js tests/domain/domain-isolation.test.js` passed.
+
 ## Deployment Log SSE Cap And Reconnect
 
 - Status: Completed
