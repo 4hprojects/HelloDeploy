@@ -45,7 +45,9 @@ export function requireProjectRole(...allowedRoles) {
 
     req.project = project;
     req.membership = membership;
-    res.locals.currentProject = project;
+    // Views only need display fields — never expose secret hashes to templates
+    const { deployHookTokenHash: _omitted, ...projectForViews } = project;
+    res.locals.currentProject = projectForViews;
     res.locals.currentMembership = membership;
     next();
   };

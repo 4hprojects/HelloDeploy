@@ -51,8 +51,16 @@ async function updateStatus(deploymentId, toStatus, extra = {}) {
  * On any failure: mark FAILED, cleanup workspace, remove partial image.
  */
 export async function handleBuildDeployment(job) {
-  const { projectId, deploymentId, commitSha, repositoryId, runtimeType, imageTag, correlationId } =
-    job.data;
+  const {
+    projectId,
+    deploymentId,
+    commitSha,
+    repositoryId,
+    runtimeType,
+    imageTag,
+    noCache,
+    correlationId,
+  } = job.data;
 
   const workDir = join(env.BUILD_WORKSPACE_ROOT, deploymentId);
 
@@ -220,6 +228,7 @@ export async function handleBuildDeployment(job) {
       contextDir: workDir,
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
+      noCache: noCache === true,
       onLogLine: async (line, stream) => {
         await logEvent(
           deploymentId,

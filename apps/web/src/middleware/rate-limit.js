@@ -138,3 +138,14 @@ export const deployHookLimiter = rateLimit({
   store: makeStore('deploy-hook'),
   handler: onLimitReached,
 });
+
+/** Dashboard deploy/rollback triggers — each enqueues a resource-heavy build job */
+export const deployActionLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  limit: 30,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('deploy-action'),
+  handler: onLimitReached,
+});

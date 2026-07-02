@@ -25,11 +25,18 @@ export async function writeDockerfile(contextDir, dockerfileContent) {
  *   contextDir: string,
  *   imageTag: string,
  *   buildTimeoutMs: number,
+ *   noCache?: boolean,
  *   onLogLine: (line: string, stream: 'stdout'|'stderr') => void,
  * }} params
  * @returns {Promise<{ imageId: string }>}
  */
-export async function buildDockerImage({ contextDir, imageTag, buildTimeoutMs, onLogLine }) {
+export async function buildDockerImage({
+  contextDir,
+  imageTag,
+  buildTimeoutMs,
+  noCache = false,
+  onLogLine,
+}) {
   return new Promise((resolve, reject) => {
     // SECURITY: command array — no shell, no string interpolation
     const args = [
@@ -47,6 +54,7 @@ export async function buildDockerImage({ contextDir, imageTag, buildTimeoutMs, o
       '1g',
       '--network',
       'none', // no network during build — dependencies must be in the image
+      ...(noCache ? ['--no-cache'] : []),
       contextDir,
     ];
 

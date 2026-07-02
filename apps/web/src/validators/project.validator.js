@@ -34,22 +34,33 @@ export function validateUpdateProject(body) {
   return { errors, hasErrors: Object.keys(errors).length > 0 };
 }
 
+// Newlines or other control characters in these values would let a user inject
+// arbitrary directives into the generated Dockerfile (RUN/CMD interpolation).
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
+
 export function validateUpdateBuildConfiguration(body) {
   const errors = {};
 
   const buildCommand = body.buildCommand?.trim() ?? '';
   if (buildCommand.length > 500) {
     errors.buildCommand = 'Build command must be 500 characters or fewer.';
+  } else if (CONTROL_CHARS.test(buildCommand)) {
+    errors.buildCommand = 'Build command must not contain line breaks or control characters.';
   }
 
   const startCommand = body.startCommand?.trim() ?? '';
   if (startCommand.length > 500) {
     errors.startCommand = 'Start command must be 500 characters or fewer.';
+  } else if (CONTROL_CHARS.test(startCommand)) {
+    errors.startCommand = 'Start command must not contain line breaks or control characters.';
   }
 
   const outputDirectory = body.outputDirectory?.trim() ?? '';
   if (outputDirectory.length > 255) {
     errors.outputDirectory = 'Output directory must be 255 characters or fewer.';
+  } else if (CONTROL_CHARS.test(outputDirectory)) {
+    errors.outputDirectory = 'Output directory must not contain line breaks or control characters.';
   }
 
   const applicationPortRaw = body.applicationPort?.trim() ?? '';

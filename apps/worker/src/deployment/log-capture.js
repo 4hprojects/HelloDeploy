@@ -1,9 +1,15 @@
 // Patterns that must never appear in stored deployment logs
 const REDACT_PATTERNS = [
-  // GitHub tokens
+  // GitHub tokens (classic + fine-grained PATs)
   /ghp_[A-Za-z0-9]{36}/g,
   /ghs_[A-Za-z0-9]{36}/g,
   /ghu_[A-Za-z0-9]{36}/g,
+  /gho_[A-Za-z0-9]{36}/g,
+  /ghr_[A-Za-z0-9]{36}/g,
+  /github_pat_[A-Za-z0-9_]{20,}/g,
+  // AWS access keys + generic AWS secret assignment
+  /(?:AKIA|ASIA)[A-Z0-9]{16}/g,
+  /aws_secret_access_key\s*[=:]\s*[^\s&]*/gi,
   // Generic bearer/token patterns
   /Bearer\s+[A-Za-z0-9\-._~+/]+=*/gi,
   /x-access-token:[^@\s]*/gi,

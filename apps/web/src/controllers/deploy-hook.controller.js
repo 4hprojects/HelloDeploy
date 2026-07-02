@@ -10,7 +10,11 @@ import { DeploymentTrigger } from '@hellodeploy/contracts';
 export const getDeployHookSettings = asyncHandler(async (req, res) => {
   res.render('pages/projects/deploy-hook', {
     title: `Deploy Hook – ${req.project.name}`,
-    project: req.project,
+    // Mask the stored hash — the view only needs to know whether a hook exists
+    project: {
+      ...req.project,
+      deployHookTokenHash: req.project.deployHookTokenHash ? 'configured' : null,
+    },
     membership: req.membership,
     revealedUrl: null,
   });

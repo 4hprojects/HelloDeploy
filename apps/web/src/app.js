@@ -69,8 +69,9 @@ export function createApp() {
   app.use(expressEjsLayouts);
   app.set('layout', 'layouts/main');
 
-  // Static assets (served before rate limiting to avoid counting static hits)
-  app.use(express.static(join(__dirname, '..', 'public')));
+  // Static assets (served before rate limiting to avoid counting static hits).
+  // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.
+  app.use(express.static(join(__dirname, '..', 'public'), { maxAge: '1h' }));
 
   // ── Webhook route — must be registered BEFORE express.json() parses the body.
   //    express.raw() on this route preserves the raw Buffer for HMAC verification.

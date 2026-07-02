@@ -1,4 +1,4 @@
-import { randomBytes } from 'node:crypto';
+import { randomBytes, timingSafeEqual } from 'node:crypto';
 import {
   Project,
   ProjectMembership,
@@ -8,6 +8,7 @@ import {
   DeploymentEvent,
   EnvironmentSecret,
   Domain,
+  mongoose,
 } from '@hellodeploy/database';
 import { ProjectRole, ProjectStatus, ApprovalStatus, AuditOutcome, JobType } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -237,7 +238,7 @@ export async function revokeDeployHookToken({ projectId, actorId, sourceIp, corr
  * Used by the unauthenticated /api/deploy-hooks route.
  */
 export async function verifyDeployHookToken(projectId, rawToken) {
-  if (!rawToken) {
+  if (!rawToken || !mongoose.isValidObjectId(projectId)) {
     return null;
   }
 
@@ -246,7 +247,13 @@ export async function verifyDeployHookToken(projectId, rawToken) {
     return null;
   }
 
-  return hashToken(rawToken) === project.deployHookTokenHash ? project : null;
+  const submitted = Buffer.from(hashToken(rawToken), 'hex');
+  const stored = Buffer.from(project.deployHookTokenHash, 'hex');
+  if (submitted.length !== stored.length || !timingSafeEqual(submitted, stored)) {
+    return null;
+  }
+
+  return project;
 }
 
 export async function updateBuildFilters({

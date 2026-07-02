@@ -4,25 +4,33 @@
  */
 const REDACTED = '[REDACTED]';
 
+// Compared case-insensitively — store lowercase only.
 const SENSITIVE_KEYS = new Set([
   'password',
-  'passwordHash',
-  'confirmPassword',
-  'currentPassword',
-  'newPassword',
+  'passwordhash',
+  'confirmpassword',
+  'currentpassword',
+  'newpassword',
   'token',
-  'resetToken',
-  'verificationToken',
-  'csrfToken',
-  'sessionToken',
+  'resettoken',
+  'verificationtoken',
+  'csrftoken',
+  'sessiontoken',
   'secret',
-  'encryptionKey',
-  'masterKey',
-  'apiKey',
-  'privateKey',
-  'webhookSecret',
-  'turnstileToken',
+  'encryptionkey',
+  'masterkey',
+  'apikey',
+  'privatekey',
+  'webhooksecret',
+  'turnstiletoken',
   '_csrf',
+  'authorization',
+  'cookie',
+  'deployhooktokenhash',
+  'installationtoken',
+  'ciphertext',
+  'iv',
+  'authtag',
 ]);
 
 /**
@@ -40,7 +48,7 @@ export function redactObject(obj, depth = 0) {
 
   const result = {};
   for (const [key, value] of Object.entries(obj)) {
-    if (SENSITIVE_KEYS.has(key)) {
+    if (SENSITIVE_KEYS.has(key.toLowerCase())) {
       result[key] = REDACTED;
     } else {
       result[key] = redactObject(value, depth + 1);

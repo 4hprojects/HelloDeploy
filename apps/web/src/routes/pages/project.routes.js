@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { ProjectRole } from '@hellodeploy/contracts';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { requireProjectRole } from '../../middleware/require-project-role.js';
+import { deployActionLimiter } from '../../middleware/rate-limit.js';
 import {
   getProjectIndex,
   getNewProject,
@@ -121,8 +122,14 @@ router.post('/:slug/build-filters', requireAuth, ownerOnly, postUpdateBuildFilte
 
 // Deployments
 router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);
-router.post('/:slug/deployments', requireAuth, ownerOrMaintainer, postCreateDeployment);
-router.post('/:slug/rollback', requireAuth, ownerOrMaintainer, postRollback);
+router.post(
+  '/:slug/deployments',
+  requireAuth,
+  deployActionLimiter,
+  ownerOrMaintainer,
+  postCreateDeployment,
+);
+router.post('/:slug/rollback', requireAuth, deployActionLimiter, ownerOrMaintainer, postRollback);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);
 router.get('/:slug/deployments/:deploymentId/logs', requireAuth, anyRole, sseDeploymentLogs);
 router.post(

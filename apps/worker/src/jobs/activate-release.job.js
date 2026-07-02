@@ -11,6 +11,7 @@ import {
   stopAndRemoveContainer,
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
+import { removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { redactLogLine } from '../deployment/log-capture.js';
 import { generateServerBlock } from '../nginx/template.js';
@@ -52,8 +53,20 @@ async function updateStatus(deploymentId, toStatus, extra = {}, project = null) 
     { $set: { status: toStatus, currentStage: toStatus, ...extra } },
   );
 
-  if (project && (toStatus === DeploymentStatus.HEALTHY || toStatus === DeploymentStatus.FAILED)) {
-    const freshDeployment = await Deployment.findById(deploymentId).lean();
+  if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
+    return;
+  }
+
+  const freshDeployment = await Deployment.findById(deploymentId).lean();
+
+  // A failed activation leaves behind a freshly built image that will never
+  // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal
+  // cannot affect other releases. Fire-and-forget — cleanup must not block.
+  if (toStatus === DeploymentStatus.FAILED && freshDeployment?.imageTag) {
+    removeDockerImage(freshDeployment.imageTag);
+  }
+
+  if (project) {
     notifyDeploymentResult({
       ownerId: project.ownerId.toString(),
       projectName: project.name,
