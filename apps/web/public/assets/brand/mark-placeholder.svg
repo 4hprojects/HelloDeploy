@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-  <!-- Rounded container shape -->
-  <rect width="64" height="64" rx="14" fill="#0f172a"/>
-  <!-- Arrow pointing up-right (deploy metaphor) -->
-  <path d="M20 44 L36 20 L44 28" stroke="#e95420" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="44" cy="28" r="3" fill="#38bdf8"/>
-  <!-- HD monogram -->
-  <text x="32" y="58" text-anchor="middle" font-family="system-ui,sans-serif" font-size="8" font-weight="700" fill="#64748b">HD</text>
-</svg>
