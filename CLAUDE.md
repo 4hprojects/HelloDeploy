@@ -1,22 +1,6 @@
 # HelloDeploy
 
-Node.js monorepo — web app + background worker + shared packages.
-
-## Project structure
-
-```
-apps/
-  web/       # Frontend web app
-  worker/    # Background job worker
-packages/
-  auth/
-  contracts/
-  database/
-  deployment-core/
-  observability/
-  queue/
-  security/
-```
+Node.js monorepo (npm workspaces) — `apps/web` (Express + EJS) + `apps/worker` (BullMQ) + shared `packages/*`.
 
 ## Commands
 

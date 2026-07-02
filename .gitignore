@@ -35,3 +35,4 @@ coverage/
 
 # Temporary build artifacts
 /var/lib/hellodeploy/
+CLAUDE.local.md
