@@ -172,7 +172,9 @@ export async function getLatestCommit(installationId, fullName, branch) {
   );
 
   if (!res.ok) {
-    throw new Error(`Failed to get latest commit for ${fullName}@${branch} (${res.status})`);
+    const error = new Error(`Failed to get latest commit for ${fullName}@${branch} (${res.status})`);
+    error.status = res.status;
+    throw error;
   }
 
   const data = await res.json();

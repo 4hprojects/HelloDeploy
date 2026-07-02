@@ -208,12 +208,17 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
     return res.redirect(`/projects/${project.slug}/repository`);
   }
 
-  // Fetch the latest commit for the selected branch
-  let latestCommit = null;
+  // Verify the selected branch still exists on GitHub and fetch its latest commit
+  let latestCommit;
   try {
     latestCommit = await getLatestCommit(user.githubInstallationId, fullName, productionBranch);
-  } catch {
-    // Non-fatal — we'll just not have a commit SHA yet
+  } catch (err) {
+    if (err.status === 404) {
+      req.flash('error', `Branch "${productionBranch}" no longer exists on ${fullName}.`);
+    } else {
+      req.flash('error', 'Could not verify the selected branch. Please try again.');
+    }
+    return res.redirect(`/projects/${project.slug}/repository`);
   }
 
   // Create or update Repository record
