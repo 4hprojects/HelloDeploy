@@ -19,6 +19,7 @@ import webhookRoutes from './routes/api/webhook.routes.js';
 import helmet from 'helmet';
 import { getDashboard } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
+import { env } from './config/env.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -45,13 +46,14 @@ export function createApp() {
           defaultSrc: ["'self'"],
           baseUri: ["'self'"],
           objectSrc: ["'none'"],
-          scriptSrc: ["'self'", (_req, res) => `'nonce-${res.locals.cspNonce}'`],
+          scriptSrc: ["'self'", (_req, res) => `'nonce-${res.locals.cspNonce}'`, 'https://challenges.cloudflare.com'],
           scriptSrcAttr: ["'none'"],
           styleSrc: ["'self'"],
           styleSrcAttr: ["'none'"],
           imgSrc: ["'self'", 'data:'],
           fontSrc: ["'self'"],
-          connectSrc: ["'self'"],
+          connectSrc: ["'self'", 'https://challenges.cloudflare.com'],
+          frameSrc: ['https://challenges.cloudflare.com'],
           formAction: ["'self'"],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: null,
@@ -82,7 +84,9 @@ export function createApp() {
   app.use(csrfMiddleware);
   app.use(localsMiddleware);
   app.use(maintenanceModeMiddleware);
-  app.use(generalLimiter);
+  if (env.isProduction()) {
+    app.use(generalLimiter);
+  }
 
   // ── Health ─────────────────────────────────────────────────────────────────
   app.get('/health', (_req, res) => {
