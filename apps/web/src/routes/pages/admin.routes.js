@@ -27,10 +27,15 @@ import {
   postApproveDomain,
   postRejectDomain,
 } from '../../controllers/domain.controller.js';
+import { validateObjectId } from '../../middleware/validate-object-id.js';
 
 const router = Router();
 
 router.use(requireAuth, requireAdmin);
+
+for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId']) {
+  router.param(param, validateObjectId);
+}
 
 router.get('/', getAdminIndex);
 

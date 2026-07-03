@@ -6,12 +6,12 @@ let _redis = null;
 let _queue = null;
 
 /**
- * Returns the shared deployment queue, creating it lazily on first call.
- * Returns null if Redis is not reachable (deployment features degrade gracefully).
+ * Returns the shared web Redis connection, creating it lazily on first call.
+ * Returns null if Redis is not reachable (callers degrade gracefully).
  */
-export function getDeploymentQueue() {
-  if (_queue) {
-    return _queue;
+export function getRedisConnection() {
+  if (_redis) {
+    return _redis;
   }
 
   try {
@@ -25,7 +25,29 @@ export function getDeploymentQueue() {
       logger.warn('Redis connection error', { error: err.message });
     });
 
-    _queue = createDeploymentQueue(_redis);
+    return _redis;
+  } catch (err) {
+    logger.warn('Could not connect to Redis', { error: err.message });
+    return null;
+  }
+}
+
+/**
+ * Returns the shared deployment queue, creating it lazily on first call.
+ * Returns null if Redis is not reachable (deployment features degrade gracefully).
+ */
+export function getDeploymentQueue() {
+  if (_queue) {
+    return _queue;
+  }
+
+  const redis = getRedisConnection();
+  if (!redis) {
+    return null;
+  }
+
+  try {
+    _queue = createDeploymentQueue(redis);
     return _queue;
   } catch (err) {
     logger.warn('Could not initialize deployment queue', { error: err.message });

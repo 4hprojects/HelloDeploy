@@ -12,6 +12,14 @@ const { handleGithubWebhook } =
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+// Keep Redis out of these suites: a real connection would keep the event loop
+// alive and hang the test process. Null client → in-memory fallback path.
+const noRedisDeps = { getRedisConnection: () => null };
+
+function handle(req, res, deps = noRedisDeps) {
+  return handleGithubWebhook(req, res, deps);
+}
+
 function sign(body) {
   return `sha256=${createHmac('sha256', 'replay-test-secret').update(body).digest('hex')}`;
 }
@@ -56,7 +64,7 @@ function makeRes() {
 describe('webhook security — signature verification', () => {
   it('rejects a request with an invalid HMAC signature with 401', async () => {
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ signature: 'sha256=invalid' }), res);
+    await handle(makeReq({ signature: 'sha256=invalid' }), res);
     assert.equal(res._status, 401, 'invalid signature must return 401');
     assert.ok(res._json?.error, 'error field must be present');
   });
@@ -65,20 +73,20 @@ describe('webhook security — signature verification', () => {
     const req = makeReq();
     req.headers['x-hub-signature-256'] = undefined;
     const res = makeRes();
-    await handleGithubWebhook(req, res);
+    await handle(req, res);
     assert.equal(res._status, 401);
   });
 
   it('rejects a request with a wrong-secret signature with 401', async () => {
     const wrongSig = `sha256=${createHmac('sha256', 'wrong-secret').update(PING_PAYLOAD).digest('hex')}`;
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ signature: wrongSig }), res);
+    await handle(makeReq({ signature: wrongSig }), res);
     assert.equal(res._status, 401);
   });
 
   it('accepts a request with a valid HMAC signature', async () => {
     const res = makeRes();
-    await handleGithubWebhook(makeReq(), res);
+    await handle(makeReq(), res);
     assert.equal(res._status, 200);
     assert.equal(res._json?.ok, true);
   });
@@ -90,7 +98,7 @@ describe('webhook security — replay prevention', () => {
   it('processes the first delivery with a given ID', async () => {
     const deliveryId = uniqueDeliveryId();
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ deliveryId }), res);
+    await handle(makeReq({ deliveryId }), res);
     assert.equal(res._status, 200);
     assert.ok(
       res._json?.ok === true && !res._json?.note,
@@ -101,10 +109,10 @@ describe('webhook security — replay prevention', () => {
   it('silently deduplicates a replayed delivery (same X-GitHub-Delivery ID)', async () => {
     const deliveryId = uniqueDeliveryId();
     // First delivery — mark as seen
-    await handleGithubWebhook(makeReq({ deliveryId }), makeRes());
+    await handle(makeReq({ deliveryId }), makeRes());
     // Replayed delivery — same ID
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ deliveryId }), res);
+    await handle(makeReq({ deliveryId }), res);
     assert.equal(res._status, 200, 'replayed webhook must still return 200 (not an error)');
     assert.ok(
       res._json?.note?.includes('duplicate'),
@@ -117,8 +125,8 @@ describe('webhook security — replay prevention', () => {
     const id2 = uniqueDeliveryId();
     const res1 = makeRes();
     const res2 = makeRes();
-    await handleGithubWebhook(makeReq({ deliveryId: id1 }), res1);
-    await handleGithubWebhook(makeReq({ deliveryId: id2 }), res2);
+    await handle(makeReq({ deliveryId: id1 }), res1);
+    await handle(makeReq({ deliveryId: id2 }), res2);
     assert.ok(!res1._json?.note, 'first delivery must not be flagged');
     assert.ok(!res2._json?.note, 'second delivery with different ID must not be flagged');
   });
@@ -127,7 +135,7 @@ describe('webhook security — replay prevention', () => {
     const req = makeReq();
     delete req.headers['x-github-delivery'];
     const res = makeRes();
-    await handleGithubWebhook(req, res);
+    await handle(req, res);
     // Without a delivery ID there is nothing to deduplicate — should still process
     assert.equal(res._status, 200);
   });
@@ -139,7 +147,7 @@ describe('webhook security — payload validation', () => {
   it('rejects a malformed JSON payload with 400', async () => {
     const body = Buffer.from('not-valid-json{{{');
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ body, signature: sign(body) }), res);
+    await handle(makeReq({ body, signature: sign(body) }), res);
     assert.equal(res._status, 400);
     assert.ok(res._json?.error, 'error field must be present');
   });
@@ -147,7 +155,82 @@ describe('webhook security — payload validation', () => {
   it('accepts a valid JSON payload', async () => {
     const body = Buffer.from(JSON.stringify({ zen: 'test', hook_id: 99 }));
     const res = makeRes();
-    await handleGithubWebhook(makeReq({ body, signature: sign(body) }), res);
+    await handle(makeReq({ body, signature: sign(body) }), res);
     assert.equal(res._status, 200);
+  });
+});
+
+// ─── Redis-backed replay prevention ───────────────────────────────────────────
+
+function makeFakeRedis() {
+  const store = new Set();
+  return {
+    status: 'ready',
+    // Mirrors ioredis SET ... EX <ttl> NX semantics: 'OK' when newly set, null when the key exists.
+    async set(key) {
+      if (store.has(key)) {
+        return null;
+      }
+      store.add(key);
+      return 'OK';
+    },
+  };
+}
+
+describe('webhook security — redis-backed replay prevention', () => {
+  it('processes the first delivery when Redis reports the key as new', async () => {
+    const deps = { getRedisConnection: () => makeFakeRedis() };
+    const res = makeRes();
+    await handle(makeReq(), res, deps);
+    assert.ok(res._json?.ok === true && !res._json?.note, 'first delivery must be processed');
+  });
+
+  it('flags a replayed delivery as duplicate via Redis', async () => {
+    const fakeRedis = makeFakeRedis();
+    const deps = { getRedisConnection: () => fakeRedis };
+    const deliveryId = uniqueDeliveryId();
+    await handle(makeReq({ deliveryId }), makeRes(), deps);
+    const res = makeRes();
+    await handle(makeReq({ deliveryId }), res, deps);
+    assert.ok(
+      res._json?.note?.includes('duplicate'),
+      'replayed webhook must be flagged as duplicate',
+    );
+  });
+
+  it('still deduplicates via the in-memory fallback when the Redis SET rejects', async () => {
+    const brokenRedis = {
+      status: 'ready',
+      async set() {
+        throw new Error('connection reset');
+      },
+    };
+    const deps = { getRedisConnection: () => brokenRedis };
+    const deliveryId = uniqueDeliveryId();
+    await handle(makeReq({ deliveryId }), makeRes(), deps);
+    const res = makeRes();
+    await handle(makeReq({ deliveryId }), res, deps);
+    assert.ok(
+      res._json?.note?.includes('duplicate'),
+      'fallback must deduplicate when Redis errors',
+    );
+  });
+
+  it('ignores a Redis client that is not ready and falls back to in-memory dedup', async () => {
+    const notReadyRedis = {
+      status: 'connecting',
+      async set() {
+        throw new Error('set must not be called on a non-ready client');
+      },
+    };
+    const deps = { getRedisConnection: () => notReadyRedis };
+    const deliveryId = uniqueDeliveryId();
+    await handle(makeReq({ deliveryId }), makeRes(), deps);
+    const res = makeRes();
+    await handle(makeReq({ deliveryId }), res, deps);
+    assert.ok(
+      res._json?.note?.includes('duplicate'),
+      'non-ready client must fall back to in-memory dedup',
+    );
   });
 });

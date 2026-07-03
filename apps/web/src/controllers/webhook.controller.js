@@ -3,34 +3,63 @@ import { DeploymentMode, ProjectStatus, DeploymentTrigger } from '@hellodeploy/c
 import { logger } from '@hellodeploy/observability';
 import { verifyWebhookSignature } from '../services/github.service.js';
 import { createDeployment } from '../services/deployment.service.js';
+import { getRedisConnection } from '../queue/client.js';
+import { env } from '../config/env.js';
 
-// ─── Delivery deduplication (in-memory, 1-hour window) ────────────────────────
-// Replaced with Redis-backed set in Phase 5.
+// ─── Delivery deduplication (Redis-backed, 1-hour window) ─────────────────────
 
-const recentDeliveries = new Map(); // deliveryId → expiresAt timestamp
-
-const DELIVERY_TTL_MS = 60 * 60 * 1000; // 1 hour (matches GitHub retry window)
+const DELIVERY_TTL_SECONDS = 60 * 60; // 1 hour (matches GitHub retry window)
+const DELIVERY_TTL_MS = DELIVERY_TTL_SECONDS * 1000;
 const MAX_TRACKED_DELIVERIES = 2000;
 
-function isRecentDelivery(deliveryId) {
-  const expires = recentDeliveries.get(deliveryId);
-  if (!expires) {
-    return false;
-  }
-  if (Date.now() > expires) {
-    recentDeliveries.delete(deliveryId);
-    return false;
-  }
-  return true;
-}
+// In-memory fallback for when Redis is unavailable (per-process only).
+const recentDeliveries = new Map(); // deliveryId → expiresAt timestamp
 
-function markDelivery(deliveryId) {
+function isDuplicateInMemory(deliveryId) {
+  const expires = recentDeliveries.get(deliveryId);
+  if (expires && Date.now() <= expires) {
+    return true;
+  }
   if (recentDeliveries.size >= MAX_TRACKED_DELIVERIES) {
     // Evict the oldest entry
     const oldest = recentDeliveries.keys().next().value;
     recentDeliveries.delete(oldest);
   }
   recentDeliveries.set(deliveryId, Date.now() + DELIVERY_TTL_MS);
+  return false;
+}
+
+/**
+ * Atomically records the delivery ID and reports whether it was already seen.
+ * Fails open to per-process memory: dropping webhooks on a Redis outage would
+ * lose real deployments, and dedup is best-effort idempotency, not auth.
+ */
+async function isDuplicateDelivery(deliveryId, redisClient) {
+  // Memory is always consulted, not just as a fallback: deliveries handled
+  // while the Redis client was still connecting exist only in memory, so
+  // trusting Redis alone would let their replays through.
+  const isMemoryDuplicate = isDuplicateInMemory(deliveryId);
+
+  // status guard: with maxRetriesPerRequest:null, commands on a disconnected
+  // client queue forever instead of rejecting — never await one.
+  if (redisClient && redisClient.status === 'ready') {
+    try {
+      const reply = await redisClient.set(
+        `webhook:delivery:${deliveryId}`,
+        '1',
+        'EX',
+        DELIVERY_TTL_SECONDS,
+        'NX',
+      );
+      return reply === null || isMemoryDuplicate;
+    } catch (err) {
+      const log = env.isProduction() ? logger.error : logger.warn;
+      log('Webhook dedup Redis error, falling back to in-memory tracking', {
+        error: err.message,
+      });
+    }
+  }
+  return isMemoryDuplicate;
 }
 
 // ─── High-risk file patterns ───────────────────────────────────────────────────
@@ -49,7 +78,11 @@ const HIGH_RISK_PATTERNS = [
 function collectChangedPaths(commits) {
   const paths = new Set();
   for (const commit of commits ?? []) {
-    for (const f of [...(commit.added ?? []), ...(commit.modified ?? []), ...(commit.removed ?? [])]) {
+    for (const f of [
+      ...(commit.added ?? []),
+      ...(commit.modified ?? []),
+      ...(commit.removed ?? []),
+    ]) {
       paths.add(f);
     }
   }
@@ -238,7 +271,11 @@ async function handleInstallationRepositoriesEvent(payload) {
 
 // ─── Main webhook handler ──────────────────────────────────────────────────────
 
-export async function handleGithubWebhook(req, res) {
+const defaultWebhookDeps = {
+  getRedisConnection,
+};
+
+export async function handleGithubWebhook(req, res, deps = defaultWebhookDeps) {
   const signature = req.headers['x-hub-signature-256'];
   const deliveryId = req.headers['x-github-delivery'];
   const event = req.headers['x-github-event'];
@@ -251,11 +288,8 @@ export async function handleGithubWebhook(req, res) {
   }
 
   // Replay prevention
-  if (deliveryId && isRecentDelivery(deliveryId)) {
+  if (deliveryId && (await isDuplicateDelivery(deliveryId, deps.getRedisConnection()))) {
     return res.status(200).json({ ok: true, note: 'duplicate delivery' });
-  }
-  if (deliveryId) {
-    markDelivery(deliveryId);
   }
 
   let payload;
