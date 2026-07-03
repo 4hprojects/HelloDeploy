@@ -125,11 +125,19 @@ export function buildRollbackTargetQuery(projectId, activeDeploymentId) {
   return query;
 }
 
+const FULL_COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
+
+export const COMMIT_SHA_FORMAT_ERROR = 'Commit must be a full 40-character SHA (lowercase hex).';
+
 /**
  * Create a new deployment record and enqueue the build job.
  * Enforces one-active-deployment-per-project invariant.
  *
- * @param {{ projectId, actorId, triggerType?, noCache?, sourceIp?, correlationId? }} opts
+ * `commitSha` optionally deploys a specific commit instead of the
+ * repository's latest; the worker clones exact SHAs, so any commit
+ * reachable in the repository is buildable.
+ *
+ * @param {{ projectId, actorId, triggerType?, noCache?, commitSha?, sourceIp?, correlationId? }} opts
  * @returns {{ success: boolean, deployment?: object, error?: string }}
  */
 export async function createDeployment({
@@ -137,9 +145,16 @@ export async function createDeployment({
   actorId,
   triggerType = DeploymentTrigger.MANUAL,
   noCache = false,
+  commitSha: commitShaOverride = null,
   sourceIp,
   correlationId,
 }) {
+  if (commitShaOverride !== null) {
+    commitShaOverride = String(commitShaOverride).trim().toLowerCase();
+    if (!FULL_COMMIT_SHA_PATTERN.test(commitShaOverride)) {
+      return { success: false, error: COMMIT_SHA_FORMAT_ERROR, errorField: 'commitSha' };
+    }
+  }
   const project = await Project.findById(projectId).lean();
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -163,7 +178,8 @@ export async function createDeployment({
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
   }
 
-  if (!repo.lastCommitSha) {
+  const targetCommitSha = commitShaOverride ?? repo.lastCommitSha;
+  if (!targetCommitSha) {
     return {
       success: false,
       error: 'No commit SHA available. Push a commit to the production branch first.',
@@ -188,8 +204,9 @@ export async function createDeployment({
     sequenceNumber: seqNum,
     triggerType,
     requestedBy: actorId,
-    commitSha: repo.lastCommitSha,
-    commitMessage: repo.lastCommitMessage,
+    commitSha: targetCommitSha,
+    // The commit message is only known for the tracked latest commit.
+    commitMessage: commitShaOverride ? null : repo.lastCommitMessage,
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
@@ -213,7 +230,7 @@ export async function createDeployment({
     return { success: false, error: DEPLOYMENT_QUEUE_UNAVAILABLE_COPY };
   }
 
-  const imageTag = buildImageTag(project.slug, repo.lastCommitSha, seqNum);
+  const imageTag = buildImageTag(project.slug, targetCommitSha, seqNum);
 
   await enqueueJob(
     queue,
@@ -221,7 +238,7 @@ export async function createDeployment({
     buildDeploymentJobPayload({
       project,
       deployment,
-      commitSha: repo.lastCommitSha,
+      commitSha: targetCommitSha,
       repositoryId: project.repositoryId,
       runtimeType: project.runtimeType,
       imageTag,

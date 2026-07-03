@@ -21,6 +21,43 @@
   <% } %>
 </div>
 
+<% if (canDeploy) { %>
+<div class="card mb-4">
+  <div class="card__header">
+    <h2 class="card__title text-sm">Deploy a Specific Commit</h2>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Build and deploy an exact commit instead of the latest one on the production branch.
+      Paste the full 40-character SHA.
+    </p>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments" class="form-inline" novalidate>
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-field">
+        <label for="commitSha" class="form-label sr-only">Commit SHA</label>
+        <input
+          type="text"
+          id="commitSha"
+          name="commitSha"
+          class="form-input<%= locals.commitShaError ? ' form-input--error' : '' %>"
+          value="<%= locals.commitShaValue || '' %>"
+          placeholder="e.g. 4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+          pattern="[0-9a-fA-F]{40}"
+          maxlength="40"
+          spellcheck="false"
+          autocomplete="off"
+          <% if (locals.commitShaError) { %>aria-describedby="commitSha-error"<% } %>
+        />
+        <% if (locals.commitShaError) { %>
+        <span id="commitSha-error" class="form-error" role="alert"><%= commitShaError %></span>
+        <% } %>
+      </div>
+      <button type="submit" class="button button--secondary" data-pending-label="Deploying...">Deploy Commit</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
 <% if (rollbackTargets && rollbackTargets.length > 0 && canDeploy) { %>
 <div class="card mb-4">
   <div class="card__header">

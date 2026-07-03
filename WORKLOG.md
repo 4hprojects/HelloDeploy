@@ -328,7 +328,7 @@
 - [x] Keep deployment controller parsing aligned with the shared helper.
 - [x] Add focused regression coverage.
 - [x] Update phase tracker evidence.
-- [ ] Verify or implement a selected-commit deployment path. _(2026-07-04: implementation scheduled as `docs/phases/phase-9-selected-commit-deploys.md`.)_
+- [x] Verify or implement a selected-commit deployment path. _(2026-07-04: implemented — `createDeployment` accepts a validated 40-hex `commitSha` override (normalized to lowercase, `errorField`-scoped validation error), the deployments page gained a "Deploy a Specific Commit" card with inline error + sticky value, and the worker's exact-SHA clone needed no changes. Verified live: malformed SHA → inline error; valid SHA → QUEUED deployment + BullMQ payload carrying the chosen commit. Evidence in `docs/phases/phase-9-selected-commit-deploys.md`.)_
 - [x] Run browser or integration evidence for all deployment options. _(2026-07-04: driven live against the dev harness — deploy form renders both variants (hidden `noCache=true` on the no-cache form); POST deploy-latest produced a BullMQ payload with `noCache: false` and the repository's `lastCommitSha`; the no-cache POST produced `noCache: true`; retry of a FAILED deployment created a new QUEUED deployment reusing the original commit with `noCache: false`. Evidence in `docs/phases/phase-8-worklog-verifications.md`.)_
 
 ### Results

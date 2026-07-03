@@ -16,7 +16,7 @@ import {
 
 const DEPLOYMENTS_PER_PAGE = 20;
 
-export const getDeploymentList = asyncHandler(async (req, res) => {
+async function renderDeploymentList(req, res, extras = {}) {
   const project = req.project;
   const page = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
 
@@ -37,8 +37,11 @@ export const getDeploymentList = asyncHandler(async (req, res) => {
     page,
     totalPages,
     total,
+    ...extras,
   });
-});
+}
+
+export const getDeploymentList = asyncHandler((req, res) => renderDeploymentList(req, res));
 
 export const getDeploymentDetail = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
@@ -62,18 +65,25 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
 
 export const postCreateDeployment = asyncHandler(async (req, res) => {
   const project = req.project;
-  const { noCache } = req.body;
+  const { noCache, commitSha } = req.body;
 
   const result = await createDeployment({
     projectId: project._id,
     actorId: req.session.user.id,
     triggerType: DeploymentTrigger.MANUAL,
     noCache: parseNoCacheFlag(noCache),
+    commitSha: commitSha?.trim() ? commitSha.trim() : null,
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
 
   if (!result.success) {
+    if (result.errorField === 'commitSha') {
+      return renderDeploymentList(req, res, {
+        commitShaError: result.error,
+        commitShaValue: commitSha ?? '',
+      });
+    }
     req.flash('error', result.error);
     return res.redirect(`/projects/${project.slug}`);
   }
