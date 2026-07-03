@@ -1,7 +1,7 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { Domain, Project } from '@hellodeploy/database';
 import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { JobType } from '@hellodeploy/contracts';
@@ -249,7 +249,11 @@ export async function approveDomain(domainId, adminId, opts = {}) {
       },
       { jobId: `activate-domain-${domainId}` },
     );
-  } catch {
+  } catch (err) {
+    logger.warn('Domain: failed to enqueue route activation, approval reverted', {
+      domainId: domainId.toString(),
+      error: err.message,
+    });
     await Domain.updateOne(
       { _id: domainId },
       {

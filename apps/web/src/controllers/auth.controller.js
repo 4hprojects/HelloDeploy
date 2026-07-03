@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { PlatformRole } from '@hellodeploy/contracts';
+import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import {
   registerUser,
@@ -38,7 +39,10 @@ async function verifyTurnstile(token, sourceIp) {
     });
     const data = await res.json();
     return data.success === true;
-  } catch {
+  } catch (err) {
+    // A Turnstile outage silently failing every sign-in would be hard to spot
+    // without this trail.
+    logger.warn('Turnstile verification request failed', { error: err.message });
     return false;
   }
 }

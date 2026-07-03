@@ -46,15 +46,15 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 ### MEDIUM
 
 - [ ] **SSE log streaming is DB-heavy** — `deployment.controller.js:254` polls every 1.5 s with two queries per tick per viewer. **Fix:** single combined query short-term; Redis pub/sub from the worker's `logEvent` long-term. _Effort: M._
-- [ ] **Fixed 3 s sleep in activation** — `STARTUP_DELAY_MS` flat `setTimeout` in activate/rollback ties up a worker slot. **Fix:** poll `inspectContainer` with short backoff. _Effort: S._
-- [ ] **Port allocator race + full scan** — `port-allocator.js` scans all non-terminal deployments and has a check-then-use race; two concurrent activations can claim the same port. **Fix:** atomic claim (unique partial index on `containerPort` or Redis-based allocation). _Effort: M._
+- [x] **Fixed 3 s sleep in activation** — `STARTUP_DELAY_MS` flat `setTimeout` in activate/rollback ties up a worker slot. **Fix (applied):** the shared pipeline polls `inspectContainer` every 500 ms within the startup window, failing as soon as a crash is visible. _Effort: S. Fixed 2026-07-03._
+- [x] **Port allocator race + full scan** — `port-allocator.js` scans all non-terminal deployments and has a check-then-use race; two concurrent activations can claim the same port. **Fix (applied):** `allocatePort(deploymentId)` now claims scan → write → verify with a deterministic lower-`_id` tie-break and bounded retries; the full-range scan remains (fine at current scale). _Effort: M. Fixed 2026-07-03._
 - [x] **No cache policy on static assets** — `express.static` served CSS/JS with no `maxAge`; every page load revalidated. **Fix (applied):** `maxAge: '1h'` (modest because filenames aren't content-hashed). Follow-up: hashed filenames + `immutable, 1y`. _Effort: S (applied) / M (hashing). Fixed 2026-07-02._
-- [ ] **Sequential awaits with no dependency** — e.g. `project.controller.js:85-96` (repository → deployment → deployments list) and the create/retry lookup chains in `deployment.service.js`. **Fix:** `Promise.all` the independent pairs. _Effort: S._
+- [x] **Sequential awaits with no dependency** — e.g. `project.controller.js:85-96` (repository → deployment → deployments list) and the create/retry lookup chains in `deployment.service.js`. **Fix (applied):** overview render now fetches repository/deployments/secret-names via `Promise.all`. The deployment.service chains turned out to be genuinely dependent (project → repository), so they stay sequential. _Effort: S. Fixed 2026-07-03._
 - [ ] **`getUserProjects` sorts in JS** — populates all memberships then sorts client-side, no limit. Fine at current scale; fix when project counts grow. _Effort: S._
 
 ### LOW
 
-- [ ] **Silently swallowed errors** — empty `catch {}` in `domain.service.js:45,252`, `github.service.js:210`, `auth.controller.js:41` (the `server-stats.service.js` ones are acceptable defaults). **Fix:** log at debug level minimum. _Effort: S._
+- [x] **Silently swallowed errors** — empty `catch {}` in `domain.service.js:45,252`, `github.service.js:210`, `auth.controller.js:41` (the `server-stats.service.js` ones are acceptable defaults). **Fix (applied):** warn logs on the domain queue-failure revert and Turnstile outage paths; debug log on webhook signature buffer errors. `domain.service.js:45` already converted the exception into a typed validation error, so it was left alone. _Effort: S. Fixed 2026-07-03._
 - [x] **Test coverage gaps (biggest untested surfaces)** — no direct tests for worker job orchestration (`build/activate/rollback.job.js`), `port-allocator`, `retention`/`cleanup`, `project.service` CRUD, `admin.service` quota consumption, or the SSE controller loop. These are prerequisites for the pipeline-extraction refactor above. **Fix (applied):** +56 tests on an in-memory-Mongo harness (`tests/worker/`, `tests/helpers/`); SSE controller loop still untested. See `docs/phases/phase-3-worker-pipeline-tests.md`. _Effort: L. Fixed 2026-07-03._
 - [ ] **`requireProjectRole` does two sequential finds per request** — project then membership; could be one aggregation or parallel. _Effort: S._
 
@@ -89,14 +89,14 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 
 ### MEDIUM
 
-- [ ] **No environment-variable reference** — config keys are scattered across `.env.example` and install docs. **Fix:** `docs/ENVIRONMENT.md` table (name, required, default, used by web/worker). _Effort: S._
-- [ ] **CLAUDE.md is only a skill router** — it doesn't describe web/worker/package responsibilities or the feature set, so agent sessions re-derive the architecture every time. **Fix:** add a short "Architecture" section (apps, packages, deploy pipeline stages, key models). _Effort: S._
-- [ ] **Transient working notes live in docs/** — `WEB_APP_COMPREHENSIVE_ANALYSIS.md` and `TODAY_WEB_APP_REMEDIATION_TODO.md` are session artifacts, now superseded by this file. **Fix:** fold anything still relevant into this backlog, then delete them. _Effort: S._
+- [x] **No environment-variable reference** — config keys are scattered across `.env.example` and install docs. **Fix (applied):** `docs/ENVIRONMENT.md` tables (name, used by, required-in-prod, default, purpose). _Effort: S. Fixed 2026-07-04._
+- [x] **CLAUDE.md is only a skill router** — it doesn't describe web/worker/package responsibilities or the feature set, so agent sessions re-derive the architecture every time. **Fix (applied):** Architecture section added (apps, packages, pipeline stages, infra assumptions, test harness). _Effort: S. Fixed 2026-07-04._
+- [x] **Transient working notes live in docs/** — `WEB_APP_COMPREHENSIVE_ANALYSIS.md` and `TODAY_WEB_APP_REMEDIATION_TODO.md` are session artifacts, now superseded by this file. **Fix (applied):** both had zero open items; deleted (history preserves them). _Effort: S. Fixed 2026-07-04._
 
 ### LOW
 
-- [ ] **No CONTRIBUTING.md** — dev setup is 5 lines in the README. _Effort: S._
-- [ ] **FAQ freshness** — covers health checks but none of the newer features. _Effort: S._
+- [x] **No CONTRIBUTING.md** — dev setup is 5 lines in the README. **Fix (applied):** CONTRIBUTING.md with setup, quality gates, conventions, and doc pointers. _Effort: S. Fixed 2026-07-04._
+- [x] **FAQ freshness** — covers health checks but none of the newer features. **Fix (applied):** "Automation and Operations" FAQ section covering deploy hooks, build filters, maintenance mode, notifications, no-cache deploys, and health-check paths. _Effort: S. Fixed 2026-07-04._
 
 ---
 

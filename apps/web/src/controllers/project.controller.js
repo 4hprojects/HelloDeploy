@@ -113,28 +113,25 @@ function buildOnboardingChecklist(project, secretCount) {
 
 async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
-  let repository = null;
+  const wantsOnboarding = !project.activeDeploymentId && req.membership.role === ProjectRole.OWNER;
+
+  const [repository, deployments, secretNames] = await Promise.all([
+    project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
+    getDeployments(project._id, 5),
+    wantsOnboarding ? listSecretNames(project._id) : null,
+  ]);
+
   let newCommitAvailable = false;
-
-  if (project.repositoryId) {
-    repository = await Repository.findById(project.repositoryId).lean();
-    if (repository?.lastCommitSha && project.activeDeploymentId) {
-      const activeDeployment = await Deployment.findById(
-        project.activeDeploymentId,
-        'commitSha',
-      ).lean();
-      newCommitAvailable = activeDeployment?.commitSha !== repository.lastCommitSha;
-    }
+  if (repository?.lastCommitSha && project.activeDeploymentId) {
+    const activeDeployment = await Deployment.findById(
+      project.activeDeploymentId,
+      'commitSha',
+    ).lean();
+    newCommitAvailable = activeDeployment?.commitSha !== repository.lastCommitSha;
   }
-
-  const deployments = await getDeployments(project._id, 5);
 
   // Guided onboarding, shown until the first successful deploy.
-  let onboarding = null;
-  if (!project.activeDeploymentId && req.membership.role === ProjectRole.OWNER) {
-    const secretCount = (await listSecretNames(project._id)).length;
-    onboarding = buildOnboardingChecklist(project, secretCount);
-  }
+  const onboarding = wantsOnboarding ? buildOnboardingChecklist(project, secretNames.length) : null;
 
   res.render('pages/projects/show', {
     title: project.name,

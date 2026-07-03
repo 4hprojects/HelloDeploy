@@ -176,6 +176,32 @@ The Acceptable Use Policy prohibits malware, phishing, credential theft, illegal
 
 No. Build and deployment logs are retained for 7 days by default.
 
+## Automation and Operations
+
+### Can I trigger deploys from CI or scripts?
+
+Yes. Generate a deploy hook on the project's Deploy Hook page and POST to the shown URL with the token. The token is shown once at generation; revoke and regenerate it any time.
+
+### Can I stop pushes to certain paths from triggering builds?
+
+Yes. Build filters (Detection page) take included and ignored glob patterns, one per line. If a push only touches filtered-out paths, the build is skipped.
+
+### What is maintenance mode?
+
+A per-project switch on the overview page. Visitors see a maintenance page (optionally with your custom message) while the running container keeps running; disabling it restores traffic instantly.
+
+### Do I get notified about deployment results?
+
+Yes, by email when a deployment turns HEALTHY or FAILED. Choose all results, failures only, or none in the project's notification preference setting.
+
+### What does "deploy without cache" do?
+
+It runs the image build with `--no-cache`, ignoring Docker layer caches. Use it when a build picks up stale dependencies; expect it to be slower.
+
+### What is the health check path for?
+
+After each deploy, HelloDeploy polls this HTTP path (default `/`) on your app until it responds successfully; the release only goes live after the check passes. Set it on the Detection page if your app serves a dedicated endpoint like `/healthz`.
+
 ## Support
 
 ### What should I include when asking for help?

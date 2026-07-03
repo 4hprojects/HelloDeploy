@@ -172,7 +172,9 @@ export async function getLatestCommit(installationId, fullName, branch) {
   );
 
   if (!res.ok) {
-    const error = new Error(`Failed to get latest commit for ${fullName}@${branch} (${res.status})`);
+    const error = new Error(
+      `Failed to get latest commit for ${fullName}@${branch} (${res.status})`,
+    );
     error.status = res.status;
     throw error;
   }
@@ -207,7 +209,10 @@ export function verifyWebhookSignature(rawBody, signatureHeader) {
       return false;
     }
     return timingSafeEqual(expectedBuf, receivedBuf);
-  } catch {
+  } catch (err) {
+    logger.debug('Webhook signature comparison failed on malformed input', {
+      error: err.message,
+    });
     return false;
   }
 }

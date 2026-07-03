@@ -144,10 +144,10 @@ export async function runReleasePipeline({
   // ── Allocate port ───────────────────────────────────────────────────────────
   let hostPort;
   try {
-    hostPort = await deps.allocatePort();
+    hostPort = await deps.allocatePort(deploymentId);
     await Deployment.updateOne(
       { _id: deploymentId },
-      { $set: { containerPort: hostPort, containerName: cName, containerNetworkName: netName } },
+      { $set: { containerName: cName, containerNetworkName: netName } },
     );
     await logEvent(deploymentId, 'DEPLOY', 'INFO', `Allocated port ${hostPort}.`, correlationId);
   } catch (err) {
@@ -236,10 +236,15 @@ export async function runReleasePipeline({
     return fail('CONTAINER_START_FAILED', err.message);
   }
 
-  // ── Wait for startup + crash-loop detection ─────────────────────────────────
-  await new Promise((r) => setTimeout(r, deps.startupDelayMs));
-
-  const state = await deps.inspectContainer(cName);
+  // ── Startup stabilization + crash-loop detection ────────────────────────────
+  // Poll instead of one flat sleep: an immediately crashing container fails the
+  // deployment as soon as the exit is visible instead of after the full window.
+  const startupDeadline = Date.now() + deps.startupDelayMs;
+  let state = await deps.inspectContainer(cName);
+  while (state.running && Date.now() < startupDeadline) {
+    await new Promise((r) => setTimeout(r, Math.min(500, startupDeadline - Date.now())));
+    state = await deps.inspectContainer(cName);
+  }
   if (!state.running) {
     await logEvent(
       deploymentId,
