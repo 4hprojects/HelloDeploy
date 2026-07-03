@@ -20,6 +20,11 @@ const notificationSource = await readFile(
   'utf8',
 );
 
+const pipelineSource = await readFile(
+  new URL('../../apps/worker/src/deployment/pipeline.js', import.meta.url),
+  'utf8',
+);
+
 describe('deployment notifications', () => {
   it('escapes HTML interpolated into notification bodies', () => {
     assert.equal(
@@ -72,8 +77,12 @@ describe('deployment notifications', () => {
   });
 
   it('is invoked after activation and rollback without blocking worker completion', () => {
-    assert.match(activateJob, /notifyDeploymentResult\(\{/);
-    assert.match(rollbackJob, /notifyDeploymentResult\(\{/);
+    // Both jobs wire the notifier into the shared pipeline, which calls it
+    // fire-and-forget on terminal statuses.
+    assert.match(activateJob, /notifyDeploymentResult,/);
+    assert.match(rollbackJob, /notifyDeploymentResult,/);
+    assert.match(pipelineSource, /\.notifyDeploymentResult\(\{/);
+    assert.match(pipelineSource, /\.catch\(\(\) => \{\}\); \/\/ notification failures must never/);
     assert.match(notificationSource, /Failures are logged but never rethrown/);
     assert.match(
       notificationSource,

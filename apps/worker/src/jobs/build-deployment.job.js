@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { Project, Repository, Deployment, DeploymentEvent } from '@hellodeploy/database';
+import { Project, Repository, Deployment } from '@hellodeploy/database';
 import { DeploymentStatus, JobType } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -10,26 +10,7 @@ import { prepareBuildContext } from '../deployment/build-context.js';
 import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
-import { redactLogLine } from '../deployment/log-capture.js';
-
-// ─── Helpers ───────────────────────────────────────────────────────────────────
-
-async function logEvent(deploymentId, stage, level, message, correlationId) {
-  await DeploymentEvent.create({
-    deploymentId,
-    stage,
-    level,
-    messageRedacted: redactLogLine(message),
-    correlationId,
-  });
-}
-
-async function updateStatus(deploymentId, toStatus, extra = {}) {
-  await Deployment.updateOne(
-    { _id: deploymentId },
-    { $set: { status: toStatus, currentStage: toStatus, ...extra } },
-  );
-}
+import { logEvent, updateStatus } from '../deployment/pipeline.js';
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 

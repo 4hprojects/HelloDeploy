@@ -14,6 +14,18 @@ import { getDeploymentQueue } from '../queue/client.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
+
+// A project may only have one deployment in flight at a time.
+const IN_FLIGHT_STATUSES = [
+  DeploymentStatus.QUEUED,
+  DeploymentStatus.VALIDATING,
+  DeploymentStatus.BUILDING,
+  DeploymentStatus.DEPLOYING,
+];
+
+function findInFlightDeployment(projectId) {
+  return Deployment.findOne({ projectId, status: { $in: IN_FLIGHT_STATUSES } }).lean();
+}
 const REPOSITORY_ACCESS_INACTIVE_COPY =
   'Repository access is inactive. Reconnect the GitHub App or update installation access, then retry.';
 
@@ -159,17 +171,7 @@ export async function createDeployment({
   }
 
   // ── One-active-deployment-per-project check ─────────────────────────────────
-  const active = await Deployment.findOne({
-    projectId,
-    status: {
-      $in: [
-        DeploymentStatus.QUEUED,
-        DeploymentStatus.VALIDATING,
-        DeploymentStatus.BUILDING,
-        DeploymentStatus.DEPLOYING,
-      ],
-    },
-  }).lean();
+  const active = await findInFlightDeployment(projectId);
 
   if (active) {
     return {
@@ -313,17 +315,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   }
 
   // One-active-deployment check
-  const active = await Deployment.findOne({
-    projectId: original.projectId,
-    status: {
-      $in: [
-        DeploymentStatus.QUEUED,
-        DeploymentStatus.VALIDATING,
-        DeploymentStatus.BUILDING,
-        DeploymentStatus.DEPLOYING,
-      ],
-    },
-  }).lean();
+  const active = await findInFlightDeployment(original.projectId);
   if (active) {
     return { success: false, error: deploymentInProgressCopy(active.status) };
   }
@@ -424,17 +416,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   }
 
   // One-active-deployment check
-  const active = await Deployment.findOne({
-    projectId,
-    status: {
-      $in: [
-        DeploymentStatus.QUEUED,
-        DeploymentStatus.VALIDATING,
-        DeploymentStatus.BUILDING,
-        DeploymentStatus.DEPLOYING,
-      ],
-    },
-  }).lean();
+  const active = await findInFlightDeployment(projectId);
   if (active) {
     return { success: false, error: deploymentInProgressCopy(active.status) };
   }

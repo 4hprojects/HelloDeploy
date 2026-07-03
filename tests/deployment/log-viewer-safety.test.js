@@ -24,10 +24,20 @@ const activateJob = await readFile(
   'utf8',
 );
 
+const pipeline = await readFile(
+  new URL('../../apps/worker/src/deployment/pipeline.js', import.meta.url),
+  'utf8',
+);
+
 describe('deployment log viewer safety', () => {
   it('stores deployment event messages through the redaction helper', () => {
-    assert.match(buildJob, /messageRedacted: redactLogLine\(message\)/);
-    assert.match(activateJob, /messageRedacted: redactLogLine\(message\)/);
+    // logEvent lives in the shared pipeline; both jobs source it from there.
+    assert.match(pipeline, /messageRedacted: redactLogLine\(message\)/);
+    assert.match(buildJob, /import \{[^}]*logEvent[^}]*\} from '\.\.\/deployment\/pipeline\.js'/);
+    assert.match(
+      activateJob,
+      /import \{[\s\S]*?logEvent[\s\S]*?\} from '\.\.\/deployment\/pipeline\.js'/,
+    );
   });
 
   it('streams only redacted event messages to the browser', () => {
