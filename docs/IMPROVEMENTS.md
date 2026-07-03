@@ -64,8 +64,8 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 
 ### HIGH
 
-- [ ] **No guided onboarding** — creating a project drops the user on the overview with no stepper/checklist for the required path (connect repo → detection → env secrets → submit for review → deploy). Each page repeats the sequence only inside its own empty state. A DRAFT project shows "Submit for Review" with no hint about what must be completed first. **Fix:** progress checklist card on `show.ejs` driven by project state (repo connected? runtime detected? secrets set? status). _Effort: M._
-- [ ] **Inline form errors are inconsistent** — `new/edit/repository` show per-field errors, but the build-configuration, build-filters, deploy-hook, and maintenance forms surface failures only as flash banners; `environment.ejs` shows only `errors.form`. **Fix:** standardize on the `form-errors` + per-field pattern across all forms. _Effort: M._
+- [x] **No guided onboarding** — creating a project drops the user on the overview with no stepper/checklist for the required path (connect repo → detection → env secrets → submit for review → deploy). Each page repeats the sequence only inside its own empty state. A DRAFT project shows "Submit for Review" with no hint about what must be completed first. **Fix (applied):** "Get your app live" checklist card on `show.ejs` (owner-only, hidden after first deploy) driven by repositoryId/runtimeType/secret count/status/activeDeploymentId. _Effort: M. Fixed 2026-07-03._
+- [x] **Inline form errors are inconsistent** — `new/edit/repository` show per-field errors, but the build-configuration, build-filters, deploy-hook, and maintenance forms surface failures only as flash banners; `environment.ejs` shows only `errors.form`. **Fix (applied):** build-configuration, build-filters, maintenance, and environment forms now re-render with `form-errors` + per-field errors and sticky values. Deploy-hook generate/revoke are button-only actions with no input fields, so flash remains the right surface there. _Effort: M. Fixed 2026-07-03._
 
 ### MEDIUM
 

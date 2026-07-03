@@ -13,6 +13,36 @@
   <% } %>
 </div>
 
+<% if (locals.onboarding && !onboarding.complete) { %>
+<div class="card mb-6">
+  <div class="card__header">
+    <span class="card__title">Get your app live</span>
+    <span class="text-sm text-muted">
+      <%= onboarding.steps.filter((s) => s.done).length %> of <%= onboarding.steps.length %> done
+    </span>
+  </div>
+  <div class="card__body">
+    <ol class="onboarding-list">
+      <% onboarding.steps.forEach((step) => { %>
+      <li class="onboarding-list__step<%= step.done ? ' onboarding-list__step--done' : '' %>">
+        <span class="onboarding-list__icon" aria-hidden="true">
+          <%- include('../../partials/icon', { name: step.done ? 'check' : 'circle' }) %>
+        </span>
+        <% if (step.done) { %>
+        <span><%= step.label %> <span class="sr-only">(done)</span></span>
+        <% } else { %>
+        <a href="<%= step.href %>" class="table-link"><%= step.label %></a>
+        <% } %>
+        <% if (step.optional && !step.done) { %>
+        <span class="text-sm text-muted">optional</span>
+        <% } %>
+      </li>
+      <% }) %>
+    </ol>
+  </div>
+</div>
+<% } %>
+
 <div class="project-detail-grid">
   <div class="card">
     <div class="card__header">
@@ -224,7 +254,7 @@
 </div>
 
 <% if (membership.role === 'OWNER' && project.status === 'DRAFT') { %>
-<div class="card mt-6">
+<div class="card mt-6" id="submit-review">
   <div class="card__body">
     <h2 class="card__title mb-2">Submit for Review</h2>
     <p class="text-sm text-muted mb-4">Once your project is configured, submit it for admin review to enable deployments.</p>
@@ -272,9 +302,15 @@
       <%- include('../../partials/csrf-field') %>
       <div class="form-field form-field--floating mb-4">
         <label class="form-label" for="maintenance-message">Custom message (optional)</label>
-        <input id="maintenance-message" name="message" class="form-input"
+        <input id="maintenance-message" name="message"
+               class="form-input<%= locals.maintenanceError ? ' form-input--error' : '' %>"
+               value="<%= locals.maintenanceMessageValue || '' %>"
                maxlength="200"
-               placeholder=" ">
+               placeholder=" "
+               <% if (locals.maintenanceError) { %>aria-describedby="maintenance-message-error"<% } %>>
+        <% if (locals.maintenanceError) { %>
+        <span id="maintenance-message-error" class="form-error" role="alert"><%= maintenanceError %></span>
+        <% } %>
       </div>
       <button type="submit" class="button button--warning">Enable Maintenance</button>
     </form>

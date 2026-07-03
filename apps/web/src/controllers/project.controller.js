@@ -3,6 +3,7 @@ import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hello
 import { Deployment, Project, Repository } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
+import { listSecretNames } from '../services/env-secret.service.js';
 import {
   createProject,
   getUserProjects,
@@ -77,7 +78,40 @@ export const postNewProject = asyncHandler(async (req, res) => {
 
 // ─── Show project ──────────────────────────────────────────────────────────────
 
-export const getProject = asyncHandler(async (req, res) => {
+function buildOnboardingChecklist(project, secretCount) {
+  const base = `/projects/${project.slug}`;
+  const steps = [
+    {
+      label: 'Connect a GitHub repository',
+      href: `${base}/repository`,
+      done: Boolean(project.repositoryId),
+    },
+    {
+      label: 'Detect the runtime',
+      href: `${base}/detection`,
+      done: Boolean(project.runtimeType),
+    },
+    {
+      label: 'Add environment secrets',
+      href: `${base}/environment`,
+      done: secretCount > 0,
+      optional: true,
+    },
+    {
+      label: 'Submit for review',
+      href: '#submit-review',
+      done: project.status !== ProjectStatus.DRAFT,
+    },
+    {
+      label: 'Trigger your first deploy',
+      href: `${base}/deployments`,
+      done: Boolean(project.activeDeploymentId),
+    },
+  ];
+  return { steps, complete: steps.every((s) => s.done || s.optional) };
+}
+
+async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
   let repository = null;
   let newCommitAvailable = false;
@@ -95,6 +129,13 @@ export const getProject = asyncHandler(async (req, res) => {
 
   const deployments = await getDeployments(project._id, 5);
 
+  // Guided onboarding, shown until the first successful deploy.
+  let onboarding = null;
+  if (!project.activeDeploymentId && req.membership.role === ProjectRole.OWNER) {
+    const secretCount = (await listSecretNames(project._id)).length;
+    onboarding = buildOnboardingChecklist(project, secretCount);
+  }
+
   res.render('pages/projects/show', {
     title: project.name,
     project,
@@ -102,8 +143,12 @@ export const getProject = asyncHandler(async (req, res) => {
     repository,
     newCommitAvailable,
     deployments,
+    onboarding,
+    ...extras,
   });
-});
+}
+
+export const getProject = asyncHandler((req, res) => renderProjectOverview(req, res));
 
 // ─── Edit project ──────────────────────────────────────────────────────────────
 
@@ -202,8 +247,10 @@ export const postEnableMaintenance = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateMaintenanceMessage(req.body);
 
   if (hasErrors) {
-    req.flash('error', Object.values(errors)[0]);
-    return res.redirect(`/projects/${project.slug}`);
+    return renderProjectOverview(req, res, {
+      maintenanceError: errors.message,
+      maintenanceMessageValue: req.body.message ?? '',
+    });
   }
 
   const result = await enableProjectMaintenance({

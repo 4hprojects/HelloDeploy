@@ -62,6 +62,12 @@
     <p class="text-sm text-muted mb-4">
       These values override auto-detected settings. Leave a field blank to fall back to detection defaults.
     </p>
+    <%
+      const bcErrors = locals.bcErrors || {};
+      const bcValues = locals.bcValues || null;
+      const bcVal = (field, fallback) => (bcValues ? (bcValues[field] || '') : (fallback || ''));
+    %>
+    <%- include('../../partials/form-errors', { errors: bcErrors }) %>
     <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
       <%- include('../../partials/csrf-field') %>
 
@@ -71,11 +77,15 @@
           type="text"
           id="buildCommand"
           name="buildCommand"
-          class="form-input"
-          value="<%= bc.buildCommand || '' %>"
+          class="form-input<%= bcErrors.buildCommand ? ' form-input--error' : '' %>"
+          value="<%= bcVal('buildCommand', bc.buildCommand) %>"
           maxlength="500"
           placeholder=" "
+          <% if (bcErrors.buildCommand) { %>aria-describedby="buildCommand-error"<% } %>
         />
+        <% if (bcErrors.buildCommand) { %>
+        <span id="buildCommand-error" class="form-error" role="alert"><%= bcErrors.buildCommand %></span>
+        <% } %>
       </div>
 
       <div class="form-field form-field--floating">
@@ -84,11 +94,15 @@
           type="text"
           id="startCommand"
           name="startCommand"
-          class="form-input"
-          value="<%= bc.startCommand || '' %>"
+          class="form-input<%= bcErrors.startCommand ? ' form-input--error' : '' %>"
+          value="<%= bcVal('startCommand', bc.startCommand) %>"
           maxlength="500"
           placeholder=" "
+          <% if (bcErrors.startCommand) { %>aria-describedby="startCommand-error"<% } %>
         />
+        <% if (bcErrors.startCommand) { %>
+        <span id="startCommand-error" class="form-error" role="alert"><%= bcErrors.startCommand %></span>
+        <% } %>
       </div>
 
       <div class="form-field form-field--floating">
@@ -97,11 +111,15 @@
           type="text"
           id="outputDirectory"
           name="outputDirectory"
-          class="form-input"
-          value="<%= bc.outputDirectory || '' %>"
+          class="form-input<%= bcErrors.outputDirectory ? ' form-input--error' : '' %>"
+          value="<%= bcVal('outputDirectory', bc.outputDirectory) %>"
           maxlength="255"
           placeholder=" "
+          <% if (bcErrors.outputDirectory) { %>aria-describedby="outputDirectory-error"<% } %>
         />
+        <% if (bcErrors.outputDirectory) { %>
+        <span id="outputDirectory-error" class="form-error" role="alert"><%= bcErrors.outputDirectory %></span>
+        <% } %>
       </div>
 
       <div class="form-field form-field--floating">
@@ -110,12 +128,16 @@
           type="number"
           id="applicationPort"
           name="applicationPort"
-          class="form-input"
-          value="<%= bc.applicationPort || '' %>"
+          class="form-input<%= bcErrors.applicationPort ? ' form-input--error' : '' %>"
+          value="<%= bcVal('applicationPort', bc.applicationPort) %>"
           min="1"
           max="65535"
           placeholder=" "
+          <% if (bcErrors.applicationPort) { %>aria-describedby="applicationPort-error"<% } %>
         />
+        <% if (bcErrors.applicationPort) { %>
+        <span id="applicationPort-error" class="form-error" role="alert"><%= bcErrors.applicationPort %></span>
+        <% } %>
       </div>
 
       <div class="form-field form-field--floating">
@@ -124,12 +146,17 @@
           type="text"
           id="healthCheckPath"
           name="healthCheckPath"
-          class="form-input"
-          value="<%= bc.healthCheckPath || '/' %>"
+          class="form-input<%= bcErrors.healthCheckPath ? ' form-input--error' : '' %>"
+          value="<%= bcVal('healthCheckPath', bc.healthCheckPath || '/') %>"
           maxlength="255"
           placeholder=" "
+          aria-describedby="<%= bcErrors.healthCheckPath ? 'healthCheckPath-error' : 'healthCheckPath-hint' %>"
         />
-        <span class="form-hint">HTTP path HelloDeploy polls after each deploy to confirm the app is healthy.</span>
+        <% if (bcErrors.healthCheckPath) { %>
+        <span id="healthCheckPath-error" class="form-error" role="alert"><%= bcErrors.healthCheckPath %></span>
+        <% } else { %>
+        <span id="healthCheckPath-hint" class="form-hint">HTTP path HelloDeploy polls after each deploy to confirm the app is healthy.</span>
+        <% } %>
       </div>
 
       <div class="form-actions mt-6">
@@ -173,6 +200,11 @@
       (e.g. <code class="code-inline">docs/**</code>, <code class="code-inline">*.md</code>).
       If a push only touches ignored or non-included paths, the build is skipped.
     </p>
+    <%
+      const bfErrors = locals.bfErrors || {};
+      const bfValues = locals.bfValues || null;
+    %>
+    <%- include('../../partials/form-errors', { errors: bfErrors }) %>
     <form method="POST" action="/projects/<%= project.slug %>/build-filters" novalidate>
       <%- include('../../partials/csrf-field') %>
 
@@ -181,11 +213,16 @@
         <textarea
           id="includedPaths"
           name="includedPaths"
-          class="form-textarea"
+          class="form-textarea<%= bfErrors.includedPaths ? ' form-input--error' : '' %>"
           rows="3"
           placeholder="src/**"
-        ><%= (bf.includedPaths || []).join('\n') %></textarea>
-        <span class="form-hint">Leave blank to include all paths by default.</span>
+          aria-describedby="<%= bfErrors.includedPaths ? 'includedPaths-error' : 'includedPaths-hint' %>"
+        ><%= bfValues ? (bfValues.includedPaths || '') : (bf.includedPaths || []).join('\n') %></textarea>
+        <% if (bfErrors.includedPaths) { %>
+        <span id="includedPaths-error" class="form-error" role="alert"><%= bfErrors.includedPaths %></span>
+        <% } else { %>
+        <span id="includedPaths-hint" class="form-hint">Leave blank to include all paths by default.</span>
+        <% } %>
       </div>
 
       <div class="form-field">
@@ -193,10 +230,14 @@
         <textarea
           id="ignoredPaths"
           name="ignoredPaths"
-          class="form-textarea"
+          class="form-textarea<%= bfErrors.ignoredPaths ? ' form-input--error' : '' %>"
           rows="3"
           placeholder="docs/**"
-        ><%= (bf.ignoredPaths || []).join('\n') %></textarea>
+          <% if (bfErrors.ignoredPaths) { %>aria-describedby="ignoredPaths-error"<% } %>
+        ><%= bfValues ? (bfValues.ignoredPaths || '') : (bf.ignoredPaths || []).join('\n') %></textarea>
+        <% if (bfErrors.ignoredPaths) { %>
+        <span id="ignoredPaths-error" class="form-error" role="alert"><%= bfErrors.ignoredPaths %></span>
+        <% } %>
       </div>
 
       <div class="form-actions mt-6">

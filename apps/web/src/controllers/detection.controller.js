@@ -7,7 +7,7 @@ import {
   validateUpdateBuildFilters,
 } from '../validators/project.validator.js';
 
-export const getDetection = asyncHandler(async (req, res) => {
+async function renderDetection(req, res, extras = {}) {
   const project = req.project;
 
   let repo = null;
@@ -21,8 +21,11 @@ export const getDetection = asyncHandler(async (req, res) => {
     membership: req.membership,
     repo,
     detectionResult: null,
+    ...extras,
   });
-});
+}
+
+export const getDetection = asyncHandler((req, res) => renderDetection(req, res));
 
 export const postRunDetection = asyncHandler(async (req, res) => {
   const project = req.project;
@@ -53,8 +56,7 @@ export const postUpdateBuildConfiguration = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateUpdateBuildConfiguration(req.body);
 
   if (hasErrors) {
-    req.flash('error', Object.values(errors)[0]);
-    return res.redirect(`/projects/${project.slug}/detection`);
+    return renderDetection(req, res, { bcErrors: errors, bcValues: req.body });
   }
 
   const result = await updateBuildConfiguration({
@@ -70,8 +72,7 @@ export const postUpdateBuildConfiguration = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    req.flash('error', result.error);
-    return res.redirect(`/projects/${project.slug}/detection`);
+    return renderDetection(req, res, { bcErrors: { form: result.error }, bcValues: req.body });
   }
 
   req.flash('success', 'Build configuration saved.');
@@ -83,8 +84,7 @@ export const postUpdateBuildFilters = asyncHandler(async (req, res) => {
   const { errors, hasErrors, includedPaths, ignoredPaths } = validateUpdateBuildFilters(req.body);
 
   if (hasErrors) {
-    req.flash('error', Object.values(errors)[0]);
-    return res.redirect(`/projects/${project.slug}/detection`);
+    return renderDetection(req, res, { bfErrors: errors, bfValues: req.body });
   }
 
   const result = await updateBuildFilters({
@@ -97,8 +97,7 @@ export const postUpdateBuildFilters = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    req.flash('error', result.error);
-    return res.redirect(`/projects/${project.slug}/detection`);
+    return renderDetection(req, res, { bfErrors: { form: result.error }, bfValues: req.body });
   }
 
   req.flash('success', 'Build filters saved.');

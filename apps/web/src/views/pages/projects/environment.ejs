@@ -12,9 +12,8 @@
     <span class="card__title">Add Secret</span>
   </div>
   <div class="card__body">
-    <% if (locals.errors && errors.form) { %>
-      <p class="form-error mb-4"><%= errors.form %></p>
-    <% } %>
+    <% const formErrors = locals.errors || {}; %>
+    <%- include('../../partials/form-errors', { errors: formErrors }) %>
     <form method="POST" action="/projects/<%= project.slug %>/environment">
       <%- include('../../partials/csrf-field') %>
       <div class="form-row">
@@ -22,7 +21,7 @@
           <label class="form-label" for="name">Name</label>
           <input
             type="text"
-            class="form-input text-uppercase"
+            class="form-input text-uppercase<%= formErrors.name ? ' form-input--error' : '' %>"
             id="name"
             name="name"
             placeholder="DATABASE_URL"
@@ -31,21 +30,31 @@
             maxlength="128"
             required
             autocomplete="off"
+            aria-describedby="<%= formErrors.name ? 'name-error' : 'name-hint' %>"
           >
-          <p class="form-hint text-xs text-muted">Uppercase letters, digits, underscores. Example: DATABASE_URL</p>
+          <% if (formErrors.name) { %>
+          <p class="form-error" id="name-error" role="alert"><%= formErrors.name %></p>
+          <% } else { %>
+          <p class="form-hint text-xs text-muted" id="name-hint">Uppercase letters, digits, underscores. Example: DATABASE_URL</p>
+          <% } %>
         </div>
         <div class="form-group form-group--floating">
           <label class="form-label" for="value">Value</label>
           <input
             type="password"
-            class="form-input"
+            class="form-input<%= formErrors.value ? ' form-input--error' : '' %>"
             id="value"
             name="value"
             placeholder="•••••••••••••••"
             autocomplete="new-password"
             required
+            aria-describedby="<%= formErrors.value ? 'value-error' : 'value-hint' %>"
           >
-          <p class="form-hint text-xs text-muted">Value is encrypted immediately — it cannot be retrieved after saving.</p>
+          <% if (formErrors.value) { %>
+          <p class="form-error" id="value-error" role="alert"><%= formErrors.value %></p>
+          <% } else { %>
+          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately — it cannot be retrieved after saving.</p>
+          <% } %>
         </div>
       </div>
       <div class="form-actions">

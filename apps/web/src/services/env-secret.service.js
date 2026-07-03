@@ -5,7 +5,7 @@ import { writeAuditEvent } from '@hellodeploy/observability';
 
 const NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 
-function validateName(name) {
+export function validateSecretName(name) {
   if (!name || typeof name !== 'string') {
     return 'Secret name is required.';
   }
@@ -25,7 +25,7 @@ function validateName(name) {
  * @returns {{ success: boolean, error?: string }}
  */
 export async function setSecret(projectId, name, value, actorId, opts = {}) {
-  const nameError = validateName(name);
+  const nameError = validateSecretName(name);
   if (nameError) {
     return { success: false, error: nameError };
   }

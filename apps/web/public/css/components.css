@@ -1425,3 +1425,29 @@
   background: var(--color-surface);
   color: var(--color-text);
 }
+
+/* ── Onboarding checklist (project overview) ──────────────────────── */
+.onboarding-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.onboarding-list__step {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.onboarding-list__icon {
+  display: inline-flex;
+  color: var(--color-text-muted);
+}
+.onboarding-list__step--done .onboarding-list__icon {
+  color: var(--color-green);
+}
+.onboarding-list__step--done > span:not(.onboarding-list__icon) {
+  color: var(--color-text-muted);
+  text-decoration: line-through;
+}

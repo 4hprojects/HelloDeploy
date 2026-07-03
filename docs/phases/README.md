@@ -8,8 +8,8 @@ Phased execution of the remaining items in [IMPROVEMENTS.md](../IMPROVEMENTS.md)
 | [2](phase-2-non-root-containers.md)           | Non-root users in app containers              | Done        | Static → nginx-unprivileged:8080; node runtimes → USER node; live docker run blocked in env |
 | [3](phase-3-worker-pipeline-tests.md)         | Worker pipeline test coverage                 | Done        | +56 tests: jobs, port-allocator, retention, services; in-memory Mongo harness               |
 | [4](phase-4-worker-pipeline-extraction.md)    | Worker pipeline extraction refactor           | Done        | Shared runReleasePipeline; jobs -800/+83 lines; 40 pinned tests unmodified                                                                                           |
-| [5](phase-5-ux-onboarding-and-form-errors.md) | UX: onboarding checklist + inline form errors | In Progress | —                                                                                           |
-| [6](phase-6-cleanups-and-docs.md)             | Small cleanups + docs batch                   | Pending     | —                                                                                           |
+| [5](phase-5-ux-onboarding-and-form-errors.md) | UX: onboarding checklist + inline form errors | Done        | Get-your-app-live checklist on overview; inline errors on build-config/filters/maintenance/environment                                                                                           |
+| [6](phase-6-cleanups-and-docs.md)             | Small cleanups + docs batch                   | In Progress | —                                                                                           |
 
 ## Deferred (intentionally not scheduled)
 
