@@ -1,5 +1,6 @@
 import { Project, Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { DeploymentStatus, RuntimeType } from '@hellodeploy/contracts';
+import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
@@ -34,13 +35,31 @@ export function resolveAppPort(project) {
   return STATIC_RUNTIME_PORT[runtimeType] ?? project.buildConfiguration?.applicationPort ?? 3000;
 }
 
+// Fire-and-forget live push for SSE viewers; the DB records remain the source
+// of truth and the web side falls back to polling them.
+function publishDeployEvent(deploymentId, payload) {
+  const redis = getWorkerRedis();
+  if (redis && redis.status === 'ready') {
+    redis.publish(`deploy-logs:${deploymentId}`, JSON.stringify(payload)).catch(() => {});
+  }
+}
+
 export async function logEvent(deploymentId, stage, level, message, correlationId) {
-  await DeploymentEvent.create({
+  const event = await DeploymentEvent.create({
     deploymentId,
     stage,
     level,
     messageRedacted: redactLogLine(message),
     correlationId,
+  });
+
+  publishDeployEvent(deploymentId, {
+    type: 'log',
+    id: event._id.toString(),
+    stage,
+    level,
+    message: event.messageRedacted,
+    timestamp: event.createdAt,
   });
 }
 
@@ -59,6 +78,9 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
     return;
   }
+
+  // Instant terminal-status push for live SSE viewers.
+  publishDeployEvent(deploymentId, { type: 'status', status: toStatus });
 
   const freshDeployment = await Deployment.findById(deploymentId).lean();
 

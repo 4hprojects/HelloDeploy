@@ -13,7 +13,7 @@ Phased execution of the remaining items in [IMPROVEMENTS.md](../IMPROVEMENTS.md)
 | [7](phase-7-static-port-field.md)             | Static-runtime port field polish                           | Done | Port field replaced with a fixed-port note for STATIC/REACT/VUE |
 | [8](phase-8-worklog-verifications.md)         | WORKLOG verifications (Resend, deploy options, smoke test) | Done     | Deploy-options evidence live; smoke-test doc; Resend send needs 1 manual command                                                                                                                              |
 | [9](phase-9-selected-commit-deploys.md)       | Selected-commit deployment path                            | Done     | Deploy-a-specific-commit card + validated service override; verified live                                                                                                                              |
-| [10](phase-10-sse-redis.md)                   | Multi-instance SSE state + Redis pub/sub                   | In Progress     | —                                                                                                                              |
+| [10](phase-10-sse-redis.md)                   | Multi-instance SSE state + Redis pub/sub                   | Done     | Redis stream caps + pub/sub log push; 10s sweep fallback; verified live                                                                                                                              |
 
 ## Deferred (intentionally not scheduled)
 

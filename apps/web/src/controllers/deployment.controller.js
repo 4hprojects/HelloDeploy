@@ -2,6 +2,8 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentTrigger } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
+import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
+import { subscribeDeployLogs } from '../services/deploy-log-stream.js';
 import {
   createDeployment,
   parseNoCacheFlag,
@@ -154,29 +156,12 @@ export const postRollback = asyncHandler(async (req, res) => {
 // ─── SSE: live deployment log stream ─────────────────────────────────────────
 
 const SSE_MAX_DURATION_MS = 6 * 60 * 1000; // 6 minutes
+// Fast cadence when polling is the only source; slow completeness sweep when
+// live events arrive over Redis pub/sub.
 const SSE_POLL_INTERVAL_MS = 1_500;
+const SSE_SWEEP_INTERVAL_MS = 10_000;
 const SSE_MAX_STREAMS_PER_USER = 3;
 const SSE_MAX_STREAMS_PER_IP = 6;
-const activeSseStreamsByUser = new Map();
-const activeSseStreamsByIp = new Map();
-
-function acquireSseSlot(map, key, limit) {
-  const current = map.get(key) ?? 0;
-  if (current >= limit) {
-    return false;
-  }
-  map.set(key, current + 1);
-  return true;
-}
-
-function releaseSseSlot(map, key) {
-  const current = map.get(key) ?? 0;
-  if (current <= 1) {
-    map.delete(key);
-    return;
-  }
-  map.set(key, current - 1);
-}
 
 export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   const { deploymentId } = req.params;
@@ -187,14 +172,14 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     return res.status(404).end();
   }
 
-  const userStreamKey = String(req.session.user.id);
-  const ipStreamKey = req.ip || 'unknown';
-  if (!acquireSseSlot(activeSseStreamsByUser, userStreamKey, SSE_MAX_STREAMS_PER_USER)) {
+  const userStreamKey = `sse:user:${req.session.user.id}`;
+  const ipStreamKey = `sse:ip:${req.ip || 'unknown'}`;
+  if (!(await acquireStreamSlot(userStreamKey, SSE_MAX_STREAMS_PER_USER))) {
     res.setHeader('Retry-After', '30');
     return res.status(429).end('Too many live log streams. Close another tab and try again.');
   }
-  if (!acquireSseSlot(activeSseStreamsByIp, ipStreamKey, SSE_MAX_STREAMS_PER_IP)) {
-    releaseSseSlot(activeSseStreamsByUser, userStreamKey);
+  if (!(await acquireStreamSlot(ipStreamKey, SSE_MAX_STREAMS_PER_IP))) {
+    await releaseStreamSlot(userStreamKey);
     res.setHeader('Retry-After', '30');
     return res.status(429).end('Too many live log streams from this network.');
   }
@@ -208,6 +193,8 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
   let lastId = null;
   let closed = false;
   let poll = null;
+  let unsubscribe = null;
+  const sentEventIds = new Set(); // pub/sub + poll sweep may both deliver an event
 
   const closeStream = () => {
     if (closed) {
@@ -217,8 +204,11 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     if (poll) {
       clearInterval(poll);
     }
-    releaseSseSlot(activeSseStreamsByUser, userStreamKey);
-    releaseSseSlot(activeSseStreamsByIp, ipStreamKey);
+    if (unsubscribe) {
+      unsubscribe();
+    }
+    releaseStreamSlot(userStreamKey).catch(() => {});
+    releaseStreamSlot(ipStreamKey).catch(() => {});
   };
 
   req.on('close', closeStream);
@@ -231,18 +221,29 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  const sendLogEvent = (payload) => {
+    if (sentEventIds.has(payload.id)) {
+      return;
+    }
+    sentEventIds.add(payload.id);
+    sendEvent('log', payload);
+    // ObjectId hex strings order lexicographically by creation time.
+    if (!lastId || payload.id > String(lastId)) {
+      lastId = payload.id;
+    }
+  };
+
   // Send existing events first
   try {
     const existing = await getDeploymentEvents(deploymentId);
     for (const ev of existing) {
-      sendEvent('log', {
+      sendLogEvent({
         id: ev._id.toString(),
         stage: ev.stage,
         level: ev.level,
         message: ev.messageRedacted,
         timestamp: ev.createdAt,
       });
-      lastId = ev._id;
     }
 
     // If already terminal, send status and close
@@ -258,8 +259,23 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     throw err;
   }
 
-  // Poll for new events
+  // Live push over Redis pub/sub when available; the DB poll below becomes a
+  // slow completeness sweep (and stays the sole source when Redis is down).
+  unsubscribe = subscribeDeployLogs(deploymentId, (payload) => {
+    if (payload.type === 'status') {
+      sendEvent('status', { status: payload.status });
+      closeStream();
+      res.end();
+      return;
+    }
+    if (payload.type === 'log') {
+      const { id, stage, level, message, timestamp } = payload;
+      sendLogEvent({ id, stage, level, message, timestamp });
+    }
+  });
+
   const deadline = Date.now() + SSE_MAX_DURATION_MS;
+  const pollIntervalMs = unsubscribe ? SSE_SWEEP_INTERVAL_MS : SSE_POLL_INTERVAL_MS;
 
   poll = setInterval(async () => {
     if (closed || Date.now() > deadline) {
@@ -282,14 +298,13 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
         .lean();
 
       for (const ev of newEvents) {
-        sendEvent('log', {
+        sendLogEvent({
           id: ev._id.toString(),
           stage: ev.stage,
           level: ev.level,
           message: ev.messageRedacted,
           timestamp: ev.createdAt,
         });
-        lastId = ev._id;
       }
 
       // Check if deployment reached terminal state
@@ -302,5 +317,5 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     } catch {
       // Non-fatal — keep polling
     }
-  }, SSE_POLL_INTERVAL_MS);
+  }, pollIntervalMs);
 });

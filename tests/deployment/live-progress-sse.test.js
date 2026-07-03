@@ -43,12 +43,29 @@ describe('live deployment progress SSE', () => {
   it('caps simultaneous log streams per user and network', () => {
     assert.match(deploymentController, /SSE_MAX_STREAMS_PER_USER = 3/);
     assert.match(deploymentController, /SSE_MAX_STREAMS_PER_IP = 6/);
-    assert.match(deploymentController, /activeSseStreamsByUser = new Map\(\)/);
-    assert.match(deploymentController, /activeSseStreamsByIp = new Map\(\)/);
+    // Slots live in the shared (Redis-backed) limiter so caps hold across instances.
+    assert.match(
+      deploymentController,
+      /await acquireStreamSlot\(userStreamKey, SSE_MAX_STREAMS_PER_USER\)/,
+    );
+    assert.match(
+      deploymentController,
+      /await acquireStreamSlot\(ipStreamKey, SSE_MAX_STREAMS_PER_IP\)/,
+    );
     assert.match(deploymentController, /Too many live log streams/);
     assert.match(deploymentController, /Retry-After', '30'/);
-    assert.match(deploymentController, /releaseSseSlot\(activeSseStreamsByUser, userStreamKey\)/);
-    assert.match(deploymentController, /releaseSseSlot\(activeSseStreamsByIp, ipStreamKey\)/);
+    assert.match(deploymentController, /releaseStreamSlot\(userStreamKey\)/);
+    assert.match(deploymentController, /releaseStreamSlot\(ipStreamKey\)/);
+  });
+
+  it('subscribes to live log pub/sub with the DB poll as fallback sweep', () => {
+    assert.match(deploymentController, /subscribeDeployLogs\(deploymentId/);
+    assert.match(deploymentController, /SSE_SWEEP_INTERVAL_MS/);
+    assert.match(
+      deploymentController,
+      /unsubscribe \? SSE_SWEEP_INTERVAL_MS : SSE_POLL_INTERVAL_MS/,
+    );
+    assert.match(deploymentController, /sentEventIds/);
   });
 
   it('connects the browser log viewer through EventSource and safe DOM updates', () => {

@@ -9,6 +9,7 @@ import { JobType } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
+import { setWorkerRedis } from './queue/worker-redis.js';
 import { handleBuildDeployment } from './jobs/build-deployment.job.js';
 import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
@@ -44,6 +45,8 @@ redis.on('error', (err) => {
 // Expose queue to job handlers that need to enqueue follow-on jobs
 const queue = createDeploymentQueue(redis);
 setWorkerQueue(queue);
+// Expose the connection for fire-and-forget publishes (live deploy logs)
+setWorkerRedis(redis);
 
 /**
  * Main job processor — dispatches to the correct handler by job name.
