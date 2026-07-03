@@ -6,6 +6,8 @@ import { removeDockerImage } from './build.js';
 
 const MAX_HEALTHY_RELEASES = 3;
 
+const defaultDeps = { stopAndRemoveContainer, removeDockerImage };
+
 /**
  * Keep at most MAX_HEALTHY_RELEASES per project.
  * For any excess HEALTHY deployments (oldest first), stop the container and
@@ -15,7 +17,7 @@ const MAX_HEALTHY_RELEASES = 3;
  *
  * @param {string|import('mongoose').Types.ObjectId} projectId
  */
-export async function cleanupOldReleases(projectId) {
+export async function cleanupOldReleases(projectId, deps = defaultDeps) {
   const healthy = await Deployment.find({
     projectId,
     status: DeploymentStatus.HEALTHY,
@@ -39,7 +41,7 @@ export async function cleanupOldReleases(projectId) {
     // Stop and remove the container if still running
     if (dep.activeContainerId) {
       try {
-        await stopAndRemoveContainer(dep.activeContainerId);
+        await deps.stopAndRemoveContainer(dep.activeContainerId);
       } catch (err) {
         logger.warn('Retention: failed to remove container', {
           deploymentId: dep._id,
@@ -52,7 +54,7 @@ export async function cleanupOldReleases(projectId) {
     // Remove the Docker image to free disk space
     if (dep.imageTag) {
       try {
-        await removeDockerImage(dep.imageTag);
+        await deps.removeDockerImage(dep.imageTag);
       } catch (err) {
         logger.warn('Retention: failed to remove image', {
           deploymentId: dep._id,

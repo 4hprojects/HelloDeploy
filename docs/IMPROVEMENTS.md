@@ -55,7 +55,7 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 ### LOW
 
 - [ ] **Silently swallowed errors** — empty `catch {}` in `domain.service.js:45,252`, `github.service.js:210`, `auth.controller.js:41` (the `server-stats.service.js` ones are acceptable defaults). **Fix:** log at debug level minimum. _Effort: S._
-- [ ] **Test coverage gaps (biggest untested surfaces)** — no direct tests for worker job orchestration (`build/activate/rollback.job.js`), `port-allocator`, `retention`/`cleanup`, `project.service` CRUD, `admin.service` quota consumption, or the SSE controller loop. These are prerequisites for the pipeline-extraction refactor above. _Effort: L._
+- [x] **Test coverage gaps (biggest untested surfaces)** — no direct tests for worker job orchestration (`build/activate/rollback.job.js`), `port-allocator`, `retention`/`cleanup`, `project.service` CRUD, `admin.service` quota consumption, or the SSE controller loop. These are prerequisites for the pipeline-extraction refactor above. **Fix (applied):** +56 tests on an in-memory-Mongo harness (`tests/worker/`, `tests/helpers/`); SSE controller loop still untested. See `docs/phases/phase-3-worker-pipeline-tests.md`. _Effort: L. Fixed 2026-07-03._
 - [ ] **`requireProjectRole` does two sequential finds per request** — project then membership; could be one aggregation or parallel. _Effort: S._
 
 ---

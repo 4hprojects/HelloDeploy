@@ -33,6 +33,26 @@ async function updateStatus(deploymentId, toStatus, extra = {}) {
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 
+async function enqueueActivateRelease(payload, jobId) {
+  // Import lazily to avoid circular dependency with worker.js
+  const { getWorkerQueue } = await import('../queue/worker-queue.js');
+  const queue = getWorkerQueue();
+  if (queue) {
+    await enqueueJob(queue, JobType.ACTIVATE_RELEASE, payload, { jobId });
+  }
+}
+
+const defaultDeps = {
+  getInstallationToken,
+  cloneExactCommit,
+  prepareBuildContext,
+  writeDockerfile,
+  buildDockerImage,
+  removeDockerImage,
+  cleanupBuildWorkspace,
+  enqueueActivateRelease,
+};
+
 /**
  * BUILD_DEPLOYMENT job handler.
  *
@@ -50,7 +70,7 @@ async function updateStatus(deploymentId, toStatus, extra = {}) {
  *
  * On any failure: mark FAILED, cleanup workspace, remove partial image.
  */
-export async function handleBuildDeployment(job) {
+export async function handleBuildDeployment(job, deps = defaultDeps) {
   const {
     projectId,
     deploymentId,
@@ -108,7 +128,7 @@ export async function handleBuildDeployment(job) {
   // ── Clone ───────────────────────────────────────────────────────────────────
   let installationToken;
   try {
-    installationToken = await getInstallationToken(repo.installationId);
+    installationToken = await deps.getInstallationToken(repo.installationId);
   } catch {
     await logEvent(
       deploymentId,
@@ -126,7 +146,7 @@ export async function handleBuildDeployment(job) {
   }
 
   try {
-    await cloneExactCommit({
+    await deps.cloneExactCommit({
       installationToken,
       ownerLogin: repo.ownerLogin,
       repoName: repo.name,
@@ -153,13 +173,13 @@ export async function handleBuildDeployment(job) {
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
-    await cleanupBuildWorkspace(workDir);
+    await deps.cleanupBuildWorkspace(workDir);
     return;
   }
 
   // ── Prepare build context ───────────────────────────────────────────────────
   try {
-    await prepareBuildContext(workDir);
+    await deps.prepareBuildContext(workDir);
     await logEvent(deploymentId, 'VALIDATE', 'INFO', 'Build context validated.', correlationId);
   } catch (err) {
     await logEvent(
@@ -174,7 +194,7 @@ export async function handleBuildDeployment(job) {
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
-    await cleanupBuildWorkspace(workDir);
+    await deps.cleanupBuildWorkspace(workDir);
     return;
   }
 
@@ -188,7 +208,7 @@ export async function handleBuildDeployment(job) {
       outputDirectory: project.buildConfiguration?.outputDirectory ?? null,
       applicationPort: project.buildConfiguration?.applicationPort ?? null,
     });
-    await writeDockerfile(workDir, dockerfileContent);
+    await deps.writeDockerfile(workDir, dockerfileContent);
     await logEvent(
       deploymentId,
       'VALIDATE',
@@ -209,7 +229,7 @@ export async function handleBuildDeployment(job) {
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
-    await cleanupBuildWorkspace(workDir);
+    await deps.cleanupBuildWorkspace(workDir);
     return;
   }
 
@@ -224,7 +244,7 @@ export async function handleBuildDeployment(job) {
   );
 
   try {
-    await buildDockerImage({
+    await deps.buildDockerImage({
       contextDir: workDir,
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
@@ -253,8 +273,8 @@ export async function handleBuildDeployment(job) {
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
-    await removeDockerImage(imageTag);
-    await cleanupBuildWorkspace(workDir);
+    await deps.removeDockerImage(imageTag);
+    await deps.cleanupBuildWorkspace(workDir);
     return;
   }
 
@@ -269,30 +289,23 @@ export async function handleBuildDeployment(job) {
   );
 
   // Cleanup build workspace before activation — image is in the Docker daemon
-  await cleanupBuildWorkspace(workDir);
+  await deps.cleanupBuildWorkspace(workDir);
 
   // Enqueue the ACTIVATE_RELEASE job — worker picks it up next
-  // Import lazily to avoid circular dependency with worker.js
-  const { getWorkerQueue } = await import('../queue/worker-queue.js');
-  const queue = getWorkerQueue();
-  if (queue) {
-    await enqueueJob(
-      queue,
-      JobType.ACTIVATE_RELEASE,
-      {
-        version: 1,
-        correlationId,
-        actorId: job.data.actorId,
-        actorRole: job.data.actorRole,
-        projectId,
-        deploymentId,
-        imageId: imageTag,
-        targetPort: project.buildConfiguration?.applicationPort ?? 3000,
-        resourceLimits: { memoryMb: 256, cpuShares: 256, pidsLimit: 100 },
-      },
-      { jobId: `activate-${deploymentId}` },
-    );
-  }
+  await deps.enqueueActivateRelease(
+    {
+      version: 1,
+      correlationId,
+      actorId: job.data.actorId,
+      actorRole: job.data.actorRole,
+      projectId,
+      deploymentId,
+      imageId: imageTag,
+      targetPort: project.buildConfiguration?.applicationPort ?? 3000,
+      resourceLimits: { memoryMb: 256, cpuShares: 256, pidsLimit: 100 },
+    },
+    `activate-${deploymentId}`,
+  );
 
   logger.info('BuildDeployment: job complete', {
     deploymentId,

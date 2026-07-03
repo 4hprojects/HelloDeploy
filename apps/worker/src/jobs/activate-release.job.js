@@ -37,6 +37,21 @@ const STATIC_RUNTIME_PORT = {
 // How long to wait after container start before health-checking (ms)
 const STARTUP_DELAY_MS = 3_000;
 
+const defaultDeps = {
+  allocatePort,
+  ensureNetwork,
+  startContainer,
+  inspectContainer,
+  stopAndRemoveContainer,
+  httpHealthCheck,
+  removeDockerImage,
+  getProjectEnvVars,
+  activateRoute,
+  notifyDeploymentResult,
+  cleanupOldReleases,
+  startupDelayMs: STARTUP_DELAY_MS,
+};
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
 async function logEvent(deploymentId, stage, level, message, correlationId) {
@@ -49,7 +64,13 @@ async function logEvent(deploymentId, stage, level, message, correlationId) {
   });
 }
 
-async function updateStatus(deploymentId, toStatus, extra = {}, project = null) {
+async function updateStatus(
+  deploymentId,
+  toStatus,
+  extra = {},
+  project = null,
+  deps = defaultDeps,
+) {
   await Deployment.updateOne(
     { _id: deploymentId },
     { $set: { status: toStatus, currentStage: toStatus, ...extra } },
@@ -65,22 +86,24 @@ async function updateStatus(deploymentId, toStatus, extra = {}, project = null) 
   // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal
   // cannot affect other releases. Fire-and-forget — cleanup must not block.
   if (toStatus === DeploymentStatus.FAILED && freshDeployment?.imageTag) {
-    removeDockerImage(freshDeployment.imageTag);
+    deps.removeDockerImage(freshDeployment.imageTag);
   }
 
   if (project) {
-    notifyDeploymentResult({
-      ownerId: project.ownerId.toString(),
-      projectName: project.name,
-      projectSlug: project.slug,
-      sequenceNumber: freshDeployment?.sequenceNumber ?? '?',
-      status: toStatus,
-      commitSha: freshDeployment?.commitSha ?? '',
-      failureCode: freshDeployment?.failureCode,
-      failureSummary: freshDeployment?.failureSummary,
-      platformDomain: env.PLATFORM_DOMAIN,
-      notificationPreference: project.notificationPreference,
-    }).catch(() => {}); // notification failures must never affect the deployment pipeline
+    deps
+      .notifyDeploymentResult({
+        ownerId: project.ownerId.toString(),
+        projectName: project.name,
+        projectSlug: project.slug,
+        sequenceNumber: freshDeployment?.sequenceNumber ?? '?',
+        status: toStatus,
+        commitSha: freshDeployment?.commitSha ?? '',
+        failureCode: freshDeployment?.failureCode,
+        failureSummary: freshDeployment?.failureSummary,
+        platformDomain: env.PLATFORM_DOMAIN,
+        notificationPreference: project.notificationPreference,
+      })
+      .catch(() => {}); // notification failures must never affect the deployment pipeline
   }
 }
 
@@ -102,7 +125,7 @@ async function updateStatus(deploymentId, toStatus, extra = {}, project = null) 
  *   8. On success: stop old active container, mark HEALTHY
  *   9. On failure: stop candidate, mark FAILED (existing HEALTHY container keeps running)
  */
-export async function handleActivateRelease(job) {
+export async function handleActivateRelease(job, deps = defaultDeps) {
   const { projectId, deploymentId, correlationId } = job.data;
 
   const deployment = await Deployment.findById(deploymentId);
@@ -122,11 +145,17 @@ export async function handleActivateRelease(job) {
 
   const project = await Project.findById(projectId);
   if (!project) {
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'PROJECT_NOT_FOUND',
-      failureSummary: 'Project not found.',
-      completedAt: new Date(),
-    });
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'PROJECT_NOT_FOUND',
+        failureSummary: 'Project not found.',
+        completedAt: new Date(),
+      },
+      null,
+      deps,
+    );
     return;
   }
 
@@ -140,7 +169,7 @@ export async function handleActivateRelease(job) {
   // ── Allocate port ───────────────────────────────────────────────────────────
   let hostPort;
   try {
-    hostPort = await allocatePort();
+    hostPort = await deps.allocatePort();
     await Deployment.updateOne(
       { _id: deploymentId },
       { $set: { containerPort: hostPort, containerName: cName, containerNetworkName: netName } },
@@ -157,13 +186,14 @@ export async function handleActivateRelease(job) {
         completedAt: new Date(),
       },
       project,
+      deps,
     );
     return;
   }
 
   // ── Ensure network ──────────────────────────────────────────────────────────
   try {
-    await ensureNetwork(netName);
+    await deps.ensureNetwork(netName);
   } catch (err) {
     await logEvent(
       deploymentId,
@@ -177,6 +207,7 @@ export async function handleActivateRelease(job) {
       DeploymentStatus.FAILED,
       { failureCode: 'NETWORK_SETUP_FAILED', failureSummary: err.message, completedAt: new Date() },
       project,
+      deps,
     );
     return;
   }
@@ -184,7 +215,7 @@ export async function handleActivateRelease(job) {
   // ── Decrypt env vars ────────────────────────────────────────────────────────
   let envVars = {};
   try {
-    envVars = await getProjectEnvVars(projectId);
+    envVars = await deps.getProjectEnvVars(projectId);
     await logEvent(
       deploymentId,
       'DEPLOY',
@@ -209,6 +240,7 @@ export async function handleActivateRelease(job) {
         completedAt: new Date(),
       },
       project,
+      deps,
     );
     return;
   }
@@ -216,7 +248,7 @@ export async function handleActivateRelease(job) {
   // ── Start container ─────────────────────────────────────────────────────────
   let containerId;
   try {
-    containerId = await startContainer({
+    containerId = await deps.startContainer({
       containerName: cName,
       imageTag: deployment.imageTag,
       networkName: netName,
@@ -253,14 +285,15 @@ export async function handleActivateRelease(job) {
         completedAt: new Date(),
       },
       project,
+      deps,
     );
     return;
   }
 
   // ── Wait for startup + crash-loop detection ─────────────────────────────────
-  await new Promise((r) => setTimeout(r, STARTUP_DELAY_MS));
+  await new Promise((r) => setTimeout(r, deps.startupDelayMs));
 
-  const state = await inspectContainer(cName);
+  const state = await deps.inspectContainer(cName);
   if (!state.running) {
     await logEvent(
       deploymentId,
@@ -269,7 +302,7 @@ export async function handleActivateRelease(job) {
       `Container exited immediately (code ${state.exitCode}). Possible crash or missing start command.`,
       correlationId,
     );
-    await stopAndRemoveContainer(cName);
+    await deps.stopAndRemoveContainer(cName);
     await updateStatus(
       deploymentId,
       DeploymentStatus.FAILED,
@@ -279,6 +312,7 @@ export async function handleActivateRelease(job) {
         completedAt: new Date(),
       },
       project,
+      deps,
     );
     return;
   }
@@ -297,7 +331,7 @@ export async function handleActivateRelease(job) {
     correlationId,
   );
 
-  const health = await httpHealthCheck({ url: healthUrl, attempts: 12, intervalMs: 5_000 });
+  const health = await deps.httpHealthCheck({ url: healthUrl, attempts: 12, intervalMs: 5_000 });
 
   if (!health.healthy) {
     await logEvent(
@@ -307,7 +341,7 @@ export async function handleActivateRelease(job) {
       `Health check failed: ${health.error ?? 'timeout'}`,
       correlationId,
     );
-    await stopAndRemoveContainer(cName);
+    await deps.stopAndRemoveContainer(cName);
     await updateStatus(
       deploymentId,
       DeploymentStatus.FAILED,
@@ -321,6 +355,7 @@ export async function handleActivateRelease(job) {
         completedAt: new Date(),
       },
       project,
+      deps,
     );
     return;
   }
@@ -346,7 +381,7 @@ export async function handleActivateRelease(job) {
         `Subdomain "${subdomain}" is invalid or reserved.`,
         correlationId,
       );
-      await stopAndRemoveContainer(cName);
+      await deps.stopAndRemoveContainer(cName);
       await updateStatus(
         deploymentId,
         DeploymentStatus.FAILED,
@@ -356,6 +391,7 @@ export async function handleActivateRelease(job) {
           completedAt: new Date(),
         },
         project,
+        deps,
       );
       return;
     }
@@ -368,7 +404,7 @@ export async function handleActivateRelease(job) {
     });
 
     try {
-      await activateRoute({
+      await deps.activateRoute({
         configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
         slug: subdomain,
         configContent: nginxConfig,
@@ -389,7 +425,7 @@ export async function handleActivateRelease(job) {
         `Nginx route activation failed: ${err.message}`,
         correlationId,
       );
-      await stopAndRemoveContainer(cName);
+      await deps.stopAndRemoveContainer(cName);
       await updateStatus(
         deploymentId,
         DeploymentStatus.FAILED,
@@ -399,6 +435,7 @@ export async function handleActivateRelease(job) {
           completedAt: new Date(),
         },
         project,
+        deps,
       );
       return;
     }
@@ -420,7 +457,7 @@ export async function handleActivateRelease(job) {
         `Stopping previous container: ${oldDeployment.activeContainerId.slice(0, 12)}.`,
         correlationId,
       );
-      await stopAndRemoveContainer(oldDeployment.activeContainerId);
+      await deps.stopAndRemoveContainer(oldDeployment.activeContainerId);
     }
   }
 
@@ -430,6 +467,7 @@ export async function handleActivateRelease(job) {
     DeploymentStatus.HEALTHY,
     { activeContainerId: containerId, completedAt: new Date() },
     project,
+    deps,
   );
 
   await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deployment._id } });
@@ -445,7 +483,7 @@ export async function handleActivateRelease(job) {
 
   // ── Post-activation: retention cleanup ──────────────────────────────────────
   // Fire-and-forget — failures must not affect the HEALTHY status.
-  cleanupOldReleases(projectId).catch((err) => {
+  deps.cleanupOldReleases(projectId).catch((err) => {
     logger.warn('ActivateRelease: retention cleanup error', { projectId, error: err.message });
   });
 }
