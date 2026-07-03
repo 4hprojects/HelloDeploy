@@ -7,7 +7,6 @@
   </div>
 </div>
 
-<%- include('../../../partials/flash-banner') %>
 <% const quotaFields = [
   ['maxOwnedProjects', 'Max Owned Projects'],
   ['maxRunningApps', 'Max Running Apps'],
@@ -58,7 +57,7 @@
   </div>
   <div class="card__body">
     <form method="POST" action="/admin/quotas/<%= scopeType %>/<%= scopeId %>">
-      <%- include('../../../partials/csrf-field') %>
+      <%- include('../../partials/csrf-field') %>
 
       <div class="form-grid form-grid--2">
         <div class="form-group form-group--floating">
