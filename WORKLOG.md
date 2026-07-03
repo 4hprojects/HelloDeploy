@@ -204,7 +204,7 @@
 - [x] Verify notification failures remain nonblocking.
 - [x] Add focused regression coverage.
 - [x] Update phase tracker evidence.
-- [ ] Verify configured provider delivery end to end.
+- [ ] Verify configured provider delivery end to end. _(2026-07-04: automated send was blocked by the agent-environment safety policy for external email; a ready-to-run script composes a real notification via `buildDeploymentNotificationEmail` and sends through the configured Resend key — run `node send-resend-e2e.mjs` from the session scratchpad or replicate per `docs/phases/phase-8-worklog-verifications.md`, then check the inbox and Resend dashboard.)_
 
 ### Results
 
@@ -328,8 +328,8 @@
 - [x] Keep deployment controller parsing aligned with the shared helper.
 - [x] Add focused regression coverage.
 - [x] Update phase tracker evidence.
-- [ ] Verify or implement a selected-commit deployment path.
-- [ ] Run browser or integration evidence for all deployment options.
+- [ ] Verify or implement a selected-commit deployment path. _(2026-07-04: implementation scheduled as `docs/phases/phase-9-selected-commit-deploys.md`.)_
+- [x] Run browser or integration evidence for all deployment options. _(2026-07-04: driven live against the dev harness — deploy form renders both variants (hidden `noCache=true` on the no-cache form); POST deploy-latest produced a BullMQ payload with `noCache: false` and the repository's `lastCommitSha`; the no-cache POST produced `noCache: true`; retry of a FAILED deployment created a new QUEUED deployment reusing the original commit with `noCache: false`. Evidence in `docs/phases/phase-8-worklog-verifications.md`.)_
 
 ### Results
 

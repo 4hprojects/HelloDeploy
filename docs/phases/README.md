@@ -11,8 +11,8 @@ Phased execution of the remaining items in [IMPROVEMENTS.md](../IMPROVEMENTS.md)
 | [5](phase-5-ux-onboarding-and-form-errors.md) | UX: onboarding checklist + inline form errors              | Done        | Get-your-app-live checklist on overview; inline errors on build-config/filters/maintenance/environment                         |
 | [6](phase-6-cleanups-and-docs.md)             | Small cleanups + docs batch                                | Done        | Port-claim race fixed, startup polling, parallel awaits, error logs; ENVIRONMENT.md, CLAUDE.md architecture, FAQ, CONTRIBUTING |
 | [7](phase-7-static-port-field.md)             | Static-runtime port field polish                           | Done | Port field replaced with a fixed-port note for STATIC/REACT/VUE |
-| [8](phase-8-worklog-verifications.md)         | WORKLOG verifications (Resend, deploy options, smoke test) | In Progress     | —                                                                                                                              |
-| [9](phase-9-selected-commit-deploys.md)       | Selected-commit deployment path                            | Pending     | —                                                                                                                              |
+| [8](phase-8-worklog-verifications.md)         | WORKLOG verifications (Resend, deploy options, smoke test) | Done     | Deploy-options evidence live; smoke-test doc; Resend send needs 1 manual command                                                                                                                              |
+| [9](phase-9-selected-commit-deploys.md)       | Selected-commit deployment path                            | In Progress     | —                                                                                                                              |
 | [10](phase-10-sse-redis.md)                   | Multi-instance SSE state + Redis pub/sub                   | Pending     | —                                                                                                                              |
 
 ## Deferred (intentionally not scheduled)
