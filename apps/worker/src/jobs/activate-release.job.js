@@ -12,6 +12,7 @@ import {
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { removeDockerImage } from '../deployment/build.js';
+import { STATIC_PORT } from '../deployment/dockerfile-generator.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { redactLogLine } from '../deployment/log-capture.js';
 import { generateServerBlock } from '../nginx/template.js';
@@ -25,11 +26,12 @@ import { env } from '../config/env.js';
 const DEFAULT_MEMORY_MB = 256;
 const DEFAULT_CPU_CORES = 0.25;
 
-// Application port per runtime (used when buildConfiguration.applicationPort is null)
-const DEFAULT_APP_PORT = {
-  [RuntimeType.STATIC]: 80,
-  [RuntimeType.REACT]: 80,
-  [RuntimeType.VUE]: 80,
+// Static runtimes always serve on STATIC_PORT — the generated nginx-unprivileged
+// image listens there regardless of buildConfiguration.applicationPort.
+const STATIC_RUNTIME_PORT = {
+  [RuntimeType.STATIC]: STATIC_PORT,
+  [RuntimeType.REACT]: STATIC_PORT,
+  [RuntimeType.VUE]: STATIC_PORT,
 };
 
 // How long to wait after container start before health-checking (ms)
@@ -130,7 +132,7 @@ export async function handleActivateRelease(job) {
 
   const runtimeType = project.runtimeType ?? RuntimeType.NODEJS;
   const appPort =
-    project.buildConfiguration?.applicationPort ?? DEFAULT_APP_PORT[runtimeType] ?? 3000;
+    STATIC_RUNTIME_PORT[runtimeType] ?? project.buildConfiguration?.applicationPort ?? 3000;
 
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
@@ -149,7 +151,11 @@ export async function handleActivateRelease(job) {
     await updateStatus(
       deploymentId,
       DeploymentStatus.FAILED,
-      { failureCode: 'PORT_ALLOCATION_FAILED', failureSummary: err.message, completedAt: new Date() },
+      {
+        failureCode: 'PORT_ALLOCATION_FAILED',
+        failureSummary: err.message,
+        completedAt: new Date(),
+      },
       project,
     );
     return;
@@ -308,7 +314,10 @@ export async function handleActivateRelease(job) {
       {
         failureCode: 'HEALTH_CHECK_FAILED',
         failureSummary:
-          `Health check did not pass: ${health.error ?? 'no response within timeout'}`.slice(0, 1000),
+          `Health check did not pass: ${health.error ?? 'no response within timeout'}`.slice(
+            0,
+            1000,
+          ),
         completedAt: new Date(),
       },
       project,

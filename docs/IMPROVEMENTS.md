@@ -16,7 +16,7 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 ### HIGH
 
 - [x] **Dockerfile directive injection via build config** — `apps/worker/src/deployment/dockerfile-generator.js` bakes user input directly as `RUN ${buildCommand}` / `CMD ${startCommand}`. A value containing newlines injects arbitrary Dockerfile instructions. Blast radius is limited by `--network none` and resource caps, but it is attacker-controlled build execution. **Fix (applied):** reject newlines/control characters in `validateUpdateBuildConfiguration` — the only write path. _Effort: S. Fixed 2026-07-02._
-- [ ] **Containers run as root inside the namespace** — `apps/worker/src/deployment/container.js` sets no `--user`, and generated Dockerfiles set no `USER`. `--cap-drop ALL` + `no-new-privileges` mitigate, but user code still runs as uid 0. **Fix:** add a non-root `USER` to generated Dockerfiles / `--user` flag. Needs care: static runtimes serve on port 80 in-container (root-bind), so those templates need a port change or `setcap` approach. _Effort: M._
+- [x] **Containers run as root inside the namespace** — `apps/worker/src/deployment/container.js` sets no `--user`, and generated Dockerfiles set no `USER`. `--cap-drop ALL` + `no-new-privileges` mitigate, but user code still runs as uid 0. **Fix (applied):** static runtimes use `nginxinc/nginx-unprivileged` (uid 101, port 8080); node runtimes get `USER node` + `--chown`-ed app files. See `docs/phases/phase-2-non-root-containers.md`. _Effort: M. Fixed 2026-07-03._
 
 ### MEDIUM
 

@@ -169,3 +169,44 @@ describe('generateDockerfile — security', () => {
     }
   });
 });
+
+describe('generateDockerfile — non-root runtime user', () => {
+  const baseCfg = {
+    buildCommand: 'npm run build',
+    startCommand: 'node server.js',
+    outputDirectory: 'dist',
+    applicationPort: 3000,
+  };
+
+  it('static runtimes use the unprivileged nginx image on port 8080, never 80', () => {
+    for (const runtimeType of ['STATIC', 'REACT', 'VUE']) {
+      const df = generateDockerfile({ ...baseCfg, runtimeType });
+      assert.ok(
+        df.includes('FROM nginxinc/nginx-unprivileged'),
+        `${runtimeType} must use the unprivileged nginx image`,
+      );
+      assert.ok(df.includes('EXPOSE 8080'), `${runtimeType} must expose 8080`);
+      assert.ok(!/EXPOSE 80\b(?!\d)/.test(df), `${runtimeType} must not expose port 80`);
+    }
+  });
+
+  it('node runtimes drop to the node user before CMD', () => {
+    for (const runtimeType of ['EXPRESS', 'NODEJS', 'NEXTJS']) {
+      const df = generateDockerfile({ ...baseCfg, runtimeType });
+      const userIndex = df.indexOf('USER node');
+      const cmdIndex = df.indexOf('CMD ');
+      assert.ok(userIndex !== -1, `${runtimeType} must set USER node`);
+      assert.ok(userIndex < cmdIndex, `${runtimeType} must set USER node before CMD`);
+    }
+  });
+
+  it('node runtimes copy app files owned by the node user', () => {
+    for (const runtimeType of ['EXPRESS', 'NODEJS', 'NEXTJS']) {
+      const df = generateDockerfile({ ...baseCfg, runtimeType });
+      assert.ok(
+        df.includes('--chown=node:node'),
+        `${runtimeType} must chown app files to node so runtime writes work`,
+      );
+    }
+  });
+});

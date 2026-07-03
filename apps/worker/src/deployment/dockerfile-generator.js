@@ -2,7 +2,12 @@ import { RuntimeType } from '@hellodeploy/contracts';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
-const NGINX_IMAGE = 'nginx:1.27-alpine';
+// Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
+// so static containers never run nginx as root.
+const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
+
+/** Container-internal port nginx-unprivileged listens on for static runtimes. */
+export const STATIC_PORT = 8080;
 
 /**
  * Generate a safe Dockerfile for the detected runtime.
@@ -46,7 +51,7 @@ export function generateDockerfile(config) {
 function generateStatic() {
   return `FROM ${NGINX_IMAGE}
 COPY . /usr/share/nginx/html
-EXPOSE 80
+EXPOSE ${STATIC_PORT}
 CMD ["nginx", "-g", "daemon off;"]
 `;
 }
@@ -61,7 +66,7 @@ RUN ${buildCommand}
 
 FROM ${NGINX_IMAGE}
 COPY --from=builder /app/${outputDirectory} /usr/share/nginx/html
-EXPOSE 80
+EXPOSE ${STATIC_PORT}
 CMD ["nginx", "-g", "daemon off;"]
 `;
 }
@@ -81,9 +86,10 @@ RUN ${buildCommand}
 FROM ${NODE_IMAGE}
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+USER node
 EXPOSE 3000
 ENV PORT=3000
 CMD ["node", "server.js"]
@@ -101,7 +107,8 @@ function generateNode({ startCommand, applicationPort }) {
 WORKDIR /app
 COPY package*.json ./
 RUN npm ci --prefer-offline --omit=dev
-COPY . .
+COPY --chown=node:node . .
+USER node
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}
 CMD ${cmdJson}

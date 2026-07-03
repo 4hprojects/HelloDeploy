@@ -12,6 +12,7 @@ import {
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
+import { STATIC_PORT } from '../deployment/dockerfile-generator.js';
 import { generateServerBlock } from '../nginx/template.js';
 import { activateRoute } from '../nginx/route-manager.js';
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
@@ -21,10 +22,12 @@ import { env } from '../config/env.js';
 
 const DEFAULT_MEMORY_MB = 256;
 const DEFAULT_CPU_CORES = 0.25;
-const DEFAULT_APP_PORT = {
-  [RuntimeType.STATIC]: 80,
-  [RuntimeType.REACT]: 80,
-  [RuntimeType.VUE]: 80,
+// Static runtimes always serve on STATIC_PORT — the generated nginx-unprivileged
+// image listens there regardless of buildConfiguration.applicationPort.
+const STATIC_RUNTIME_PORT = {
+  [RuntimeType.STATIC]: STATIC_PORT,
+  [RuntimeType.REACT]: STATIC_PORT,
+  [RuntimeType.VUE]: STATIC_PORT,
 };
 const STARTUP_DELAY_MS = 3_000;
 
@@ -122,7 +125,7 @@ export async function handleRollbackRelease(job) {
 
   const runtimeType = project.runtimeType ?? RuntimeType.NODEJS;
   const appPort =
-    project.buildConfiguration?.applicationPort ?? DEFAULT_APP_PORT[runtimeType] ?? 3000;
+    STATIC_RUNTIME_PORT[runtimeType] ?? project.buildConfiguration?.applicationPort ?? 3000;
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
@@ -140,7 +143,11 @@ export async function handleRollbackRelease(job) {
     await updateStatus(
       deploymentId,
       DeploymentStatus.FAILED,
-      { failureCode: 'PORT_ALLOCATION_FAILED', failureSummary: err.message, completedAt: new Date() },
+      {
+        failureCode: 'PORT_ALLOCATION_FAILED',
+        failureSummary: err.message,
+        completedAt: new Date(),
+      },
       project,
     );
     return;
