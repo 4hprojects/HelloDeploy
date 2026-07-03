@@ -122,6 +122,16 @@
         <% } %>
       </div>
 
+      <% const isStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(project.runtimeType); %>
+      <% if (isStaticRuntime) { %>
+      <div class="form-field">
+        <span class="form-label">Application port</span>
+        <p class="form-hint">
+          Static sites are served by nginx on a fixed internal port — this setting doesn't apply
+          to <%= project.runtimeType %> projects.
+        </p>
+      </div>
+      <% } else { %>
       <div class="form-field form-field--floating">
         <label for="applicationPort" class="form-label">Application port</label>
         <input
@@ -139,6 +149,7 @@
         <span id="applicationPort-error" class="form-error" role="alert"><%= bcErrors.applicationPort %></span>
         <% } %>
       </div>
+      <% } %>
 
       <div class="form-field form-field--floating">
         <label for="healthCheckPath" class="form-label">Health check path</label>
