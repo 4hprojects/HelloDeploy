@@ -50,13 +50,13 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 - [x] **Port allocator race + full scan** — `port-allocator.js` scans all non-terminal deployments and has a check-then-use race; two concurrent activations can claim the same port. **Fix (applied):** `allocatePort(deploymentId)` now claims scan → write → verify with a deterministic lower-`_id` tie-break and bounded retries; the full-range scan remains (fine at current scale). _Effort: M. Fixed 2026-07-03._
 - [x] **No cache policy on static assets** — `express.static` served CSS/JS with no `maxAge`; every page load revalidated. **Fix (applied):** `maxAge: '1h'` (modest because filenames aren't content-hashed). Follow-up: hashed filenames + `immutable, 1y`. _Effort: S (applied) / M (hashing). Fixed 2026-07-02._
 - [x] **Sequential awaits with no dependency** — e.g. `project.controller.js:85-96` (repository → deployment → deployments list) and the create/retry lookup chains in `deployment.service.js`. **Fix (applied):** overview render now fetches repository/deployments/secret-names via `Promise.all`. The deployment.service chains turned out to be genuinely dependent (project → repository), so they stay sequential. _Effort: S. Fixed 2026-07-03._
-- [ ] **`getUserProjects` sorts in JS** — populates all memberships then sorts client-side, no limit. Fine at current scale; fix when project counts grow. _Effort: S._
+- [ ] **`getUserProjects` sorts in JS** — populates all memberships then sorts client-side, no limit. Fine at current scale; fix when project counts grow. _Effort: S._ → Phase 16
 
 ### LOW
 
 - [x] **Silently swallowed errors** — empty `catch {}` in `domain.service.js:45,252`, `github.service.js:210`, `auth.controller.js:41` (the `server-stats.service.js` ones are acceptable defaults). **Fix (applied):** warn logs on the domain queue-failure revert and Turnstile outage paths; debug log on webhook signature buffer errors. `domain.service.js:45` already converted the exception into a typed validation error, so it was left alone. _Effort: S. Fixed 2026-07-03._
 - [x] **Test coverage gaps (biggest untested surfaces)** — no direct tests for worker job orchestration (`build/activate/rollback.job.js`), `port-allocator`, `retention`/`cleanup`, `project.service` CRUD, `admin.service` quota consumption, or the SSE controller loop. These are prerequisites for the pipeline-extraction refactor above. **Fix (applied):** +56 tests on an in-memory-Mongo harness (`tests/worker/`, `tests/helpers/`); SSE controller loop still untested. See `docs/phases/phase-3-worker-pipeline-tests.md`. _Effort: L. Fixed 2026-07-03._
-- [ ] **`requireProjectRole` does two sequential finds per request** — project then membership; could be one aggregation or parallel. _Effort: S._
+- [ ] **`requireProjectRole` does two sequential finds per request** — project then membership; could be one aggregation or parallel. _Effort: S._ → Phase 16
 
 ---
 
@@ -69,14 +69,14 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 
 ### MEDIUM
 
-- [ ] **Navigation drift** — the contextual sidebar and the show-page "Quick Links" card expose different sets of pages (sidebar has Domains but not Deploy Hook; Quick Links vice-versa; Settings appears in neither). **Fix:** single source of truth for project nav — ideally the consolidated Settings sub-nav noted in the Render-parity plan. _Effort: M._
-- [ ] **Thin dashboard** — shows only a 5-row project table duplicating `/projects`. **Fix:** recent deployment activity, failure alerts, "needs attention" items. _Effort: M._
-- [ ] **Deployments list doesn't auto-refresh** — in-progress rows show "Running…" statically until manual reload (the detail page has live SSE). Also the detail page hard-reloads 1.2 s after terminal status, which is jarring. **Fix:** light polling on the list; replace reload with in-place status swap. _Effort: S–M._
+- [ ] **Navigation drift** — the contextual sidebar and the show-page "Quick Links" card expose different sets of pages (sidebar has Domains but not Deploy Hook; Quick Links vice-versa; Settings appears in neither). **Fix:** single source of truth for project nav — ideally the consolidated Settings sub-nav noted in the Render-parity plan. _Effort: M._ → Phase 18
+- [ ] **Thin dashboard** — shows only a 5-row project table duplicating `/projects`. **Fix:** recent deployment activity, failure alerts, "needs attention" items. _Effort: M._ → Phase 18
+- [ ] **Deployments list doesn't auto-refresh** — in-progress rows show "Running…" statically until manual reload (the detail page has live SSE). Also the detail page hard-reloads 1.2 s after terminal status, which is jarring. **Fix:** light polling on the list; replace reload with in-place status swap. _Effort: S–M._ → Phase 18
 
 ### LOW
 
-- [ ] **Raw enum copy** — `APPROVAL_REQUIRED`, `triggerType`, `deploymentMode` values shown semi-raw in places (`show.ejs:60`). _Effort: S._
-- [ ] **"● Live" indicator is color/glyph-only** — minor a11y gap; status badges elsewhere have aria-labels. _Effort: S._
+- [ ] **Raw enum copy** — `APPROVAL_REQUIRED`, `triggerType`, `deploymentMode` values shown semi-raw in places (`show.ejs:60`). _Effort: S._ → Phase 18
+- [ ] **"● Live" indicator is color/glyph-only** — minor a11y gap; status badges elsewhere have aria-labels. _Effort: S._ → Phase 18
 - Positives worth keeping: skip link, focus-trapped drawer/modals, `aria-live` flash regions, reduced-motion support, responsive tables, consistent confirm-modal pattern for destructive actions.
 
 ---
@@ -115,3 +115,86 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 3. Worker pipeline extraction + one-active-deployment helper (largest maintainability win).
 4. UX: onboarding checklist + inline-error standardization (biggest user-facing wins).
 5. SSE → Redis pub/sub and multi-instance state, when/if scaling beyond one web replica.
+
+---
+
+# Round 2 — analyzed 2026-07-06 (commit `0adee42`)
+
+Second full-codebase pass (web, worker, packages, tests, tooling). Round 1 fundamentals held up; these are the remaining gaps, phased in [docs/phases/README.md](phases/README.md) as Phases 11–18. Item IDs (W/S/E/P/U) are referenced by the phase files.
+
+## 1. Security & correctness
+
+### HIGH
+
+- [ ] **W1 — Rollback shares its image with the source deployment; retention can delete it** — `recordImageTagOnStart` copies `imageTag` onto the rollback's deployment record (`pipeline.js:238`, `rollback-release.job.js:109`), so two records reference one image. When the source falls out of the 3-HEALTHY retention window, `retention.js:57` removes that image; a later restart/rollback resolving the surviving record's `imageTag` fails. `retention.js` also lacks the `activeDeploymentId` guard `cleanup-releases.job.js:9-11` has — the two cleanup paths disagree. **Fix:** before image removal, check no other live deployment references the tag; unify guards. _Effort: M._ → Phase 11
+- [ ] **W3 — Silent stuck-in-DEPLOYING when the queue singleton is unset** — `enqueueActivateRelease` no-ops if `getWorkerQueue()` is null (`build-deployment.job.js:20-23`): build reports success, activation is never enqueued, deployment stays DEPLOYING forever. Unknown job types also complete successfully (`worker.js:88`). **Fix:** throw/fail the deployment instead of warn-and-continue. _Effort: S._ → Phase 11
+- [ ] **S1 — No master-key rotation path** — `packages/security/src/encryption.js` uses the raw 32-byte key (no KDF), hardcodes `CURRENT_VERSION = 1`, and `decrypt` rejects any other version. Rotating `HELLODEPLOY_MASTER_KEY` bricks every stored secret. **Fix:** key-id + HKDF-derived data keys, `HELLODEPLOY_MASTER_KEY_PREVIOUS` keyring (decrypt-any/encrypt-newest), re-encrypt script. _Effort: L._ → Phase 14
+
+### MEDIUM
+
+- [ ] **W2 — Dockerfile injection defense is single-layer** — `dockerfile-generator.js:65,84` interpolates `buildCommand`/`startCommand` raw into `RUN`/`CMD`; the only guard is the web-side control-char validator (`project.validator.js:40`). Any other write path to the DB bypasses it. **Fix:** shared validation helper re-run in the worker before templating. _Effort: S._ → Phase 12
+- [ ] **W4 — ACTIVATE_RELEASE retry can leak the first attempt's container** — attempts:2; a thrown error after `startContainer` re-runs the pipeline without cleaning up the prior container. **Fix:** record container id early; stop/remove prior-attempt container on retry entry. _Effort: S–M._ → Phase 11
+- [ ] **W5 — Per-deployment `resourceLimits` is dead config** — `build-deployment.job.js:286` sends limits in the ACTIVATE payload but `pipeline.js:227-228` hardcodes 256MB/0.25cpu; quota-driven limits are never applied. **Fix:** thread payload limits into `startContainer` with current values as defaults. _Effort: S._ → Phase 11
+- [ ] **W7 — `NGINX_ENABLED=false` marks deployments HEALTHY with no route** (`pipeline.js:325`) — a prod misconfiguration yields "successful" but unreachable deploys. **Fix:** refuse in production; loud log in dev. _Effort: S._ → Phase 11
+- [ ] **W10 — Worker emits zero audit events** — build/activate/rollback/delete-project/secret decryption never call `writeAuditEvent`; only 30-day-TTL deployment events exist. _Effort: M._ → Phase 15
+- [ ] **S2 — Audit-event TTL is 7 days; metadata is unvalidated `Mixed`** (`audit-event.model.js`) — short for a security trail. **Fix:** env-configurable TTL (default 90d), bounded/redacted metadata. _Effort: S–M._ → Phase 15
+- [ ] **S3 — Redaction is key-name-only** — `redact.js` misses secrets under unlisted keys; no value-pattern matching (JWT, `ghp_`/`github_pat_`, PEM, AWS keys); `Error` serializes to `{}`. _Effort: S–M._ → Phase 14
+- [ ] **S4 — Admin role granularity** — audit CSV export, user/project suspension, and quota overrides are reachable by any ADMIN; only maintenance mode requires SUPER*ADMIN. Authorization is split between routes and services. **Fix:** SUPER_ADMIN gating + one consistent layer. \_Effort: M.* → Phase 15
+- [ ] **S6 — Job payloads unvalidated at dequeue** — contracts typedefs are JSDoc-only; a malformed/tampered payload reaches handlers unchecked. **Fix:** per-JobType validators in `packages/contracts`, fail typed at dispatch. _Effort: M._ → Phase 12
+- [ ] **P6 — All-zeros dev master key has no prod tripwire** — if prod forgets `NODE_ENV=production`, the zero key is silently used. **Fix:** refuse to start when the key equals the dev default outside development. _Effort: S._ → Phase 14
+
+### LOW
+
+- [ ] **W8 — Build-context symlink scrub is top-level only** (`build-context.js:75-89`) — nested symlinks escaping root aren't unlinked (docker tar limits impact). _Effort: S._ → Phase 12
+- [ ] **W9 — Port allocator never probes the OS** — DB-claim only; TOCTOU window before `docker run`. **Fix:** bind-probe after claim, retry on conflict. _Effort: S._ → Phase 11
+- [ ] **S5 — Residual validation gaps** — `postAdminSetQuota` silently drops unparseable numerics (`admin.controller.js:234`); `postAddDomain` has no controller-level hostname validation; project routes' `:deploymentId`/`:userId`/`:domainId` skip `validateObjectId`. _Effort: S._ → Phase 12
+- [ ] **S7 — Hand-rolled GitHub App JWT untested** (`apps/worker/src/git/github-token.js`). _Effort: S._ → Phase 17
+- [ ] **S8 — Failed nginx-config restore only logs "CRITICAL"** (`route-manager.js:120`) — no alert hook or audit event. _Effort: S._ → Phase 15
+
+## 2. Efficiency & code quality
+
+### HIGH
+
+- [ ] **W6 — Docker disk-growth vectors** — `delete-project.job.js` stops only the active container: project images, the per-project network, and retained non-active containers leak on every deletion. No dangling-image pruning anywhere; container logs are unbounded (no `--log-opt max-size`); the build-workspace sweep promised in `cleanup-releases.job.js:19-20`'s docstring is unimplemented (crashed-worker workspaces never reclaimed). _Effort: M._ → Phase 13
+- [ ] **E1 — Maintenance-mode check hits Mongo on every request** — `maintenance-mode.js:14` → uncached `PlatformSetting.findOne()` platform-wide. **Fix:** short-TTL cache + Redis pub/sub invalidation on toggle. _Effort: S–M._ → Phase 16
+
+### MEDIUM
+
+- [ ] **E2 — Fresh full clone per deploy** — no per-repository bare-clone cache; `getDirectorySize` does an O(n) stat walk per build (`build-context.js:34`). _Effort: M._ → Phase 16
+- [ ] **P3 — Duplicated env-config helpers** — `apps/web/src/config/env.js` and `apps/worker/src/config/env.js` re-declare `required`/`optional` and overlapping vars. **Fix:** shared `packages/config`. _Effort: S–M._ → Phase 16
+
+### LOW
+
+- [ ] **E4 — `getRollbackTargets` unbounded** (`deployment.service.js:538`) — add a limit. _Effort: S._ → Phase 16
+- Round 1 leftovers `getUserProjects` JS sort and `requireProjectRole` double find → Phase 16 (annotated above).
+
+### Deferred
+
+- **E3 — SSE keeps a 10 s DB sweep alongside pub/sub** — intentional completeness fallback (DB is source of truth); 2 queries/tick/stream is acceptable at current scale.
+
+## 3. Process & tooling
+
+### HIGH
+
+- [ ] **P1 — CI has no security or coverage gates** — `ci.yml` runs lint/format/test only: no `npm audit`, no dependency scan, no coverage report, no CodeQL/SAST. **Fix:** `npm audit --omit=dev` (fail on high), coverage report-only first (threshold once baselined), CodeQL workflow. _Effort: S–M._ → Phase 17
+
+### MEDIUM
+
+- [ ] **P4 — Untested risk surfaces** — `delete-project.job` / `stop-project.job` (destructive; → Phase 13), `github-token.js` JWT, `deploy-log-stream.js`, and webhook/deployment controllers have no direct tests. _Effort: M._ → Phases 13 & 17
+
+### LOW
+
+- [ ] **P2 — No git hooks** — lint/format enforced only in CI. **Fix:** pre-commit lint-staged. _Effort: S._ → Phase 17
+- [ ] **P5 — Repo hygiene** — WORKLOG.md at ~1145 lines; unused `.gitkeep` scaffolding dirs (`apps/web/src/{models,repositories}`, `apps/worker/src/{docker,metrics,nginx,security}`). _Effort: S._ → Phase 17
+
+## 4. User experience
+
+Open Round 1 §3 items (navigation drift, thin dashboard, deployments auto-refresh, enum copy, Live-indicator a11y) → Phase 18, annotated in place above. One new item:
+
+### MEDIUM
+
+- [ ] **U5 — Webhook-triggered deploy failures are invisible to users** — after the fast 200, handler errors are only logged (`webhook.controller.js:314`); a failed push-deploy leaves no user-facing signal. Resolves the `webhook.controller.js:193` TODO. **Fix:** persist last trigger failure on the project; surface on dashboard/overview. _Effort: M._ → Phase 18
+
+## Positives confirmed this round
+
+Nonce-based CSP with `scriptSrcAttr 'none'`; timing-safe compares on every token path; Argon2id at OWASP params; session regeneration on sign-in; secrets AES-256-GCM at rest and never rendered; argv-only spawns (no shell) across git/docker/nginx; `--network none` + memory-capped builds; cap-dropped, loopback-published, pids-limited containers; zero-downtime nginx swap ordering; Redis-backed rate limits failing closed in prod; comprehensive Mongo indexes; 74 behavioral test files with no skipped tests; exactly one TODO marker in the whole tree.
