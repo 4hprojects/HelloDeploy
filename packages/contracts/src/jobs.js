@@ -61,7 +61,7 @@ export const JobType = Object.freeze({
  *   targetPort: number;
  *   resourceLimits: {
  *     memoryMb: number;
- *     cpuShares: number;
+ *     cpuCores: number;
  *     pidsLimit: number;
  *   };
  * }} ActivateReleasePayload

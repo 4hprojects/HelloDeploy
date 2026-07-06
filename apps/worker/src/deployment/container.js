@@ -79,6 +79,7 @@ export async function removeNetwork(netName) {
  *   envVars: Record<string, string>,  // NEVER log these
  *   memoryMb: number,
  *   cpuCores: number,
+ *   pidsLimit?: number,
  *   projectId: string,
  *   deploymentId: string,
  * }} opts
@@ -94,6 +95,7 @@ export async function startContainer({
   envVars,
   memoryMb,
   cpuCores,
+  pidsLimit = 100,
   projectId,
   deploymentId,
 }) {
@@ -124,7 +126,7 @@ export async function startContainer({
     '--cpus',
     String(cpuCores),
     '--pids-limit',
-    '100',
+    String(pidsLimit),
     // Security hardening (blueprint non-negotiable controls)
     '--security-opt',
     'no-new-privileges:true',

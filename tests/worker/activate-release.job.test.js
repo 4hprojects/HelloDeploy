@@ -28,7 +28,12 @@ function makeDeps(overrides = {}) {
       calls.startedContainers.push(opts);
       return 'container-id-new';
     },
-    inspectContainer: async () => ({ status: 'running', running: true, exitCode: 0 }),
+    // No container exists until startContainer runs (mirrors real docker state,
+    // which the pipeline's stale-container pre-check relies on).
+    inspectContainer: async () =>
+      calls.startedContainers.length === 0
+        ? { status: 'missing', running: false, exitCode: -1 }
+        : { status: 'running', running: true, exitCode: 0 },
     stopAndRemoveContainer: async (id) => calls.stoppedContainers.push(id),
     httpHealthCheck: async () => ({ healthy: true, finalStatus: 200 }),
     removeDockerImage: (tag) => {
@@ -150,13 +155,52 @@ describe('activate-release job', () => {
 
   it('fails with CONTAINER_CRASHED_ON_STARTUP and stops the candidate when it exits', async () => {
     const { project, deployment } = await seed();
+    let started = false;
     const { deps, calls } = makeDeps({
-      inspectContainer: async () => ({ status: 'exited', running: false, exitCode: 137 }),
+      startContainer: async () => {
+        started = true;
+        return 'container-id-new';
+      },
+      inspectContainer: async () =>
+        started
+          ? { status: 'exited', running: false, exitCode: 137 }
+          : { status: 'missing', running: false, exitCode: -1 },
     });
     await handleActivateRelease(makeJob(project, deployment), deps);
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.failureCode, 'CONTAINER_CRASHED_ON_STARTUP');
     assert.equal(calls.stoppedContainers.length, 1);
+  });
+
+  it('applies payload resource limits to the started container', async () => {
+    const { project, deployment } = await seed();
+    const { deps, calls } = makeDeps();
+    const job = makeJob(project, deployment);
+    job.data.resourceLimits = { memoryMb: 512, cpuCores: 0.5, pidsLimit: 200 };
+    await handleActivateRelease(job, deps);
+    const started = calls.startedContainers[0];
+    assert.deepEqual(
+      { memoryMb: started.memoryMb, cpuCores: started.cpuCores, pidsLimit: started.pidsLimit },
+      { memoryMb: 512, cpuCores: 0.5, pidsLimit: 200 },
+    );
+  });
+
+  it('removes a container left behind by a previous attempt before starting', async () => {
+    const { project, deployment } = await seed();
+    let started = false;
+    const { deps, calls } = makeDeps({
+      startContainer: async () => {
+        started = true;
+        return 'container-id-new';
+      },
+      inspectContainer: async () =>
+        started
+          ? { status: 'running', running: true, exitCode: 0 }
+          : { status: 'exited', running: false, exitCode: 1 }, // leftover from attempt 1
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const expectedName = `hellodeploy-${project.slug}-${deployment._id.toString().slice(0, 8)}`;
+    assert.deepEqual(calls.stoppedContainers, [expectedName]);
   });
 
   it('removes the freshly built image when activation fails', async () => {

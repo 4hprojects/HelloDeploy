@@ -18,6 +18,7 @@ import { env } from '../config/env.js';
 
 export const DEFAULT_MEMORY_MB = 256;
 export const DEFAULT_CPU_CORES = 0.25;
+export const DEFAULT_PIDS_LIMIT = 100;
 
 // How long to wait after container start before health-checking (ms)
 export const STARTUP_DELAY_MS = 3_000;
@@ -123,6 +124,7 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
  *   imageTag: string,              // image to run (fresh build or rollback source)
  *   correlationId: string,
  *   deps: object,                  // boundary deps (allocatePort, startContainer, ...)
+ *   resourceLimits?: { memoryMb?: number, cpuCores?: number, pidsLimit?: number },
  *   opts: {
  *     removeImageOnFailure: boolean,   // activate: true (unique tag); rollback: false (shared image)
  *     failOnInvalidSubdomain: boolean, // activate: fail the deploy; rollback: skip nginx silently
@@ -140,6 +142,7 @@ export async function runReleasePipeline({
   imageTag,
   correlationId,
   deps,
+  resourceLimits,
   opts,
 }) {
   const projectId = project._id;
@@ -214,6 +217,21 @@ export async function runReleasePipeline({
   }
 
   // ── Start container ─────────────────────────────────────────────────────────
+  // A retried job can leave a container from its previous attempt under the
+  // same deterministic name — remove it so this attempt starts clean instead
+  // of leaking it and failing on a name conflict.
+  const staleContainer = await deps.inspectContainer(cName);
+  if (staleContainer.status !== 'missing') {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Removing container left by a previous attempt: ${cName}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+  }
+
   let containerId;
   try {
     containerId = await deps.startContainer({
@@ -224,8 +242,9 @@ export async function runReleasePipeline({
       appPort,
       runtimeType,
       envVars, // plaintext secrets — passed directly to docker, NEVER logged
-      memoryMb: DEFAULT_MEMORY_MB,
-      cpuCores: DEFAULT_CPU_CORES,
+      memoryMb: resourceLimits?.memoryMb ?? DEFAULT_MEMORY_MB,
+      cpuCores: resourceLimits?.cpuCores ?? DEFAULT_CPU_CORES,
+      pidsLimit: resourceLimits?.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       projectId: projectId.toString(),
       deploymentId: deploymentId.toString(),
     });
@@ -377,6 +396,14 @@ export async function runReleasePipeline({
         await Project.updateOne({ _id: projectId }, { $set: { platformSubdomain: subdomain } });
       }
     }
+  } else {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'WARN',
+      'Nginx routing disabled (NGINX_ENABLED=false) — the app will not be reachable via its platform subdomain.',
+      correlationId,
+    );
   }
 
   // ── Swap: stop old active container if one exists ───────────────────────────

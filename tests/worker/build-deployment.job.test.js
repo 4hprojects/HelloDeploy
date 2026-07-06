@@ -110,6 +110,40 @@ describe('build-deployment job', () => {
     assert.deepEqual(calls.removedImages, [`hd-${project.slug}-1`]);
   });
 
+  it('marks ACTIVATION_ENQUEUE_FAILED when activation cannot be queued', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps } = makeDeps({
+      enqueueActivateRelease: async () => {
+        throw new Error('queue not initialized');
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'ACTIVATION_ENQUEUE_FAILED');
+  });
+
+  it('removes the built image when activation cannot be queued', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      enqueueActivateRelease: async () => {
+        throw new Error('queue not initialized');
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.removedImages, [`hd-${project.slug}-1`]);
+  });
+
+  it('sends per-deployment resource limits in the activation payload', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.enqueued[0]?.payload.resourceLimits, {
+      memoryMb: 256,
+      cpuCores: 0.25,
+      pidsLimit: 100,
+    });
+  });
+
   it('marks CLONE_FAILED and never builds when the clone throws', async () => {
     const { project, repo, deployment } = await seed();
     const { deps, calls } = makeDeps({

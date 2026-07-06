@@ -3,8 +3,11 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
+import { isImageTagInUse } from '../deployment/retention.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
+
+const defaultDeps = { stopAndRemoveContainer, removeDockerImage };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
   return activeDeploymentIds.has(deployment._id?.toString());
@@ -22,7 +25,7 @@ export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
  *   - projectId? — limit to a specific project, else clean all
  *   - olderThanMs? — only clean builds older than this age
  */
-export async function handleCleanupReleases(job) {
+export async function handleCleanupReleases(job, deps = defaultDeps) {
   const { projectId, olderThanMs = 24 * 60 * 60 * 1000 } = job.data ?? {};
 
   logger.info('CleanupReleases: starting', { projectId: projectId ?? 'all', olderThanMs });
@@ -65,7 +68,7 @@ export async function handleCleanupReleases(job) {
 
       if (dep.activeContainerId) {
         try {
-          await stopAndRemoveContainer(dep.activeContainerId);
+          await deps.stopAndRemoveContainer(dep.activeContainerId);
           removedContainers++;
         } catch (err) {
           logger.warn('CleanupReleases: failed to stop container', {
@@ -76,14 +79,21 @@ export async function handleCleanupReleases(job) {
       }
 
       if (dep.imageTag) {
-        try {
-          await removeDockerImage(dep.imageTag);
-          removedImages++;
-        } catch (err) {
-          logger.warn('CleanupReleases: failed to remove image', {
+        if (await isImageTagInUse(dep.imageTag, excess)) {
+          logger.info('CleanupReleases: kept image still referenced by a live deployment', {
             deploymentId: dep._id,
-            error: err.message,
+            imageTag: dep.imageTag,
           });
+        } else {
+          try {
+            await deps.removeDockerImage(dep.imageTag);
+            removedImages++;
+          } catch (err) {
+            logger.warn('CleanupReleases: failed to remove image', {
+              deploymentId: dep._id,
+              error: err.message,
+            });
+          }
         }
       }
 
@@ -102,11 +112,14 @@ export async function handleCleanupReleases(job) {
     imageTag: { $ne: null },
   }).lean();
 
+  // A FAILED rollback carries the imageTag of its (possibly still HEALTHY)
+  // source deployment — never remove an image another live record points at.
+  const abandonedIds = abandonedFailed.map((dep) => dep._id);
   let removedAbandonedImages = 0;
   for (const dep of abandonedFailed) {
-    if (dep.imageTag) {
+    if (dep.imageTag && !(await isImageTagInUse(dep.imageTag, abandonedIds))) {
       try {
-        await removeDockerImage(dep.imageTag);
+        await deps.removeDockerImage(dep.imageTag);
         removedAbandonedImages++;
       } catch {
         // Image may already be removed — non-fatal

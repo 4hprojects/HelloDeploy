@@ -90,6 +90,14 @@ describe('port allocator', () => {
     assert.equal(await allocatePort(deployment._id), PORT_RANGE_START + 1);
   });
 
+  it('skips a DB-free port that is busy at the OS level', async () => {
+    const { deployment } = await seedClaimant();
+    const port = await allocatePort(deployment._id, {
+      probePortFree: async (p) => p !== PORT_RANGE_START,
+    });
+    assert.equal(port, PORT_RANGE_START + 1);
+  });
+
   it('throws when every port in the range is taken', async () => {
     const { project, deployment } = await seedClaimant();
     const docs = [];

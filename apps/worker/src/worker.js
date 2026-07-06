@@ -25,6 +25,19 @@ logger.info('Worker: starting HelloDeploy deployment worker', {
   redis: `${env.REDIS_HOST}:${env.REDIS_PORT}`,
 });
 
+// With nginx disabled the pipeline marks deployments HEALTHY without creating
+// a route — they look successful but are unreachable. Refuse that config in
+// production at boot; a per-deploy failure would surface the same mistake
+// much later and one deployment at a time. Override only for verified
+// nginx-less setups (external router) via NGINX_DISABLED_ACK=true.
+if (env.isProduction() && !env.NGINX_ENABLED && process.env.NGINX_DISABLED_ACK !== 'true') {
+  logger.error(
+    'Worker: NGINX_ENABLED=false in production — deployments would be unreachable. ' +
+      'Enable nginx routing or set NGINX_DISABLED_ACK=true if routing is handled externally.',
+  );
+  process.exit(1);
+}
+
 // ── Database connection ────────────────────────────────────────────────────────
 
 await connectDatabase(env.MONGODB_URI);
@@ -86,7 +99,9 @@ async function processJob(job) {
       await handleCleanupReleases(job);
       break;
     default:
-      logger.warn('Worker: unknown job type', { jobType: job.name, jobId: job.id });
+      // Throwing marks the job failed in BullMQ; completing it silently would
+      // hide a contract mismatch between the web enqueuer and this worker.
+      throw new Error(`Unknown job type: ${job.name}`);
   }
 }
 

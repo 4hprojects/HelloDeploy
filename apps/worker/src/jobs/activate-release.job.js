@@ -84,6 +84,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
     imageTag: deployment.imageTag,
     correlationId,
     deps,
+    resourceLimits: job.data.resourceLimits,
     opts: {
       removeImageOnFailure: true,
       failOnInvalidSubdomain: true,

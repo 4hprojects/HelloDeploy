@@ -28,13 +28,14 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 
 ## Platform / routing
 
-| Variable                       | Used by     | Required (prod) | Default                                                  | Purpose                                                                            |
-| ------------------------------ | ----------- | --------------- | -------------------------------------------------------- | ---------------------------------------------------------------------------------- |
-| `PLATFORM_DOMAIN`              | web, worker | no              | `localhost:<PORT>` (web) / `hellodeploy.online` (worker) | Base domain for deployed app subdomains                                            |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`                               | Suffix shown for platform subdomains                                               |
-| `NGINX_ENABLED`                | worker      | no              | `false`                                                  | When `true`, the worker writes nginx server blocks and reloads nginx on activation |
-| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`                               | Directory for generated per-app nginx configs                                      |
-| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                                                  | nginx binary used for `-t` validation and reload                                   |
+| Variable                       | Used by     | Required (prod) | Default                                                  | Purpose                                                                                                                     |
+| ------------------------------ | ----------- | --------------- | -------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_DOMAIN`              | web, worker | no              | `localhost:<PORT>` (web) / `hellodeploy.online` (worker) | Base domain for deployed app subdomains                                                                                     |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`                               | Suffix shown for platform subdomains                                                                                        |
+| `NGINX_ENABLED`                | worker      | no              | `false`                                                  | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                          |
+| `NGINX_DISABLED_ACK`           | worker      | no              | `false`                                                  | Set `true` to allow `NGINX_ENABLED=false` in production (routing handled externally); otherwise the worker refuses to start |
+| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`                               | Directory for generated per-app nginx configs                                                                               |
+| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                                                  | nginx binary used for `-t` validation and reload                                                                            |
 
 ## GitHub App
 

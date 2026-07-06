@@ -18,7 +18,12 @@ function makeDeps(overrides = {}) {
       calls.startedContainers.push(opts);
       return 'container-id-rollback';
     },
-    inspectContainer: async () => ({ status: 'running', running: true, exitCode: 0 }),
+    // No container exists until startContainer runs (mirrors real docker state,
+    // which the pipeline's stale-container pre-check relies on).
+    inspectContainer: async () =>
+      calls.startedContainers.length === 0
+        ? { status: 'missing', running: false, exitCode: -1 }
+        : { status: 'running', running: true, exitCode: 0 },
     stopAndRemoveContainer: async (id) => calls.stoppedContainers.push(id),
     httpHealthCheck: async () => ({ healthy: true, finalStatus: 200 }),
     getProjectEnvVars: async () => ({}),
@@ -141,8 +146,16 @@ describe('rollback-release job', () => {
 
   it('stops the crashed candidate container when it exits on startup', async () => {
     const { project, sourceDeployment, rollbackDeployment } = await seed();
+    let started = false;
     const { deps, calls } = makeDeps({
-      inspectContainer: async () => ({ status: 'exited', running: false, exitCode: 1 }),
+      startContainer: async () => {
+        started = true;
+        return 'container-id-rollback';
+      },
+      inspectContainer: async () =>
+        started
+          ? { status: 'exited', running: false, exitCode: 1 }
+          : { status: 'missing', running: false, exitCode: -1 },
     });
     await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
     const fresh = await Deployment.findById(rollbackDeployment._id).lean();

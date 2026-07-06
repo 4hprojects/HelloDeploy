@@ -10,7 +10,13 @@ import { prepareBuildContext } from '../deployment/build-context.js';
 import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
-import { logEvent, updateStatus } from '../deployment/pipeline.js';
+import {
+  logEvent,
+  updateStatus,
+  DEFAULT_MEMORY_MB,
+  DEFAULT_CPU_CORES,
+  DEFAULT_PIDS_LIMIT,
+} from '../deployment/pipeline.js';
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 
@@ -18,9 +24,12 @@ async function enqueueActivateRelease(payload, jobId) {
   // Import lazily to avoid circular dependency with worker.js
   const { getWorkerQueue } = await import('../queue/worker-queue.js');
   const queue = getWorkerQueue();
-  if (queue) {
-    await enqueueJob(queue, JobType.ACTIVATE_RELEASE, payload, { jobId });
+  if (!queue) {
+    // Silently skipping here would strand the deployment in DEPLOYING forever
+    // while the build reports success — the caller must mark it FAILED.
+    throw new Error('Worker queue is not initialized — cannot enqueue release activation.');
   }
+  await enqueueJob(queue, JobType.ACTIVATE_RELEASE, payload, { jobId });
 }
 
 const defaultDeps = {
@@ -273,20 +282,41 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   await deps.cleanupBuildWorkspace(workDir);
 
   // Enqueue the ACTIVATE_RELEASE job — worker picks it up next
-  await deps.enqueueActivateRelease(
-    {
-      version: 1,
-      correlationId,
-      actorId: job.data.actorId,
-      actorRole: job.data.actorRole,
-      projectId,
+  try {
+    await deps.enqueueActivateRelease(
+      {
+        version: 1,
+        correlationId,
+        actorId: job.data.actorId,
+        actorRole: job.data.actorRole,
+        projectId,
+        deploymentId,
+        imageId: imageTag,
+        targetPort: project.buildConfiguration?.applicationPort ?? 3000,
+        resourceLimits: {
+          memoryMb: DEFAULT_MEMORY_MB,
+          cpuCores: DEFAULT_CPU_CORES,
+          pidsLimit: DEFAULT_PIDS_LIMIT,
+        },
+      },
+      `activate-${deploymentId}`,
+    );
+  } catch (err) {
+    await logEvent(
       deploymentId,
-      imageId: imageTag,
-      targetPort: project.buildConfiguration?.applicationPort ?? 3000,
-      resourceLimits: { memoryMb: 256, cpuShares: 256, pidsLimit: 100 },
-    },
-    `activate-${deploymentId}`,
-  );
+      'DEPLOY',
+      'ERROR',
+      `Failed to queue activation: ${err.message}`,
+      correlationId,
+    );
+    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+      failureCode: 'ACTIVATION_ENQUEUE_FAILED',
+      failureSummary: `Could not enqueue release activation: ${err.message}`.slice(0, 1000),
+      completedAt: new Date(),
+    });
+    await deps.removeDockerImage(imageTag);
+    return;
+  }
 
   logger.info('BuildDeployment: job complete', {
     deploymentId,
