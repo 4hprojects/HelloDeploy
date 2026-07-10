@@ -78,8 +78,8 @@ export function buildSelfHostedChecklist({
       'Run node scripts/setup.js to create the production .env.',
       'Back up HELLODEPLOY_MASTER_KEY outside the server.',
       'Run node scripts/seed-super-admin.js once.',
-      'Start services with pm2 start ecosystem.config.cjs.',
-      'Confirm /health and /admin/server.',
+      'Start the systemd web, worker, and Nginx helper services.',
+      'Confirm systemd service status, /health, and /admin/server.',
       'Run infrastructure/backup.sh and test restore on a second machine before production use.',
     ],
   };

@@ -47,7 +47,11 @@ export function createApp() {
           defaultSrc: ["'self'"],
           baseUri: ["'self'"],
           objectSrc: ["'none'"],
-          scriptSrc: ["'self'", (_req, res) => `'nonce-${res.locals.cspNonce}'`, 'https://challenges.cloudflare.com'],
+          scriptSrc: [
+            "'self'",
+            (_req, res) => `'nonce-${res.locals.cspNonce}'`,
+            'https://challenges.cloudflare.com',
+          ],
           scriptSrcAttr: ["'none'"],
           styleSrc: ["'self'"],
           styleSrcAttr: ["'none'"],

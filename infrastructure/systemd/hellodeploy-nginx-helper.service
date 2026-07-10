@@ -1,0 +1,25 @@
+[Unit]
+Description=HelloDeploy privileged Nginx route helper
+After=nginx.service
+Requires=nginx.service
+
+[Service]
+Type=simple
+User=root
+Group=hellodeploy-nginx
+WorkingDirectory=/opt/hellodeploy
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node infrastructure/nginx/helper-server.js
+Restart=on-failure
+RestartSec=5
+RuntimeDirectory=hellodeploy
+RuntimeDirectoryMode=0750
+UMask=0007
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectHome=true
+ProtectSystem=strict
+ReadWritePaths=/etc/nginx/hellodeploy.d /run/hellodeploy
+
+[Install]
+WantedBy=multi-user.target

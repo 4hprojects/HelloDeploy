@@ -1,4 +1,5 @@
 import { RuntimeType } from '@hellodeploy/contracts';
+import { assertNoControlChars } from '@hellodeploy/security';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
@@ -19,6 +20,21 @@ export const STATIC_PORT = 8080;
  */
 export function generateDockerfile(config) {
   const { runtimeType, buildCommand, startCommand, outputDirectory, applicationPort } = config;
+
+  // Independent re-check right before templating: these values are interpolated
+  // raw into RUN/CMD/COPY instructions below. The web form validator is the
+  // primary guard (project.validator.js), but this must not be the only one —
+  // any other write path to these fields would otherwise reach the Dockerfile
+  // unchecked and inject arbitrary directives via a newline.
+  if (buildCommand) {
+    assertNoControlChars(buildCommand, 'Build command');
+  }
+  if (startCommand) {
+    assertNoControlChars(startCommand, 'Start command');
+  }
+  if (outputDirectory) {
+    assertNoControlChars(outputDirectory, 'Output directory');
+  }
 
   switch (runtimeType) {
     case RuntimeType.STATIC:

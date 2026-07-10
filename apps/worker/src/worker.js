@@ -5,11 +5,12 @@ import {
   createDeploymentQueue,
   createDeploymentWorker,
 } from '@hellodeploy/queue';
-import { JobType } from '@hellodeploy/contracts';
+import { JobType, validateJobPayload } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
+import { validateNginxConfig } from './nginx/helper-client.js';
 import { handleBuildDeployment } from './jobs/build-deployment.job.js';
 import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
@@ -36,6 +37,11 @@ if (env.isProduction() && !env.NGINX_ENABLED && process.env.NGINX_DISABLED_ACK !
       'Enable nginx routing or set NGINX_DISABLED_ACK=true if routing is handled externally.',
   );
   process.exit(1);
+}
+
+if (env.NGINX_ENABLED) {
+  await validateNginxConfig();
+  logger.info('Worker: Nginx helper connected and configuration valid');
 }
 
 // ── Database connection ────────────────────────────────────────────────────────
@@ -72,6 +78,8 @@ async function processJob(job) {
     jobType: job.name,
     attemptsMade: job.attemptsMade,
   });
+
+  validateJobPayload(job.name, job.data);
 
   switch (job.name) {
     case JobType.BUILD_DEPLOYMENT:

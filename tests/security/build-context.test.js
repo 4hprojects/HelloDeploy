@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdtemp, writeFile, symlink, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, writeFile, symlink, readdir, rm, mkdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -100,6 +100,22 @@ describe('prepareBuildContext — symlink containment', () => {
     await prepareBuildContext(dir);
     const entries = await readdir(dir);
     assert.ok(!entries.includes('broken'), 'broken symlink must be removed');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('removes a symlink escaping the context root from a nested subdirectory', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, 'app.js'), '');
+    await mkdir(join(dir, 'src', 'lib'), { recursive: true });
+    // A malicious repo could bury the escape several directories deep instead
+    // of at the top level.
+    await symlink('/etc', join(dir, 'src', 'lib', 'escape'));
+    await prepareBuildContext(dir);
+    const entries = await readdir(join(dir, 'src', 'lib'));
+    assert.ok(
+      !entries.includes('escape'),
+      'nested symlink pointing outside context root must be removed',
+    );
     await rm(dir, { recursive: true, force: true });
   });
 

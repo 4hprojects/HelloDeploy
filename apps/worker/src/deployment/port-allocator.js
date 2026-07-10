@@ -3,9 +3,10 @@ import net from 'node:net';
 import { Deployment } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
+import { env } from '../config/env.js';
 
-const PORT_RANGE_START = 10000;
-const PORT_RANGE_END = 19999;
+export const PORT_RANGE_START = env.PORT_RANGE_START;
+export const PORT_RANGE_END = env.PORT_RANGE_END;
 const MAX_CLAIM_ATTEMPTS = 5;
 
 /**

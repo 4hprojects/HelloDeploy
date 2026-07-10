@@ -29,6 +29,52 @@ function assertInsideRoot(rootDir, targetPath) {
   }
 }
 
+// ─── Recursive symlink scrub ───────────────────────────────────────────────────
+
+// Directories docker build never reads from and that can grow huge (deps,
+// version control) — skip descending into them.
+const SKIP_DIR_NAMES = new Set(['node_modules', '.git']);
+
+/**
+ * Walk the full context tree (not just the top level) and remove any symlink
+ * that resolves outside the context root. path.resolve() at the top-level
+ * only guards top-level names — a symlink several directories deep pointing
+ * at, e.g., `/etc` would otherwise slip through unscrubbed.
+ */
+async function scrubEscapingSymlinks(rootDir, dir, depth = 0) {
+  if (depth > 40) {
+    return;
+  }
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const entryPath = join(dir, entry.name);
+
+    if (entry.isSymbolicLink()) {
+      try {
+        const realTarget = await realpath(entryPath);
+        const rel = relative(rootDir, realTarget);
+        if (rel.startsWith('..')) {
+          await unlink(entryPath);
+          logger.warn('BuildContext: removed symlink escaping context root', {
+            path: relative(rootDir, entryPath),
+          });
+        }
+      } catch {
+        // Broken (dangling) symlink — remove it
+        await unlink(entryPath);
+        logger.warn('BuildContext: removed broken symlink', {
+          path: relative(rootDir, entryPath),
+        });
+      }
+      continue;
+    }
+
+    if (entry.isDirectory() && !SKIP_DIR_NAMES.has(entry.name)) {
+      await scrubEscapingSymlinks(rootDir, entryPath, depth + 1);
+    }
+  }
+}
+
 // ─── Directory size ────────────────────────────────────────────────────────────
 
 async function getDirectorySize(dir, depth = 0) {
@@ -55,6 +101,7 @@ async function getDirectorySize(dir, depth = 0) {
  * Validate and sanitize a cloned build context directory.
  *
  * - Checks for path traversal in all top-level filenames
+ * - Removes symlinks anywhere in the tree that resolve outside the context root
  * - Removes user-provided Dockerfiles and docker-compose files
  * - Enforces a maximum context size
  *
@@ -64,30 +111,16 @@ async function getDirectorySize(dir, depth = 0) {
 export async function prepareBuildContext(contextDir) {
   const resolvedRoot = resolve(contextDir);
 
-  // ── Validate all top-level filenames and remove unsafe entries ───────────
+  // ── Validate all top-level filenames ──────────────────────────────────────
   const topEntries = await readdir(resolvedRoot, { withFileTypes: true });
   for (const entry of topEntries) {
     assertInsideRoot(resolvedRoot, entry.name);
-
-    // path.resolve() does not follow symlinks — verify the real target is inside
-    // the root so a symlink pointing to /etc (or similar) cannot expose host files
-    // to the Docker build context.
-    if (entry.isSymbolicLink()) {
-      const entryPath = join(resolvedRoot, entry.name);
-      try {
-        const realTarget = await realpath(entryPath);
-        const rel = relative(resolvedRoot, realTarget);
-        if (rel.startsWith('..')) {
-          await unlink(entryPath);
-          logger.warn('BuildContext: removed symlink escaping context root', { name: entry.name });
-        }
-      } catch {
-        // Broken (dangling) symlink — remove it
-        await unlink(entryPath);
-        logger.warn('BuildContext: removed broken symlink', { name: entry.name });
-      }
-    }
   }
+
+  // path.resolve() does not follow symlinks — walk the whole tree and verify
+  // every symlink's real target is inside the root, so a symlink pointing to
+  // /etc (or similar), at any depth, cannot expose host files to the build.
+  await scrubEscapingSymlinks(resolvedRoot, resolvedRoot);
 
   // ── Remove forbidden files ─────────────────────────────────────────────────
   for (const name of FORBIDDEN_FILENAMES) {

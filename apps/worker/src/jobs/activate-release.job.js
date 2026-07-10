@@ -11,7 +11,7 @@ import {
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
-import { activateRoute } from '../nginx/route-manager.js';
+import { activateRoute } from '../nginx/helper-client.js';
 import { cleanupOldReleases } from '../deployment/retention.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import {

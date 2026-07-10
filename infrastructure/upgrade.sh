@@ -9,7 +9,6 @@
 #   sudo bash infrastructure/upgrade.sh --branch v1.2.0   # specific branch/tag
 set -euo pipefail
 
-HD_USER="hellodeploy"
 HD_HOME="/opt/hellodeploy"
 BACKUP_ROOT="/var/backups/hellodeploy"
 BRANCH="${HELLODEPLOY_BRANCH:-}"
@@ -50,19 +49,19 @@ info "Backup saved to $BACKUP_PATH"
 # ─── record current state ────────────────────────────────────────────────────
 
 cd "$HD_HOME"
-PREV_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+PREV_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
 info "Current commit: $PREV_COMMIT"
 
 # ─── pull latest ─────────────────────────────────────────────────────────────
 
 section "Pulling code"
-sudo -u "$HD_USER" git fetch --tags origin
+git fetch --tags origin
 
 if [[ -n "$BRANCH" ]]; then
-  sudo -u "$HD_USER" git checkout "$BRANCH"
-  sudo -u "$HD_USER" git pull origin "$BRANCH" || true
+  git checkout "$BRANCH"
+  git pull --ff-only origin "$BRANCH"
 else
-  sudo -u "$HD_USER" git pull
+  git pull --ff-only
 fi
 
 NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
@@ -75,7 +74,9 @@ fi
 # ─── dependencies ────────────────────────────────────────────────────────────
 
 section "Dependencies"
-sudo -u "$HD_USER" npm install --omit=dev
+npm ci --omit=dev
+sudo -u hellodeploy-web node scripts/validate-config.js --component web
+sudo -u hellodeploy-worker node scripts/validate-config.js --component worker
 
 # Refresh the platform ingress so proxy/security changes apply to existing installs.
 bash infrastructure/nginx/render-platform-ingress.sh "$HD_HOME/.env"
@@ -84,31 +85,25 @@ info "Platform ingress refreshed."
 # ─── restart services ────────────────────────────────────────────────────────
 
 section "Restarting services"
-sudo -u "$HD_USER" pm2 reload ecosystem.config.cjs --update-env
-info "Services reloaded."
+install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
+install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/
+install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
+info "Services restarted."
 
 # ─── health check ────────────────────────────────────────────────────────────
 
 section "Health check"
 sleep 3
-PM2_STATUS=$(sudo -u "$HD_USER" pm2 jlist 2>/dev/null | node -e "
-  const list = JSON.parse(require('fs').readFileSync('/dev/stdin', 'utf8'));
-  const hd = list.filter(p => p.name.startsWith('hellodeploy-'));
-  const bad = hd.filter(p => p.pm2_env.status !== 'online');
-  if (bad.length) {
-    bad.forEach(p => process.stderr.write(p.name + ': ' + p.pm2_env.status + '\n'));
-    process.exit(1);
-  }
-  process.stdout.write('all online\n');
-" 2>&1 || echo "status-check-failed")
-
-if [[ "$PM2_STATUS" != "all online" ]]; then
+if ! systemctl is-active --quiet hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker || \
+   ! curl --fail --silent --show-error "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/health" >/dev/null; then
   error "One or more services are not online after upgrade."
   error "Rolling back to $PREV_COMMIT…"
-  sudo -u "$HD_USER" git checkout "$PREV_COMMIT"
-  sudo -u "$HD_USER" npm install --omit=dev
-  sudo -u "$HD_USER" pm2 reload ecosystem.config.cjs --update-env
-  error "Rollback complete.  Investigate the logs: pm2 logs"
+  git checkout --detach "$PREV_COMMIT"
+  npm ci --omit=dev
+  systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
+  error "Rollback complete. Investigate the logs: journalctl -u 'hellodeploy-*'"
   exit 1
 fi
 

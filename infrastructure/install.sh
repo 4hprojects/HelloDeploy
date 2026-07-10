@@ -10,7 +10,10 @@
 # clones the repository, installs npm packages, and runs the setup wizard.
 set -euo pipefail
 
-HD_USER="hellodeploy"
+HD_WEB_USER="hellodeploy-web"
+HD_WORKER_USER="hellodeploy-worker"
+HD_CONFIG_GROUP="hellodeploy-config"
+HD_NGINX_GROUP="hellodeploy-nginx"
 HD_HOME="/opt/hellodeploy"
 HD_DATA="/var/lib/hellodeploy"
 HD_LOG="/var/log/hellodeploy"
@@ -94,33 +97,31 @@ else
   info "Docker $(docker --version | grep -oP '[\d.]+' | head -1) already installed."
 fi
 
-# PM2
-if ! command -v pm2 &>/dev/null; then
-  info "Installing PM2…"
-  npm install -g pm2
-else
-  info "PM2 $(pm2 --version) already installed."
-fi
-
 # ─── system user ─────────────────────────────────────────────────────────────
 
 section "System user"
-if ! id "$HD_USER" &>/dev/null; then
-  useradd --system --shell /bin/bash --home-dir "$HD_HOME" --create-home "$HD_USER"
-  info "Created system user '$HD_USER'."
-else
-  info "User '$HD_USER' already exists."
+getent group "$HD_CONFIG_GROUP" &>/dev/null || groupadd --system "$HD_CONFIG_GROUP"
+getent group "$HD_NGINX_GROUP" &>/dev/null || groupadd --system "$HD_NGINX_GROUP"
+
+if ! id "$HD_WEB_USER" &>/dev/null; then
+  useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/hellodeploy-web --create-home "$HD_WEB_USER"
+  info "Created unprivileged web user '$HD_WEB_USER'."
+fi
+if ! id "$HD_WORKER_USER" &>/dev/null; then
+  useradd --system --shell /usr/sbin/nologin --home-dir "$HD_DATA" --create-home "$HD_WORKER_USER"
+  info "Created deployment worker user '$HD_WORKER_USER'."
 fi
 
-# Worker needs Docker socket access — web process does NOT
-usermod -aG docker "$HD_USER"
+usermod -aG "$HD_CONFIG_GROUP" "$HD_WEB_USER"
+usermod -aG "$HD_CONFIG_GROUP","$HD_NGINX_GROUP",docker "$HD_WORKER_USER"
 
 # ─── directories ─────────────────────────────────────────────────────────────
 
 section "Directories"
 for dir in "$HD_DATA/builds" "$HD_DATA/releases" "$HD_DATA/projects" "$HD_LOG"; do
   mkdir -p "$dir"
-  chown "$HD_USER:$HD_USER" "$dir"
+  chown "$HD_WORKER_USER:$HD_CONFIG_GROUP" "$dir"
+  chmod 750 "$dir"
   info "Created $dir"
 done
 
@@ -145,12 +146,16 @@ if [[ -d "$HD_HOME/.git" ]]; then
 else
   info "Cloning $REPO_URL…"
   git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$HD_HOME"
-  chown -R "$HD_USER:$HD_USER" "$HD_HOME"
+  chown -R root:"$HD_CONFIG_GROUP" "$HD_HOME"
+  chmod -R u=rwX,g=rX,o= "$HD_HOME"
 fi
+
+chown -R root:"$HD_CONFIG_GROUP" "$HD_HOME"
+chmod -R u=rwX,g=rX,o= "$HD_HOME"
 
 cd "$HD_HOME"
 info "Installing npm dependencies…"
-sudo -u "$HD_USER" npm install --omit=dev
+npm ci --omit=dev
 
 # ─── secrets / setup ─────────────────────────────────────────────────────────
 
@@ -161,23 +166,30 @@ if [[ -f "$ENV_FILE" ]]; then
   warn ".env already exists — skipping secret generation."
 else
   info "Generating secrets…"
-  sudo -u "$HD_USER" node scripts/generate-secrets.js --write --output "$ENV_FILE"
+  node scripts/generate-secrets.js --write --output "$ENV_FILE"
 fi
 
 info "Launching setup wizard…"
-sudo -u "$HD_USER" node scripts/setup.js --output "$ENV_FILE" --skip-existing
+node scripts/setup.js --output "$ENV_FILE" --skip-existing
+chown root:"$HD_CONFIG_GROUP" "$ENV_FILE"
+chmod 640 "$ENV_FILE"
+
+info "Validating production configuration for each service identity…"
+sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web
+sudo -u "$HD_WORKER_USER" node scripts/validate-config.js --component worker
 
 bash infrastructure/nginx/render-platform-ingress.sh "$ENV_FILE"
 info "Configured platform ingress."
 
-# ─── PM2 ─────────────────────────────────────────────────────────────────────
+# ─── systemd services ────────────────────────────────────────────────────────
 
-section "PM2 startup"
-pm2 startup systemd -u "$HD_USER" --hp "$HD_HOME" | tail -1 | bash || true
-sudo -u "$HD_USER" pm2 start "$HD_HOME/ecosystem.config.cjs"
-sudo -u "$HD_USER" pm2 save
-
-info "PM2 configured.  Use 'pm2 status' to check service health."
+section "Systemd services"
+install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
+install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/
+install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/
+systemctl daemon-reload
+systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
+info "Systemd services enabled and started."
 
 # ─── done ─────────────────────────────────────────────────────────────────────
 
@@ -185,9 +197,9 @@ echo ""
 echo -e "${GREEN}${BOLD}HelloDeploy installed successfully!${NC}"
 echo ""
 echo "  Web UI:       https://$(grep PLATFORM_DOMAIN "$ENV_FILE" | cut -d= -f2)"
-echo "  Logs:         pm2 logs"
-echo "  Status:       pm2 status"
-echo "  Seed admin:   sudo -u $HD_USER node $HD_HOME/scripts/seed-super-admin.js"
+echo "  Logs:         journalctl -u 'hellodeploy-*'"
+echo "  Status:       systemctl status hellodeploy-web hellodeploy-worker hellodeploy-nginx-helper"
+echo "  Seed admin:   sudo -u $HD_WEB_USER node $HD_HOME/scripts/seed-super-admin.js"
 echo ""
 echo -e "${YELLOW}IMPORTANT:${NC} Back up HELLODEPLOY_MASTER_KEY from $ENV_FILE to a secure"
 echo "location outside this server.  Losing it makes all stored secrets unrecoverable."

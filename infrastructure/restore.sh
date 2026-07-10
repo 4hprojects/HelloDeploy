@@ -8,7 +8,9 @@
 #   sudo bash infrastructure/restore.sh /var/backups/hellodeploy/20240601_120000
 set -euo pipefail
 
-HD_USER="hellodeploy"
+HD_WEB_USER="hellodeploy-web"
+HD_WORKER_USER="hellodeploy-worker"
+HD_CONFIG_GROUP="hellodeploy-config"
 HD_HOME="/opt/hellodeploy"
 HD_DATA="/var/lib/hellodeploy"
 
@@ -57,7 +59,7 @@ fi
 # ─── stop services ───────────────────────────────────────────────────────────
 
 section "Stopping services"
-sudo -u "$HD_USER" pm2 stop ecosystem.config.cjs 2>/dev/null || warn "PM2 stop failed — services may not have been running"
+systemctl stop hellodeploy-worker hellodeploy-web hellodeploy-nginx-helper 2>/dev/null || warn "Service stop failed — services may not have been running"
 info "Services stopped."
 
 # ─── restore .env ────────────────────────────────────────────────────────────
@@ -70,7 +72,7 @@ if [[ -f "$BACKUP_DIR/env.backup" ]]; then
   fi
   cp "$BACKUP_DIR/env.backup" "$HD_HOME/.env"
   chmod 600 "$HD_HOME/.env"
-  chown "$HD_USER:$HD_USER" "$HD_HOME/.env"
+  chown root:"$HD_CONFIG_GROUP" "$HD_HOME/.env"
   info "Restored .env"
 else
   warn "env.backup not found in backup — keeping existing .env"
@@ -86,7 +88,7 @@ if [[ -f "$BACKUP_DIR/hellodeploy-data.tar.gz" ]]; then
     info "Removed existing $HD_DATA"
   fi
   tar -xzf "$BACKUP_DIR/hellodeploy-data.tar.gz" -C "$(dirname "$HD_DATA")"
-  chown -R "$HD_USER:$HD_USER" "$HD_DATA"
+  chown -R "$HD_WORKER_USER:$HD_CONFIG_GROUP" "$HD_DATA"
   info "Restored $HD_DATA"
 else
   warn "hellodeploy-data.tar.gz not found in backup — skipping data restore"
@@ -113,13 +115,13 @@ fi
 # ─── restart services ────────────────────────────────────────────────────────
 
 section "Restarting services"
-sudo -u "$HD_USER" pm2 start ecosystem.config.cjs
+systemctl start hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
 info "Services started."
 
 sleep 3
-sudo -u "$HD_USER" pm2 status
+systemctl --no-pager status hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
 
 echo ""
 echo -e "${GREEN}${BOLD}Restore complete.${NC}"
-echo "  Review pm2 logs for any startup errors: pm2 logs"
+echo "  Review service logs: journalctl -u 'hellodeploy-*'"
 echo ""

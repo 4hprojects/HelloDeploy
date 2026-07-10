@@ -60,75 +60,31 @@
       <%- include('../../partials/csrf-field') %>
 
       <div class="form-grid form-grid--2">
+        <% const quotaFieldConfig = [
+          ['maxOwnedProjects', 'Max Owned Projects', 'Maximum projects this user can own.', { step: '1' }],
+          ['maxRunningApps', 'Max Running Apps', 'Maximum apps this scope can keep running at the same time.', { step: '1' }],
+          ['maxProjectMembers', 'Max Project Members', 'Maximum members allowed on a project.', { step: '1' }],
+          ['memoryMb', 'Memory (MB)', 'Runtime memory limit in megabytes.', { step: '1' }],
+          ['cpuCores', 'CPU Cores', 'CPU core allocation for runtime containers.', { step: '0.1' }],
+          ['deploymentsPerMonth', 'Deployments / Month', 'Maximum deployment attempts allowed each month.', { step: '1' }],
+          ['buildTimeoutSeconds', 'Build Timeout (seconds)', 'Maximum build time before a deployment is stopped.', { step: '1' }],
+          ['maxCustomDomains', 'Max Custom Domains', 'Maximum verified custom domains allowed.', { step: '1' }],
+          ['maxRollbackReleases', 'Max Rollback Releases', 'Number of healthy releases retained for rollback.', { step: '1' }],
+          ['logRetentionDays', 'Log Retention (days)', 'How long deployment logs should be retained.', { step: '1' }],
+        ]; %>
+        <% quotaFieldConfig.forEach(([key, label, tooltip, attrs]) => { %>
         <div class="form-group form-group--floating">
-          <label class="form-label" for="maxOwnedProjects">Max Owned Projects</label>
-          <input type="number" id="maxOwnedProjects" name="maxOwnedProjects" class="form-input"
-                 data-tooltip="Maximum projects this user can own."
-                 min="0" value="<%= quotaValue('maxOwnedProjects') %>" placeholder="Platform default" />
+          <label class="form-label" for="<%= key %>"><%= label %></label>
+          <input type="number" id="<%= key %>" name="<%= key %>"
+                 class="form-input<%= (typeof errors !== 'undefined' && errors?.[key]) ? ' form-input--error' : '' %>"
+                 data-tooltip="<%= tooltip %>"
+                 min="0" step="<%= attrs.step %>" value="<%= quotaValue(key) %>" placeholder="Platform default"
+                 <% if (typeof errors !== 'undefined' && errors?.[key]) { %>aria-invalid="true" aria-describedby="<%= key %>-error"<% } %> />
+          <% if (typeof errors !== 'undefined' && errors?.[key]) { %>
+          <p class="form-error" id="<%= key %>-error" role="alert"><%= errors[key] %></p>
+          <% } %>
         </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="maxRunningApps">Max Running Apps</label>
-          <input type="number" id="maxRunningApps" name="maxRunningApps" class="form-input"
-                 data-tooltip="Maximum apps this scope can keep running at the same time."
-                 min="0" value="<%= quotaValue('maxRunningApps') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="maxProjectMembers">Max Project Members</label>
-          <input type="number" id="maxProjectMembers" name="maxProjectMembers" class="form-input"
-                 data-tooltip="Maximum members allowed on a project."
-                 min="0" value="<%= quotaValue('maxProjectMembers') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="memoryMb">Memory (MB)</label>
-          <input type="number" id="memoryMb" name="memoryMb" class="form-input"
-                 data-tooltip="Runtime memory limit in megabytes."
-                 min="0" value="<%= quotaValue('memoryMb') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="cpuCores">CPU Cores</label>
-          <input type="number" id="cpuCores" name="cpuCores" class="form-input"
-                 data-tooltip="CPU core allocation for runtime containers."
-                 min="0" step="0.1" value="<%= quotaValue('cpuCores') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="deploymentsPerMonth">Deployments / Month</label>
-          <input type="number" id="deploymentsPerMonth" name="deploymentsPerMonth" class="form-input"
-                 data-tooltip="Maximum deployment attempts allowed each month."
-                 min="0" value="<%= quotaValue('deploymentsPerMonth') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="buildTimeoutSeconds">Build Timeout (seconds)</label>
-          <input type="number" id="buildTimeoutSeconds" name="buildTimeoutSeconds" class="form-input"
-                 data-tooltip="Maximum build time before a deployment is stopped."
-                 min="0" value="<%= quotaValue('buildTimeoutSeconds') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="maxCustomDomains">Max Custom Domains</label>
-          <input type="number" id="maxCustomDomains" name="maxCustomDomains" class="form-input"
-                 data-tooltip="Maximum verified custom domains allowed."
-                 min="0" value="<%= quotaValue('maxCustomDomains') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="maxRollbackReleases">Max Rollback Releases</label>
-          <input type="number" id="maxRollbackReleases" name="maxRollbackReleases" class="form-input"
-                 data-tooltip="Number of healthy releases retained for rollback."
-                 min="0" value="<%= quotaValue('maxRollbackReleases') %>" placeholder="Platform default" />
-        </div>
-
-        <div class="form-group form-group--floating">
-          <label class="form-label" for="logRetentionDays">Log Retention (days)</label>
-          <input type="number" id="logRetentionDays" name="logRetentionDays" class="form-input"
-                 data-tooltip="How long deployment logs should be retained."
-                 min="0" value="<%= quotaValue('logRetentionDays') %>" placeholder="Platform default" />
-        </div>
+        <% }) %>
       </div>
 
       <div class="form-group form-group--floating mt-4">

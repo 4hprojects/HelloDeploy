@@ -1,7 +1,7 @@
 import { Project, Deployment } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 import { generateServerBlock, generateMaintenanceBlock } from '../nginx/template.js';
-import { activateRoute } from '../nginx/route-manager.js';
+import { activateRoute } from '../nginx/helper-client.js';
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
 

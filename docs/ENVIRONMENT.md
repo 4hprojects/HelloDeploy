@@ -36,6 +36,8 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | `NGINX_DISABLED_ACK`           | worker      | no              | `false`                                                  | Set `true` to allow `NGINX_ENABLED=false` in production (routing handled externally); otherwise the worker refuses to start |
 | `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`                               | Directory for generated per-app nginx configs                                                                               |
 | `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                                                  | nginx binary used for `-t` validation and reload                                                                            |
+| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`                     | Local Unix socket used to request privileged Nginx route changes                                                            |
+| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                                                  | Maximum time to wait for the local Nginx helper                                                                             |
 
 ## GitHub App
 
@@ -51,13 +53,15 @@ All optional in dev; required to use GitHub features (connect repo, webhooks, de
 
 ## Worker build/deploy
 
-| Variable                | Required (prod) | Default                         | Purpose                                 |
-| ----------------------- | --------------- | ------------------------------- | --------------------------------------- |
-| `WORKER_CONCURRENCY`    | no              | `1`                             | Parallel BullMQ jobs per worker process |
-| `BUILD_TIMEOUT_MS`      | no              | `600000`                        | Hard cap on `docker build` duration     |
-| `BUILD_WORKSPACE_ROOT`  | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts   |
-| `RELEASE_METADATA_ROOT` | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                |
-| `PROJECT_VOLUME_ROOT`   | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes          |
+| Variable                | Required (prod) | Default                         | Purpose                                                    |
+| ----------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
+| `WORKER_CONCURRENCY`    | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
+| `BUILD_TIMEOUT_MS`      | no              | `600000`                        | Hard cap on `docker build` duration                        |
+| `BUILD_WORKSPACE_ROOT`  | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
+| `RELEASE_METADATA_ROOT` | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
+| `PROJECT_VOLUME_ROOT`   | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
+| `PORT_RANGE_START`      | no              | `10000`                         | First loopback host port available for deployed containers |
+| `PORT_RANGE_END`        | no              | `19999`                         | Last loopback host port available for deployed containers  |
 
 ## Email / notifications
 

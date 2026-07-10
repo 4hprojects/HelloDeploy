@@ -1,0 +1,25 @@
+[Unit]
+Description=HelloDeploy deployment worker
+After=network-online.target docker.service hellodeploy-nginx-helper.service
+Wants=network-online.target docker.service
+Requires=hellodeploy-nginx-helper.service
+
+[Service]
+Type=simple
+User=hellodeploy-worker
+Group=hellodeploy-config
+SupplementaryGroups=docker hellodeploy-nginx
+WorkingDirectory=/opt/hellodeploy
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node apps/worker/src/worker.js
+Restart=on-failure
+RestartSec=5
+TimeoutStopSec=120
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/hellodeploy /var/log/hellodeploy /run/hellodeploy
+
+[Install]
+WantedBy=multi-user.target

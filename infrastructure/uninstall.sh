@@ -10,7 +10,8 @@
 #   sudo bash infrastructure/uninstall.sh --purge-data   # also remove /var/lib/hellodeploy
 set -euo pipefail
 
-HD_USER="hellodeploy"
+HD_WEB_USER="hellodeploy-web"
+HD_WORKER_USER="hellodeploy-worker"
 HD_HOME="/opt/hellodeploy"
 HD_DATA="/var/lib/hellodeploy"
 HD_LOG="/var/log/hellodeploy"
@@ -61,15 +62,14 @@ warn "Creating a final backup before removal…"
 bash "$(dirname "$0")/backup.sh" --output "/var/backups/hellodeploy/pre-uninstall-$(date +%Y%m%d_%H%M%S)" || \
   warn "Backup failed — continuing uninstall anyway"
 
-# ─── stop and remove PM2 processes ───────────────────────────────────────────
+# ─── stop and remove systemd services ────────────────────────────────────────
 
-info "Stopping PM2 processes…"
-sudo -u "$HD_USER" pm2 stop ecosystem.config.cjs 2>/dev/null || true
-sudo -u "$HD_USER" pm2 delete ecosystem.config.cjs 2>/dev/null || true
-sudo -u "$HD_USER" pm2 save 2>/dev/null || true
-
-# Remove PM2 startup
-pm2 unstartup systemd -u "$HD_USER" 2>/dev/null || true
+info "Stopping systemd services…"
+systemctl disable --now hellodeploy-worker hellodeploy-web hellodeploy-nginx-helper 2>/dev/null || true
+rm -f /etc/systemd/system/hellodeploy-worker.service \
+      /etc/systemd/system/hellodeploy-web.service \
+      /etc/systemd/system/hellodeploy-nginx-helper.service
+systemctl daemon-reload
 
 # ─── remove Nginx config ─────────────────────────────────────────────────────
 
@@ -115,8 +115,11 @@ fi
 
 # ─── remove system user ───────────────────────────────────────────────────────
 
-info "Removing system user '$HD_USER'…"
-userdel "$HD_USER" 2>/dev/null || warn "Could not remove user — may need manual cleanup"
+info "Removing HelloDeploy system users and groups…"
+userdel "$HD_WEB_USER" 2>/dev/null || true
+userdel "$HD_WORKER_USER" 2>/dev/null || true
+groupdel hellodeploy-config 2>/dev/null || true
+groupdel hellodeploy-nginx 2>/dev/null || true
 
 echo ""
 echo -e "${GREEN}${BOLD}HelloDeploy has been removed.${NC}"

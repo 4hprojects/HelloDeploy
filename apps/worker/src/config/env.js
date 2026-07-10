@@ -1,4 +1,10 @@
 import 'dotenv/config';
+import { accessSync, constants as fsConstants } from 'node:fs';
+import {
+  assertAllOrNoneEnvironment,
+  assertProductionSecrets,
+  parseIntegerEnv,
+} from '@hellodeploy/contracts';
 
 const required = (name) => {
   const value = process.env[name];
@@ -10,20 +16,77 @@ const required = (name) => {
 
 const optional = (name, defaultValue) => process.env[name] ?? defaultValue;
 
-export const env = {
-  NODE_ENV: optional('NODE_ENV', 'development'),
+const nodeEnv = optional('NODE_ENV', 'development');
+const production = nodeEnv === 'production';
+const redisPort = parseIntegerEnv('REDIS_PORT', optional('REDIS_PORT', '6379'), {
+  min: 1,
+  max: 65535,
+});
+const workerConcurrency = parseIntegerEnv(
+  'WORKER_CONCURRENCY',
+  optional('WORKER_CONCURRENCY', '1'),
+  { min: 1, max: 32 },
+);
+const buildTimeoutMs = parseIntegerEnv('BUILD_TIMEOUT_MS', optional('BUILD_TIMEOUT_MS', '600000'), {
+  min: 1000,
+  max: 86400000,
+});
+const helperTimeoutMs = parseIntegerEnv(
+  'NGINX_HELPER_TIMEOUT_MS',
+  optional('NGINX_HELPER_TIMEOUT_MS', '15000'),
+  { min: 1000, max: 60000 },
+);
+const portRangeStart = parseIntegerEnv('PORT_RANGE_START', optional('PORT_RANGE_START', '10000'), {
+  min: 1024,
+  max: 65535,
+});
+const portRangeEnd = parseIntegerEnv('PORT_RANGE_END', optional('PORT_RANGE_END', '19999'), {
+  min: 1024,
+  max: 65535,
+});
+if (portRangeStart > portRangeEnd) {
+  throw new Error('PORT_RANGE_START must be less than or equal to PORT_RANGE_END.');
+}
+const masterKey = production
+  ? required('HELLODEPLOY_MASTER_KEY')
+  : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 
-  MONGODB_URI:
-    process.env.NODE_ENV === 'production'
-      ? required('MONGODB_URI')
-      : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
+if (production) {
+  assertProductionSecrets({ masterKey });
+  assertAllOrNoneEnvironment(
+    [
+      ['GITHUB_APP_ID', process.env.GITHUB_APP_ID],
+      [
+        'GITHUB_APP_PRIVATE_KEY',
+        process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY,
+      ],
+    ],
+    'GitHub App worker',
+  );
+  if (process.env.GITHUB_APP_ID && process.env.GITHUB_APP_PRIVATE_KEY_PATH) {
+    try {
+      accessSync(process.env.GITHUB_APP_PRIVATE_KEY_PATH, fsConstants.R_OK);
+    } catch {
+      throw new Error('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
+    }
+  }
+}
+
+export const env = {
+  NODE_ENV: nodeEnv,
+
+  MONGODB_URI: production
+    ? required('MONGODB_URI')
+    : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
 
   REDIS_HOST: optional('REDIS_HOST', '127.0.0.1'),
-  REDIS_PORT: parseInt(optional('REDIS_PORT', '6379'), 10),
+  REDIS_PORT: redisPort,
   REDIS_PASSWORD: optional('REDIS_PASSWORD', undefined),
 
-  WORKER_CONCURRENCY: parseInt(optional('WORKER_CONCURRENCY', '1'), 10),
-  BUILD_TIMEOUT_MS: parseInt(optional('BUILD_TIMEOUT_MS', '600000'), 10),
+  WORKER_CONCURRENCY: workerConcurrency,
+  BUILD_TIMEOUT_MS: buildTimeoutMs,
+  PORT_RANGE_START: portRangeStart,
+  PORT_RANGE_END: portRangeEnd,
 
   BUILD_WORKSPACE_ROOT: optional('BUILD_WORKSPACE_ROOT', '/var/lib/hellodeploy/builds'),
   RELEASE_METADATA_ROOT: optional('RELEASE_METADATA_ROOT', '/var/lib/hellodeploy/releases'),
@@ -33,15 +96,14 @@ export const env = {
     '/etc/nginx/hellodeploy.d',
   ),
   NGINX_BINARY_PATH: optional('NGINX_BINARY_PATH', 'nginx'),
+  NGINX_HELPER_SOCKET: optional('NGINX_HELPER_SOCKET', '/run/hellodeploy/nginx-helper.sock'),
+  NGINX_HELPER_TIMEOUT_MS: helperTimeoutMs,
   PLATFORM_DOMAIN: optional('PLATFORM_DOMAIN', 'hellodeploy.online'),
   // When true the worker skips nginx operations (useful for local dev without nginx)
   NGINX_ENABLED: optional('NGINX_ENABLED', 'false') === 'true',
 
   // Master encryption key for decrypting environment secrets at build/runtime
-  HELLODEPLOY_MASTER_KEY:
-    process.env.NODE_ENV === 'production'
-      ? required('HELLODEPLOY_MASTER_KEY')
-      : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA='),
+  HELLODEPLOY_MASTER_KEY: masterKey,
 
   // GitHub App credentials — needed to generate installation tokens for git clone
   GITHUB_APP_ID: optional('GITHUB_APP_ID', ''),

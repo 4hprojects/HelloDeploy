@@ -10,7 +10,13 @@ import {
   Domain,
   mongoose,
 } from '@hellodeploy/database';
-import { ProjectRole, ProjectStatus, ApprovalStatus, AuditOutcome, JobType } from '@hellodeploy/contracts';
+import {
+  ProjectRole,
+  ProjectStatus,
+  ApprovalStatus,
+  AuditOutcome,
+  JobType,
+} from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { generateToken, hashToken } from '@hellodeploy/security';
@@ -420,7 +426,10 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
 
   let activeContainerId = null;
   if (project.activeDeploymentId) {
-    const activeDeployment = await Deployment.findById(project.activeDeploymentId, 'activeContainerId').lean();
+    const activeDeployment = await Deployment.findById(
+      project.activeDeploymentId,
+      'activeContainerId',
+    ).lean();
     activeContainerId = activeDeployment?.activeContainerId ?? null;
   }
 

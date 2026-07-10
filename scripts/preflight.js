@@ -113,11 +113,11 @@ check(`RAM >= 2 GB`, () => {
   return { ok, detail: `${totalGb} GB total RAM` };
 });
 
-check('pm2 installed', () => {
-  const r = run('pm2', ['--version']);
+check('systemd available', () => {
+  const r = run('systemctl', ['--version']);
   return {
     ok: r.ok,
-    detail: r.ok ? `pm2 ${r.stdout}` : 'pm2 not found — install with: npm install -g pm2',
+    detail: r.ok ? r.stdout.split('\n')[0] : 'systemctl not found',
   };
 });
 

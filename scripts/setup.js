@@ -155,7 +155,7 @@ if (!skip('GITHUB_WEBHOOK_SECRET')) {
   config.GITHUB_WEBHOOK_SECRET = await ask(
     rl,
     'Webhook secret',
-    existing.GITHUB_WEBHOOK_SECRET || '(will be generated)',
+    existing.GITHUB_WEBHOOK_SECRET || '',
     true,
   );
 }
@@ -207,6 +207,16 @@ if (!skip('NGINX_HELLODEPLOY_CONFIG_DIR')) {
 }
 config.NGINX_ENABLED = 'true';
 config.WORKER_CONCURRENCY = await ask(rl, 'Worker concurrency', existing.WORKER_CONCURRENCY || '1');
+config.PORT_RANGE_START = await ask(
+  rl,
+  'Deployment port range start',
+  existing.PORT_RANGE_START || '10000',
+);
+config.PORT_RANGE_END = await ask(
+  rl,
+  'Deployment port range end',
+  existing.PORT_RANGE_END || '19999',
+);
 
 rl.close();
 
@@ -232,6 +242,9 @@ let lines = existsSync(ENV_PATH) ? readFileSync(ENV_PATH, 'utf8') : '';
 
 for (const [key, value] of Object.entries(config)) {
   const re = new RegExp(`^${key}=.*$`, 'm');
+  if (key === 'GITHUB_WEBHOOK_SECRET' && !value && re.test(lines)) {
+    continue;
+  }
   const line = `${key}=${value}`;
   if (re.test(lines)) {
     lines = lines.replace(re, line);
@@ -256,4 +269,6 @@ console.log(
   `     echo 'include ${config.NGINX_HELLODEPLOY_CONFIG_DIR || '/etc/nginx/hellodeploy.d'}/*.conf;' | sudo tee /etc/nginx/conf.d/hellodeploy.conf`,
 );
 console.log(`  4. Run the super admin seeder:  node scripts/seed-super-admin.js`);
-console.log(`  5. Start with PM2:  pm2 start ecosystem.config.cjs\n`);
+console.log(
+  `  5. Start services: sudo systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker\n`,
+);

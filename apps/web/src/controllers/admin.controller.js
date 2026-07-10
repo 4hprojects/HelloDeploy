@@ -21,6 +21,7 @@ import {
 import { collectServerStats } from '../services/server-stats.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
+import { validateSetQuota } from '../validators/admin.validator.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
@@ -203,49 +204,22 @@ export const getAdminQuota = asyncHandler(async (req, res) => {
 
 export const postAdminSetQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
-  const {
-    maxOwnedProjects,
-    maxRunningApps,
-    maxProjectMembers,
-    memoryMb,
-    cpuCores,
-    deploymentsPerMonth,
-    buildTimeoutSeconds,
-    maxCustomDomains,
-    maxRollbackReleases,
-    logRetentionDays,
-    reason,
-  } = req.body;
+  const { reason } = req.body;
 
-  const limits = {};
-  const numericFields = {
-    maxOwnedProjects,
-    maxRunningApps,
-    maxProjectMembers,
-    memoryMb,
-    deploymentsPerMonth,
-    buildTimeoutSeconds,
-    maxCustomDomains,
-    maxRollbackReleases,
-    logRetentionDays,
-  };
-  const floatFields = { cpuCores };
-
-  for (const [k, v] of Object.entries(numericFields)) {
-    if (v !== '' && v !== undefined) {
-      const parsed = parseInt(v, 10);
-      if (!Number.isNaN(parsed)) {
-        limits[k] = parsed;
-      }
-    }
-  }
-  for (const [k, v] of Object.entries(floatFields)) {
-    if (v !== '' && v !== undefined) {
-      const parsed = parseFloat(v);
-      if (!Number.isNaN(parsed)) {
-        limits[k] = parsed;
-      }
-    }
+  const { errors, hasErrors, limits } = validateSetQuota(req.body);
+  if (hasErrors) {
+    const [quota, consumption] = await Promise.all([
+      getQuotaOverride(scopeType, scopeId),
+      getQuotaConsumption(scopeType, scopeId),
+    ]);
+    return res.status(400).render('pages/admin/quota', {
+      title: 'Quota Override',
+      quota: { ...quota, ...req.body },
+      consumption,
+      scopeType,
+      scopeId,
+      errors,
+    });
   }
 
   const result = await setQuotaOverride({

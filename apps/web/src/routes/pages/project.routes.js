@@ -59,12 +59,17 @@ import {
   postRollback,
   sseDeploymentLogs,
 } from '../../controllers/deployment.controller.js';
+import { validateObjectId } from '../../middleware/validate-object-id.js';
 
 const router = Router();
 
 const anyRole = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER, ProjectRole.VIEWER);
 const ownerOrMaintainer = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER);
 const ownerOnly = requireProjectRole(ProjectRole.OWNER);
+
+for (const param of ['userId', 'deploymentId', 'domainId']) {
+  router.param(param, validateObjectId);
+}
 
 // Project list and creation
 router.get('/', requireAuth, getProjectIndex);
@@ -112,12 +117,7 @@ router.post('/:slug/deploy-hook/revoke', requireAuth, ownerOnly, postRevokeDeplo
 // Detection
 router.get('/:slug/detection', requireAuth, anyRole, getDetection);
 router.post('/:slug/detection', requireAuth, ownerOnly, postRunDetection);
-router.post(
-  '/:slug/build-configuration',
-  requireAuth,
-  ownerOnly,
-  postUpdateBuildConfiguration,
-);
+router.post('/:slug/build-configuration', requireAuth, ownerOnly, postUpdateBuildConfiguration);
 router.post('/:slug/build-filters', requireAuth, ownerOnly, postUpdateBuildFilters);
 
 // Deployments

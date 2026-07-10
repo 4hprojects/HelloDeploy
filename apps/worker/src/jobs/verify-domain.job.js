@@ -4,7 +4,7 @@ import { Domain, Project, Deployment } from '@hellodeploy/database';
 import { DomainStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { generateServerBlock } from '../nginx/template.js';
-import { activateRoute, removeRoute } from '../nginx/route-manager.js';
+import { activateRoute, removeRoute } from '../nginx/helper-client.js';
 import { env } from '../config/env.js';
 
 const VERIFICATION_TXT_PREFIX = 'hellodeploy-verify=';

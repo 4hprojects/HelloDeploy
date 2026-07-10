@@ -13,7 +13,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [20.x, 22.x]
+        node-version: [22.x]
 
     steps:
       - name: Checkout
@@ -34,5 +34,11 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      - name: Validate development/test configuration
+        run: NODE_ENV=test npm run config:check
+
       - name: Test
         run: npm test
+
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=moderate

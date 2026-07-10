@@ -7,6 +7,8 @@ import {
   UserStatus,
   DeploymentStatus,
   JobType,
+  validateJobPayload,
+  JobPayloadValidationError,
 } from '@hellodeploy/contracts';
 
 describe('contracts — enums', () => {
@@ -55,5 +57,57 @@ describe('contracts — JobType', () => {
     for (const value of Object.values(JobType)) {
       assert.equal(typeof value, 'string');
     }
+  });
+});
+
+describe('contracts — validateJobPayload', () => {
+  it('accepts a well-formed BUILD_DEPLOYMENT payload', () => {
+    assert.doesNotThrow(() =>
+      validateJobPayload(JobType.BUILD_DEPLOYMENT, {
+        projectId: 'p1',
+        deploymentId: 'd1',
+        commitSha: 'a'.repeat(40),
+        repositoryId: 'r1',
+        runtimeType: 'NODEJS',
+        imageTag: 'hd-app-1',
+      }),
+    );
+  });
+
+  it('rejects a BUILD_DEPLOYMENT payload missing a required field', () => {
+    assert.throws(
+      () =>
+        validateJobPayload(JobType.BUILD_DEPLOYMENT, {
+          projectId: 'p1',
+          deploymentId: 'd1',
+          commitSha: 'a'.repeat(40),
+          repositoryId: 'r1',
+          // runtimeType and imageTag missing
+        }),
+      JobPayloadValidationError,
+    );
+  });
+
+  it('rejects a non-object payload', () => {
+    assert.throws(() => validateJobPayload(JobType.STOP_PROJECT, null), JobPayloadValidationError);
+  });
+
+  it('rejects SET_PROJECT_MAINTENANCE when enabled is not a boolean', () => {
+    assert.throws(
+      () =>
+        validateJobPayload(JobType.SET_PROJECT_MAINTENANCE, {
+          projectId: 'p1',
+          enabled: 'true',
+        }),
+      JobPayloadValidationError,
+    );
+  });
+
+  it('is a no-op for job types without a registered validator', () => {
+    assert.doesNotThrow(() => validateJobPayload(JobType.COLLECT_METRICS, {}));
+  });
+
+  it('allows CLEANUP_RELEASES with no payload fields at all', () => {
+    assert.doesNotThrow(() => validateJobPayload(JobType.CLEANUP_RELEASES, {}));
   });
 });

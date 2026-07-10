@@ -1,6 +1,6 @@
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
-import { removeRoute } from '../nginx/route-manager.js';
+import { removeRoute } from '../nginx/helper-client.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
 
