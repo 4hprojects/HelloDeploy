@@ -5,21 +5,23 @@
 ```bash
 git clone https://github.com/4hprojects/HelloDeploy.git
 cd HelloDeploy
-npm install
+nvm install              # installs/uses the Node.js version in .nvmrc
+npm ci                   # reproducible install from package-lock.json
 cp .env.example .env   # then fill in values — see docs/ENVIRONMENT.md
 npm run dev            # starts web (:3000) + worker
 ```
 
-Local prerequisites: Node 22+, MongoDB, and Redis running on their default ports. Docker is only needed on the machine running the worker's build/deploy jobs; the web app runs without it.
+Local prerequisites: Node.js 22 (declared in `.nvmrc` and `package.json`), npm 10+, MongoDB, and Redis running on their default ports. If you do not use NVM, install a compatible Node.js 22 release and confirm `node --version` before installing dependencies. Docker is only needed on the machine running the worker's build/deploy jobs; the web app runs without it.
 
 ## Quality gates
 
-Run before opening a PR — CI expects all three green:
+Run before opening a PR — CI expects the complete baseline to be green:
 
 ```bash
-npm test               # node --test; uses an in-memory MongoDB, no local db needed
 npm run lint
 npm run format:check
+npm test               # node --test; uses an in-memory MongoDB, no local db needed
+npm audit --omit=dev --audit-level=moderate
 ```
 
 ## Conventions
@@ -30,4 +32,4 @@ npm run format:check
 
 ## Where things live
 
-See the Architecture section in [CLAUDE.md](CLAUDE.md) for the app/package layout, [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for configuration, and [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) + [docs/phases/](docs/phases/) for the current backlog and in-flight work.
+See the Architecture section in [CLAUDE.md](CLAUDE.md) for the app/package layout, [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for configuration, [docs/RELEASE_POLICY.md](docs/RELEASE_POLICY.md) for release and rollback rules, and [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) + [docs/phases/](docs/phases/) for the current backlog and in-flight work.

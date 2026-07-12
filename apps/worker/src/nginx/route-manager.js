@@ -79,7 +79,13 @@ function assertSafeSlug(slug) {
  * @returns {Promise<void>}
  * @throws {Error} if nginx -t validation fails or reload fails
  */
-export async function activateRoute({ configDir, slug, configContent, nginxBinary = 'nginx' }) {
+export async function activateRoute({
+  configDir,
+  slug,
+  configContent,
+  nginxBinary = 'nginx',
+  commandRunner = runCommand,
+}) {
   assertSafeSlug(slug);
 
   const confPath = join(configDir, `${slug}.conf`);
@@ -100,11 +106,11 @@ export async function activateRoute({ configDir, slug, configContent, nginxBinar
     logger.info('NginxRoute: wrote new config', { slug, confPath });
 
     // Validate the full nginx config (includes our new file)
-    await runCommand(nginxBinary, ['-t']);
+    await commandRunner(nginxBinary, ['-t']);
     logger.info('NginxRoute: nginx -t passed', { slug });
 
     // Reload nginx to activate the new route
-    await runCommand(nginxBinary, ['-s', 'reload']);
+    await commandRunner(nginxBinary, ['-s', 'reload']);
     logger.info('NginxRoute: nginx reloaded', { slug });
 
     // Clean up backup on success
@@ -143,7 +149,12 @@ export async function activateRoute({ configDir, slug, configContent, nginxBinar
  *   nginxBinary?: string,
  * }} opts
  */
-export async function removeRoute({ configDir, slug, nginxBinary = 'nginx' }) {
+export async function removeRoute({
+  configDir,
+  slug,
+  nginxBinary = 'nginx',
+  commandRunner = runCommand,
+}) {
   assertSafeSlug(slug);
 
   const confPath = join(configDir, `${slug}.conf`);
@@ -155,12 +166,14 @@ export async function removeRoute({ configDir, slug, nginxBinary = 'nginx' }) {
   }
 
   const bakPath = join(configDir, `${slug}.conf.bak`);
-  await fs.copyFile(confPath, bakPath).catch(() => {});
+  // A successful backup is a precondition for deletion. If this fails, leave
+  // the live route untouched rather than entering a state we cannot roll back.
+  await fs.copyFile(confPath, bakPath);
   await fs.unlink(confPath);
 
   try {
-    await runCommand(nginxBinary, ['-t']);
-    await runCommand(nginxBinary, ['-s', 'reload']);
+    await commandRunner(nginxBinary, ['-t']);
+    await commandRunner(nginxBinary, ['-s', 'reload']);
     logger.info('NginxRoute: removed route and reloaded', { slug });
     await fs.unlink(bakPath).catch(() => {});
   } catch (err) {
@@ -197,6 +210,6 @@ export async function readRouteConfig({ configDir, slug }) {
  * @param {string} nginxBinary
  * @returns {Promise<void>}
  */
-export async function validateNginxConfig(nginxBinary = 'nginx') {
-  await runCommand(nginxBinary, ['-t']);
+export async function validateNginxConfig(nginxBinary = 'nginx', commandRunner = runCommand) {
+  await commandRunner(nginxBinary, ['-t']);
 }

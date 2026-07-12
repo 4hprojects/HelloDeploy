@@ -191,6 +191,9 @@ systemctl daemon-reload
 systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
 info "Systemd services enabled and started."
 
+section "Installation verification"
+bash infrastructure/verify-installation.sh
+
 # ─── done ─────────────────────────────────────────────────────────────────────
 
 echo ""

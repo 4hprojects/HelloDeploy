@@ -84,6 +84,28 @@
   </div>
 </div>
 
+<!-- Worker readiness -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Deployment Worker</h2>
+    <span class="badge <%= server.worker?.ready ? 'badge--success' : 'badge--danger' %>">
+      <%= server.worker?.ready ? 'Ready' : 'Unavailable' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (server.worker?.ready) { %>
+    <p class="text-sm">
+      <%= server.worker.connectedWorkers %> worker<%= server.worker.connectedWorkers === 1 ? '' : 's' %>
+      connected to the deployment queue.
+    </p>
+    <% } else if (server.worker?.connectedWorkers === null) { %>
+    <p class="text-muted text-sm">Worker readiness could not be checked. Verify Redis and queue availability.</p>
+    <% } else { %>
+    <p class="text-muted text-sm">No deployment worker is connected. Queued jobs will not be processed.</p>
+    <% } %>
+  </div>
+</div>
+
 <!-- Queue management -->
 <div class="card mb-6">
   <div class="card__header">

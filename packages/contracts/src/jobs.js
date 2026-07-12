@@ -90,6 +90,9 @@ export const JobType = Object.freeze({
 /**
  * @typedef {BaseJobPayload & {
  *   projectId: string;
+ *   projectSlug: string;
+ *   containerIds: string[];
+ *   imageTags: string[];
  * }} DeleteProjectPayload
  */
 

@@ -21,6 +21,7 @@ import helmet from 'helmet';
 import { getDashboard } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
+import { checkWebReadiness } from './services/readiness.service.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -29,13 +30,31 @@ function cspNonceMiddleware(_req, res, next) {
   next();
 }
 
-export function createApp() {
+export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   const app = express();
 
   // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare)
   app.set('trust proxy', 1);
 
   app.use(cspNonceMiddleware);
+
+  // Liveness only proves that the HTTP process can respond. Readiness is a
+  // separate dependency check and intentionally returns only component names.
+  app.get('/health', (_req, res) => {
+    res.json({ status: 'ok', service: 'web', timestamp: new Date().toISOString() });
+  });
+  app.get('/ready', async (_req, res) => {
+    try {
+      const result = await readinessCheck();
+      res.status(result.ready ? 200 : 503).json({
+        status: result.ready ? 'ready' : 'not_ready',
+        service: 'web',
+        checks: result.checks,
+      });
+    } catch {
+      res.status(503).json({ status: 'not_ready', service: 'web' });
+    }
+  });
 
   // Security headers. Inline scripts are blocked except the per-request nonce
   // used by the early theme bootstrap. Inline styles remain temporarily allowed
@@ -98,11 +117,6 @@ export function createApp() {
   if (env.isProduction()) {
     app.use(generalLimiter);
   }
-
-  // ── Health ─────────────────────────────────────────────────────────────────
-  app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'web', timestamp: new Date().toISOString() });
-  });
 
   // ── Routes ─────────────────────────────────────────────────────────────────
   app.use('/auth', authRoutes);

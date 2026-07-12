@@ -110,7 +110,7 @@ export async function buildDockerImage({
 }
 
 /**
- * Remove a Docker image by tag. Non-fatal — logs a warning on failure.
+ * Remove a Docker image by tag and report whether Docker confirmed removal.
  * SECURITY: command array.
  */
 export async function removeDockerImage(imageTag) {
@@ -122,8 +122,8 @@ export async function removeDockerImage(imageTag) {
       if (code !== 0) {
         logger.warn('Docker: failed to remove image', { imageTag });
       }
-      resolve(); // always resolve — cleanup is best-effort
+      resolve(code === 0);
     });
-    proc.on('error', () => resolve());
+    proc.on('error', () => resolve(false));
   });
 }

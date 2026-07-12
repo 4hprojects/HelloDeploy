@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 process.env.GITHUB_APP_ID = '12345';
@@ -22,5 +23,17 @@ describe('containerName', () => {
 describe('networkName', () => {
   it('produces expected format', () => {
     assert.equal(networkName('my-app'), 'hellodeploy-my-app');
+  });
+});
+
+describe('managed container runtime limits', () => {
+  it('bounds Docker json-file log growth', async () => {
+    const source = await readFile(
+      new URL('../../apps/worker/src/deployment/container.js', import.meta.url),
+      'utf8',
+    );
+    assert.match(source, /'--log-driver',\s*'json-file'/);
+    assert.match(source, /'--log-opt',\s*'max-size=10m'/);
+    assert.match(source, /'--log-opt',\s*'max-file=3'/);
   });
 });

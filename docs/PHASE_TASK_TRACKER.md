@@ -2,7 +2,9 @@
 
 Updated: 2026-07-02T00:18:59+08:00
 
-This is the active tracker for remaining HelloDeploy implementation and validation work. Update this file during every implementation pass before committing and pushing.
+> **Superseded:** This file is retained as historical implementation and validation evidence. Active production-readiness work is now tracked in the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+
+The statuses below reflect the historical phase-based tracker as last updated on July 2, 2026. Do not use this file to record new work.
 
 ## Status Legend
 

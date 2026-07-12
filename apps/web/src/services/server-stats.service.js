@@ -4,6 +4,7 @@ import { Deployment } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { getDeploymentQueue } from '../queue/client.js';
 import { env } from '../config/env.js';
+import { checkWorkerReadiness } from './worker-readiness.service.js';
 
 /**
  * Collect host and platform statistics for the admin server dashboard.
@@ -12,10 +13,11 @@ import { env } from '../config/env.js';
  * @returns {Promise<object>}
  */
 export async function collectServerStats() {
-  const [memory, disk, queue, running] = await Promise.all([
+  const [memory, disk, queue, worker, running] = await Promise.all([
     getMemoryStats(),
     getDiskStats(),
     getQueueStats(),
+    checkWorkerReadiness(getDeploymentQueue()),
     getRunningContainerCount(),
   ]);
 
@@ -26,6 +28,7 @@ export async function collectServerStats() {
     memory,
     disk,
     queue,
+    worker,
     running,
     cpu: {
       cores: cpus().length,

@@ -57,8 +57,10 @@ export async function removeNetwork(netName) {
   try {
     await runDocker(['network', 'rm', netName]);
     logger.info('Container: removed Docker network', { netName });
+    return true;
   } catch {
     logger.warn('Container: failed to remove network (may still have containers)', { netName });
+    return false;
   }
 }
 
@@ -135,6 +137,13 @@ export async function startContainer({
     // Crash loop protection (max 3 restarts before giving up)
     '--restart',
     'on-failure:3',
+    // Bound Docker's json-file log growth independently of database log capture.
+    '--log-driver',
+    'json-file',
+    '--log-opt',
+    'max-size=10m',
+    '--log-opt',
+    'max-file=3',
     // Labels for identification
     '--label',
     `hellodeploy.managed=true`,
@@ -198,11 +207,13 @@ export async function stopAndRemoveContainer(containerIdOrName) {
   try {
     await runDocker(['rm', '--force', containerIdOrName]);
     logger.info('Container: removed', { container: containerIdOrName });
+    return true;
   } catch (err) {
     logger.warn('Container: failed to remove', {
       container: containerIdOrName,
       error: err.message,
     });
+    return false;
   }
 }
 

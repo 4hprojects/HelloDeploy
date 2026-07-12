@@ -2,6 +2,8 @@
 
 HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
 
+Production installations require Node.js 22 and npm 10 or newer. The installer provisions Node.js 22 when needed, and preflight rejects unsupported major versions before making host changes.
+
 License: MIT. See [`LICENSE`](../LICENSE).
 
 ## Install Modes
@@ -42,9 +44,10 @@ Use this mode when the server should not expose inbound router ports.
 5. Back up `HELLODEPLOY_MASTER_KEY` outside the server.
 6. Seed the first Super Admin with `node scripts/seed-super-admin.js`.
 7. Confirm `/health` returns `ok`.
-8. Open `/admin/server` and verify queue, memory, disk, and maintenance controls.
-9. Run `sudo bash infrastructure/backup.sh`.
-10. Test restore on a second supported Ubuntu machine before production use.
+8. Run `sudo bash infrastructure/verify-installation.sh` and resolve every failed identity, permission, service, Nginx, or readiness check.
+9. Open `/admin/server` and verify queue, memory, disk, and maintenance controls.
+10. Run `sudo bash infrastructure/backup.sh`.
+11. Test restore on a second supported Ubuntu machine before production use.
 
 ## Planning Checklist
 
@@ -91,10 +94,16 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 
 ## Backup And Restore
 
-- Backup: `sudo bash infrastructure/backup.sh`
+- Backup with local MongoDB dump: `sudo bash infrastructure/backup.sh`
+- Backup with a separately verified Atlas/external snapshot: `sudo bash infrastructure/backup.sh --skip-database`
 - Restore: `sudo bash infrastructure/restore.sh <backup-directory>`
-- Upgrade: `sudo bash infrastructure/upgrade.sh`
+- Upgrade: `sudo bash infrastructure/upgrade.sh --ref vMAJOR.MINOR.PATCH`
+- Installed-host verification: `sudo bash infrastructure/verify-installation.sh`
 - Rollback: use the previous release and `docs/OPERATIONS_RUNBOOKS.md`
 - Uninstall: `sudo bash infrastructure/uninstall.sh`
 
 Backups must include MongoDB data, protected configuration, Nginx route files, Cloudflare Tunnel configuration, and HelloDeploy release metadata.
+
+`--skip-database` is an explicit acknowledgement that a current external database snapshot has already been verified. For non-interactive upgrades backed by external snapshots, set `HELLODEPLOY_DATABASE_BACKUP_MODE=external`; the default `local` mode requires `mongodump` to succeed. Backup directories contain secrets and must be transferred to an encrypted, access-controlled off-host destination.
+
+Production upgrades must target an immutable release tag or full commit SHA according to [`RELEASE_POLICY.md`](RELEASE_POLICY.md); do not deploy an unreviewed moving branch.

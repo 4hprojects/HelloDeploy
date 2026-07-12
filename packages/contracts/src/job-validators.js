@@ -44,6 +44,12 @@ function requireObject(data, field, jobType) {
   }
 }
 
+function requireStringArray(data, field, jobType) {
+  if (!Array.isArray(data[field]) || data[field].some((value) => !isNonEmptyString(value))) {
+    throw new JobPayloadValidationError(jobType, `"${field}" must be an array of strings.`);
+  }
+}
+
 const VALIDATORS = {
   [JobType.BUILD_DEPLOYMENT](data) {
     for (const field of [
@@ -80,6 +86,11 @@ const VALIDATORS = {
   },
   [JobType.DELETE_PROJECT](data) {
     requireString(data, 'projectId', JobType.DELETE_PROJECT);
+    if (data.version >= 2) {
+      requireString(data, 'projectSlug', JobType.DELETE_PROJECT);
+      requireStringArray(data, 'containerIds', JobType.DELETE_PROJECT);
+      requireStringArray(data, 'imageTags', JobType.DELETE_PROJECT);
+    }
   },
   [JobType.SET_PROJECT_MAINTENANCE](data) {
     requireString(data, 'projectId', JobType.SET_PROJECT_MAINTENANCE);

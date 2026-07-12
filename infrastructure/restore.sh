@@ -44,9 +44,20 @@ echo "  Backup:      $BACKUP_DIR"
 echo "  Destination: $HD_HOME"
 echo ""
 
-if [[ -f "$BACKUP_DIR/MANIFEST.txt" ]]; then
+if [[ ! -f "$BACKUP_DIR/manifest.json" || ! -f "$BACKUP_DIR/CHECKSUMS.sha256" ]]; then
+  error "Backup is missing manifest.json or CHECKSUMS.sha256. Refusing to restore."
+  exit 1
+fi
+
+if ! (cd "$BACKUP_DIR" && sha256sum --check --strict CHECKSUMS.sha256); then
+  error "Backup integrity verification failed. Refusing to restore."
+  exit 1
+fi
+info "Backup checksums verified."
+
+if [[ -f "$BACKUP_DIR/manifest.json" ]]; then
   echo "Backup manifest:"
-  cat "$BACKUP_DIR/MANIFEST.txt"
+  cat "$BACKUP_DIR/manifest.json"
   echo ""
 fi
 
@@ -102,8 +113,11 @@ if [[ -f "$BACKUP_DIR/mongodb-dump.tar.gz" ]] && command -v mongorestore &>/dev/
   if [[ -n "$MONGO_URI" ]]; then
     TEMP_DIR=$(mktemp -d)
     tar -xzf "$BACKUP_DIR/mongodb-dump.tar.gz" -C "$TEMP_DIR"
-    mongorestore --uri="$MONGO_URI" --drop "$TEMP_DIR/mongodump" --quiet || \
-      warn "mongorestore failed — manual restore may be needed"
+    if ! mongorestore --uri="$MONGO_URI" --drop "$TEMP_DIR/mongodump" --quiet; then
+      error "mongorestore failed; services will remain stopped"
+      rm -rf "$TEMP_DIR"
+      exit 1
+    fi
     rm -rf "$TEMP_DIR"
     info "MongoDB restored"
   fi
@@ -111,6 +125,21 @@ else
   warn "mongodb-dump.tar.gz not found or mongorestore not available."
   warn "Restore MongoDB Atlas via the Atlas console: Backup → Restore"
 fi
+
+# ─── restore routing state ───────────────────────────────────────────────────
+
+section "Routing state"
+if [[ -f "$BACKUP_DIR/nginx-routes.tar.gz" ]]; then
+  rm -rf /etc/nginx/hellodeploy.d
+  tar -xzf "$BACKUP_DIR/nginx-routes.tar.gz" -C /etc/nginx
+  chown -R root:root /etc/nginx/hellodeploy.d
+  info "Restored generated Nginx routes"
+fi
+if [[ -f "$BACKUP_DIR/hellodeploy-platform.conf" ]]; then
+  install -m 0644 "$BACKUP_DIR/hellodeploy-platform.conf" /etc/nginx/conf.d/hellodeploy-platform.conf
+  info "Restored platform ingress"
+fi
+nginx -t
 
 # ─── restart services ────────────────────────────────────────────────────────
 

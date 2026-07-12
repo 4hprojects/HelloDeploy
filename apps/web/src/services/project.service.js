@@ -424,34 +424,49 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     return { success: false, error: 'Project not found.' };
   }
 
-  let activeContainerId = null;
-  if (project.activeDeploymentId) {
-    const activeDeployment = await Deployment.findById(
-      project.activeDeploymentId,
-      'activeContainerId',
-    ).lean();
-    activeContainerId = activeDeployment?.activeContainerId ?? null;
-  }
+  // Capture the complete infrastructure inventory before deleting deployment
+  // records. The worker cannot reconstruct retained containers/images later.
+  const deployments = await Deployment.find({ projectId }, '_id activeContainerId imageTag').lean();
+  const deploymentIds = deployments.map((deployment) => deployment._id);
+  const containerIds = [
+    ...new Set(deployments.map((deployment) => deployment.activeContainerId).filter(Boolean)),
+  ];
+  const imageTags = [
+    ...new Set(deployments.map((deployment) => deployment.imageTag).filter(Boolean)),
+  ];
 
   const queue = getDeploymentQueue();
-  if (queue) {
+  if (!queue) {
+    return {
+      success: false,
+      error:
+        'Project deletion is temporarily unavailable because the deployment worker queue is offline.',
+    };
+  }
+
+  try {
     await enqueueJob(
       queue,
       JobType.DELETE_PROJECT,
       {
-        version: 1,
+        version: 2,
         correlationId,
         actorId: actorId.toString(),
         actorRole: 'OWNER',
         projectId: projectId.toString(),
         subdomain: project.platformSubdomain ?? project.slug,
-        activeContainerId,
+        containerIds,
+        imageTags,
+        projectSlug: project.slug,
       },
       { jobId: `delete-${projectId}` },
     );
+  } catch {
+    return {
+      success: false,
+      error: 'Could not schedule infrastructure teardown. The project was not deleted.',
+    };
   }
-
-  const deploymentIds = await Deployment.find({ projectId }).distinct('_id');
 
   await Promise.all([
     ProjectMembership.deleteMany({ projectId }),

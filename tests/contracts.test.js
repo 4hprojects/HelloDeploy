@@ -110,4 +110,27 @@ describe('contracts — validateJobPayload', () => {
   it('allows CLEANUP_RELEASES with no payload fields at all', () => {
     assert.doesNotThrow(() => validateJobPayload(JobType.CLEANUP_RELEASES, {}));
   });
+
+  it('validates the complete version-2 project deletion inventory', () => {
+    assert.doesNotThrow(() =>
+      validateJobPayload(JobType.DELETE_PROJECT, {
+        version: 2,
+        projectId: 'p1',
+        projectSlug: 'my-project',
+        containerIds: ['container-1'],
+        imageTags: ['image-1'],
+      }),
+    );
+    assert.throws(
+      () =>
+        validateJobPayload(JobType.DELETE_PROJECT, {
+          version: 2,
+          projectId: 'p1',
+          projectSlug: 'my-project',
+          containerIds: 'container-1',
+          imageTags: [],
+        }),
+      JobPayloadValidationError,
+    );
+  });
 });

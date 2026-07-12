@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # HelloDeploy upgrade script.
 #
-# Pulls the latest code, installs new dependencies, and restarts services.
+# Checks out an immutable release, installs dependencies, and restarts services.
 # A backup is created before any changes are made.
 #
 # Usage:
-#   sudo bash infrastructure/upgrade.sh
-#   sudo bash infrastructure/upgrade.sh --branch v1.2.0   # specific branch/tag
+#   sudo bash infrastructure/upgrade.sh --ref v1.2.0
+#   HELLODEPLOY_RELEASE_REF=<full-commit-sha> sudo bash infrastructure/upgrade.sh
 set -euo pipefail
 
 HD_HOME="/opt/hellodeploy"
 BACKUP_ROOT="/var/backups/hellodeploy"
-BRANCH="${HELLODEPLOY_BRANCH:-}"
+RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -31,10 +31,25 @@ fi
 
 while [[ $# -gt 0 ]]; do
   case $1 in
-    --branch) BRANCH="$2"; shift 2 ;;
-    *) shift ;;
+    --ref) RELEASE_REF="${2:-}"; shift 2 ;;
+    *) error "Unknown argument: $1"; exit 1 ;;
   esac
 done
+
+if [[ -z "$RELEASE_REF" ]]; then
+  error "An immutable release tag or full commit SHA is required."
+  error "Usage: sudo bash $0 --ref v1.2.3"
+  exit 1
+fi
+
+cd "$HD_HOME"
+if [[ -n "$(git status --porcelain)" ]]; then
+  error "Refusing to upgrade a dirty production checkout. Review or remove local changes first."
+  exit 1
+fi
+
+PREV_COMMIT=$(git rev-parse --verify HEAD)
+info "Current commit: $PREV_COMMIT"
 
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 BACKUP_PATH="$BACKUP_ROOT/$TIMESTAMP"
@@ -43,28 +58,19 @@ BACKUP_PATH="$BACKUP_ROOT/$TIMESTAMP"
 
 section "Pre-upgrade backup"
 mkdir -p "$BACKUP_PATH"
-bash "$(dirname "$0")/backup.sh" --output "$BACKUP_PATH" --quiet
+BACKUP_ARGS=(--output "$BACKUP_PATH" --quiet)
+if [[ "${HELLODEPLOY_DATABASE_BACKUP_MODE:-local}" == "external" ]]; then
+  BACKUP_ARGS+=(--skip-database)
+fi
+bash "$(dirname "$0")/backup.sh" "${BACKUP_ARGS[@]}"
 info "Backup saved to $BACKUP_PATH"
 
-# ─── record current state ────────────────────────────────────────────────────
-
-cd "$HD_HOME"
-PREV_COMMIT=$(git rev-parse HEAD 2>/dev/null || echo "unknown")
-info "Current commit: $PREV_COMMIT"
-
-# ─── pull latest ─────────────────────────────────────────────────────────────
+# ─── resolve immutable release ───────────────────────────────────────────────
 
 section "Pulling code"
 git fetch --tags origin
-
-if [[ -n "$BRANCH" ]]; then
-  git checkout "$BRANCH"
-  git pull --ff-only origin "$BRANCH"
-else
-  git pull --ff-only
-fi
-
-NEW_COMMIT=$(git rev-parse --short HEAD 2>/dev/null || echo "unknown")
+NEW_COMMIT=$(git rev-parse --verify "${RELEASE_REF}^{commit}")
+git checkout --detach "$NEW_COMMIT"
 info "Updated to commit: $NEW_COMMIT"
 
 if [[ "$PREV_COMMIT" == "$NEW_COMMIT" ]]; then
@@ -92,12 +98,13 @@ systemctl daemon-reload
 systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
 info "Services restarted."
 
-# ─── health check ────────────────────────────────────────────────────────────
+# ─── readiness and installation checks ──────────────────────────────────────
 
-section "Health check"
+section "Readiness check"
 sleep 3
 if ! systemctl is-active --quiet hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker || \
-   ! curl --fail --silent --show-error "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/health" >/dev/null; then
+   ! curl --fail --silent --show-error "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || \
+   ! bash infrastructure/verify-installation.sh; then
   error "One or more services are not online after upgrade."
   error "Rolling back to $PREV_COMMIT…"
   git checkout --detach "$PREV_COMMIT"

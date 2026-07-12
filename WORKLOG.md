@@ -1143,3 +1143,163 @@
 ### Reconciliation
 
 - Later P3 real local integration smoke confirmed `/health` returned `200 OK` with JSON status `ok` against the configured environment.
+
+## Batch 1 — Green Quality Baseline
+
+- Status: In Review
+- Started: 2026-07-12T05:39:00+08:00
+- Verified: 2026-07-12T05:48:30+08:00
+- Revision inspected: `0f8f8f3`
+
+### Changes
+
+- Added `.nvmrc` to select Node.js 22 for local NVM users.
+- Aligned contributor and self-hosted installation guidance with Node.js 22, npm 10+, and reproducible `npm ci` installs.
+- Added `docs/RELEASE_POLICY.md` defining `main` as the release branch, immutable annotated semantic-version tags, full-SHA deployment and rollback references, and clean-worktree release gates.
+
+### Verification
+
+- Installed and selected Node.js `v22.23.1` with npm `10.9.8`.
+- `npm ci` passed: 314 packages installed and 324 audited.
+- `package-lock.json` was unchanged before/after installation; SHA-256 remained `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- `npm test` passed: 601 tests, 134 suites, 0 failures, 0 skipped.
+- `npm audit --omit=dev --audit-level=moderate` passed with zero vulnerabilities.
+
+### Remaining completion gates
+
+- Review and commit the intended worktree changes so the release candidate is represented by a clean, reviewed commit.
+- Confirm the Node.js 22 CI workflow passes on that commit.
+
+## Autonomous Readiness Loop — Batches 2–5 Local Work
+
+- Status: Blocked on external host and configuration evidence
+- Verified: 2026-07-12T05:57:00+08:00
+
+### Implemented
+
+- Hardened Nginx route activation/removal transactions and added rollback tests for validation and reload failures.
+- Moved the production routing-mode invariant into worker configuration validation and added valid/invalid fixture tests.
+- Added dependency-aware `/ready` checks while preserving `/health` as liveness.
+- Added bounded, idempotent web shutdown and idempotent worker cleanup for BullMQ, Redis, and MongoDB.
+- Required immutable release references for upgrades, rejected dirty production checkouts, and retained full-SHA rollback references.
+
+### Verification
+
+- Focused configuration, routing, helper, privilege, readiness, shutdown, and upgrade-safety tests passed.
+- Full Node.js 22 suite passed after the initial lifecycle work: 617 tests, 139 suites, 0 failures, 0 skipped.
+- Lint, formatting, dependency audit, and diff checks passed.
+
+### External blockers
+
+- Review/commit and remote CI for the release candidate.
+- Supported Ubuntu host validation for users, groups, systemd, helper socket, Nginx validation/reload, and route rollback.
+- Production-equivalent GitHub App and routing configuration.
+- Second-host encrypted backup/restore proof and real Docker-backed deployment/pilot testing.
+
+### Backup integrity continuation
+
+- Made failed or unavailable local `mongodump` fatal unless `--skip-database` explicitly acknowledges a separately verified external snapshot.
+- Added non-interactive `HELLODEPLOY_DATABASE_BACKUP_MODE=external` support for upgrades using external snapshots.
+- Added generated Nginx routes and platform ingress to backup artifacts.
+- Added `CHECKSUMS.sha256` and versioned `manifest.json` with the full source commit.
+- Made restore validate checksums before prompting or changing services, fail on database restore errors, restore routing state, and run `nginx -t` before restart.
+- Final verification passed: 622 tests, 140 suites, 0 failures, 0 skipped; lint, formatting, audit, shell syntax, and diff checks also passed.
+
+## Destructive Project Cleanup Hardening
+
+- Status: Locally complete; real Docker proof remains part of Batch 6
+- Implemented: 2026-07-12
+
+### Changes
+
+- Capture all project container IDs and unique image tags before deleting deployment records and send them in a validated version-2 deletion job payload.
+- Preserve compatibility with version-1 jobs already waiting in Redis.
+- Refuse permanent database deletion when infrastructure teardown cannot be queued.
+- Remove all recorded containers, images, the per-project Docker network, and the Nginx route.
+- Attempt every teardown action, then fail the job when resources remain so BullMQ retries it.
+- Make Docker cleanup helpers report confirmed success/failure and bound managed-container JSON logs to three 10 MiB files.
+- Implement age-bounded abandoned build-workspace cleanup under the configured build root, including symlink-safe deletion.
+
+### Verification
+
+- Final Node.js 22 suite passed: 630 tests, 143 suites, 0 failures, 0 skipped.
+- Lint, formatting, production dependency audit, and diff checks passed.
+
+## Installed-Host Verification Gate
+
+- Status: Implemented locally; target-host execution remains required
+- Implemented: 2026-07-12
+
+### Changes
+
+- Added a root-run verifier for web/worker identities, Docker/helper group isolation, `.env`, route-directory and helper-socket metadata, GitHub private-key readability, service activity, `nginx -t`, and dependency-aware `/ready`.
+- Wired the verifier into fresh installation and immutable upgrades as a blocking gate.
+- Changed upgrade success validation from liveness-only `/health` to dependency-aware `/ready` plus the complete installed-host verifier.
+- Added focused static wiring and invariant tests and documented the operator command.
+
+### Verification
+
+- Shell syntax checks passed for installer, verifier, upgrade, backup, and restore scripts.
+- Final Node.js 22 suite passed: 634 tests, 144 suites, 0 failures, 0 skipped.
+- Lint, formatting, production dependency audit, and diff checks passed.
+
+## Protected Worker Readiness Visibility
+
+- Status: Implemented locally; supported-host observation remains required
+- Implemented: 2026-07-12T18:57:55+08:00
+
+### Changes
+
+- Added a sanitized BullMQ worker readiness check that returns only availability and the number of connected deployment workers.
+- Added worker readiness to the existing authenticated admin server dashboard instead of creating a public diagnostics endpoint.
+- Made unavailable queues, missing workers, and readiness errors fail closed without returning Redis addresses, client names, credentials, or error text.
+
+### Verification
+
+- Focused worker-readiness, admin-authorization, and related admin UI tests passed: 29 tests, 7 suites.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 638 tests, 145 suites, 0 failures, 0 skipped.
+- Prettier passed for all JavaScript files owned by this slice.
+- Repository-wide `npm run format:check` remains blocked by the pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`; it was preserved unchanged.
+- `git diff --check` passed.
+
+## Sanitized Fatal Process Handling
+
+- Status: Implemented locally; live systemd restart proof remains required
+- Implemented: 2026-07-12T19:00:20+08:00
+
+### Changes
+
+- Added shared, idempotent fatal handlers for uncaught exceptions and unhandled rejections.
+- Log only the failure event, error type, and a constrained error code; messages, stacks, credentials, and topology are excluded.
+- Split web and worker entrypoints into minimal bootstraps and dynamically loaded runtimes so configuration-time module failures are handled before application imports execute.
+- Exit nonzero after fatal startup or unexpected process failures so systemd can restart the service.
+
+### Verification
+
+- Focused process-handler and bootstrap tests passed, including configuration-time failures in both service entrypoints.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 643 tests, 146 suites, 0 failures, 0 skipped.
+- Prettier passed for all files owned by this slice.
+- Repository-wide formatting remains blocked only by the preserved, pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`.
+
+## Bounded Worker Drain and systemd Timeout Alignment
+
+- Status: Implemented locally; live systemd restart proof remains required
+- Implemented: 2026-07-12T19:02:25+08:00
+
+### Changes
+
+- Added an idempotent worker lifecycle with a 110-second active-job drain deadline beneath systemd's 120-second stop window.
+- Force BullMQ closed after a missed deadline, close Redis and MongoDB once, and return failure so the runtime exits nonzero.
+- Exported web and worker shutdown deadlines and added a regression test proving both remain below their installed systemd stop windows.
+
+### Verification
+
+- Focused worker lifecycle and fatal-process tests passed: 9 tests, 2 suites.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 647 tests, 147 suites, 0 failures, 0 skipped.
+- Prettier passed for all files owned by this slice.
+- Repository-wide formatting remains blocked only by the preserved, pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`.

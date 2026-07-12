@@ -1,9 +1,31 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const { activateRoute, removeRoute, readRouteConfig } =
   await import('../../apps/worker/src/nginx/route-manager.js');
+
+async function withConfigDir(fn) {
+  const configDir = await mkdtemp(join(tmpdir(), 'hellodeploy-routes-'));
+  try {
+    await fn(configDir);
+  } finally {
+    await rm(configDir, { recursive: true, force: true });
+  }
+}
+
+function recordingRunner({ failOn } = {}) {
+  const calls = [];
+  const runner = async (binary, args) => {
+    calls.push([binary, ...args]);
+    if (failOn?.(args)) {
+      throw new Error(`simulated nginx ${args.join(' ')} failure`);
+    }
+  };
+  return { calls, runner };
+}
 
 // ─── Unsafe slugs that must be rejected ──────────────────────────────────────
 
@@ -87,4 +109,100 @@ describe('safe slugs pass slug validation without throwing', () => {
       );
     });
   }
+});
+
+describe('route file transactions', () => {
+  it('atomically activates a new route and removes transaction files', async () => {
+    await withConfigDir(async (configDir) => {
+      const commands = recordingRunner();
+      await activateRoute({
+        configDir,
+        slug: 'my-app',
+        configContent: 'server { listen 80; }',
+        commandRunner: commands.runner,
+      });
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'server { listen 80; }');
+      assert.deepEqual(commands.calls, [
+        ['nginx', '-t'],
+        ['nginx', '-s', 'reload'],
+      ]);
+      assert.deepEqual(await readdir(configDir), ['my-app.conf']);
+    });
+  });
+
+  it('restores an existing route when candidate validation fails', async () => {
+    await withConfigDir(async (configDir) => {
+      const confPath = join(configDir, 'my-app.conf');
+      await writeFile(confPath, 'old route');
+      const commands = recordingRunner({ failOn: (args) => args[0] === '-t' });
+
+      await assert.rejects(
+        () =>
+          activateRoute({
+            configDir,
+            slug: 'my-app',
+            configContent: 'invalid candidate',
+            commandRunner: commands.runner,
+          }),
+        /simulated nginx -t failure/,
+      );
+
+      assert.equal(await readFile(confPath, 'utf8'), 'old route');
+      assert.deepEqual(await readdir(configDir), ['my-app.conf']);
+    });
+  });
+
+  it('restores an existing route when reload fails', async () => {
+    await withConfigDir(async (configDir) => {
+      const confPath = join(configDir, 'my-app.conf');
+      await writeFile(confPath, 'old route');
+      const commands = recordingRunner({ failOn: (args) => args[0] === '-s' });
+
+      await assert.rejects(
+        () =>
+          activateRoute({
+            configDir,
+            slug: 'my-app',
+            configContent: 'valid candidate',
+            commandRunner: commands.runner,
+          }),
+        /simulated nginx -s reload failure/,
+      );
+
+      assert.equal(await readFile(confPath, 'utf8'), 'old route');
+      assert.deepEqual(await readdir(configDir), ['my-app.conf']);
+    });
+  });
+
+  it('removes a route only after validation and reload succeed', async () => {
+    await withConfigDir(async (configDir) => {
+      await writeFile(join(configDir, 'my-app.conf'), 'old route');
+      const commands = recordingRunner();
+
+      await removeRoute({ configDir, slug: 'my-app', commandRunner: commands.runner });
+
+      assert.deepEqual(commands.calls, [
+        ['nginx', '-t'],
+        ['nginx', '-s', 'reload'],
+      ]);
+      assert.deepEqual(await readdir(configDir), []);
+    });
+  });
+
+  it('restores a removed route when reload fails', async () => {
+    await withConfigDir(async (configDir) => {
+      const confPath = join(configDir, 'my-app.conf');
+      await writeFile(confPath, 'old route');
+      const commands = recordingRunner({ failOn: (args) => args[0] === '-s' });
+
+      await assert.rejects(
+        () => removeRoute({ configDir, slug: 'my-app', commandRunner: commands.runner }),
+        /simulated nginx -s reload failure/,
+      );
+
+      assert.equal(await readFile(confPath, 'utf8'), 'old route');
+      assert.deepEqual(await readdir(configDir), ['my-app.conf']);
+    });
+  });
 });

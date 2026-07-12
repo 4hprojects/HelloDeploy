@@ -50,9 +50,15 @@ if (portRangeStart > portRangeEnd) {
 const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const nginxEnabled = optional('NGINX_ENABLED', 'false') === 'true';
 
 if (production) {
   assertProductionSecrets({ masterKey });
+  if (!nginxEnabled && process.env.NGINX_DISABLED_ACK !== 'true') {
+    throw new Error(
+      'NGINX_ENABLED=false requires NGINX_DISABLED_ACK=true in production to acknowledge external routing.',
+    );
+  }
   assertAllOrNoneEnvironment(
     [
       ['GITHUB_APP_ID', process.env.GITHUB_APP_ID],
@@ -100,7 +106,7 @@ export const env = {
   NGINX_HELPER_TIMEOUT_MS: helperTimeoutMs,
   PLATFORM_DOMAIN: optional('PLATFORM_DOMAIN', 'hellodeploy.online'),
   // When true the worker skips nginx operations (useful for local dev without nginx)
-  NGINX_ENABLED: optional('NGINX_ENABLED', 'false') === 'true',
+  NGINX_ENABLED: nginxEnabled,
 
   // Master encryption key for decrypting environment secrets at build/runtime
   HELLODEPLOY_MASTER_KEY: masterKey,

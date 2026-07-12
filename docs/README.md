@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-07-02T00:01:30+08:00
+Updated: 2026-07-12T05:29:27+08:00
 
 Use this index as the starting point for repository documentation. The top-level README stays concise; this file owns the detailed documentation map.
 
@@ -14,7 +14,11 @@ Use this index as the starting point for repository documentation. The top-level
 - [Operations Runbooks](OPERATIONS_RUNBOOKS.md) - incident response, backup, restore, upgrade, rollback, uninstall, and maintenance workflows.
 - [Hardening and Pilot Report](HARDENING_AND_PILOT_REPORT.md) - local measurements, conservative operating thresholds, failure-recovery checklist, and pilot checklist.
 - [Self-Hosted Install Guide](SELF_HOSTED_INSTALL.md) - supported Ubuntu versions, install modes, setup steps, required environment keys, and lifecycle commands.
-- [Phase Task Tracker](PHASE_TASK_TRACKER.md) - active checklist for remaining implementation and target-host validation work.
+- [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) - authoritative monitor for current production-readiness execution, verification evidence, blockers, and completion gates.
+- [Autonomous Work Loop](WORK_LOOP.md) - task-selection, continuation, evidence, failure-handling, autonomy, and stopping protocol for Codex work.
+- [Full Implementation Overview](FULL_IMPLEMENTATION_OVERVIEW.md) - human-readable phase map for the complete production-readiness program.
+- [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) - release requirements, sequencing strategy, and the final production go/no-go gate.
+- [Phase Task Tracker](PHASE_TASK_TRACKER.md) - superseded phase-based tracker retained as historical implementation and validation evidence.
 - [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) - planned usability, efficiency, mobile, confirmation, tooltip, form, and accessibility improvements.
 - [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md) - focused accessibility findings and verification after shared UI component updates.
 - [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md) - implementation handoff notes for custom domains, admin operations, hardening/pilot, and self-hosted distribution.
@@ -42,8 +46,10 @@ Use this index as the starting point for repository documentation. The top-level
 ## Current Maintenance Notes
 
 - P9-P12 implementation commits are recorded in [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md).
-- Remaining implementation and validation work is tracked in [Phase Task Tracker](PHASE_TASK_TRACKER.md).
+- Current implementation and validation status is tracked in the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+- Continuous Codex work follows the [Autonomous Work Loop](WORK_LOOP.md); the tracker remains authoritative for status.
+- Release requirements and strategy are defined by the [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md), while detailed completion evidence is preserved in the [Worklog](../WORKLOG.md).
 - UI/UX implementation planning is tracked in [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).
 - UI/UX accessibility findings are recorded in [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md).
-- Host-level P11 recovery checks and the noncritical pilot deployment remain pending until run on the target host.
-- The implementation phase checklist uses explicit status labels for completed, partial, blocked, and deferred work.
+- Host-level recovery checks and the noncritical pilot deployment remain pending until run on the target host.
+- The superseded phase tracker remains available for historical context only.

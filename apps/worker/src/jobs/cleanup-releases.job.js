@@ -4,10 +4,12 @@ import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
 import { isImageTagInUse } from '../deployment/retention.js';
+import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
+import { env } from '../config/env.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
 
-const defaultDeps = { stopAndRemoveContainer, removeDockerImage };
+const defaultDeps = { stopAndRemoveContainer, removeDockerImage, cleanupAbandonedBuildWorkspaces };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
   return activeDeploymentIds.has(deployment._id?.toString());
@@ -43,6 +45,10 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
 
   let removedContainers = 0;
   let removedImages = 0;
+  const removedWorkspaces = await deps.cleanupAbandonedBuildWorkspaces(
+    env.BUILD_WORKSPACE_ROOT,
+    olderThanMs,
+  );
 
   for (const { excess } of healthyByProject) {
     if (!excess || excess.length === 0) {
@@ -132,6 +138,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     removedContainers,
     removedImages,
     removedAbandonedImages,
+    removedWorkspaces,
     projectId: projectId ?? 'all',
   });
 }
