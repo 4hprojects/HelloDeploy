@@ -1818,3 +1818,21 @@
 - Draft PR #6 contains the intended three commits, passed Node.js 22 CI, and was reported cleanly mergeable at the reviewed head.
 - No disk, GPG keyring, database snapshot, package, PM2 process, identity, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
 - Both removable media and exact destructive-device confirmation remain required before the emergency backup stage can begin.
+
+## `v0.1.2` Publication and Protected-Media Gate
+
+- Status: Release published; external-media gate blocked without mutation
+- Updated: 2026-07-13T19:30:22+08:00
+
+### Release Evidence
+
+- The final three-commit head of PR #6 passed Node.js 22 CI after its evidence update and GitHub reported a clean merge state.
+- PR #6 merged at full commit `4b6c15ebd8ba8dc2251d9c17fb9331892414d967`.
+- Annotated tag `v0.1.2` was created without moving an existing tag, pushed, and verified to peel to the reviewed merge commit.
+
+### Protected-Media Stop Condition
+
+- Read-only block-device discovery found the internal system disk and optical device only; no removable storage candidate or stable removable-device path was present.
+- The current user GPG keyring contains no secret key. No dedicated backup identity was generated because the separate recovery-key medium is absent.
+- No partitioning, formatting, mounting, key generation, key import, database snapshot, backup creation, PM2 restart, package installation, service preparation, Nginx change, tunnel change, Docker change, or traffic change occurred.
+- Resume only after both separate removable media are attached. Display and confirm the exact backup device before any destructive operation.
