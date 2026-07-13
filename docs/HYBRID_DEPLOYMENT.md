@@ -14,6 +14,8 @@ This topology keeps the public dashboard on Render while a dedicated Ubuntu 22.0
 
 Keep Render and Ubuntu environment files separate. Copy values through the providers' secret-management interfaces, never through source control, logs, screenshots, or worklog evidence.
 
+The supported service start commands load the root `.env` when it exists and otherwise use provider-managed process environment variables. Render does not require a generated or committed `.env` file.
+
 ## Required Configuration
 
 Render web:
