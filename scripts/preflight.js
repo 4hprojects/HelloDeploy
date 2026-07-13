@@ -26,6 +26,7 @@ if (UNKNOWN_ARGS.length > 0) {
 }
 
 const MIN_NODE_MAJOR = 22;
+const MIN_NPM_MAJOR = 10;
 const MIN_DISK_BYTES = 10 * 1024 ** 3; // 10 GB free
 const MIN_RAM_BYTES = 2 * 1024 ** 3; // 2 GB total
 
@@ -69,9 +70,11 @@ check(`Node.js >= ${MIN_NODE_MAJOR}`, () => {
   return { ok, detail: `Found Node.js ${process.versions.node}` };
 });
 
-check('npm installed', () => {
+check(`npm >= ${MIN_NPM_MAJOR}`, () => {
   const r = run('npm', ['--version']);
-  return { ok: r.ok, detail: r.ok ? `npm ${r.stdout}` : r.stderr };
+  const major = r.ok ? Number.parseInt(r.stdout.split('.')[0], 10) : Number.NaN;
+  const ok = r.ok && Number.isInteger(major) && major >= MIN_NPM_MAJOR;
+  return { ok, detail: r.ok ? `npm ${r.stdout}` : r.stderr || 'npm not found in PATH' };
 });
 
 check('Docker installed', () => {
