@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T14:30:00+08:00
+Updated: 2026-07-13T14:46:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                   |
-| ---------------- | ------------------------------------------------------- |
-| Overall status   | Deployed; validation blocked                            |
-| Release progress | `v0.1.0` published; Render validation blocked           |
-| Current batch    | Batch 3 / Group 1 — Render Security and Shared Services |
-| Next action      | Review/tag v0.1.1; confirm Render configuration/deploy  |
-| Release state    | NO-GO                                                   |
+| Field            | Value                                                    |
+| ---------------- | -------------------------------------------------------- |
+| Overall status   | Deployed; validation blocked                             |
+| Release progress | `v0.1.1` published; Render validation blocked            |
+| Current batch    | Batch 3 / Group 1 — Render Security and Shared Services  |
+| Next action      | Confirm Render commit, start command, and production env |
+| Release state    | NO-GO                                                    |
 
-The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
+The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The reviewed provider-compatibility patch is published as `v0.1.1`, but a fresh public check still finds that the session cookie omits `Secure`. The deployed commit identity, Render production configuration, worker host, and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
 
 ## Status Legend
 

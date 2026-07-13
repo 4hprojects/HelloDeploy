@@ -1583,3 +1583,17 @@
 - Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while provider-managed environments can start without a physical file.
 - Added a configuration contract test for both service start scripts and documented the provider behavior in the hybrid guide.
 - Kept `v0.1.0` immutable. The compatibility correction requires reviewed patch release `v0.1.1`, and the later successful-upgrade drill moves to `v0.1.1` → `v0.1.2`.
+
+## Immutable v0.1.1 Provider Compatibility Release
+
+- Status: Published; Group 1 remains blocked on guided Render deployment confirmation
+- Published: 2026-07-13
+
+### Release Evidence
+
+- PR #2 passed the Node.js 22 CI workflow and was merged into `main` as `eee3440c9e47aa60a95736883d48fdbc307af36e`.
+- Published annotated tag `v0.1.1`; local and remote verification resolve the tag to that exact merge commit.
+- The release retains the strict production cookie contract and adds provider-managed environment compatibility to the supported web and worker start commands.
+- A fresh public production check passed the homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but failed `session-cookie: missing secure`.
+- The public result does not prove which commit or start command Render deployed. Group 1 remains blocked until the Render dashboard confirms the exact merge commit, `npm run start -w @hellodeploy/web`, production mode, and the managed shared-service configuration before another public check.
+- Focused workflow-documentation tests passed, as did lint, formatting, configuration validation, all 717 tests across 156 suites, the production dependency audit with zero reported vulnerabilities, and diff validation.
