@@ -1708,4 +1708,27 @@
 - Direct preflight on the pilot failed the candidate OS row plus both Docker rows by default. With candidate acknowledgment, only the OS row changed to passing; both Docker blockers remained failed.
 - `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
 - The full Node.js suite passed: 722 tests across 157 suites, no failures or skips.
+- Published commit `d920b35` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
 - No package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
+
+## Sanitized In-Place Host Baseline
+
+- Status: Implemented; focused and broad verification passed; review pending
+- Implemented: 2026-07-13T16:48:00+08:00
+
+### Changes
+
+- Added `npm run host:baseline` as a read-only inventory command with JSON and concise human output.
+- Reports only the OS support tier, full release commit and clean/dirty state, bounded prerequisite/service/identity/routing booleans, liveness/readiness status codes, and enumerated blocker codes.
+- Reads the tunnel configuration only to determine whether dashboard and wildcard route shapes exist; it never returns hostnames, services, identifiers, credentials, paths, or file contents.
+- Accepts an explicit active web port for local health checks but does not return an address.
+- Rejects unknown arguments and invalid ports before inspection.
+
+### Verification
+
+- Focused host-baseline tests passed: 4 tests, 1 suite, no failures or skips.
+- Sentinel tests confirmed that environment secrets, Redis URLs, endpoints, hostnames, and process details are absent from stdout and stderr.
+- The first sanitized pilot run reported candidate OS, healthy liveness/readiness, active Nginx/Redis/tunnel, and bounded blockers for dirty release state, Docker, isolated identities/units, helper, managed routes, and wildcard ingress.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 726 tests across 158 suites, no failures or skips.
+- No backup, package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.

@@ -10,7 +10,7 @@ Ubuntu 26.04 is candidate-supported. The candidate flags permit deliberate valid
 
 Before any package, identity, service, Nginx, tunnel, or traffic change:
 
-1. Record the current full Git commit, worktree state, process model, service state, dependency availability, local `/health` and `/ready` results, and public production-check result. Evidence must contain statuses only, never environment values or private identifiers.
+1. Run `npm run host:baseline -- --web-port <active-web-port> --json` to record the current full Git commit, worktree state, bounded service/dependency state, local `/health` and `/ready` results, and blocker codes. Run the public production checker separately. Evidence must contain statuses only, never environment values or private identifiers.
 2. Create a protected backup of the current `.env`, repository release, Nginx dashboard configuration, Cloudflare Tunnel configuration, MongoDB state or verified external snapshot, and any existing HelloDeploy data. Verify its checksums and access controls before continuing.
 3. Record rollback destinations for the repository checkout, repository-run web/worker command, Nginx site, tunnel configuration, and process startup mechanism.
 4. Run `node scripts/preflight.js --json`. The Ubuntu 26.04 OS row must fail as candidate-only unless explicit acknowledgment is supplied.

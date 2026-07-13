@@ -51,7 +51,7 @@ The current live pilot is already on the intended single host, so its next lifec
 
 Before any privileged change:
 
-1. Capture a sanitized process, release, service, Nginx, tunnel, and dependency inventory.
+1. Capture a sanitized release, service, routing, dependency, and health inventory with `npm run host:baseline -- --web-port <active-web-port> --json`.
 2. Create and verify a protected backup without copying secret values into evidence.
 3. Record the exact current dashboard health and immutable repository reference.
 4. Define rollback for the repository-run processes, Nginx configuration, tunnel configuration, and candidate systemd units.
