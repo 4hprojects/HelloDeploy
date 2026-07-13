@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# HelloDeploy installer for Ubuntu 22.04 / 24.04.
+# HelloDeploy installer for supported Ubuntu 22.04 / 24.04.
+# Ubuntu 26.04 is candidate-only and requires explicit acknowledgement.
 #
 # Run as root on a clean Ubuntu server:
 #   curl -fsSL https://raw.githubusercontent.com/.../install.sh | sudo bash
@@ -20,6 +21,7 @@ HD_LOG="/var/log/hellodeploy"
 REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/4hprojects/HelloDeploy.git}"
 RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 NODE_MAJOR=22
+ALLOW_CANDIDATE_OS="${HELLODEPLOY_ALLOW_CANDIDATE_OS:-false}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -43,12 +45,24 @@ if [[ -z "$RELEASE_REF" ]]; then
   exit 1
 fi
 
-if ! grep -qE 'VERSION_ID="(22\.04|24\.04)"' /etc/os-release 2>/dev/null; then
-  error "Unsupported OS.  HelloDeploy requires Ubuntu 22.04 or 24.04."
-  exit 1
-fi
-
-info "Ubuntu $(grep VERSION_ID /etc/os-release | cut -d= -f2 | tr -d '"') detected."
+OS_ID=$(awk -F= '$1 == "ID" {gsub(/"/, "", $2); print tolower($2); exit}' /etc/os-release 2>/dev/null || true)
+OS_VERSION=$(awk -F= '$1 == "VERSION_ID" {gsub(/"/, "", $2); print $2; exit}' /etc/os-release 2>/dev/null || true)
+case "$OS_ID:$OS_VERSION" in
+  ubuntu:22.04|ubuntu:24.04)
+    info "Supported Ubuntu $OS_VERSION detected."
+    ;;
+  ubuntu:26.04)
+    if [[ "$ALLOW_CANDIDATE_OS" != "true" ]]; then
+      error "Ubuntu 26.04 is candidate-only. Set HELLODEPLOY_ALLOW_CANDIDATE_OS=true only after the in-place backup and rollback baseline passes."
+      exit 1
+    fi
+    warn "Ubuntu 26.04 candidate explicitly acknowledged; this does not establish supported status."
+    ;;
+  *)
+    error "Unsupported OS. HelloDeploy supports Ubuntu 22.04 and 24.04; Ubuntu 26.04 is candidate-only."
+    exit 1
+    ;;
+esac
 
 # ─── system packages ─────────────────────────────────────────────────────────
 

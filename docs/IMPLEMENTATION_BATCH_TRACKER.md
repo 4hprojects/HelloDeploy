@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T16:13:00+08:00
+Updated: 2026-07-13T16:42:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -44,7 +44,7 @@ These groups order the remaining batches by dependency and identify work that ca
 | Priority | Group                                    | Status      | Dependency                              | Required outcome                                             |
 | -------- | ---------------------------------------- | ----------- | --------------------------------------- | ------------------------------------------------------------ |
 | 0        | Documentation and Release Reconciliation | In Review   | Green draft PR #5                       | Repository and PR describe the observed local pilot          |
-| 1        | Safe In-Place Baseline                   | Not Started | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
+| 1        | Safe In-Place Baseline                   | In Progress | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
 | 1        | Production Service Foundation            | Blocked     | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
 | 2        | Routing and Production Cutover           | Blocked     | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
 | 3        | Application and Product Validation       | Not Started | Production routing                      | Runtime, role, secret, and accessibility QA passes           |
@@ -63,9 +63,11 @@ These groups order the remaining batches by dependency and identify work that ca
 ### Priority 1 — Safe In-Place Baseline
 
 - Capture a sanitized inventory and verified backup of the current environment, Nginx, tunnel, processes, repository release, and required state before host changes.
-- Add Ubuntu 26.04 candidate checks and tests without declaring general support.
+- [x] Add fail-closed Ubuntu 26.04 candidate checks and tests without declaring general support.
 - Define the exact service, Nginx, tunnel, and repository rollback path while the current dashboard remains available.
 - Stop if current health, backup integrity, immutable release identity, or rollback preparation fails.
+
+**Local evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The protected backup and rehearsed rollback baseline remain required before any installer or host mutation.
 
 ### Priority 1 — Production Service Foundation
 

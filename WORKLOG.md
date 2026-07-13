@@ -1686,3 +1686,26 @@
 - `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
 - Every local link in the touched documentation resolves. The stale-claim review preserves historical observations while distinguishing them from the current pilot evidence.
 - Published documentation commit `80a439b` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+
+## Ubuntu 26.04 Candidate Gate
+
+- Status: Implemented; focused and broad verification passed; review pending
+- Implemented: 2026-07-13T16:42:00+08:00
+
+### Changes
+
+- Added one shared Ubuntu release classifier that keeps 22.04 and 24.04 supported, identifies 26.04 as candidate, and rejects other distributions or versions.
+- Made preflight fail closed on Ubuntu 26.04 unless `--allow-candidate-os` is explicit.
+- Made installation fail closed on Ubuntu 26.04 unless `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` is explicit.
+- Kept the preflight flag and installer variable separate so a prior diagnostic acknowledgment cannot silently authorize privileged installation.
+- Added the candidate release to the generated self-hosted checklist without adding it to the supported-release list.
+- Added an availability-preserving in-place baseline and rollback workflow to the operations runbook and documented the installer-only control outside application `.env` configuration.
+
+### Verification
+
+- Shell and Node syntax checks passed for the installer, preflight, shared classifier, and checklist.
+- Focused installer, preflight, checklist, and Ubuntu policy tests passed: 27 tests across 4 suites, no failures or skips.
+- Direct preflight on the pilot failed the candidate OS row plus both Docker rows by default. With candidate acknowledgment, only the OS row changed to passing; both Docker blockers remained failed.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 722 tests across 157 suites, no failures or skips.
+- No package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.

@@ -85,6 +85,17 @@ After deploying a public release, verify the HTTPS, header, health, readiness, a
 npm run production:check -- https://your-platform-domain.example
 ```
 
+## Installer-only controls
+
+These values control host lifecycle scripts and do not belong in the application `.env`:
+
+| Variable                              | Purpose                                                                                                                                   |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `HELLODEPLOY_RELEASE_REF`             | Required immutable tag or full commit for installation                                                                                    |
+| `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` | Explicitly acknowledges Ubuntu 26.04 candidate validation after the protected backup and rollback baseline passes; does not grant support |
+
+Preflight uses the corresponding `--allow-candidate-os` flag. Both paths fail closed by default, and neither acknowledgment bypasses Docker, service, routing, capacity, or recovery checks.
+
 ## Seeding (one-time)
 
 Used only by `scripts/seed-super-admin.js`: `SUPER_ADMIN_EMAIL`, `SUPER_ADMIN_PASSWORD`, `SUPER_ADMIN_FIRST_NAME`, `SUPER_ADMIN_LAST_NAME`.

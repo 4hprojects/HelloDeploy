@@ -6,6 +6,8 @@ HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
 
 Ubuntu 26.04 is a candidate platform because the live pilot currently runs on it. Do not describe it as generally supported until the installer, Docker execution plane, isolated services, Nginx routing, upgrade rollback, and second-machine restore pass on that release.
 
+Preflight and installation remain fail-closed for candidate releases. After the protected baseline and rollback plan pass, acknowledge Ubuntu 26.04 explicitly with `node scripts/preflight.js --allow-candidate-os` and `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` for the installer. This acknowledgment permits validation; it does not promote the OS to supported status.
+
 Production installations require Node.js 22 and npm 10 or newer. The installer provisions Node.js 22 when needed, and preflight rejects unsupported major versions before making host changes.
 
 License: MIT. See [`LICENSE`](../LICENSE).

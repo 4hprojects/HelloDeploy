@@ -86,4 +86,16 @@ describe('preflight — JSON output', () => {
     assert.match(r.stderr, /Unknown preflight argument/);
     assert.doesNotMatch(r.stdout, /Hybrid Render|hybrid_worker/);
   });
+
+  it('accepts the explicit candidate OS acknowledgement flag', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--allow-candidate-os', '--json'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    const output = JSON.parse(r.stdout);
+    const osCheck = output.checks.find((check) => check.label.startsWith('OS:'));
+    assert.ok(osCheck);
+    assert.doesNotMatch(r.stderr, /Unknown preflight argument/);
+    assert.doesNotMatch(r.stdout, /supported status established/i);
+  });
 });

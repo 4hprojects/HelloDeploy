@@ -4,6 +4,23 @@ These runbooks cover routine platform operations for the single-server V1 deploy
 
 The V1 production target is the complete self-hosted platform on one administrator-controlled Ubuntu host: privilege-separated web and worker services, the constrained Nginx helper, Docker, Nginx, and Cloudflare Tunnel. Do not use the superseded vendor-dashboard/remote-worker path as an installation shortcut. See [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
 
+## Ubuntu 26.04 In-Place Baseline
+
+Ubuntu 26.04 is candidate-supported. The candidate flags permit deliberate validation on the current pilot; they do not establish general support.
+
+Before any package, identity, service, Nginx, tunnel, or traffic change:
+
+1. Record the current full Git commit, worktree state, process model, service state, dependency availability, local `/health` and `/ready` results, and public production-check result. Evidence must contain statuses only, never environment values or private identifiers.
+2. Create a protected backup of the current `.env`, repository release, Nginx dashboard configuration, Cloudflare Tunnel configuration, MongoDB state or verified external snapshot, and any existing HelloDeploy data. Verify its checksums and access controls before continuing.
+3. Record rollback destinations for the repository checkout, repository-run web/worker command, Nginx site, tunnel configuration, and process startup mechanism.
+4. Run `node scripts/preflight.js --json`. The Ubuntu 26.04 OS row must fail as candidate-only unless explicit acknowledgment is supplied.
+5. After steps 1–3 pass, run `node scripts/preflight.js --allow-candidate-os --json`. Candidate acknowledgment changes only the OS gate; Docker and every other missing prerequisite must still fail independently.
+6. Do not run the installer with `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` until the tracker records the verified backup, immutable release, current health, and rollback commands.
+
+Stop immediately if the backup cannot be verified, the current release is ambiguous, health is degraded, or any rollback destination is missing. Keep the current repository-run pilot and tunnel route in place until isolated candidate services pass readiness.
+
+Rollback from a failed pre-cutover candidate by stopping only the new HelloDeploy units, restoring the recorded Nginx and tunnel files, validating Nginx, restoring the prior repository release and command, and rechecking local and public health. Do not remove the pilot process or switch traffic until this recovery path has been rehearsed without secret exposure.
+
 ## Ordered Production Workflow
 
 Run these stages in order and record each in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md):

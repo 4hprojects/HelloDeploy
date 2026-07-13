@@ -8,14 +8,17 @@
  * Usage:
  *   node scripts/preflight.js
  *   node scripts/preflight.js --json    # machine-readable output
+ *   node scripts/preflight.js --allow-candidate-os
  */
 import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, statfsSync } from 'node:fs';
 import os from 'node:os';
+import { classifyUbuntuRelease } from './lib/ubuntu-support.js';
 
 const ARGS = process.argv.slice(2);
 const JSON_OUTPUT = ARGS.includes('--json');
-const UNKNOWN_ARGS = ARGS.filter((arg) => arg !== '--json');
+const ALLOW_CANDIDATE_OS = ARGS.includes('--allow-candidate-os');
+const UNKNOWN_ARGS = ARGS.filter((arg) => arg !== '--json' && arg !== '--allow-candidate-os');
 
 if (UNKNOWN_ARGS.length > 0) {
   process.stderr.write(`Unknown preflight argument: ${UNKNOWN_ARGS[0]}\n`);
@@ -51,19 +54,13 @@ function run(cmd, args) {
 
 // ─── checks ───────────────────────────────────────────────────────────────────
 
-check('OS: Ubuntu 22.04 or 24.04', () => {
+check('OS: supported Ubuntu or explicitly acknowledged candidate', () => {
   if (!existsSync('/etc/os-release')) {
     return { ok: false, detail: '/etc/os-release not found' };
   }
-  const content = readFileSync('/etc/os-release', 'utf8');
-  const id =
-    content
-      .match(/^ID=(.+)$/m)?.[1]
-      ?.toLowerCase()
-      .replace(/"/g, '') ?? '';
-  const version = content.match(/^VERSION_ID="?(.+?)"?$/m)?.[1] ?? '';
-  const ok = id === 'ubuntu' && (version === '22.04' || version === '24.04');
-  return { ok, detail: ok ? `Ubuntu ${version}` : `Detected: ${id} ${version}` };
+  return classifyUbuntuRelease(readFileSync('/etc/os-release', 'utf8'), {
+    allowCandidate: ALLOW_CANDIDATE_OS,
+  });
 });
 
 check(`Node.js >= ${MIN_NODE_MAJOR}`, () => {

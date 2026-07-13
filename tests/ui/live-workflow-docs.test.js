@@ -43,6 +43,10 @@ describe('live workflow documentation', () => {
   });
 
   it('defines one ordered operator lifecycle with evidence safety', () => {
+    assert.match(runbook, /## Ubuntu 26\.04 In-Place Baseline/);
+    assert.match(runbook, /--allow-candidate-os/);
+    assert.match(runbook, /HELLODEPLOY_ALLOW_CANDIDATE_OS=true/);
+    assert.match(runbook, /Keep the current repository-run pilot/);
     assert.match(runbook, /## Ordered Production Workflow/);
     for (const stage of [
       'Preflight',

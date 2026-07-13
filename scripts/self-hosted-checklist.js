@@ -47,6 +47,7 @@ export function buildSelfHostedChecklist({
     domain,
     license: 'MIT',
     supportedUbuntu: ['22.04', '24.04'],
+    candidateUbuntu: ['26.04'],
     startupBlockingEnvironment: [
       'NODE_ENV',
       'MONGODB_URI',

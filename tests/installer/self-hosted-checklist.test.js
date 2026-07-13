@@ -21,6 +21,7 @@ describe('self-hosted checklist', () => {
   it('documents Ubuntu 22.04 and 24.04 support', () => {
     const checklist = buildSelfHostedChecklist();
     assert.deepEqual(checklist.supportedUbuntu, ['22.04', '24.04']);
+    assert.deepEqual(checklist.candidateUbuntu, ['26.04']);
   });
 
   it('separates startup-blocking keys from integration groups', () => {
