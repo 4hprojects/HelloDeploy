@@ -19,7 +19,7 @@ const workerConfig = await readFile(
   'utf8',
 );
 
-describe('hybrid application routing domain', () => {
+describe('application routing domain', () => {
   it('routes deployment lifecycle operations through DEPLOYMENT_DOMAIN', () => {
     for (const source of [pipeline, maintenanceJob, stopJob]) {
       assert.match(source, /env\.DEPLOYMENT_DOMAIN/);
