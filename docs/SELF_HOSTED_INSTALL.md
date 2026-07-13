@@ -35,9 +35,9 @@ Use this mode when the server should not expose inbound router ports.
 - Keep Cloudflare Tunnel configuration backed up outside the server.
 - Use `/admin/server` to pause the queue or enable maintenance mode during tunnel incidents.
 
-### Hybrid Render dashboard and Ubuntu worker
+The supported V1 production topology installs the HelloDeploy web service, deployment worker, constrained Nginx helper, Docker, Nginx, and Cloudflare Tunnel on one administrator-controlled Ubuntu host. The processes retain separate service identities and privileges. See [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
 
-Use the dedicated [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md). The Render web service and Ubuntu worker must share MongoDB Atlas, the same encryption master key, and one managed `rediss://` service. Route only the dashboard hostname to Render; route the wildcard application hostname through the Ubuntu tunnel.
+A vendor-hosted dashboard with a remote worker is not a supported V1 install mode. Managed MongoDB Atlas and managed TLS Redis may still be used as platform dependencies.
 
 ## Clean Install Steps
 
@@ -65,8 +65,6 @@ Machine-readable output:
 
 ```sh
 node scripts/self-hosted-checklist.js --mode public_ip --domain hellodeploy.example.com --json
-
-node scripts/self-hosted-checklist.js --mode hybrid_worker --domain hellodeploy.example.com
 ```
 
 ## Required Environment
@@ -79,7 +77,7 @@ The setup wizard and secret generator populate the production `.env`. Required k
 - `PLATFORM_DOMAIN`
 - `DEPLOYMENT_DOMAIN`
 - `MONGODB_URI`
-- `REDIS_URL` for hybrid/managed Redis, or local `REDIS_HOST` and `REDIS_PORT`
+- `REDIS_URL` for managed Redis, or local `REDIS_HOST` and `REDIS_PORT`
 - `SESSION_SECRET`
 - `HELLODEPLOY_MASTER_KEY`
 - `GITHUB_WEBHOOK_SECRET`

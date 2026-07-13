@@ -41,7 +41,7 @@ The legal policy bundle is available at `/legal`. It links to the Terms of Servi
 3. Enter a project name and slug.
 4. Submit the project draft.
 
-The slug is used for the platform subdomain. For example, a project with slug `my-app` is expected to use a platform-managed hostname such as `my-app.hellodeploy.online` after approval and routing.
+The slug is used for the platform subdomain. For example, a project with slug `my-app` is expected to use a platform-managed hostname such as `my-app.apps.hellodeploy.online` after approval and routing.
 
 New projects start as drafts. A draft must be configured and submitted for review before it can deploy.
 

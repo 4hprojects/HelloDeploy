@@ -1520,16 +1520,16 @@
 - Full Node.js suite passed after the production gate was completed: 697 tests, 154 suites, 0 failures, 0 skipped.
 - The live failure remains open until the new production start path is deployed and the external check passes; local changes are not production evidence.
 
-## Hybrid Render and Ubuntu Worker Foundation
+## Superseded Vendor Dashboard and Remote Worker Experiment
 
-- Status: Implemented and verified locally; external services and host drills remain blocked
+- Status: Superseded after product-architecture correction; not approved V1 guidance
 - Implemented: 2026-07-13
 
-### Changes
+### Historical Changes
 
 - Added shared `REDIS_URL` support for the web queue, rate limiting, live-log subscription, maintenance CLI, and worker. Managed production endpoints require `rediss://`; URL configuration takes precedence while loopback host/port/password remains backward compatible.
 - Replaced Redis endpoint and raw connection-error logging with bounded connection modes and error classifications.
-- Separated the Render dashboard hostname from wildcard application routing through `PLATFORM_DOMAIN`, `DEPLOYMENT_DOMAIN`, and the aligned dashboard suffix.
+- Separated the dashboard hostname from wildcard application routing through `PLATFORM_DOMAIN`, `DEPLOYMENT_DOMAIN`, and the aligned dashboard suffix. This domain separation remains valid for the self-hosted platform.
 - Added production hostname validation so schemes, ports, wildcards, paths, control syntax, and other Nginx-unsafe domain values fail before startup.
 - Added a hybrid checklist and deployment guide for Render web, shared MongoDB Atlas and managed TLS Redis, and an Ubuntu Docker/Nginx/Cloudflare Tunnel worker plane.
 - Added a hybrid worker preflight mode that requires managed TLS Redis without probing or exposing its endpoint and does not require a local Redis daemon.
@@ -1542,11 +1542,11 @@
 - `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed.
 - Full Node.js suite passed after the hybrid preflight was added: 717 tests, 156 suites, 0 failures, 0 skipped.
 - The public production check passed homepage, checkout-derived assets, HSTS, CSP, sign-in, health, and readiness, but still failed `session-cookie: missing secure`.
-- Managed Redis connectivity, Render environment changes, immutable deployment, Ubuntu host verification, real Docker runtimes, authenticated QA, upgrade failure recovery, and second-host restore were not run and remain external blockers.
+- Managed Redis connectivity, immutable full-host deployment, Ubuntu host verification, real Docker runtimes, authenticated QA, upgrade failure recovery, and second-host restore were not run and remain external blockers.
 
 ## Grouped Production Completion Baseline
 
-- Status: Group 0 in progress; external execution groups remain blocked by their documented dependencies
+- Status: Historical grouping superseded by the self-hosted topology correction
 - Recorded: 2026-07-13
 
 ### Execution Structure
@@ -1566,7 +1566,7 @@
 
 ## Immutable v0.1.0 Release Baseline
 
-- Status: Group 0 complete; Group 1 blocked on guided Render configuration and deployment confirmation
+- Status: Group 0 complete; later vendor-specific Group 1 superseded
 - Published: 2026-07-13
 
 ### Release Evidence
@@ -1575,11 +1575,57 @@
 - PR #1 passed the refreshed Node.js 22 CI workflow and was merged into `main` as `740b9a83d4414bf85b97894ea6a1dca0056cfc9e`.
 - Published annotated tag `v0.1.0`; local and remote verification resolve the tag to that exact merge commit.
 - A fresh public production check passed homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but still failed `session-cookie: missing secure`.
-- Public asset matching does not prove the deployed Render commit. Exact commit identity, production environment, supported start command, managed TLS Redis configuration, and redeployment remain guided provider checks.
+- Public asset matching does not prove the deployed commit or target host topology. Exact release identity, production environment, supported start command, Redis configuration, and full-host deployment remain operator checks.
 
 ### Provider Environment Compatibility
 
-- Confirmed Node.js exits before startup when `--env-file` references a missing file, which would make the supported workspace command incompatible with a Render service that supplies process environment variables without creating `.env`.
-- Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while provider-managed environments can start without a physical file.
-- Added a configuration contract test for both service start scripts and documented the provider behavior in the hybrid guide.
+- Confirmed Node.js exits before startup when `--env-file` references a missing file, which makes the supported workspace command incompatible with any process manager that supplies environment variables without creating `.env`.
+- Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while process-managed environments can start without a physical file.
+- Added a configuration contract test for both service start scripts. This provider-neutral compatibility remains valid.
 - Kept `v0.1.0` immutable. The compatibility correction requires reviewed patch release `v0.1.1`, and the later successful-upgrade drill moves to `v0.1.1` → `v0.1.2`.
+
+## Immutable v0.1.1 Provider Compatibility Release
+
+- Status: Published; production validation remains blocked on topology reconciliation and full-host evidence
+- Published: 2026-07-13
+
+### Release Evidence
+
+- PR #2 passed the Node.js 22 CI workflow and was merged into `main` as `eee3440c9e47aa60a95736883d48fdbc307af36e`.
+- Published annotated tag `v0.1.1`; local and remote verification resolve the tag to that exact merge commit.
+- The release retains the strict production cookie contract and adds provider-managed environment compatibility to the supported web and worker start commands.
+- A fresh public production check passed the homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but failed `session-cookie: missing secure`.
+- The public result does not prove which commit, start command, or host topology served the response. Production validation remains blocked until an immutable release runs on the supported full Ubuntu topology with production mode and verified shared-service configuration before another public check.
+- Focused workflow-documentation tests passed, as did lint, formatting, configuration validation, all 717 tests across 156 suites, the production dependency audit with zero reported vulnerabilities, and diff validation.
+
+## Product and Platform Architecture Correction
+
+- Status: Documentation correction implemented; repository implementation reconciliation pending
+- Corrected: 2026-07-13
+
+### Findings
+
+- Confirmed from the blueprint, web/worker boundaries, Docker pipeline, Nginx routing, installer, and user guide that HelloDeploy is the application hosting platform, not a control panel for another PaaS.
+- Restored the canonical V1 topology: one administrator-controlled Ubuntu host running privilege-separated web, worker, constrained Nginx helper, Nginx, Docker, and Cloudflare Tunnel services.
+- Confirmed MongoDB Atlas and managed TLS Redis are optional platform dependencies, not deployment providers.
+- Confirmed `hellodeploy.online` is the dashboard host and `*.apps.hellodeploy.online` is the hosted-project namespace.
+- Classified the vendor-hosted dashboard and remote worker-only path as unapproved multi-node architecture drift. Remote workers remain deferred until an ADR and explicit product approval.
+- Preserved provider-neutral improvements: managed `rediss://` support, bounded Redis diagnostics, process-environment compatibility, dashboard/application domain separation, strict cookies, and public production checks.
+
+### Documentation Changes
+
+- Added the canonical product and platform architecture document and linked it from the repository and documentation indexes.
+- Reconciled the blueprint, settings UX boundary, install guide, environment reference, user guide, readiness tracker, roadmap, implementation overview, and live acceptance checklist.
+- Removed the obsolete hybrid deployment guide and made topology reconciliation the next implementation group.
+
+### Limitation
+
+- Documentation does not remove the `hybrid_worker` checklist, worker-only installer/upgrade/verifier branches, or their tests. Those are the next implementation task and keep production at **NO-GO** until corrected and verified.
+
+### Verification
+
+- Focused live-workflow documentation tests passed: 4 tests, 1 suite, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- Architecture-specific links and domain references resolve. A repository-wide link scan separately found eight pre-existing missing phase-spec targets referenced by `docs/phases/README.md`; no missing files were invented or claimed as part of this correction.

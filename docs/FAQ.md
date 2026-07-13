@@ -56,7 +56,7 @@ A project is a deployable application configuration. It includes the name, slug,
 
 ### What is a slug?
 
-The slug is the URL-safe project identifier used for the platform subdomain. For example, `my-app` can map to a platform hostname such as `my-app.hellodeploy.online`.
+The slug is the URL-safe project identifier used for the platform subdomain. For example, `my-app` can map to a platform hostname such as `my-app.apps.hellodeploy.online`.
 
 ### Why does my first deployment need approval?
 

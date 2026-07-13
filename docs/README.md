@@ -14,7 +14,7 @@ Use this index as the starting point for repository documentation. The top-level
 - [Operations Runbooks](OPERATIONS_RUNBOOKS.md) - incident response, backup, restore, upgrade, rollback, uninstall, and maintenance workflows.
 - [Hardening and Pilot Report](HARDENING_AND_PILOT_REPORT.md) - local measurements, conservative operating thresholds, failure-recovery checklist, and pilot checklist.
 - [Self-Hosted Install Guide](SELF_HOSTED_INSTALL.md) - supported Ubuntu versions, install modes, setup steps, required environment keys, and lifecycle commands.
-- [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md) - Render dashboard, managed TLS Redis, Ubuntu worker plane, wildcard routing, and validation boundaries.
+- [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md) - canonical self-hosted product definition, single-host V1 topology, process boundaries, domains, deployment lifecycle, and deferred multi-node scope.
 - [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) - authoritative monitor for current production-readiness execution, verification evidence, blockers, and completion gates.
 - [Autonomous Work Loop](WORK_LOOP.md) - task-selection, continuation, evidence, failure-handling, autonomy, and stopping protocol for Codex work.
 - [Full Implementation Overview](FULL_IMPLEMENTATION_OVERVIEW.md) - human-readable phase map for the complete production-readiness program.

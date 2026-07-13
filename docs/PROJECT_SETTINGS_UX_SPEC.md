@@ -6,6 +6,8 @@ Updated: 2026-07-13
 
 This specification defines a consolidated project-settings experience for HelloDeploy. It is informed by sanitized observations from seven reference screenshots of a commercial deployment dashboard, but it does not reproduce those screenshots, identifiers, account details, domains, or product-specific wording.
 
+The screenshots are UX references only. HelloDeploy builds and hosts applications on its own administrator-controlled infrastructure; this settings design does not adopt or depend on the reference product's hosting architecture.
+
 The first delivery reorganizes capabilities HelloDeploy already supports. It must not imply that deferred capabilities exist, and it must not change project data, deployment behavior, permissions, quotas, or security boundaries merely to achieve visual similarity.
 
 ## Reference Interaction Patterns

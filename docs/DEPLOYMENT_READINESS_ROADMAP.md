@@ -8,15 +8,15 @@ Work through the phases in order. Phase 0 through Phase 3 contain release-blocki
 
 ## Current Readiness Summary
 
-| Area                     | Status            | Summary                                                                                                                       |
-| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Application architecture | Mostly ready      | Web/worker separation and package boundaries are clear, but OS-level privilege separation is incomplete.                      |
-| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                           |
-| Automated checks         | Locally green     | Lint, formatting, configuration validation, and the full local suite pass; reviewed CI evidence remains required.             |
-| Production configuration | Blocking          | Public web/readiness is live, but the session cookie lacks `Secure` and complete host-side configuration evidence is missing. |
-| Nginx routing            | Blocking          | The constrained helper and worker-only lifecycle are implemented locally; dedicated-host activation and rollback need proof.  |
-| Deployment validation    | Blocking          | Public availability is confirmed; authenticated, Docker-backed, upgrade-recovery, and restore exercises remain incomplete.    |
-| Operations               | Needs validation  | Local lifecycle safeguards are implemented; clean-host upgrade, backup, rollback, and restore drills remain.                  |
+| Area                     | Status             | Summary                                                                                                                     |
+| ------------------------ | ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| Application architecture | Blocking alignment | The self-hosted single-host V1 boundary is clear, but later vendor-dashboard/worker-only artifacts must be removed.         |
+| Security controls        | Strong foundation  | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                         |
+| Automated checks         | Locally green      | Lint, formatting, configuration validation, and the full local suite pass; reviewed CI evidence remains required.           |
+| Production configuration | Blocking           | Public web/readiness is live, but the session cookie lacks `Secure` and complete V1-host configuration evidence is missing. |
+| Nginx routing            | Blocking           | The constrained helper is implemented locally; full-host activation and rollback need proof after topology reconciliation.  |
+| Deployment validation    | Blocking           | Public availability is confirmed; authenticated, Docker-backed, upgrade-recovery, and restore exercises remain incomplete.  |
+| Operations               | Needs validation   | Local lifecycle safeguards are implemented; clean-host upgrade, backup, rollback, and restore drills remain.                |
 
 ## Phase 0 — Establish a Reproducible Release Baseline
 
@@ -126,8 +126,8 @@ The installer also adds the shared `hellodeploy` account to the Docker group whi
 
 - [ ] Complete the production GitHub App configuration, including `GITHUB_APP_NAME`.
 - [ ] Choose one production routing mode:
-  - [x] Set `NGINX_ENABLED=true` for the selected hybrid Ubuntu worker and local helper path.
-  - [ ] Set `NGINX_DISABLED_ACK=true` only when a verified external router manages all application routes.
+  - [x] Set `NGINX_ENABLED=true` for the V1 Ubuntu host and constrained local helper path.
+  - [ ] Keep `NGINX_DISABLED_ACK=true` limited to development or a future separately approved routing architecture.
 - [x] Add `NGINX_DISABLED_ACK` to `.env.example` with a clear warning.
 - [x] Resolve the port-range mismatch by reading and validating `PORT_RANGE_START` and `PORT_RANGE_END` in worker configuration.
 - [x] Validate numeric environment variables for finite values and safe ranges:

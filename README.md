@@ -1,6 +1,6 @@
 # HelloDeploy
 
-HelloDeploy is a self-hosted web application deployment platform. It lets users connect GitHub repositories, configure supported applications, deploy them into isolated containers, inspect deployment logs, and roll back to retained healthy releases.
+HelloDeploy is a self-hosted web application deployment platform. It lets users connect GitHub repositories, configure supported applications, and host them on administrator-controlled Ubuntu infrastructure using isolated Docker releases, Nginx routing, and Cloudflare ingress. HelloDeploy performs the deployment itself; it is not a dashboard for another hosting provider.
 
 ## Features
 
@@ -17,6 +17,7 @@ See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [IMPROV
 ## Documentation
 
 - [Documentation Index](docs/README.md)
+- [Product and Platform Architecture](docs/PLATFORM_ARCHITECTURE.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Blueprint](hellodeploy-blueprint/00_MASTER_INDEX.md)
 - [P9-P12 Maintenance Summary](docs/P9_P12_MAINTENANCE_SUMMARY.md)
