@@ -2,12 +2,14 @@
 
 These runbooks cover routine platform operations for the single-server V1 deployment model.
 
+The V1 production target is the complete self-hosted platform on one administrator-controlled Ubuntu host: privilege-separated web and worker services, the constrained Nginx helper, Docker, Nginx, and Cloudflare Tunnel. Do not use the superseded vendor-dashboard/remote-worker path as an installation shortcut. See [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
+
 ## Ordered Production Workflow
 
 Run these stages in order and record each in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md):
 
 1. **Preflight:** run the supported-host preflight. Stop on unsupported software, missing capacity/tools, or unsafe permissions.
-2. **Configuration:** complete `.env`, select routing, run web and worker validation with `--require-production` under their service identities, and resolve every `non-production`, `incomplete`, or invalid result.
+2. **Configuration:** complete `.env`, enable the constrained local Nginx routing path, run web and worker validation with `--require-production` under their service identities, and resolve every `non-production`, `incomplete`, or invalid result.
 3. **Install:** install one immutable tag or full commit with `npm ci`; do not continue from a dirty or moving checkout.
 4. **Verify:** run the installed-host verifier and confirm identities, protected files, helper socket, Nginx, services, and `/ready`. Then run `npm run production:check -- https://your-platform-domain.example` from an external network. Stop if the web identity can access Docker or the route helper, or if HTTPS headers, readiness sanitization, or session-cookie attributes fail.
 5. **Deploy:** deploy representative supported runtimes and confirm routing, non-root identity, loopback binding, resource limits, secret redaction, cleanup, and healthy-release continuity.

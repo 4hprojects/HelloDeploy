@@ -6,9 +6,9 @@
 Browser
   |
   v
-Cloudflare -> Cloudflare Tunnel -> Nginx
+Cloudflare -> Cloudflare Tunnel -> Nginx on the HelloDeploy host
                                   |-- hellodeploy.online -> Web/API
-                                  |-- app.hellodeploy.online -> User container
+                                  |-- app.apps.hellodeploy.online -> User container
                                   `-- custom-domain.example -> User container
 
 Web/API -> MongoDB Atlas
@@ -159,6 +159,8 @@ Production services should run as separate processes or containers:
 - Cloudflare Tunnel service
 - User application containers
 
+V1 runs the web, worker, Nginx helper, Nginx, Docker Engine, and tunnel on one administrator-controlled Ubuntu platform host while preserving separate service identities. MongoDB Atlas and managed Redis may be external dependencies. A vendor-hosted dashboard, remote worker, or multiple deployment nodes is not part of the V1 topology.
+
 The worker needs controlled Docker access. Do not expose the Docker socket to the web application.
 
 ## Filesystem Layout
@@ -215,7 +217,7 @@ If any step fails, preserve the previous active route.
 HelloDeploy can run locally using a LAN address without `hellodeploy.online`. Public hosting requires a resolvable domain or tunnel hostname. Production will use:
 
 - `hellodeploy.online` for the platform
-- `*.hellodeploy.online` for hosted projects
+- `*.apps.hellodeploy.online` for hosted projects
 - Approved custom domains mapped to specific projects
 
 ## Current Server Coexistence

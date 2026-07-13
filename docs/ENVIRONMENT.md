@@ -12,13 +12,13 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | `PORT`           | web         | no              | `3000`                                  | Web server listen port                                                                 |
 | `HOST`           | web         | no              | `localhost`                             | Web server bind address                                                                |
 | `MONGODB_URI`    | web, worker | **yes**         | `mongodb://127.0.0.1:27017/hellodeploy` | MongoDB connection string                                                              |
-| `REDIS_URL`      | web, worker | hybrid/managed  | —                                       | Preferred managed Redis connection; remote production connections must use `rediss://` |
+| `REDIS_URL`      | web, worker | managed         | —                                       | Preferred managed Redis connection; remote production connections must use `rediss://` |
 | `REDIS_HOST`     | web, worker | no              | `127.0.0.1`                             | Legacy/local Redis host, used only when `REDIS_URL` is empty                           |
 | `REDIS_PORT`     | web, worker | no              | `6379`                                  | Legacy/local Redis port                                                                |
 | `REDIS_PASSWORD` | web, worker | no              | —                                       | Legacy/local Redis password                                                            |
 | `LOG_LEVEL`      | web, worker | no              | `debug` dev / `info` prod               | `error` \| `warn` \| `info` \| `debug`                                                 |
 
-`REDIS_URL` is authoritative when present, so stale legacy Redis fields cannot redirect a hybrid service. Production rejects `redis://` for a non-loopback endpoint and rejects non-loopback `REDIS_HOST`; use `rediss://` for managed Redis. Diagnostics and logs report only a bounded connection mode or error classification, never the URL, hostname, username, password, or provider endpoint.
+`REDIS_URL` is authoritative when present, so stale legacy Redis fields cannot redirect a service. Production rejects `redis://` for a non-loopback endpoint and rejects non-loopback `REDIS_HOST`; use `rediss://` for managed Redis. Diagnostics and logs report only a bounded connection mode or error classification, never the URL, hostname, username, password, or provider endpoint.
 
 ## Security
 
@@ -31,17 +31,17 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 
 ## Platform / routing
 
-| Variable                       | Used by     | Required (prod) | Default                               | Purpose                                                                                                                     |
-| ------------------------------ | ----------- | --------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility                                    |
-| `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                         |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`            | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                        |
-| `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                          |
-| `NGINX_DISABLED_ACK`           | worker      | no              | `false`                               | Set `true` to allow `NGINX_ENABLED=false` in production (routing handled externally); otherwise the worker refuses to start |
-| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                                                               |
-| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                                                            |
-| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                                                            |
-| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                                                             |
+| Variable                       | Used by     | Required (prod) | Default                               | Purpose                                                                                                                |
+| ------------------------------ | ----------- | --------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility                               |
+| `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                    |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`            | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                   |
+| `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                     |
+| `NGINX_DISABLED_ACK`           | worker      | no              | `false`                               | Explicitly acknowledges disabled Nginx for development or a future approved router; not a supported V1 production mode |
+| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                                                          |
+| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                                                       |
+| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                                                       |
+| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                                                        |
 
 ## GitHub App
 

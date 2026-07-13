@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T14:30:00+08:00
+Updated: 2026-07-13T15:09:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -9,12 +9,12 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Field            | Value                                                   |
 | ---------------- | ------------------------------------------------------- |
 | Overall status   | Deployed; validation blocked                            |
-| Release progress | `v0.1.0` published; Render validation blocked           |
-| Current batch    | Batch 3 / Group 1 — Render Security and Shared Services |
-| Next action      | Review/tag v0.1.1; confirm Render configuration/deploy  |
+| Release progress | `v0.1.1` published; topology correction required        |
+| Current batch    | Group 1 — Product and Topology Reconciliation           |
+| Next action      | Remove unsupported hybrid/worker-only V1 implementation |
 | Release state    | NO-GO                                                   |
 
-The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
+The public application is externally reachable through Cloudflare, but its current hosting path is not accepted as proof of the target production topology. HelloDeploy is the hosting platform: V1 runs the privilege-separated web, worker, Docker, Nginx helper, Nginx, and Cloudflare Tunnel on one administrator-controlled Ubuntu host. A later vendor-dashboard/remote-worker assumption contradicted the blueprint and introduced unsupported worker-only artifacts that must be removed or reconciled before host validation. The public session cookie still omits `Secure`; authenticated, Docker, routing, and recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
 
 ## Status Legend
 
@@ -41,14 +41,14 @@ The public application is deployed and externally reachable through Cloudflare. 
 
 These groups order the remaining batches by dependency and identify work that can be executed together. Group status follows this tracker's status legend; individual live checks continue to use `Passed`, `Failed`, `Blocked`, or `Not Run` in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md).
 
-| Group | Name                                     | Status      | Dependency                        | Required outcome                                       |
-| ----- | ---------------------------------------- | ----------- | --------------------------------- | ------------------------------------------------------ |
-| 0     | Tracker and Release Baseline             | Complete    | Clean PR branch and green CI      | Reviewed merge commit and verified annotated `v0.1.0`  |
-| 1     | Render Security and Shared Services      | Blocked     | Group 0                           | Exact release deployed and every public check passes   |
-| 2     | Ubuntu Worker Plane and Cloudflare Route | Blocked     | Groups 0–1 and guided host access | Isolated worker plane and rollback-safe wildcard route |
-| 3     | Deployment and Authenticated Product QA  | Not Started | Group 2                           | Runtime, security, role, and accessibility QA passes   |
-| 4     | Upgrade, Rollback, Backup, and Restore   | Not Started | Group 3 and second-host/S3 access | Verified recovery from release and host failures       |
-| 5     | Final GO/NO-GO Decision                  | Not Started | Groups 0–4                        | Every release gate has direct evidence                 |
+| Group | Name                                      | Status      | Dependency                        | Required outcome                                             |
+| ----- | ----------------------------------------- | ----------- | --------------------------------- | ------------------------------------------------------------ |
+| 0     | Tracker and Release Baseline              | Complete    | Clean PR branch and green CI      | Reviewed merge commit and verified annotated `v0.1.0`        |
+| 1     | Product and Topology Reconciliation       | In Progress | Group 0                           | Repository agrees on the self-hosted single-host V1 boundary |
+| 2     | Ubuntu Platform Host and Cloudflare Route | Blocked     | Group 1 and guided host access    | Isolated full platform and rollback-safe public routing      |
+| 3     | Deployment and Authenticated Product QA   | Not Started | Group 2                           | Runtime, security, role, and accessibility QA passes         |
+| 4     | Upgrade, Rollback, Backup, and Restore    | Not Started | Group 3 and second-host/S3 access | Verified recovery from release and host failures             |
+| 5     | Final GO/NO-GO Decision                   | Not Started | Groups 0–4                        | Every release gate has direct evidence                       |
 
 ### Group 0 — Tracker and Release Baseline
 
@@ -57,19 +57,21 @@ These groups order the remaining batches by dependency and identify work that ca
 - Review and merge the clean PR into `main`, then create annotated tag `v0.1.0` on the merge commit.
 - Record the tag and full commit SHA. Stop on review, CI, merge-state, clean-checkout, or tag-verification failure.
 
-### Group 1 — Render Security and Shared Services
+### Group 1 — Product and Topology Reconciliation
 
-- Configure the Render web service for the supported production start path, Atlas, managed TLS Redis, domains, queue, and existing encryption key through provider secret management.
-- Release the provider-environment compatibility fix as `v0.1.1`, then let Render auto-deploy that exact tagged `main` commit and verify its commit identity.
-- Require the public checker to pass assets, HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`.
-- If the cookie remains insecure, inspect only bounded production/proxy booleans. Stop on any public, shared-service, configuration, or commit-identity failure.
+- Treat commercial dashboard screenshots as UX references only; HelloDeploy builds and hosts applications itself.
+- Make one administrator-controlled Ubuntu host the only supported V1 production topology, with separate web and worker identities on that host.
+- Remove the vendor-specific checklist, remote-dashboard guidance, and worker-only V1 install/upgrade/verification branches introduced by the superseded assumption.
+- Retain provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support.
+- Reconcile blueprint, architecture, installer, preflight, configuration, tests, runbooks, and acceptance evidence. Stop if any production path still implies that another PaaS hosts or deploys HelloDeploy projects.
 
-### Group 2 — Ubuntu Worker Plane and Cloudflare Routing
+### Group 2 — Ubuntu Platform Host and Cloudflare Routing
 
-- Run hybrid-worker preflight, securely deliver the shared configuration, and install immutable `v0.1.0` in worker-only mode.
-- Route `*.apps.hellodeploy.online` through the Ubuntu Cloudflare Tunnel and Nginx.
-- Verify identities, protected configuration and key permissions, helper socket, systemd, managed Redis mode, `nginx -t`, route transactions, and rollback.
-- Prove that no web service runs on the worker host and the public web plane has no Docker/helper path. Stop on unsafe privileges, generated replacement secrets, tunnel failure, or rollback failure.
+- Run full-host preflight and install a reviewed immutable release on one supported Ubuntu host.
+- Run the web, worker, and constrained Nginx helper under separate identities; route `hellodeploy.online` and `*.apps.hellodeploy.online` through the host's Cloudflare Tunnel and Nginx.
+- Verify protected configuration and key permissions, helper socket ownership, systemd services, Redis mode, `nginx -t`, dashboard ingress, project route activation/replacement/removal, and rollback.
+- Prove the web identity cannot access Docker or the helper while the worker can perform only its required deployment operations.
+- Run the public checker and require HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`. Stop on unsafe privileges, tunnel/routing failure, insecure cookies, shared-service failure, or release-identity mismatch.
 
 ### Group 3 — Deployment and Authenticated Product QA
 
@@ -158,7 +160,7 @@ git status --short
 - Record target-host users, groups, socket permissions, route file ownership, `nginx -t`, activation, and rollback results without secrets.
 
 **Completion gate:** The worker activates routes through the constrained helper, the web process has no Docker or Nginx-control access, and invalid configuration leaves the last healthy route active.
-**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Install, upgrade, and verification support an explicit worker-only host role that omits the web service and dashboard ingress, validates worker configuration, and still checks identities, groups, protected metadata, helper socket, service activity, and `nginx -t`. Focused routing/helper/privilege/verifier tests passed locally. Clean-host execution, live reload, and route activation proof remain required.
+**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Separate web, worker, and helper identities plus automated metadata checks are implemented locally. The later worker-only host role is outside the confirmed single-host V1 scope and must be removed before this evidence can be considered aligned. Focused routing/helper/privilege/verifier tests passed locally; full-host clean installation, live reload, route activation, and denial-of-privilege proof remain required.
 
 ## Batch 3 — Production Configuration
 
@@ -186,7 +188,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** The hybrid topology now explicitly routes the Render dashboard through `PLATFORM_DOMAIN` and worker-managed wildcard applications through `DEPLOYMENT_DOMAIN` with the local Nginx helper enabled on Ubuntu. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode, and the value-safe public checker still fails only the live missing `Secure` attribute. Redeployment, complete GitHub App proof, managed Redis connectivity, and service-identity evidence remain blockers.
+**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard; both are routed by the V1 host's Nginx/Cloudflare ingress. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode, and the value-safe public checker still fails the live missing `Secure` attribute. Removal of the unsupported remote-dashboard path, complete GitHub App proof, full-host shared-service connectivity, and service-identity evidence remain blockers.
 
 ## Batch 4 — Health and Graceful Shutdown
 
@@ -243,7 +245,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** A clean host installs without permission repair, upgrades either succeed fully or roll back safely, and an encrypted backup restores successfully on a second host.
-**Evidence:** Install and upgrade require explicit immutable refs, resolve full commits, and use detached checkouts. Worker-only installation requires securely pre-provisioned shared configuration and refuses to generate a different encryption key. Upgrade pauses/drains BullMQ and verifies either candidate or rollback while preserving operator pause state. Backup/restore integrity protections remain in place. Shell syntax and focused lifecycle tests pass; clean-host install, managed Redis connectivity, failed-upgrade execution, encrypted off-host storage, and cross-host restore proof remain open.
+**Evidence:** Install and upgrade require explicit immutable refs, resolve full commits, and use detached checkouts. Upgrade pauses/drains BullMQ and verifies either candidate or rollback while preserving operator pause state. Backup/restore integrity protections remain in place. The worker-only installation branch was implemented for the superseded remote-worker assumption and must be removed without weakening immutable-release or secret-preservation safeguards. Shell syntax and focused lifecycle tests pass; aligned full-host installation, Redis connectivity, failed-upgrade execution, encrypted off-host storage, and cross-host restore proof remain open.
 
 ## Batch 6 — Real Deployment Validation
 

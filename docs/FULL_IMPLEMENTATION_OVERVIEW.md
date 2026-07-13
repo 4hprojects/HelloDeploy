@@ -1,8 +1,8 @@
 # HelloDeploy Full Implementation Overview
 
 Current release state: **NO-GO**
-Local baseline: **634 tests passing**
-Primary blocker: production-equivalent host validation and release evidence.
+Local baseline: **717 tests passing**
+Primary blocker: reconcile the unsupported vendor-dashboard/worker-only drift, then validate the complete self-hosted platform on a supported Ubuntu host.
 
 | Batch | Objective                  | Current status           | Remaining outcome                                              |
 | ----- | -------------------------- | ------------------------ | -------------------------------------------------------------- |
@@ -42,9 +42,7 @@ Use a clean Ubuntu 22.04 or 24.04 host.
   - Privileged Nginx helper
 - Configure MongoDB, Redis, Docker, Nginx, systemd, and ingress.
 - Provide GitHub App credentials outside source control.
-- Select routing mode:
-  - Local Nginx helper, or
-  - Explicitly acknowledged external router
+- Enable the constrained local Nginx helper; an external application router is not part of the V1 production topology.
 - Run:
 
 ```bash

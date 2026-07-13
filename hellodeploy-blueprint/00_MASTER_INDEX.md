@@ -11,7 +11,7 @@ HelloDeploy does not host user databases in Version 1. Users should connect thei
 - Product domain: `hellodeploy.online`
 - Target audience: general developers and project owners
 - Positioning: production Hello ecosystem platform and MIT capstone candidate
-- Hosting model: applications run on administrator-controlled Ubuntu servers
+- Hosting model: HelloDeploy and its hosted applications run on administrator-controlled Ubuntu infrastructure; V1 uses one platform host with privilege-separated web and worker services
 - V1 runtime support: static sites, Node.js, Express, React, Vue, and constrained Next.js
 - Deferred runtimes: Python, PHP, and Java
 - Isolation: one Docker container per deployed application release
@@ -25,6 +25,7 @@ HelloDeploy does not host user databases in Version 1. Users should connect thei
 - User databases: external only
 - Existing PM2 deployments remain untouched until explicitly migrated
 - Future distribution: installable self-hosted edition for other server owners
+- Reference dashboards influence UX patterns only; HelloDeploy does not delegate application deployments to another PaaS
 
 ## Document Map
 
@@ -101,7 +102,7 @@ HelloDeploy does not own in V1:
 
 ## Definition of MVP Success
 
-The MVP is complete when a verified user can connect an approved GitHub repository, manually deploy a supported application, receive a working `*.hellodeploy.online` URL, inspect logs, redeploy, and roll back while the Super Admin can enforce quotas and suspend the application.
+The MVP is complete when a verified user can connect an approved GitHub repository, manually deploy a supported application, receive a working `*.apps.hellodeploy.online` URL, inspect logs, redeploy, and roll back while the Super Admin can enforce quotas and suspend the application.
 
 ## Working Rules
 

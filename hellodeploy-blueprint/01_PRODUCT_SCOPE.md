@@ -4,6 +4,8 @@
 
 HelloDeploy lets a user host a supported web application from a GitHub repository without manually configuring Linux, Docker, Nginx, ports, TLS, or Cloudflare Tunnel. The platform is optimized for controlled free hosting on resource-constrained, administrator-owned infrastructure.
 
+HelloDeploy builds and runs the applications itself. Reference hosting products may inform interface design, but HelloDeploy is not a control panel for an external PaaS.
+
 ## Primary Users
 
 ### General User

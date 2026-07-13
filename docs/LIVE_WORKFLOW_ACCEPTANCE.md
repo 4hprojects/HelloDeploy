@@ -13,17 +13,26 @@ Use exactly one status for every check:
 
 Public HTTP evidence never proves authenticated behavior, host isolation, Docker behavior, upgrade recovery, or backup restoration. Evidence must exclude credentials, cookie values, session identifiers, secret values, internal addresses, and private service identifiers.
 
+## Product and Architecture Boundary
+
+| Check                    | Expected result                                                                 | Status | Evidence or next action                                                                                   |
+| ------------------------ | ------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
+| Product responsibility   | HelloDeploy builds, runs, routes, and rolls back hosted projects itself         | Passed | Blueprint, web/worker code, Docker pipeline, and Nginx routing establish HelloDeploy as the hosting layer |
+| V1 topology              | One administrator-controlled Ubuntu host with privilege-separated services      | Passed | Canonical target is defined in the blueprint and product architecture                                     |
+| Repository conformance   | Installer, preflight, tests, and runbooks expose only the supported V1 topology | Failed | Remove the later vendor-dashboard and worker-only implementation before host validation                   |
+| Multi-node/remote worker | Remains deferred until an approved ADR and implementation plan                  | Passed | Blueprint decision log explicitly defers this capability                                                  |
+
 ## Public Production Boundary
 
-| Check            | Expected result                                         | Status | Evidence or next action                                                                                                                                                          |
-| ---------------- | ------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public homepage  | HTTPS response through the configured public edge       | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                                                                    |
-| Sign-in page     | Authentication entry point is reachable                 | Passed | `/auth/sign-in` returned `200`                                                                                                                                                   |
-| Liveness         | Sanitized web-process response                          | Passed | `/health` returned `200` with service and timestamp only                                                                                                                         |
-| Readiness        | Sanitized MongoDB, Redis, and queue state               | Passed | `/ready` returned `200`; all three named checks were true                                                                                                                        |
-| HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                                            |
-| Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout in the live homepage                                                           |
-| Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Failed | A fresh check after publishing `v0.1.0` still reports `missing secure`; confirm Render deployed the tagged merge commit with production configuration, then redeploy and recheck |
+| Check            | Expected result                                         | Status | Evidence or next action                                                                                                                                            |
+| ---------------- | ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Public homepage  | HTTPS response through the configured public edge       | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                                                      |
+| Sign-in page     | Authentication entry point is reachable                 | Passed | `/auth/sign-in` returned `200`                                                                                                                                     |
+| Liveness         | Sanitized web-process response                          | Passed | `/health` returned `200` with service and timestamp only                                                                                                           |
+| Readiness        | Sanitized MongoDB, Redis, and queue state               | Passed | `/ready` returned `200`; all three named checks were true                                                                                                          |
+| HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                              |
+| Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout; this does not prove the target host topology or exact release   |
+| Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Failed | The fresh public check reports `missing secure`; validate production mode and trusted HTTPS forwarding on the actual HelloDeploy ingress, then restart and recheck |
 
 ## Project-Owner Workflow
 
@@ -44,18 +53,18 @@ Use a user-guided session or restricted staging account. Do not share credential
 
 ## Operator Lifecycle Workflow
 
-| Stage         | Expected result                                                                                            | Stop condition                                                          | Status  |
-| ------------- | ---------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------- | ------- |
-| Preflight     | Supported Ubuntu, Node/npm, Docker, Redis, Nginx, systemd, capacity, and required tools pass               | Any blocking preflight failure                                          | Blocked |
-| Configuration | Render web and Ubuntu worker validation pass with shared MongoDB/master key and managed TLS Redis          | Missing, invalid, partial, insecure Redis, or unreadable configuration  | Blocked |
-| Installation  | Immutable worker-plane release installed without a local web service or regenerated shared secrets         | Permission repair, generated replacement secrets, or unverified startup | Blocked |
-| Verification  | Identities, protected files, helper socket, Nginx, services, and `/ready` pass                             | Web has Docker/helper access or routing validation fails                | Blocked |
-| Real deploy   | Every supported runtime serves through production routing with non-root and resource limits                | Secret leak, unsafe binding, residue, or healthy-release displacement   | Blocked |
-| Upgrade       | Backup verifies; queue pauses/drains; candidate installs and verifies before prior queue state is restored | Drain timeout, candidate verification failure, or unknown queue state   | Blocked |
-| Rollback      | Previous full commit, dependencies, units, ingress, services, readiness, and queue state restore           | Critical rollback-verification failure; keep queue paused               | Blocked |
-| Backup        | Required state is complete, checksummed, encrypted, access-controlled, and stored off-host                 | Missing database/route/config state or failed integrity check           | Blocked |
-| Restore       | Second clean host restores the platform and representative project with recorded RPO/RTO                   | Integrity, startup, route, or representative-project failure            | Blocked |
+| Stage         | Expected result                                                                                            | Stop condition                                                         | Status  |
+| ------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------- |
+| Preflight     | Supported Ubuntu, Node/npm, Docker, Redis, Nginx, systemd, capacity, and required tools pass               | Any blocking preflight failure                                         | Blocked |
+| Configuration | Web and worker validation pass on the V1 host with one database, queue, encryption key, and routing policy | Missing, invalid, partial, insecure Redis, or unreadable configuration | Blocked |
+| Installation  | Immutable full-platform release installs web, worker, helper, Nginx integration, and protected config      | Permission repair, regenerated existing secrets, or unverified startup | Blocked |
+| Verification  | Identities, protected files, helper socket, Nginx, services, and `/ready` pass                             | Web has Docker/helper access or routing validation fails               | Blocked |
+| Real deploy   | Every supported runtime serves through production routing with non-root and resource limits                | Secret leak, unsafe binding, residue, or healthy-release displacement  | Blocked |
+| Upgrade       | Backup verifies; queue pauses/drains; candidate installs and verifies before prior queue state is restored | Drain timeout, candidate verification failure, or unknown queue state  | Blocked |
+| Rollback      | Previous full commit, dependencies, units, ingress, services, readiness, and queue state restore           | Critical rollback-verification failure; keep queue paused              | Blocked |
+| Backup        | Required state is complete, checksummed, encrypted, access-controlled, and stored off-host                 | Missing database/route/config state or failed integrity check          | Blocked |
+| Restore       | Second clean host restores the platform and representative project with recorded RPO/RTO                   | Integrity, startup, route, or representative-project failure           | Blocked |
 
 ## Production Decision
 
-Current decision: **NO-GO**. Public availability is confirmed, but the failed session-cookie check and every authenticated, privilege-isolation, Docker, upgrade-recovery, and cross-host-restore row must be resolved with evidence before a GO decision.
+Current decision: **NO-GO**. Public availability is confirmed, but repository topology drift, the failed session-cookie check, and every authenticated, privilege-isolation, Docker, upgrade-recovery, and cross-host-restore row must be resolved with direct evidence before a GO decision.

@@ -24,7 +24,7 @@ Controls:
 5. System retrieves repository metadata and latest commit.
 6. Framework detector proposes configuration.
 7. User supplies required settings and secret names/values.
-8. System reserves `project-slug.hellodeploy.online`.
+8. System reserves `project-slug.apps.hellodeploy.online`.
 9. Project remains a draft until approval is requested.
 
 ## Initial Approval

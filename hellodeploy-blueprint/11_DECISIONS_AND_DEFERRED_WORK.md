@@ -26,6 +26,7 @@
 | User databases             | External MongoDB Atlas or Supabase PostgreSQL        |
 | Project roles              | Owner, Maintainer, Viewer                            |
 | Positioning                | Production project and MIT capstone candidate        |
+| V1 production topology     | One administrator-controlled Ubuntu platform host    |
 | Styling                    | Standard CSS design system                           |
 | Brand palette              | Deployment orange and baby blue                      |
 | Foundation colors          | Infrastructure navy and slate                        |
@@ -49,6 +50,7 @@
 
 - Multiple deployment servers
 - Remote HelloDeploy Agent
+- Vendor-hosted dashboard with a remote deployment worker
 - High availability
 - Load balancing across nodes
 - Kubernetes
