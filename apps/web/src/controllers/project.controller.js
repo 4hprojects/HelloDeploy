@@ -25,6 +25,10 @@ import {
   validateMaintenanceMessage,
   validateInviteMember,
 } from '../validators/project.validator.js';
+import { buildSettingsSections } from '../config/project-navigation.js';
+import { getProjectDomains } from '../services/domain.service.js';
+import { resolveProjectQuota } from '../services/quota.service.js';
+import { projectReturnTarget } from '../utils/project-return-target.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
@@ -108,7 +112,11 @@ function buildOnboardingChecklist(project, secretCount) {
       done: Boolean(project.activeDeploymentId),
     },
   ];
-  return { steps, complete: steps.every((s) => s.done || s.optional) };
+  return {
+    steps,
+    nextStep: steps.find((step) => !step.done) ?? null,
+    complete: steps.every((s) => s.done || s.optional),
+  };
 }
 
 async function renderProjectOverview(req, res, extras = {}) {
@@ -158,10 +166,47 @@ export function getEditProject(req, res) {
   });
 }
 
+export async function renderProjectSettings(req, res, extras = {}) {
+  const { deployHookTokenHash, ...projectForView } = req.project;
+  const [repository, domains, quota] = await Promise.all([
+    req.project.repositoryId ? Repository.findById(req.project.repositoryId).lean() : null,
+    getProjectDomains(req.project._id),
+    resolveProjectQuota(req.project._id, req.project.ownerId),
+  ]);
+
+  res.render('pages/projects/settings', {
+    title: `Settings – ${req.project.name}`,
+    project: projectForView,
+    membership: req.membership,
+    settingsSections: buildSettingsSections(req.project.slug),
+    repository,
+    domains,
+    quota,
+    hasDeployHook: Boolean(deployHookTokenHash),
+    activeSettingsEdit: null,
+    settingsErrors: {},
+    settingsValues: {},
+    bcErrors: {},
+    bcValues: null,
+    bfErrors: {},
+    bfValues: null,
+    ...extras,
+  });
+}
+
+export const getProjectSettings = asyncHandler((req, res) => renderProjectSettings(req, res));
+
 export const postEditProject = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateUpdateProject(req.body);
 
   if (hasErrors) {
+    if (projectReturnTarget(req, '').endsWith('#general')) {
+      return renderProjectSettings(req, res, {
+        activeSettingsEdit: 'general',
+        settingsErrors: errors,
+        settingsValues: { name: req.body.name ?? '' },
+      });
+    }
     return res.render('pages/projects/edit', {
       title: `Edit – ${req.project.name}`,
       project: req.project,
@@ -179,6 +224,13 @@ export const postEditProject = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
+    if (projectReturnTarget(req, '').endsWith('#general')) {
+      return renderProjectSettings(req, res, {
+        activeSettingsEdit: 'general',
+        settingsErrors: { form: result.error },
+        settingsValues: { name: req.body.name ?? '' },
+      });
+    }
     return res.render('pages/projects/edit', {
       title: `Edit – ${req.project.name}`,
       project: req.project,
@@ -188,7 +240,7 @@ export const postEditProject = asyncHandler(async (req, res) => {
   }
 
   req.flash('success', 'Project settings saved.');
-  res.redirect(`/projects/${req.project.slug}`);
+  res.redirect(projectReturnTarget(req, `/projects/${req.project.slug}`));
 });
 
 // ─── Archive project ───────────────────────────────────────────────────────────
@@ -431,12 +483,12 @@ export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
 
   if (!allowed.includes(deploymentMode)) {
     req.flash('error', 'Invalid deployment mode.');
-    return res.redirect(`/projects/${project.slug}`);
+    return res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
   }
 
   if (deploymentMode === DeploymentMode.AUTOMATIC && project.status !== ProjectStatus.ACTIVE) {
     req.flash('error', 'Automatic deployment can only be enabled for approved projects.');
-    return res.redirect(`/projects/${project.slug}`);
+    return res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
   }
 
   await Project.updateOne({ _id: project._id }, { $set: { deploymentMode } });
@@ -453,7 +505,7 @@ export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
   });
 
   req.flash('success', `Deployment mode set to ${deploymentMode.toLowerCase().replace('_', ' ')}.`);
-  res.redirect(`/projects/${project.slug}`);
+  res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
 });
 
 // ─── Notification preference ──────────────────────────────────────────────────
@@ -465,7 +517,7 @@ export const postUpdateNotificationPreference = asyncHandler(async (req, res) =>
 
   if (!allowed.includes(notificationPreference)) {
     req.flash('error', 'Invalid notification preference.');
-    return res.redirect(`/projects/${project.slug}`);
+    return res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
   }
 
   await Project.updateOne({ _id: project._id }, { $set: { notificationPreference } });
@@ -482,5 +534,5 @@ export const postUpdateNotificationPreference = asyncHandler(async (req, res) =>
   });
 
   req.flash('success', 'Notification preference updated.');
-  res.redirect(`/projects/${project.slug}`);
+  res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
 });

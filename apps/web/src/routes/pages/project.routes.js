@@ -9,6 +9,7 @@ import {
   postNewProject,
   getProject,
   getEditProject,
+  getProjectSettings,
   postEditProject,
   postArchiveProject,
   postDeleteProject,
@@ -42,6 +43,9 @@ import {
 import {
   getEnvironment,
   postSetSecret,
+  postImportEnvFile,
+  postBulkUpdateSecrets,
+  postRevealSecret,
   postDeleteSecret,
 } from '../../controllers/env-secret.controller.js';
 import {
@@ -79,6 +83,7 @@ router.post('/', requireAuth, postNewProject);
 // Project-scoped routes (require resolved project + membership)
 router.get('/:slug', requireAuth, anyRole, getProject);
 router.get('/:slug/edit', requireAuth, ownerOnly, getEditProject);
+router.get('/:slug/settings', requireAuth, ownerOnly, getProjectSettings);
 router.post('/:slug/update', requireAuth, ownerOnly, postEditProject);
 router.post('/:slug/archive', requireAuth, ownerOnly, postArchiveProject);
 router.post('/:slug/delete', requireAuth, ownerOnly, postDeleteProject);
@@ -148,6 +153,9 @@ router.post(
 // Environment secrets
 router.get('/:slug/environment', requireAuth, ownerOnly, getEnvironment);
 router.post('/:slug/environment', requireAuth, ownerOnly, postSetSecret);
+router.post('/:slug/environment/import', requireAuth, ownerOnly, postImportEnvFile);
+router.post('/:slug/environment/bulk-update', requireAuth, ownerOnly, postBulkUpdateSecrets);
+router.post('/:slug/environment/:name/reveal', requireAuth, ownerOnly, postRevealSecret);
 router.post('/:slug/environment/:name/delete', requireAuth, ownerOnly, postDeleteSecret);
 
 // Custom domains

@@ -9,6 +9,30 @@
 
 <div class="card">
   <div class="card__header">
+    <span class="card__title">Upload .env File</span>
+  </div>
+  <div class="card__body">
+    <% const uploadErrors = locals.importErrors || {}; %>
+    <%- include('../../partials/form-errors', { errors: uploadErrors }) %>
+    <form method="POST" action="/projects/<%= project.slug %>/environment/import" data-env-file-form>
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-group">
+        <label class="form-label" for="env-file">.env file</label>
+        <input class="form-input" id="env-file" type="file" accept=".env,text/plain" data-env-file-input required>
+        <textarea name="envFileContent" data-env-file-content hidden></textarea>
+        <p class="form-hint text-xs text-muted" id="env-file-status" data-env-file-status aria-live="polite">
+          Up to 64 KB and 100 variables. Existing variables with the same name will be replaced.
+        </p>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button button--primary" data-env-file-submit data-pending-label="Importing..." disabled>Import Variables</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__header">
     <span class="card__title">Add Secret</span>
   </div>
   <div class="card__body">
@@ -40,20 +64,31 @@
         </div>
         <div class="form-group form-group--floating">
           <label class="form-label" for="value">Value</label>
-          <input
-            type="password"
-            class="form-input<%= formErrors.value ? ' form-input--error' : '' %>"
-            id="value"
-            name="value"
-            placeholder="•••••••••••••••"
-            autocomplete="new-password"
-            required
-            aria-describedby="<%= formErrors.value ? 'value-error' : 'value-hint' %>"
-          >
+          <div class="password-wrapper">
+            <input
+              type="password"
+              class="form-input password-input<%= formErrors.value ? ' form-input--error' : '' %>"
+              id="value"
+              name="value"
+              placeholder="•••••••••••••••"
+              autocomplete="new-password"
+              required
+              aria-describedby="<%= formErrors.value ? 'value-error' : 'value-hint' %>"
+            >
+            <button
+              type="button"
+              class="password-toggle"
+              aria-controls="value"
+              aria-pressed="false"
+            >
+              <span class="sr-only">Show password</span>
+              <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
+            </button>
+          </div>
           <% if (formErrors.value) { %>
           <p class="form-error" id="value-error" role="alert"><%= formErrors.value %></p>
           <% } else { %>
-          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately — it cannot be retrieved after saving.</p>
+          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately, hidden by default, and can be revealed later by an authenticated owner action.</p>
           <% } %>
         </div>
       </div>
@@ -67,9 +102,21 @@
 <div class="card mt-6">
   <div class="card__header">
     <span class="card__title">Stored Secrets</span>
-    <span class="text-muted text-sm"><%= secrets.length %> secret<%= secrets.length === 1 ? '' : 's' %></span>
+    <div class="stacked-inline-actions">
+      <span class="text-muted text-sm"><%= secrets.length %> secret<%= secrets.length === 1 ? '' : 's' %></span>
+      <% if (secrets.length > 0) { %>
+        <% if (locals.bulkEditMode === true) { %>
+        <a href="/projects/<%= project.slug %>/environment" class="button button--ghost button--sm">Cancel editing</a>
+        <% } else { %>
+        <a href="/projects/<%= project.slug %>/environment?edit=all" class="button button--secondary button--sm">Edit</a>
+        <% } %>
+      <% } %>
+    </div>
   </div>
   <div class="card__body">
+    <% const bulkErrors = locals.bulkErrors || {}; %>
+    <% const bulkValues = locals.bulkValues || {}; %>
+    <% const revealedSecrets = locals.revealedSecrets || {}; %>
     <% if (secrets.length === 0) { %>
       <div class="empty-state empty-state--compact">
         <p class="empty-state__title">No secrets yet</p>
@@ -81,6 +128,17 @@
         </ul>
       </div>
     <% } else { %>
+      <% if (locals.bulkEditMode === true) { %>
+      <div class="secret-edit-notice mb-4">
+        <p class="text-sm"><strong>Edit stored secrets</strong></p>
+        <p class="form-hint text-sm text-muted">
+          Enter a replacement only where needed. Blank values stay unchanged; existing plaintext is never loaded into this form.
+        </p>
+      </div>
+      <%- include('../../partials/form-errors', { errors: bulkErrors }) %>
+      <form method="POST" action="/projects/<%= project.slug %>/environment/bulk-update">
+        <%- include('../../partials/csrf-field') %>
+      <% } %>
       <div class="table-wrapper table-responsive table-responsive--flush">
       <table class="table table--responsive">
         <thead>
@@ -92,30 +150,115 @@
           </tr>
         </thead>
         <tbody>
-          <% secrets.forEach(secret => { %>
+          <% secrets.forEach((secret, index) => { %>
           <tr>
-            <td data-label="Name"><code class="code-inline"><%= secret.name %></code></td>
-            <td class="text-muted text-sm" data-label="Value">••••••••</td>
+            <td data-label="Name">
+              <code class="code-inline"><%= secret.name %></code>
+              <% if (locals.bulkEditMode === true) { %>
+              <input type="hidden" name="names" value="<%= secret.name %>">
+              <% } %>
+            </td>
+            <td class="text-muted text-sm" data-label="Value">
+              <% if (locals.bulkEditMode === true) { %>
+              <div class="password-wrapper stored-secret-edit">
+                <input
+                  type="password"
+                  class="form-input password-input code-inline"
+                  id="edit-secret-<%= index %>"
+                  name="values"
+                  value="<%= bulkValues[secret.name] ?? '' %>"
+                  placeholder="Unchanged — enter replacement"
+                  autocomplete="new-password"
+                  aria-label="New value for <%= secret.name %>"
+                >
+                <button
+                  type="button"
+                  class="password-toggle"
+                  aria-controls="edit-secret-<%= index %>"
+                  aria-pressed="false"
+                  data-show-label="Show new value"
+                  data-hide-label="Hide new value"
+                >
+                  <span class="sr-only">Show new value</span>
+                  <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
+                </button>
+              </div>
+              <% } else if (Object.hasOwn(revealedSecrets, secret.name)) { %>
+              <div class="stored-secret-reveal">
+                <div class="password-wrapper">
+                  <input
+                    type="password"
+                    class="form-input password-input code-inline"
+                    id="revealed-secret-<%= secret.name %>"
+                    value="<%= revealedSecrets[secret.name] %>"
+                    readonly
+                    aria-describedby="revealed-secret-<%= secret.name %>-hint"
+                  >
+                  <button
+                    type="button"
+                    class="password-toggle"
+                    aria-controls="revealed-secret-<%= secret.name %>"
+                    aria-pressed="false"
+                    data-show-label="Show value"
+                    data-hide-label="Hide value"
+                  >
+                    <span class="sr-only">Show value</span>
+                    <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
+                  </button>
+                </div>
+                <p class="form-hint text-xs text-muted" id="revealed-secret-<%= secret.name %>-hint">
+                  Loaded for this page only. Hiding masks it visually; clear it to remove it from the page.
+                </p>
+              </div>
+              <% } else { %>
+              ••••••••
+              <% } %>
+            </td>
             <td class="text-muted text-sm" data-label="Last updated">
               <%= new Date(secret.updatedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %>
             </td>
             <td class="text-right" data-label="Actions">
-              <form method="POST"
-                    action="/projects/<%= project.slug %>/environment/<%= secret.name %>/delete"
-                    data-confirm="Delete <%= secret.name %>? This cannot be undone and the value cannot be recovered."
-                    data-confirm-title="Delete secret"
-                    data-confirm-accept-label="Delete Secret"
-                    data-confirm-pending-label="Deleting..."
-                    data-confirm-variant="danger">
-                <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--danger button--sm">Delete</button>
-              </form>
+              <% if (locals.bulkEditMode !== true) { %>
+              <div class="button-group button-group--sm">
+                <% if (Object.hasOwn(revealedSecrets, secret.name)) { %>
+                <a href="/projects/<%= project.slug %>/environment" class="button button--secondary button--sm">
+                  Clear revealed value
+                </a>
+                <% } else { %>
+                <form method="POST" action="/projects/<%= project.slug %>/environment/<%= encodeURIComponent(secret.name) %>/reveal">
+                  <%- include('../../partials/csrf-field') %>
+                  <button type="submit" class="button button--secondary button--sm" data-pending-label="Revealing...">
+                    Reveal value
+                  </button>
+                </form>
+                <% } %>
+                <form method="POST"
+                      action="/projects/<%= project.slug %>/environment/<%= encodeURIComponent(secret.name) %>/delete"
+                      data-confirm="Delete <%= secret.name %>? This cannot be undone."
+                      data-confirm-title="Delete secret"
+                      data-confirm-accept-label="Delete Secret"
+                      data-confirm-pending-label="Deleting..."
+                      data-confirm-variant="danger">
+                  <%- include('../../partials/csrf-field') %>
+                  <button type="submit" class="button button--danger button--sm">Delete</button>
+                </form>
+              </div>
+              <% } else { %>
+              <span class="text-muted text-xs">Blank keeps current</span>
+              <% } %>
             </td>
           </tr>
           <% }) %>
         </tbody>
       </table>
       </div>
+      <% if (locals.bulkEditMode === true) { %>
+        <div class="form-actions mt-4">
+          <a href="/projects/<%= project.slug %>/environment" class="button button--ghost">Cancel</a>
+          <button type="submit" class="button button--primary" data-pending-label="Saving changes...">Save changes</button>
+        </div>
+      </form>
+      <% } %>
     <% } %>
   </div>
 </div>
@@ -124,8 +267,9 @@
   <div class="card__body">
     <p class="text-sm">
       <strong>Security notice:</strong>
-      Secret values are encrypted with AES-256-GCM and cannot be retrieved or displayed after storage.
-      To rotate a secret, delete it and re-add it with the new value.
+      Secret values are encrypted with AES-256-GCM, hidden by default, and revealed only after an authenticated owner action.
+      Show and Hide only change visual masking; use Clear revealed value to remove plaintext from the page.
+      Environment pages are not browser-cached, and you should rotate secrets after any exposure you no longer trust.
       Secrets are injected into your container at runtime only — they are never written to disk or included in build artifacts.
     </p>
   </div>

@@ -1,4 +1,5 @@
 import { Project, ProjectMembership } from '@hellodeploy/database';
+import { buildProjectNavigation } from '../config/project-navigation.js';
 
 function forbidden(res) {
   return res.status(403).render('pages/error', {
@@ -49,6 +50,11 @@ export function requireProjectRole(...allowedRoles) {
     const { deployHookTokenHash: _omitted, ...projectForViews } = project;
     res.locals.currentProject = projectForViews;
     res.locals.currentMembership = membership;
+    res.locals.projectNavigation = buildProjectNavigation(
+      project.slug,
+      membership.role,
+      req.originalUrl.split('?')[0],
+    );
     next();
   };
 }

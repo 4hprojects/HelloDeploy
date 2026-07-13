@@ -47,6 +47,11 @@ const projectShow = await readFile(
   'utf8',
 );
 
+const projectController = await readFile(
+  new URL('../../apps/web/src/controllers/project.controller.js', import.meta.url),
+  'utf8',
+);
+
 const adminApprovals = await readFile(
   new URL('../../apps/web/src/views/pages/admin/approval-requests.ejs', import.meta.url),
   'utf8',
@@ -71,6 +76,11 @@ describe('guided empty states', () => {
     assert.match(detection, /Choose the production branch/);
     assert.match(deployments, /Complete the setup path before the first deployment/);
     assert.match(deployments, /href="\/projects\/<%= project\.slug %>\/detection"/);
+  });
+
+  it('surfaces one primary next onboarding action', () => {
+    assert.match(projectController, /nextStep: steps\.find/);
+    assert.match(projectShow, /Next: <%= onboarding\.nextStep\.label %>/);
   });
 
   it('guides optional configuration empty states without cluttering populated screens', () => {
