@@ -1868,3 +1868,22 @@
 - Lint, formatting, and configuration validation passed. The full suite passed 752 tests across 162 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities; `git diff --check` and the secret-sensitive diff scan passed.
 - The complete encrypted pilot artifact, remount/retrieval verification, PM2 normalization, cookie recheck, Docker installation, service preparation, and traffic changes remain unrun.
+
+## Public-Key-Only Pilot Backup Packet Check
+
+- Status: Fail-closed live defect reproduced; repository fix locally verified
+- Updated: 2026-07-13T21:18:31+08:00
+
+### Sanitized Live Finding
+
+- The reviewed `v0.1.3` backup command passed repository cleanliness, protected database-export checksum, release identity, configuration capture, staging checksum, archive creation, and GPG encryption.
+- Its post-encryption `gpg --list-packets` command returned exit code `2` because the pilot intentionally retains only the recovery identity's public key. GPG parsed the ciphertext but then attempted decryption and could not find the separately held secret key.
+- The failure remained safe: the exit trap removed plaintext staging and the `.partial` ciphertext, and no completed emergency artifact was retained. PM2, Nginx, tunnel, Docker, queue, and traffic were unchanged.
+
+### Repository Correction
+
+- Changed the post-encryption structural check to `gpg --list-only --list-packets`, which parses ciphertext without requesting the unavailable secret key.
+- Reproduced the distinction in isolated temporary keyrings: ordinary packet listing returned `2` with a public-only keyring, while non-decrypting packet listing returned `0` for the same valid ciphertext.
+- Added a focused contract assertion so the backup path cannot regress to a decrypting packet check.
+- Shell syntax and 14 focused backup safety/verifier tests passed. Lint, formatting, configuration validation, the complete 752-test suite, the production dependency audit, and `git diff --check` also passed with no failures, skips, vulnerabilities, or whitespace errors.
+- Actual emergency capture and remount/recovery-key verification remain blocked until the root-installed backup command is replaced with this reviewed correction.

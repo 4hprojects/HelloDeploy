@@ -290,7 +290,11 @@ EOF
 tar -czf "$ARCHIVE_FILE" -C "$STAGING_DIR" payload
 gpg --batch --yes --trust-model always --recipient "$GPG_RECIPIENT" \
   --output "$OUTPUT_TEMP" --encrypt "$ARCHIVE_FILE"
-gpg --batch --list-packets "$OUTPUT_TEMP" >/dev/null 2>&1
+# Root intentionally retains only the backup recipient's public key. Tell GPG
+# to parse the encrypted packet without attempting decryption; plain
+# --list-packets returns 2 when the corresponding secret key is absent even
+# though encryption succeeded and the packet is structurally readable.
+gpg --batch --list-only --list-packets "$OUTPUT_TEMP" >/dev/null 2>&1
 chmod 600 "$OUTPUT_TEMP"
 mv "$OUTPUT_TEMP" "$OUTPUT_FILE"
 

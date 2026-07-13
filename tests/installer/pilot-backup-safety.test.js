@@ -77,6 +77,8 @@ describe('pre-cutover pilot backup safety', () => {
     assert.match(backup, /rollback-instructions path must not traverse writable directories/);
     assert.doesNotMatch(backup, /chmod 700 "\$OUTPUT_PARENT"/);
     assert.match(backup, /exact 40-character fingerprint/);
+    assert.match(backup, /gpg --batch --list-only --list-packets "\$OUTPUT_TEMP"/);
+    assert.doesNotMatch(backup, /gpg --batch --list-packets "\$OUTPUT_TEMP"/);
     assert.match(backup, /Same-host verification does not satisfy the cross-host restore gate/);
   });
 
