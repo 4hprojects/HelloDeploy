@@ -49,6 +49,30 @@ async function createArchive(name = 'backup.tar.gz.gpg') {
   return archive;
 }
 
+async function setDatabaseExportMode({ includeExport = true } = {}) {
+  const manifest = {
+    formatVersion: 1,
+    kind: 'hellodeploy-pilot-pre-cutover',
+    createdAt: '2026-07-13T00:00:00Z',
+    commitSha: 'a'.repeat(40),
+    databaseMode: 'verified-mongodump-export',
+    dataIncluded: false,
+  };
+  requiredFiles['manifest.json'] = `${JSON.stringify(manifest, null, 2)}\n`;
+  await writeFile(join(payload, 'manifest.json'), requiredFiles['manifest.json'], { mode: 0o600 });
+  if (includeExport) {
+    requiredFiles['database-export.archive.gz'] = 'compressed-database-placeholder\n';
+    await writeFile(
+      join(payload, 'database-export.archive.gz'),
+      requiredFiles['database-export.archive.gz'],
+      { mode: 0o600 },
+    );
+  }
+  await writeChecksumInventory(
+    Object.entries(requiredFiles).map(([name, value]) => `${digest(value)}  ${name}`),
+  );
+}
+
 function verify(archive) {
   return spawnSync('bash', [verifier, archive], {
     encoding: 'utf8',
@@ -92,6 +116,19 @@ cp "$input" "$output"
 
 afterEach(async () => {
   await rm(root, { recursive: true, force: true });
+  delete requiredFiles['database-export.archive.gz'];
+  requiredFiles['manifest.json'] = `${JSON.stringify(
+    {
+      formatVersion: 1,
+      kind: 'hellodeploy-pilot-pre-cutover',
+      createdAt: '2026-07-13T00:00:00Z',
+      commitSha: 'a'.repeat(40),
+      databaseMode: 'verified-external-snapshot',
+      dataIncluded: false,
+    },
+    null,
+    2,
+  )}\n`;
 });
 
 describe('encrypted pilot backup verifier behavior', () => {
@@ -99,6 +136,32 @@ describe('encrypted pilot backup verifier behavior', () => {
     const result = verify(await createArchive());
     assert.equal(result.status, 0, result.stderr);
     assert.match(result.stdout, /integrity verified/);
+  });
+
+  it('accepts a checksummed export when the manifest selects export mode', async () => {
+    await setDatabaseExportMode();
+    const result = verify(await createArchive());
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(result.stdout, /integrity verified/);
+  });
+
+  it('rejects export mode when the database export is missing', async () => {
+    await setDatabaseExportMode({ includeExport: false });
+    const result = verify(await createArchive());
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /database inventory is inconsistent/);
+  });
+
+  it('rejects an export member when the manifest selects snapshot mode', async () => {
+    const value = 'unexpected-database-export\n';
+    await writeFile(join(payload, 'database-export.archive.gz'), value, { mode: 0o600 });
+    await writeChecksumInventory([
+      ...Object.entries(requiredFiles).map(([name, content]) => `${digest(content)}  ${name}`),
+      `${digest(value)}  database-export.archive.gz`,
+    ]);
+    const result = verify(await createArchive());
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /database inventory is inconsistent/);
   });
 
   it('rejects an unexpected archive member before extraction', async () => {

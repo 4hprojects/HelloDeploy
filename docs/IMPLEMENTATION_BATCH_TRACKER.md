@@ -1,18 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T19:27:50+08:00
+Updated: 2026-07-13T20:37:26+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                     |
-| ---------------- | --------------------------------------------------------- |
-| Overall status   | Live local pilot; productionization pending               |
-| Release progress | `v0.1.1` published; `v0.1.2` baseline tooling in progress |
-| Current batch    | Priority 1 — Safe In-Place Baseline                       |
-| Next action      | Publish `v0.1.2`, then attach and confirm recovery media  |
-| Release state    | NO-GO for customer application hosting                    |
+| Field            | Value                                       |
+| ---------------- | ------------------------------------------- |
+| Overall status   | Live local pilot; productionization pending |
+| Release progress | `v0.1.2` published from reviewed PR #6      |
+| Current batch    | Priority 1 — Safe In-Place Baseline         |
+| Next action      | Release export-aware backup; capture pilot  |
+| Release state    | NO-GO for customer application hosting      |
 
 The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web and worker from the repository, local Redis, and a Cloudflare Tunnel that sends dashboard traffic directly to the web process. Public liveness and readiness pass. It does not yet provide the complete production application-hosting plane: Docker, isolated HelloDeploy service identities, systemd units, the constrained Nginx helper, the application route directory, and wildcard application ingress are absent. The public session cookie also omits `Secure`. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
 
@@ -58,7 +58,7 @@ These groups order the remaining batches by dependency and identify work that ca
 - Keep Ubuntu 22.04 and 24.04 supported; classify Ubuntu 26.04 as candidate support until its host and recovery gates pass.
 - Revise draft PR #5, rerun CI, review, and merge only after the repository and evidence agree.
 
-**Evidence:** Commit `3db74be` removed the unsupported vendor-dashboard, remote-worker, worker-only lifecycle, and external-router paths. Direct inspection on 2026-07-13 then proved that the current Ubuntu 26.04 laptop is the live pilot host. Commit `80a439b` reconciled the documentation and focused contract test with that evidence. PR #5 passed Node.js 22 CI, received a final local implementation/security diff review, and merged on 2026-07-13 at full commit `789b903157b3872d26c82721a9628063f8d82cc4`. GitHub recorded no separate submitted reviewer approval. No release tag was moved or invented; `v0.1.1` remains the latest published release.
+**Evidence:** Commit `3db74be` removed the unsupported vendor-dashboard, remote-worker, worker-only lifecycle, and external-router paths. Direct inspection on 2026-07-13 then proved that the current Ubuntu 26.04 laptop is the live pilot host. Commit `80a439b` reconciled the documentation and focused contract test with that evidence. PR #5 passed Node.js 22 CI, received a final local implementation/security diff review, and merged on 2026-07-13 at full commit `789b903157b3872d26c82721a9628063f8d82cc4`. GitHub recorded no separate submitted reviewer approval.
 
 ### Priority 1 — Safe In-Place Baseline
 
@@ -70,9 +70,9 @@ These groups order the remaining batches by dependency and identify work that ca
 - Define the exact service, Nginx, tunnel, and repository rollback path while the current dashboard remains available.
 - Stop if current health, backup integrity, immutable release identity, or rollback preparation fails.
 
-**Local and CI evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The read-only baseline command reports only bounded platform, release, prerequisite, service, identity, routing, health, and blocker fields. Its first pilot run confirmed healthy local endpoints and the previously recorded missing Docker, identities, units, helper, managed routes, and wildcard ingress. The pilot-backup path requires clean immutable state, a verified external database snapshot, required active configurations, root-owned private rollback instructions and destination, and an exact GPG fingerprint. Its verifier uses a fixed member/checksum allowlist, rejects duplicates and link/device members, and checks every payload checksum without restoring. Static and functional malicious-archive tests pass. Actual encrypted off-host creation, retrieval verification, and the rehearsed rollback baseline remain required before any installer or host mutation.
+**Local and CI evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The read-only baseline command reports only bounded platform, release, prerequisite, service, identity, routing, health, and blocker fields. Its first pilot run confirmed healthy local endpoints and the previously recorded missing Docker, identities, units, helper, managed routes, and wildcard ingress. The pilot-backup path requires clean immutable state, exactly one verified database evidence mode, required active configurations, root-owned private rollback instructions and destination, and an exact GPG fingerprint. A local export must be nonempty, root-owned, private, outside the repository, and match its private checksum. The verifier uses a fixed member/checksum allowlist, rejects duplicates and link/device members, checks every payload checksum without restoring, and requires the database member to match the manifest mode. Static and functional malicious-archive tests pass. Actual encrypted off-host creation, retrieval verification, and the rehearsed rollback baseline remain required before any installer or host mutation.
 
-The current PM2 web and worker processes started before several later checkout changes, so the active runtime is not attributable to the current checkout or a single reviewed tag. The protected workflow therefore requires a verified emergency capture followed by a controlled restart on `v0.1.2`, production-cookie validation, and a second final capture before the backup and rollback acknowledgements can be used. The three-commit release candidate passed focused checks and an isolated Node.js 22/npm 10 clean-worktree gate with 747 tests. Draft PR #6 passed its Node.js 22 CI at the reviewed three-commit head; final merge and tag verification remain required.
+The current PM2 web and worker processes started before several later checkout changes, so the active runtime is not attributable to the current checkout or a single reviewed tag. The protected workflow therefore requires a verified emergency capture followed by a controlled restart on a reviewed immutable fix release, production-cookie validation, and a second final capture before the backup and rollback acknowledgements can be used. PR #6 passed Node.js 22 CI and merged at `4b6c15ebd8ba8dc2251d9c17fb9331892414d967`; annotated tag `v0.1.2` was published and verified to resolve to that commit. The dedicated backup drive is now LUKS2/ext4, mounted root-only, and separate recovery-key media contains the protected key export; only the public key is persistent on the pilot. Because Atlas Free has no managed backup, signed Database Tools `100.17.0` created a compressed export directly on encrypted storage and its non-restoring archive check passed. Export-aware pilot-backup support is implemented locally and awaiting the release gate. PM2, Nginx, tunnel, Docker, queue, and traffic remain unchanged.
 
 ### Priority 1 — Production Service Foundation
 

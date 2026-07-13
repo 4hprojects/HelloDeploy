@@ -19,7 +19,7 @@ Before any package, identity, service, Nginx, tunnel, or traffic change:
 
 Stop immediately if the backup cannot be verified, the current release is ambiguous, health is degraded, or any rollback destination is missing. Keep the current repository-run pilot and tunnel route in place until isolated candidate services pass readiness.
 
-For the repository-run pilot, use `infrastructure/backup-pilot.sh` rather than the installed-host `backup.sh`. First create a root-owned destination directory that denies group and other access, import only the intended recipient's public GPG key into the root keyring, record its complete 40-character fingerprint, and verify the external database snapshot independently. Create a separate root-owned mode-`0600` text file containing the exact current repository path and full commit, existing web/worker startup mechanism, active Nginx/tunnel files, prior queue state, and the ordered recovery commands. Do not put credentials or secret values in that file.
+For the repository-run pilot, use `infrastructure/backup-pilot.sh` rather than the installed-host `backup.sh`. First create a root-owned destination directory that denies group and other access, import only the intended recipient's public GPG key into the root keyring, and record its complete 40-character fingerprint outside repository evidence. Provide exactly one database evidence mode: independently verify an external snapshot, or run `infrastructure/export-pilot-database.sh` to create a compressed `mongodump` export with a non-restoring archive check and matching checksum. Install the signature-verified Database Tools under a root-owned path first; the export command refuses user-writable tool binaries. A local export and its checksum must be root-owned, private, outside the repository, and stored on encrypted media. Create a separate root-owned mode-`0600` text file containing the exact current repository path and full commit, existing web/worker startup mechanism, active Nginx/tunnel files, prior queue state, and the ordered recovery commands. Do not put credentials, endpoints, or secret values in that file.
 
 The destination and instruction files can be prepared with `sudo install -d -m 0700 <destination>` and `sudo install -m 0600 /dev/null <rollback-instructions>`, followed by `sudoedit <rollback-instructions>`. Keep both outside the repository. Then run:
 
@@ -32,6 +32,20 @@ sudo bash infrastructure/backup-pilot.sh \
   --rollback-instructions "$PRIVATE_ROLLBACK_INSTRUCTIONS" \
   --external-database-snapshot-confirmed
 ```
+
+For Atlas Free or another database without managed snapshots, replace the final option with the protected export path:
+
+```sh
+sudo bash infrastructure/backup-pilot.sh \
+  --repo "$PILOT_REPO" \
+  --output "$PROTECTED_DESTINATION/hellodeploy-pilot.tar.gz.gpg" \
+  --gpg-recipient "$BACKUP_GPG_FINGERPRINT" \
+  --nginx-config "$ACTIVE_DASHBOARD_NGINX_CONFIG" \
+  --rollback-instructions "$PRIVATE_ROLLBACK_INSTRUCTIONS" \
+  --database-export "$PROTECTED_DATABASE_EXPORT"
+```
+
+Do not use the snapshot-confirmation option for a `mongodump` export. The manifest records these as distinct evidence modes.
 
 Store the encrypted artifact on the approved off-host medium, unmount and remount or otherwise retrieve it, then run `bash infrastructure/verify-pilot-backup.sh <encrypted-artifact>` from a temporary GPG home containing the recovered private key. The verifier does not restore files or change services. Retrieval verification on the pilot host proves that the artifact and separately held key are usable; it does not satisfy the cross-host restore gate. Do not proceed based only on successful encryption.
 

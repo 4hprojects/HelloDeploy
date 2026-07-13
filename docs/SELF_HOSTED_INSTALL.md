@@ -1,6 +1,6 @@
 # HelloDeploy Self-Hosted Install Guide
 
-Updated: 2026-07-13T18:12:00+08:00
+Updated: 2026-07-13T20:37:26+08:00
 
 HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
 
@@ -135,6 +135,7 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 
 ## Backup And Restore
 
+- Create a protected pre-cutover database export: `infrastructure/export-pilot-database.sh`
 - Protect the current repository-run pilot before installation: `infrastructure/backup-pilot.sh` followed by off-host `infrastructure/verify-pilot-backup.sh`
 - Backup with local MongoDB dump: `sudo bash infrastructure/backup.sh`
 - Backup with a separately verified Atlas/external snapshot: `sudo bash infrastructure/backup.sh --skip-database`
@@ -146,7 +147,7 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 
 Backups must include MongoDB data, protected configuration, Nginx route files, Cloudflare Tunnel configuration, and HelloDeploy release metadata.
 
-`backup-pilot.sh` is the pre-cutover path for the current repository-run laptop. It refuses a dirty checkout, missing required configuration, an unconfirmed external database snapshot, a destination or rollback-instructions file that is not root-owned and private, a recipient that is not an exact available GPG fingerprint, or an existing output file. It creates one encrypted artifact and removes plaintext staging on exit. The verifier accepts only the expected regular files and directories, rejects duplicate/link/device members and unsafe checksum names, and never restores state. The installed-host `backup.sh` remains the post-install lifecycle command and must not be used to claim that the current pilot was captured.
+`backup-pilot.sh` is the pre-cutover path for the current repository-run laptop. It refuses a dirty checkout, missing required configuration, ambiguous database evidence, a destination or rollback-instructions file that is not root-owned and private, a recipient that is not an exact available GPG fingerprint, or an existing output file. Database evidence must be exactly one of a confirmed external snapshot or a protected checksummed `mongodump` export. It creates one encrypted artifact and removes plaintext staging on exit. The verifier accepts only the expected regular files and directories, rejects duplicate/link/device members and unsafe checksum names, requires the database member to agree with the manifest, and never restores state. The installed-host `backup.sh` remains the post-install lifecycle command and must not be used to claim that the current pilot was captured.
 
 `--skip-database` is an explicit acknowledgement that a current external database snapshot has already been verified. For non-interactive upgrades backed by external snapshots, set `HELLODEPLOY_DATABASE_BACKUP_MODE=external`; the default `local` mode requires `mongodump` to succeed. Backup directories contain secrets and must be transferred to an encrypted, access-controlled off-host destination.
 
