@@ -1,18 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T16:51:00+08:00
+Updated: 2026-07-13T16:53:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                    |
-| ---------------- | -------------------------------------------------------- |
-| Overall status   | Live local pilot; productionization pending              |
-| Release progress | `v0.1.1` published; reconciled PR #5 green and in review |
-| Current batch    | Priority 0 — Documentation and Release Reconciliation    |
-| Next action      | Review and merge the reconciled draft PR #5              |
-| Release state    | NO-GO for customer application hosting                   |
+| Field            | Value                                                      |
+| ---------------- | ---------------------------------------------------------- |
+| Overall status   | Live local pilot; productionization pending                |
+| Release progress | `v0.1.1` published; reconciled PR #5 green and in review   |
+| Current batch    | Priority 0 — Documentation and Release Reconciliation      |
+| Next action      | Review PR #5, then authorize protected backup and rollback |
+| Release state    | NO-GO for customer application hosting                     |
 
 The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web and worker from the repository, local Redis, and a Cloudflare Tunnel that sends dashboard traffic directly to the web process. Public liveness and readiness pass. It does not yet provide the complete production application-hosting plane: Docker, isolated HelloDeploy service identities, systemd units, the constrained Nginx helper, the application route directory, and wildcard application ingress are absent. The public session cookie also omits `Secure`. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
 
@@ -68,7 +68,7 @@ These groups order the remaining batches by dependency and identify work that ca
 - Define the exact service, Nginx, tunnel, and repository rollback path while the current dashboard remains available.
 - Stop if current health, backup integrity, immutable release identity, or rollback preparation fails.
 
-**Local evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The read-only baseline command reports only bounded platform, release, prerequisite, service, identity, routing, health, and blocker fields. Its first pilot run confirmed healthy local endpoints and the previously recorded missing Docker, identities, units, helper, managed routes, and wildcard ingress. The protected backup and rehearsed rollback baseline remain required before any installer or host mutation.
+**Local and CI evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The read-only baseline command reports only bounded platform, release, prerequisite, service, identity, routing, health, and blocker fields. Its first pilot run confirmed healthy local endpoints and the previously recorded missing Docker, identities, units, helper, managed routes, and wildcard ingress. Commits `d920b35` and `e0aa0f7` passed draft PR #5's Node.js 22 CI. The protected backup and rehearsed rollback baseline remain required before any installer or host mutation.
 
 ### Priority 1 — Production Service Foundation
 

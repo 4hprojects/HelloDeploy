@@ -1689,7 +1689,7 @@
 
 ## Ubuntu 26.04 Candidate Gate
 
-- Status: Implemented; focused and broad verification passed; review pending
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
 - Implemented: 2026-07-13T16:42:00+08:00
 
 ### Changes
@@ -1713,7 +1713,7 @@
 
 ## Sanitized In-Place Host Baseline
 
-- Status: Implemented; focused and broad verification passed; review pending
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
 - Implemented: 2026-07-13T16:48:00+08:00
 
 ### Changes
@@ -1731,4 +1731,5 @@
 - The first sanitized pilot run reported candidate OS, healthy liveness/readiness, active Nginx/Redis/tunnel, and bounded blockers for dirty release state, Docker, isolated identities/units, helper, managed routes, and wildcard ingress.
 - `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
 - The full Node.js suite passed: 726 tests across 158 suites, no failures or skips.
+- Published commit `e0aa0f7` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
 - No backup, package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
