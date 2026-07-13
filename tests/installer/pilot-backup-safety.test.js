@@ -99,4 +99,13 @@ describe('pre-cutover pilot backup safety', () => {
     assert.doesNotMatch(verify, /systemctl|nginx -t|cp .*\/etc/);
     assert.doesNotMatch(backup + verify, /node --input-type/);
   });
+
+  it('bounds decryption and supports a terminal-only protected-key prompt', () => {
+    assert.match(verify, /--prompt-passphrase/);
+    assert.match(verify, /read -r -s .*RECOVERY_PASSPHRASE <\/dev\/tty/);
+    assert.match(verify, /--pinentry-mode loopback --passphrase-fd 0/);
+    assert.match(verify, /timeout --foreground --signal=TERM 120/);
+    assert.match(verify, /unset RECOVERY_PASSPHRASE/);
+    assert.doesNotMatch(verify, /--passphrase ["']?\$RECOVERY_PASSPHRASE/);
+  });
 });

@@ -5,23 +5,55 @@ set -euo pipefail
 error() { printf '[error] %s\n' "$*" >&2; }
 info() { printf '[info] %s\n' "$*"; }
 
+PROMPT_PASSPHRASE=false
+if [[ "${1:-}" == "--prompt-passphrase" ]]; then
+  PROMPT_PASSPHRASE=true
+  shift
+fi
 BACKUP_FILE="${1:-}"
 if [[ -z "$BACKUP_FILE" || $# -ne 1 || ! -f "$BACKUP_FILE" ]]; then
-  error "Usage: bash infrastructure/verify-pilot-backup.sh <encrypted-backup.tar.gz.gpg>"
+  error "Usage: bash infrastructure/verify-pilot-backup.sh [--prompt-passphrase] <encrypted-backup.tar.gz.gpg>"
   exit 2
 fi
 if ! command -v gpg >/dev/null 2>&1; then
   error "GPG is required to verify the encrypted pilot backup."
   exit 1
 fi
+if ! command -v timeout >/dev/null 2>&1; then
+  error "GNU timeout is required to bound backup decryption."
+  exit 1
+fi
 
 umask 077
 VERIFY_DIR=$(mktemp -d "${TMPDIR:-/var/tmp}/hellodeploy-pilot-verify.XXXXXX")
-cleanup() { rm -rf "$VERIFY_DIR"; }
+cleanup() {
+  unset RECOVERY_PASSPHRASE
+  rm -rf "$VERIFY_DIR"
+}
 trap cleanup EXIT INT TERM HUP
 
 ARCHIVE_FILE="$VERIFY_DIR/pilot-backup.tar.gz"
-gpg --batch --quiet --output "$ARCHIVE_FILE" --decrypt "$BACKUP_FILE"
+if [[ "$PROMPT_PASSPHRASE" == true ]]; then
+  if [[ ! -r /dev/tty || ! -w /dev/tty ]]; then
+    error "Passphrase prompting requires an interactive terminal."
+    exit 1
+  fi
+  IFS= read -r -s -p "Enter the GPG recovery-key passphrase: " RECOVERY_PASSPHRASE </dev/tty
+  printf '\n' >/dev/tty
+  if ! printf '%s\n' "$RECOVERY_PASSPHRASE" |
+    timeout --foreground --signal=TERM 120 \
+      gpg --batch --yes --quiet --pinentry-mode loopback --passphrase-fd 0 \
+      --output "$ARCHIVE_FILE" --decrypt "$BACKUP_FILE"; then
+    unset RECOVERY_PASSPHRASE
+    error "Backup decryption failed or exceeded two minutes."
+    exit 1
+  fi
+  unset RECOVERY_PASSPHRASE
+elif ! timeout --foreground --signal=TERM 120 \
+  gpg --batch --quiet --output "$ARCHIVE_FILE" --decrypt "$BACKUP_FILE"; then
+  error "Backup decryption failed or exceeded two minutes."
+  exit 1
+fi
 
 # Accept only the exact files produced by backup-pilot.sh. Reject duplicate
 # members and link/device types before extracting anything.

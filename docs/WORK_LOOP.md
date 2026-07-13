@@ -1,6 +1,6 @@
 # HelloDeploy Autonomous Work Loop
 
-Updated: 2026-07-13T20:37:26+08:00
+Updated: 2026-07-14T06:49:21+08:00
 
 This document defines how Codex continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
 
@@ -92,6 +92,6 @@ Before stopping, record the blocker, evidence already collected, and the exact i
 
 ## Current Handoff
 
-As of 2026-07-13, the current Ubuntu 26.04 laptop is the live HelloDeploy dashboard pilot and the intended in-place productionization target. Reviewed release `v0.1.2` is published and Priority 1 is active. Protected backup storage and separate recovery-key media are prepared, and a signed-tool `mongodump` export on the encrypted drive passed a non-restoring archive check. Export-aware pilot-backup support is implemented locally but must pass the release gate before use. The PM2 processes still predate several checkout changes, so runtime identity must be normalized only after the emergency encrypted pilot artifact is retrieved and verified. The release remains **NO-GO for customer application hosting**: complete pilot capture, rehearsed rollback, Docker, isolated service identities, the constrained Nginx helper, wildcard application ingress, secure production cookies, real deployments, and cross-host restore still require direct evidence. No installer or traffic mutation may begin before the export-aware release, root-private rollback instructions, complete encrypted capture, and retrieval verification pass.
+As of 2026-07-14, the current Ubuntu 26.04 laptop remains the live HelloDeploy dashboard pilot and in-place productionization target. Reviewed release `v0.1.4` is published. The encrypted emergency pilot capture passed checksum verification after remount, temporary recovery-key decryption, the bounded archive inventory, and every internal checksum; both media were then closed cleanly. This is same-host retrieval evidence, not cross-host restore. PM2 still predates the reviewed release and must not be restarted yet: value-safe production validation fails because the GitHub App name is incomplete and the required local Nginx-helper policy is unavailable. The production worker synchronously validates that helper during startup, making the prior normalization-before-foundation order impossible. Host mutation remains stopped pending explicit approval to use the verified emergency capture as the recovery gate for prepare-only foundation installation, then separately activate and validate the helper with the deployment queue paused before Node.js 22 normalization. A final post-normalization backup remains required before traffic cutover or application deployment. The release remains **NO-GO for customer application hosting** until isolation, routing, secure cookies, real deployments, rollback, authenticated QA, and cross-host restoration pass directly.
 
 Refresh this short handoff only when the overall execution boundary changes. Keep detailed task state and command evidence in the tracker and worklog.

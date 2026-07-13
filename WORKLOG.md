@@ -1887,3 +1887,26 @@
 - Added a focused contract assertion so the backup path cannot regress to a decrypting packet check.
 - Shell syntax and 14 focused backup safety/verifier tests passed. Lint, formatting, configuration validation, the complete 752-test suite, the production dependency audit, and `git diff --check` also passed with no failures, skips, vulnerabilities, or whitespace errors.
 - Actual emergency capture and remount/recovery-key verification remain blocked until the root-installed backup command is replaced with this reviewed correction.
+
+## Verified Emergency Pilot Capture and Normalization Stop
+
+- Status: Emergency capture Passed; production runtime normalization Failed preflight
+- Updated: 2026-07-14T06:49:21+08:00
+
+### Release and Capture Evidence
+
+- PR #9 contained the bounded public-key-only packet-check correction, passed Node.js 22 CI, merged cleanly, and was published as annotated tag `v0.1.4` at the reviewed merge commit.
+- The root-installed reviewed command captured the clean tagged checkout, protected environment, active Nginx and tunnel configuration, tunnel credential, root-private rollback instructions, and verified database export into one encrypted artifact. No completed artifact from the earlier fail-closed attempts was retained.
+- After the encrypted filesystem was closed and reopened, the artifact checksum and separate recovery-media checksums passed. A fresh temporary GPG home imported the protected recovery identity, decrypted the artifact, and ran the non-restoring verifier successfully.
+- The verifier accepted only the fixed member inventory, checked every internal checksum, confirmed consistent release and database modes, and restored nothing. The temporary keyring and plaintext verification directory were removed. Both removable media were then unmounted and the encrypted mapping closed.
+- The first passphrase-protected verifier invocation waited on an invisible GPG pinentry interaction and was interrupted. Cleanup removed the temporary keyring and plaintext directory. A bounded explicit terminal prompt then decrypted and verified the same checksummed artifact successfully. The supported verifier now provides that terminal-only prompt mode and a two-minute decryption deadline so this wait cannot recur silently.
+- Shell syntax and 27 focused backup, verifier, preparation, host-baseline, and documentation tests passed. Lint, formatting, configuration validation, the complete 753-test suite, the production dependency audit, and `git diff --check` also passed with no failures, skips, vulnerabilities, or whitespace errors.
+- Local and public health and readiness remained HTTP `200` before and after capture. PM2, Nginx, tunnel routing, Docker, queue, and traffic were unchanged.
+
+### Normalization Stop Condition
+
+- The clean pilot checkout is `v0.1.4`, but the active PM2 process still uses the earlier Node.js 24 repository-run definition and cannot be attributed to the reviewed checkout.
+- A verified Node.js 22 runtime with npm 10 is available for the eventual restart. No installation or PM2 mutation was performed.
+- Value-safe production validation failed before restart: the web configuration is missing `GITHUB_APP_NAME`, and the worker requires `NGINX_ENABLED=true` with the constrained local helper path. The current helper, identities, Docker plane, and managed route directory remain absent.
+- Source inspection confirmed the production worker synchronously calls the Nginx helper during startup. Full runtime normalization therefore cannot safely precede helper preparation as the earlier plan required.
+- The proposed corrected sequence is complete production configuration, use the verified emergency capture as the recovery gate for prepare-only foundation installation, pause and drain the deployment queue, separately activate and validate the helper, perform controlled Node.js 22 normalization, verify the cookie, and create the second final baseline before traffic cutover or application deployment. This sequencing amendment requires explicit approval; host mutation remains stopped, cross-host restore remains blocked, and no GO claim is made.
