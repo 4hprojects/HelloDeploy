@@ -63,8 +63,8 @@ describe('Content Security Policy hardening', () => {
   });
 
   it('loads shared behavior from the static app bundle on main and auth layouts', () => {
-    assert.match(mainLayout, /<script src="\/js\/app\.js" defer><\/script>/);
-    assert.match(authLayout, /<script src="\/js\/app\.js" defer><\/script>/);
+    assert.match(mainLayout, /<script src="\/js\/app\.js\?v=[^"]+" defer><\/script>/);
+    assert.match(authLayout, /<script src="\/js\/app\.js\?v=[^"]+" defer><\/script>/);
   });
 
   it('removes inline handlers and unsafe branch option HTML resets', () => {

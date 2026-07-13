@@ -92,10 +92,16 @@ const domain = await ask(
   existing.PLATFORM_DOMAIN || '',
 );
 config.PLATFORM_DOMAIN = domain;
+const deploymentDomain = await ask(
+  rl,
+  'Deployment domain (wildcard app base)',
+  existing.DEPLOYMENT_DOMAIN || `apps.${domain}`,
+);
+config.DEPLOYMENT_DOMAIN = deploymentDomain;
 config.PLATFORM_SUBDOMAIN_SUFFIX = await ask(
   rl,
   'App subdomain suffix',
-  existing.PLATFORM_SUBDOMAIN_SUFFIX || `.apps.${domain}`,
+  existing.PLATFORM_SUBDOMAIN_SUFFIX || `.${deploymentDomain}`,
 );
 
 // ── Section 3: MongoDB ────────────────────────────────────────────────────────
@@ -110,19 +116,32 @@ if (!skip('MONGODB_URI')) {
 
 // ── Section 4: Redis ──────────────────────────────────────────────────────────
 console.log(`\n${BOLD}4. Redis${RESET}`);
-if (!skip('REDIS_HOST')) {
-  config.REDIS_HOST = await ask(rl, 'Redis host', existing.REDIS_HOST || '127.0.0.1');
-}
-if (!skip('REDIS_PORT')) {
-  config.REDIS_PORT = await ask(rl, 'Redis port', existing.REDIS_PORT || '6379');
-}
-const hasRedisPassword = await confirm(rl, 'Does Redis require a password?');
-if (hasRedisPassword && !skip('REDIS_PASSWORD')) {
-  config.REDIS_PASSWORD = await ask(rl, 'Redis password', existing.REDIS_PASSWORD || '', true);
+const useRedisUrl = Boolean(existing.REDIS_URL) || (await confirm(rl, 'Use a managed Redis URL?'));
+if (useRedisUrl) {
+  if (!skip('REDIS_URL')) {
+    config.REDIS_URL = await ask(
+      rl,
+      'Managed Redis URL (rediss:// required remotely in production)',
+      existing.REDIS_URL || '',
+      true,
+    );
+  }
+} else {
+  if (!skip('REDIS_HOST')) {
+    config.REDIS_HOST = await ask(rl, 'Redis host', existing.REDIS_HOST || '127.0.0.1');
+  }
+  if (!skip('REDIS_PORT')) {
+    config.REDIS_PORT = await ask(rl, 'Redis port', existing.REDIS_PORT || '6379');
+  }
+  const hasRedisPassword = await confirm(rl, 'Does Redis require a password?');
+  if (hasRedisPassword && !skip('REDIS_PASSWORD')) {
+    config.REDIS_PASSWORD = await ask(rl, 'Redis password', existing.REDIS_PASSWORD || '', true);
+  }
 }
 
 // ── Section 5: email ──────────────────────────────────────────────────────────
-console.log(`\n${BOLD}5. Email (Resend)${RESET}`);
+console.log(`\n${BOLD}5. Email (Resend — optional)${RESET}`);
+console.log(`  ${DIM}Leave the API key empty to disable outbound email.${RESET}`);
 if (!skip('RESEND_API_KEY')) {
   config.RESEND_API_KEY = await ask(
     rl,
@@ -136,7 +155,8 @@ if (!skip('EMAIL_FROM')) {
 }
 
 // ── Section 6: GitHub App ─────────────────────────────────────────────────────
-console.log(`\n${BOLD}6. GitHub App${RESET}`);
+console.log(`\n${BOLD}6. GitHub App (required for repository deployments)${RESET}`);
+console.log(`  ${DIM}Configure the complete group or leave every value empty.${RESET}`);
 console.log(`  ${DIM}Register at: https://github.com/settings/apps/new${RESET}`);
 if (!skip('GITHUB_APP_ID')) {
   config.GITHUB_APP_ID = await ask(rl, 'App ID', existing.GITHUB_APP_ID || '');
@@ -145,10 +165,12 @@ if (!skip('GITHUB_APP_NAME')) {
   config.GITHUB_APP_NAME = await ask(rl, 'App slug', existing.GITHUB_APP_NAME || '');
 }
 if (!skip('GITHUB_APP_PRIVATE_KEY_PATH')) {
+  const githubAppStarted = Boolean(config.GITHUB_APP_ID || config.GITHUB_APP_NAME);
   config.GITHUB_APP_PRIVATE_KEY_PATH = await ask(
     rl,
     'Private key path',
-    existing.GITHUB_APP_PRIVATE_KEY_PATH || '/etc/hellodeploy/github-app.pem',
+    existing.GITHUB_APP_PRIVATE_KEY_PATH ||
+      (githubAppStarted ? '/etc/hellodeploy/github-app.pem' : ''),
   );
 }
 if (!skip('GITHUB_WEBHOOK_SECRET')) {
@@ -161,7 +183,8 @@ if (!skip('GITHUB_WEBHOOK_SECRET')) {
 }
 
 // ── Section 7: Cloudflare Turnstile ──────────────────────────────────────────
-console.log(`\n${BOLD}7. Cloudflare Turnstile (bot protection)${RESET}`);
+console.log(`\n${BOLD}7. Cloudflare Turnstile (optional bot protection)${RESET}`);
+console.log(`  ${DIM}Configure both keys or leave both empty.${RESET}`);
 console.log(`  ${DIM}Get keys at: https://dash.cloudflare.com/ → Turnstile${RESET}`);
 if (!skip('TURNSTILE_SITE_KEY')) {
   config.TURNSTILE_SITE_KEY = await ask(rl, 'Site key', existing.TURNSTILE_SITE_KEY || '');
@@ -260,15 +283,16 @@ console.log(
 );
 console.log(`\nNext steps:`);
 console.log(`  1. Review ${ENV_PATH} and verify all values`);
-console.log(`  2. Back up HELLODEPLOY_MASTER_KEY to a secure location outside this server`);
-console.log(`  3. Create the nginx hellodeploy.d directory:`);
+console.log(`  2. Run npm run config:check before starting either service`);
+console.log(`  3. Back up HELLODEPLOY_MASTER_KEY to a secure location outside this server`);
+console.log(`  4. Create the nginx hellodeploy.d directory:`);
 console.log(
   `     sudo mkdir -p ${config.NGINX_HELLODEPLOY_CONFIG_DIR || '/etc/nginx/hellodeploy.d'}`,
 );
 console.log(
   `     echo 'include ${config.NGINX_HELLODEPLOY_CONFIG_DIR || '/etc/nginx/hellodeploy.d'}/*.conf;' | sudo tee /etc/nginx/conf.d/hellodeploy.conf`,
 );
-console.log(`  4. Run the super admin seeder:  node scripts/seed-super-admin.js`);
+console.log(`  5. Run the super admin seeder:  node scripts/seed-super-admin.js`);
 console.log(
-  `  5. Start services: sudo systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker\n`,
+  `  6. Start services: sudo systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker\n`,
 );

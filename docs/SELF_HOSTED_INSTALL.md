@@ -35,11 +35,15 @@ Use this mode when the server should not expose inbound router ports.
 - Keep Cloudflare Tunnel configuration backed up outside the server.
 - Use `/admin/server` to pause the queue or enable maintenance mode during tunnel incidents.
 
+### Hybrid Render dashboard and Ubuntu worker
+
+Use the dedicated [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md). The Render web service and Ubuntu worker must share MongoDB Atlas, the same encryption master key, and one managed `rediss://` service. Route only the dashboard hostname to Render; route the wildcard application hostname through the Ubuntu tunnel.
+
 ## Clean Install Steps
 
 1. Start from a clean Ubuntu 22.04 or 24.04 server.
 2. Run `node scripts/preflight.js` if the repo is already present, or run the installer preflight after cloning.
-3. Install with `sudo bash infrastructure/install.sh`.
+3. Set `HELLODEPLOY_RELEASE_REF` to a reviewed immutable tag or full commit SHA, then install with `sudo HELLODEPLOY_RELEASE_REF=<tag-or-commit> bash infrastructure/install.sh`.
 4. Complete `node scripts/setup.js` when prompted by the installer.
 5. Back up `HELLODEPLOY_MASTER_KEY` outside the server.
 6. Seed the first Super Admin with `node scripts/seed-super-admin.js`.
@@ -61,6 +65,8 @@ Machine-readable output:
 
 ```sh
 node scripts/self-hosted-checklist.js --mode public_ip --domain hellodeploy.example.com --json
+
+node scripts/self-hosted-checklist.js --mode hybrid_worker --domain hellodeploy.example.com
 ```
 
 ## Required Environment
@@ -71,9 +77,9 @@ The setup wizard and secret generator populate the production `.env`. Required k
 - `PORT`
 - `HOST`
 - `PLATFORM_DOMAIN`
+- `DEPLOYMENT_DOMAIN`
 - `MONGODB_URI`
-- `REDIS_HOST`
-- `REDIS_PORT`
+- `REDIS_URL` for hybrid/managed Redis, or local `REDIS_HOST` and `REDIS_PORT`
 - `SESSION_SECRET`
 - `HELLODEPLOY_MASTER_KEY`
 - `GITHUB_WEBHOOK_SECRET`

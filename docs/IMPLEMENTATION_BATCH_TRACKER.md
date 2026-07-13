@@ -1,19 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-12T19:02:25+08:00
+Updated: 2026-07-13T14:24:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field          | Value                           |
-| -------------- | ------------------------------- |
-| Overall status | Blocked                         |
-| Current batch  | Batch 2 — Host validation       |
-| Next action    | Run Batches 1–5 on target hosts |
-| Release state  | NO-GO                           |
+| Field            | Value                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Overall status   | Deployed; validation blocked                              |
+| Release progress | Baseline in review; external validation blocked           |
+| Current batch    | Batch 1 / Group 0 — Tracker and Release Baseline          |
+| Next action      | Update, review, and merge PR #1; create and verify v0.1.0 |
+| Release state    | NO-GO                                                     |
 
-The safe local implementation loop is green through the locally executable portions of Batches 1–5. Completion is blocked on review/CI plus supported-host, production-configuration, Nginx/systemd, backup, restore, and real deployment evidence. A batch may be marked `Complete` only after every required task is checked, its completion gate is satisfied, and verification evidence is recorded or linked.
+The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
 
 ## Status Legend
 
@@ -36,6 +37,67 @@ The safe local implementation loop is green through the locally executable porti
 | 7     | Pilot and Recovery Drills           | Not Started | Phase 7          |
 | 8     | Final Release Decision              | Not Started | Phase 8          |
 
+## Remaining Execution Groups
+
+These groups order the remaining batches by dependency and identify work that can be executed together. Group status follows this tracker's status legend; individual live checks continue to use `Passed`, `Failed`, `Blocked`, or `Not Run` in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md).
+
+| Group | Name                                     | Status      | Dependency                        | Required outcome                                       |
+| ----- | ---------------------------------------- | ----------- | --------------------------------- | ------------------------------------------------------ |
+| 0     | Tracker and Release Baseline             | In Progress | Clean PR branch and green CI      | Reviewed merge commit and verified annotated `v0.1.0`  |
+| 1     | Render Security and Shared Services      | Blocked     | Group 0                           | Exact release deployed and every public check passes   |
+| 2     | Ubuntu Worker Plane and Cloudflare Route | Blocked     | Groups 0–1 and guided host access | Isolated worker plane and rollback-safe wildcard route |
+| 3     | Deployment and Authenticated Product QA  | Not Started | Group 2                           | Runtime, security, role, and accessibility QA passes   |
+| 4     | Upgrade, Rollback, Backup, and Restore   | Not Started | Group 3 and second-host/S3 access | Verified recovery from release and host failures       |
+| 5     | Final GO/NO-GO Decision                  | Not Started | Groups 0–4                        | Every release gate has direct evidence                 |
+
+### Group 0 — Tracker and Release Baseline
+
+- Update this tracker and the worklog with dependency-ordered groups and sanitized PR/CI evidence.
+- Push the documentation update to draft PR #1 and require the Node.js 22 CI workflow to pass again.
+- Review and merge the clean PR into `main`, then create annotated tag `v0.1.0` on the merge commit.
+- Record the tag and full commit SHA. Stop on review, CI, merge-state, clean-checkout, or tag-verification failure.
+
+### Group 1 — Render Security and Shared Services
+
+- Configure the Render web service for the supported production start path, Atlas, managed TLS Redis, domains, queue, and existing encryption key through provider secret management.
+- Let Render auto-deploy the exact tagged `main` commit and verify its commit identity.
+- Require the public checker to pass assets, HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`.
+- If the cookie remains insecure, inspect only bounded production/proxy booleans. Stop on any public, shared-service, configuration, or commit-identity failure.
+
+### Group 2 — Ubuntu Worker Plane and Cloudflare Routing
+
+- Run hybrid-worker preflight, securely deliver the shared configuration, and install immutable `v0.1.0` in worker-only mode.
+- Route `*.apps.hellodeploy.online` through the Ubuntu Cloudflare Tunnel and Nginx.
+- Verify identities, protected configuration and key permissions, helper socket, systemd, managed Redis mode, `nginx -t`, route transactions, and rollback.
+- Prove that no web service runs on the worker host and the public web plane has no Docker/helper path. Stop on unsafe privileges, generated replacement secrets, tunnel failure, or rollback failure.
+
+### Group 3 — Deployment and Authenticated Product QA
+
+- In parallel lanes, deploy every supported runtime and exercise the complete Owner, Maintainer, and Viewer workflow with dedicated QA accounts and a noncritical repository.
+- Verify non-root containers, loopback binding, limits, redaction, cleanup, concurrency, broken-candidate continuity, retained-image rollback, and controlled Docker interruption.
+- Verify authentication, repository/detection/settings, environment secrets, deployment/logs, domains, maintenance, role boundaries, responsive behavior, keyboard/screen-reader behavior, duplicate submission, and recovery states.
+- Stop on secret exposure, unsafe container state, privilege bypass, healthy-release displacement, or an unresolved critical/high defect.
+
+### Group 4 — Upgrade, Rollback, Backup, and Restore
+
+- Create, encrypt, checksum, upload, retrieve, and reverify a backup in private versioned S3-compatible storage.
+- Upgrade from `v0.1.0` to a reviewed `v0.1.1`, proving queue pause/drain, candidate verification, routing, and prior queue-state restoration.
+- Use a full-SHA, isolated, never-merged failing worker-unit drill commit to prove automatic rollback, then delete its remote branch after sanitized evidence is recorded.
+- Restore on the available second clean Ubuntu host, verify a representative project, record RPO/RTO, and drill MongoDB, Redis, Docker, Nginx, worker, and tunnel interruptions.
+- Keep the queue paused and stop immediately on rollback- or restore-verification failure.
+
+### Group 5 — Final GO/NO-GO Decision
+
+- Reconcile every batch and live-acceptance row, rerun all release gates, and define monitoring, retention, alert, and incident ownership.
+- Resolve every critical/high defect and explicitly accept documented lower-severity risks.
+- Mark production `GO` only when cookie, authenticated QA, host isolation, runtime deployment, failed-upgrade rollback, and cross-host restore gates all have direct passing evidence.
+
+### Evidence Safety
+
+- Keep group status here, row-level live results in the acceptance checklist, strategy in the roadmap, and detailed command results in `WORKLOG.md`.
+- Never infer host success from local tests or public HTTP evidence.
+- Never record credentials, secret values, cookie/session values, private endpoints, internal addresses, or infrastructure identifiers.
+
 ## Batch 1 — Green Quality Baseline
 
 **Status:** In Review
@@ -43,7 +105,7 @@ The safe local implementation loop is green through the locally executable porti
 **Completed:** —
 **Objective:** Establish a clean, reproducible release baseline with reliable automated quality gates.
 **Dependencies:** Node.js 22+, npm 10+, and access to install locked dependencies.
-**Blockers:** Review/commit is required to produce a clean release checkout; remote CI has not yet run on this change set.
+**Blockers:** Review, merge, and immutable tag creation are required before the release checkout is complete.
 
 ### Tasks
 
@@ -51,7 +113,7 @@ The safe local implementation loop is green through the locally executable porti
 - [x] Align local-development and production documentation with the Node.js 22 support policy.
 - [x] Verify `npm ci` installs from `package-lock.json` without modifying it.
 - [x] Run lint, formatting, full tests, production dependency audit, and diff validation.
-- [ ] Confirm CI runs clean installation, lint, formatting, tests, and the production dependency audit.
+- [x] Confirm CI runs clean installation, lint, formatting, tests, and the production dependency audit.
 - [x] Document the release branch, tag format, and rollback commit/tag policy.
 - [x] Record exact command results and test counts in the worklog.
 
@@ -68,7 +130,7 @@ git status --short
 ```
 
 **Completion gate:** Every required local command and supported-runtime CI job passes, dependency installation leaves tracked files unchanged, and evidence is recorded.
-**Evidence:** Local verification on Node.js `v22.23.1` and npm `10.9.8` completed 2026-07-12. `npm ci` installed 314 packages and left `package-lock.json` unchanged (SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`). Lint and formatting passed; all 601 tests passed with no skips; the production dependency audit reported zero vulnerabilities. See the Batch 1 entry in `WORKLOG.md`.
+**Evidence:** Local verification on Node.js `v22.23.1` and npm `10.9.8` completed 2026-07-13. `npm ci` installed 314 packages and left `package-lock.json` unchanged (SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`). Lint, formatting, configuration validation, and all 717 tests passed with no skips; the production dependency audit reported zero vulnerabilities. Draft PR #1 is cleanly mergeable and its Node.js 22 CI run passed installation, lint, formatting, configuration validation, all tests, and the production dependency audit at head commit `85428baacf6cd5b80cf8d3b3aff1a5094e9fd363`. Review, merge, and immutable tag creation remain open.
 
 ## Batch 2 — Nginx Privilege Isolation
 
@@ -84,7 +146,7 @@ git status --short
 - [x] Make route creation, replacement, and removal atomic.
 - [x] Validate candidate configuration before activation and preserve the last healthy route on validation or reload failure.
 - [ ] Restrict `.env` and GitHub private-key access to only the services that require them.
-- [ ] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
+- [x] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
 - [x] Automate ownership and permission checks in post-install diagnostics.
 - [ ] Prove the web service cannot access Docker or the privileged route helper.
 - [ ] Validate route creation, replacement, removal, rollback, and reload on a clean supported host.
@@ -96,7 +158,7 @@ git status --short
 - Record target-host users, groups, socket permissions, route file ownership, `nginx -t`, activation, and rollback results without secrets.
 
 **Completion gate:** The worker activates routes through the constrained helper, the web process has no Docker or Nginx-control access, and invalid configuration leaves the last healthy route active.
-**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. `infrastructure/verify-installation.sh` automatically checks service identities and groups, `.env`/route-directory/helper-socket metadata, private-key readability, service activity, `nginx -t`, and `/ready`; installer and upgrade run it as a blocking gate. Focused routing/helper/privilege/verifier tests passed locally. Clean-host execution, live reload, and route activation proof remains required.
+**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Install, upgrade, and verification support an explicit worker-only host role that omits the web service and dashboard ingress, validates worker configuration, and still checks identities, groups, protected metadata, helper socket, service activity, and `nginx -t`. Focused routing/helper/privilege/verifier tests passed locally. Clean-host execution, live reload, and route activation proof remain required.
 
 ## Batch 3 — Production Configuration
 
@@ -105,17 +167,17 @@ git status --short
 **Completed:** —
 **Objective:** Make valid production configuration start reliably and invalid configuration fail early with safe diagnostics.
 **Dependencies:** Batches 1–2 and the intended production GitHub App and routing details.
-**Blockers:** Final startup proof requires production-equivalent configuration.
+**Blockers:** The public web and readiness endpoints are running, but the session-cookie result indicates the deployed web runtime or proxy path is not satisfying the production cookie contract. Production start and lifecycle validation now require production mode locally; redeployment plus external revalidation and host-side service-identity evidence remain required.
 
 ### Tasks
 
 - [ ] Complete and verify GitHub App configuration, including `GITHUB_APP_NAME`.
-- [ ] Select and document the production routing mode.
-- [ ] Align `.env.example`, environment documentation, setup output, and runtime validation.
-- [ ] Clearly distinguish blocking configuration from optional integrations.
+- [x] Select and document the production routing mode.
+- [x] Align `.env.example`, environment documentation, setup output, and runtime validation.
+- [x] Clearly distinguish blocking configuration from optional integrations.
 - [ ] Confirm web and worker startup under their intended service identities.
 - [x] Confirm invalid secrets, ports, routing settings, unreadable keys, and partial integrations fail before accepting work.
-- [ ] Confirm diagnostics expose configuration names and statuses but never values.
+- [x] Confirm diagnostics expose configuration names and statuses but never values.
 
 ### Verification
 
@@ -124,7 +186,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** Production worker configuration now rejects disabled local routing unless external routing is explicitly acknowledged, and focused valid/invalid routing fixtures pass. Real GitHub App credentials, the production routing selection, service-identity startup, and production-equivalent configuration remain external blockers.
+**Evidence:** The hybrid topology now explicitly routes the Render dashboard through `PLATFORM_DOMAIN` and worker-managed wildcard applications through `DEPLOYMENT_DOMAIN` with the local Nginx helper enabled on Ubuntu. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode, and the value-safe public checker still fails only the live missing `Secure` attribute. Redeployment, complete GitHub App proof, managed Redis connectivity, and service-identity evidence remain blockers.
 
 ## Batch 4 — Health and Graceful Shutdown
 
@@ -166,10 +228,10 @@ git status --short
 ### Tasks
 
 - [ ] Run comprehensive preflight before host changes and configuration validation before service startup.
-- [ ] Install immutable release tags or commits with lockfile-reproducible dependencies.
+- [x] Install immutable release tags or commits with lockfile-reproducible dependencies.
 - [ ] Verify service readiness, Nginx configuration, and route activation after installation.
 - [x] Refuse unsafe dirty-checkout upgrades and record the prior full commit.
-- [ ] Make failed upgrades automatically return to a verified working release and record outcomes.
+- [x] Make failed upgrades automatically return to a verified working release and record outcomes.
 - [ ] Back up required application, database, route, and ingress state to an encrypted access-controlled destination.
 - [x] Add explicit failure handling, checksums, and a machine-readable backup manifest.
 - [ ] Restore the platform and a representative deployed project on a second clean host and record RPO/RTO results.
@@ -181,7 +243,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** A clean host installs without permission repair, upgrades either succeed fully or roll back safely, and an encrypted backup restores successfully on a second host.
-**Evidence:** `upgrade.sh` now requires an explicit immutable tag or commit, resolves it to a full SHA, uses detached checkouts, rejects dirty production trees before backup, and retains the full prior SHA for rollback. Backups fail closed on missing/failed local MongoDB dumps unless an external snapshot is explicitly acknowledged, include Nginx routing state, SHA-256 checksums, and a JSON manifest; restore verifies integrity before changing services and treats database restore failure as fatal. Install and upgrade run blocking identity, permission, service, Nginx, and dependency-readiness verification. Shell syntax and focused safety tests pass. Queue drain, clean-host lifecycle, encrypted off-host storage, and cross-host restore proof remain open.
+**Evidence:** Install and upgrade require explicit immutable refs, resolve full commits, and use detached checkouts. Worker-only installation requires securely pre-provisioned shared configuration and refuses to generate a different encryption key. Upgrade pauses/drains BullMQ and verifies either candidate or rollback while preserving operator pause state. Backup/restore integrity protections remain in place. Shell syntax and focused lifecycle tests pass; clean-host install, managed Redis connectivity, failed-upgrade execution, encrypted off-host storage, and cross-host restore proof remain open.
 
 ## Batch 6 — Real Deployment Validation
 

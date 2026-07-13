@@ -8,7 +8,7 @@
   </div>
   <% if (membership.role === 'OWNER') { %>
   <div class="button-group">
-    <a href="/projects/<%= project.slug %>/edit" class="button button--secondary">Settings</a>
+    <a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a>
   </div>
   <% } %>
 </div>
@@ -39,6 +39,13 @@
       </li>
       <% }) %>
     </ol>
+    <% if (onboarding.nextStep) { %>
+    <div class="form-actions mt-4">
+      <a href="<%= onboarding.nextStep.href %>" class="button button--primary button--sm">
+        Next: <%= onboarding.nextStep.label %>
+      </a>
+    </div>
+    <% } %>
   </div>
 </div>
 <% } %>
@@ -50,14 +57,9 @@
     </div>
     <div class="card__body">
       <nav class="quick-links">
-        <a href="/projects/<%= project.slug %>/deployments" class="table-link text-sm">Deployments</a>
-        <a href="/projects/<%= project.slug %>/repository" class="table-link text-sm">Repository</a>
-        <a href="/projects/<%= project.slug %>/detection" class="table-link text-sm">Detection</a>
-        <% if (membership.role === 'OWNER') { %>
-          <a href="/projects/<%= project.slug %>/environment" class="table-link text-sm">Environment</a>
-          <a href="/projects/<%= project.slug %>/members" class="table-link text-sm">Members</a>
-          <a href="/projects/<%= project.slug %>/deploy-hook" class="table-link text-sm">Deploy Hook</a>
-        <% } %>
+        <% (locals.projectNavigation || []).filter((item) => item.key !== 'overview').forEach((item) => { %>
+          <a href="<%= item.href %>" class="table-link text-sm"><%= item.label %></a>
+        <% }) %>
       </nav>
     </div>
   </div>

@@ -1,4 +1,4 @@
-import { createRedisConnection } from '@hellodeploy/queue';
+import { classifyRedisError, createRedisConnection } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 
@@ -14,13 +14,9 @@ function getSubscriber() {
     return _subscriber;
   }
   try {
-    _subscriber = createRedisConnection({
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      password: env.REDIS_PASSWORD,
-    });
+    _subscriber = createRedisConnection(env.REDIS_CONNECTION);
     _subscriber.on('error', (err) => {
-      logger.warn('Deploy-log subscriber Redis error', { error: err.message });
+      logger.warn('Deploy-log subscriber Redis error', { error: classifyRedisError(err) });
     });
     _subscriber.on('message', (channel, raw) => {
       const handlers = channelHandlers.get(channel);
@@ -43,7 +39,9 @@ function getSubscriber() {
     });
     return _subscriber;
   } catch (err) {
-    logger.warn('Could not create deploy-log subscriber connection', { error: err.message });
+    logger.warn('Could not create deploy-log subscriber connection', {
+      error: classifyRedisError(err),
+    });
     return null;
   }
 }
@@ -65,7 +63,10 @@ export function subscribeDeployLogs(deploymentId, handler) {
     handlers = new Set();
     channelHandlers.set(channel, handlers);
     subscriber.subscribe(channel).catch((err) => {
-      logger.warn('Deploy-log subscribe failed', { channel, error: err.message });
+      logger.warn('Deploy-log subscribe failed', {
+        channel,
+        error: classifyRedisError(err),
+      });
     });
   }
   handlers.add(handler);

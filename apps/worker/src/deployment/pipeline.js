@@ -108,7 +108,7 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
         commitSha: freshDeployment?.commitSha ?? '',
         failureCode: freshDeployment?.failureCode,
         failureSummary: freshDeployment?.failureSummary,
-        platformDomain: env.PLATFORM_DOMAIN,
+        platformDomain: env.DEPLOYMENT_DOMAIN,
         notificationPreference: project.notificationPreference,
       })
       .catch(() => {}); // notification failures must never affect the deployment pipeline
@@ -360,7 +360,7 @@ export async function runReleasePipeline({
     if (subdomainUsable) {
       const nginxConfig = generateServerBlock({
         subdomain,
-        domain: env.PLATFORM_DOMAIN,
+        domain: env.DEPLOYMENT_DOMAIN,
         port: hostPort,
         deploymentId: deploymentId.toString(),
       });
@@ -376,7 +376,7 @@ export async function runReleasePipeline({
           deploymentId,
           'DEPLOY',
           'INFO',
-          `Nginx route active: ${subdomain}.${env.PLATFORM_DOMAIN}`,
+          `Nginx route active: ${subdomain}.${env.DEPLOYMENT_DOMAIN}`,
           correlationId,
         );
       } catch (err) {

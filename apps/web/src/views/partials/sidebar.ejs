@@ -28,64 +28,16 @@
   <div class="sidebar__section">
     <p class="sidebar__section-title"><%= currentProject.name %></p>
     <ul class="sidebar__nav" role="list">
-      <li>
-        <a href="/projects/<%= currentProject.slug %>"
-           class="sidebar__link"
-           <%= currentPath === `/projects/${currentProject.slug}` ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'overview', className: 'sidebar__icon' }) %>
-          <span>Overview</span>
-        </a>
-      </li>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/deployments"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/deployments`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'deploy', className: 'sidebar__icon' }) %>
-          <span>Deployments</span>
-        </a>
-      </li>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/repository"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/repository`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'repository', className: 'sidebar__icon' }) %>
-          <span>Repository</span>
-        </a>
-      </li>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/detection"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/detection`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'detection', className: 'sidebar__icon' }) %>
-          <span>Detection</span>
-        </a>
-      </li>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/domains"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/domains`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'domain', className: 'sidebar__icon' }) %>
-          <span>Domains</span>
-        </a>
-      </li>
-      <% if (locals.currentMembership && currentMembership.role === 'OWNER') { %>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/environment"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/environment`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'environment', className: 'sidebar__icon' }) %>
-          <span>Environment</span>
-        </a>
-      </li>
-      <li>
-        <a href="/projects/<%= currentProject.slug %>/members"
-           class="sidebar__link"
-           <%= currentPath.startsWith(`/projects/${currentProject.slug}/members`) ? 'aria-current="page"' : '' %>>
-          <%- include('icon', { name: 'users', className: 'sidebar__icon' }) %>
-          <span>Members</span>
-        </a>
-      </li>
-      <% } %>
+      <% (locals.projectNavigation || []).forEach((item) => { %>
+        <li>
+          <a href="<%= item.href %>"
+             class="sidebar__link"
+             <%= item.active ? 'aria-current="page"' : '' %>>
+            <%- include('icon', { name: item.icon, className: 'sidebar__icon' }) %>
+            <span><%= item.label %></span>
+          </a>
+        </li>
+      <% }) %>
     </ul>
   </div>
   <% } %>

@@ -62,7 +62,7 @@ export async function handleStopProject(job) {
     if (isValidSubdomainLabel(subdomain)) {
       const maintenanceConfig = generateMaintenanceBlock({
         subdomain,
-        domain: env.PLATFORM_DOMAIN,
+        domain: env.DEPLOYMENT_DOMAIN,
       });
 
       try {

@@ -8,18 +8,79 @@ import { JobRetryPolicy } from '@hellodeploy/contracts';
  * Create an ioredis connection for BullMQ.
  * `maxRetriesPerRequest: null` is required by BullMQ.
  *
- * @param {{ host: string, port: number, password?: string }} config
+ * @param {{ url?: string, host?: string, port?: number, password?: string, production?: boolean }} config
  * @returns {Redis}
  */
-export function createRedisConnection({ host, port, password }) {
-  return new Redis({
-    host,
-    port,
-    password: password || undefined,
+export function createRedisConnection(config) {
+  const { connection } = resolveRedisConnectionConfig(config);
+  const options = {
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     lazyConnect: false,
-  });
+  };
+
+  if (connection.url) {
+    return new Redis(connection.url, options);
+  }
+
+  return new Redis({ ...connection, ...options });
+}
+
+function isLoopbackHost(host) {
+  const normalized = String(host ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/^\[|\]$/g, '');
+  return (
+    normalized === 'localhost' || normalized === '::1' || /^127(?:\.\d{1,3}){3}$/.test(normalized)
+  );
+}
+
+/**
+ * Normalize and validate Redis configuration without opening a connection.
+ * Remote production Redis must use TLS; errors intentionally exclude endpoints.
+ */
+export function resolveRedisConnectionConfig({
+  url,
+  host = '127.0.0.1',
+  port = 6379,
+  password,
+  production = false,
+} = {}) {
+  if (url) {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch {
+      throw new Error('REDIS_URL must be a valid redis:// or rediss:// URL.');
+    }
+    if (!['redis:', 'rediss:'].includes(parsed.protocol)) {
+      throw new Error('REDIS_URL must use redis:// or rediss://.');
+    }
+    if (production && parsed.protocol !== 'rediss:' && !isLoopbackHost(parsed.hostname)) {
+      throw new Error('Remote production Redis requires a rediss:// URL.');
+    }
+    return {
+      mode: parsed.protocol === 'rediss:' ? 'managed-tls-url' : 'local-url',
+      connection: { url },
+    };
+  }
+
+  if (production && !isLoopbackHost(host)) {
+    throw new Error('Remote production Redis requires REDIS_URL with rediss://.');
+  }
+  return {
+    mode: isLoopbackHost(host) ? 'local-split' : 'remote-split',
+    connection: { host, port, password: password || undefined },
+  };
+}
+
+export function classifyRedisError(error) {
+  const code = typeof error?.code === 'string' ? error.code : '';
+  if (/^[A-Z][A-Z0-9_]{1,63}$/.test(code)) {
+    return code;
+  }
+  return 'REDIS_ERROR';
 }
 
 // ─── Queue (producer — web process only) ──────────────────────────────────────

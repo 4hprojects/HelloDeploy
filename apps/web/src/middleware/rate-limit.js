@@ -1,6 +1,6 @@
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
-import { createRedisConnection } from '@hellodeploy/queue';
+import { classifyRedisError, createRedisConnection } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 
@@ -15,20 +15,16 @@ function getRedisClient() {
     return _redisClient;
   }
   try {
-    _redisClient = createRedisConnection({
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      password: env.REDIS_PASSWORD,
-    });
+    _redisClient = createRedisConnection(env.REDIS_CONNECTION);
     _redisClient.on('error', (err) => {
       const log = env.isProduction() ? logger.error : logger.warn;
-      log('[web] Rate limit Redis error', { error: err.message });
+      log('[web] Rate limit Redis error', { error: classifyRedisError(err) });
     });
     return _redisClient;
   } catch (err) {
     if (env.isProduction()) {
       logger.error(`[web] ${RATE_LIMIT_REDIS_REQUIRED_MESSAGE}`, {
-        error: err.message,
+        error: classifyRedisError(err),
       });
       throw new Error(RATE_LIMIT_REDIS_REQUIRED_MESSAGE);
     }
@@ -36,7 +32,7 @@ function getRedisClient() {
     logger.warn(
       '[web] Could not connect to Redis for rate limiting, falling back to memory store',
       {
-        error: err.message,
+        error: classifyRedisError(err),
       },
     );
     return null;

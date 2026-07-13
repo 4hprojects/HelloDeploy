@@ -12,6 +12,9 @@ set -euo pipefail
 HD_HOME="/opt/hellodeploy"
 BACKUP_ROOT="/var/backups/hellodeploy"
 RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
+QUEUE_STATE_FILE=""
+KEEP_QUEUE_PAUSED=false
+HOST_ROLE="${HELLODEPLOY_HOST_ROLE:-full}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -24,8 +27,82 @@ warn()    { echo -e "${YELLOW}[warn]${NC}  $*"; }
 error()   { echo -e "${RED}[error]${NC} $*" >&2; }
 section() { echo -e "\n${BOLD}── $* ──${NC}"; }
 
+install_service_units() {
+  install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/ || return 1
+  install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/ || return 1
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/ || return 1
+  fi
+  systemctl daemon-reload || return 1
+}
+
+verify_release() {
+  local services=(hellodeploy-nginx-helper hellodeploy-worker)
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    services+=(hellodeploy-web)
+  fi
+  systemctl is-active --quiet "${services[@]}" || return 1
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    curl --fail --silent --show-error \
+      "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || return 1
+  fi
+  HELLODEPLOY_VERIFY_ROLE="$HOST_ROLE" bash infrastructure/verify-installation.sh
+}
+
+activate_checked_out_release() {
+  section "Dependencies and configuration"
+  npm ci --omit=dev || return 1
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    sudo -u hellodeploy-web node scripts/validate-config.js --component web --require-production || return 1
+  fi
+  sudo -u hellodeploy-worker node scripts/validate-config.js --component worker --require-production || return 1
+
+  section "Service and ingress configuration"
+  install_service_units || return 1
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    bash infrastructure/nginx/render-platform-ingress.sh "$HD_HOME/.env" || return 1
+  fi
+
+  section "Restarting services"
+  local services=(hellodeploy-nginx-helper hellodeploy-worker)
+  if [[ "$HOST_ROLE" == "full" ]]; then
+    services+=(hellodeploy-web)
+  fi
+  systemctl restart "${services[@]}" || return 1
+
+  section "Readiness check"
+  sleep 3
+  verify_release
+}
+
+rollback_release() {
+  local previous_commit=$1
+
+  git checkout --detach "$previous_commit" || return 1
+  activate_checked_out_release
+}
+
+resume_upgrade_queue() {
+  if [[ -n "$QUEUE_STATE_FILE" && -f "$QUEUE_STATE_FILE" ]]; then
+    node scripts/queue-maintenance.js resume --state-file "$QUEUE_STATE_FILE"
+  fi
+}
+
+cleanup_upgrade_state() {
+  if [[ "$KEEP_QUEUE_PAUSED" == "true" ]]; then
+    warn "Deployment queue remains paused because rollback verification failed."
+  elif ! resume_upgrade_queue; then
+    warn "Could not restore the deployment queue state; resume it manually after verification."
+  fi
+  [[ -z "$QUEUE_STATE_FILE" ]] || rm -f "$QUEUE_STATE_FILE"
+}
+
 if [[ $EUID -ne 0 ]]; then
   error "This script must be run as root.  Try: sudo bash $0"
+  exit 1
+fi
+if [[ "$HOST_ROLE" != "full" && "$HOST_ROLE" != "worker" ]]; then
+  error "HELLODEPLOY_HOST_ROLE must be full or worker."
   exit 1
 fi
 
@@ -65,6 +142,14 @@ fi
 bash "$(dirname "$0")/backup.sh" "${BACKUP_ARGS[@]}"
 info "Backup saved to $BACKUP_PATH"
 
+# ─── queue pause and drain ────────────────────────────────────────────────────
+
+section "Pausing deployment queue"
+QUEUE_STATE_FILE=$(mktemp /tmp/hellodeploy-upgrade-queue.XXXXXX)
+rm -f "$QUEUE_STATE_FILE"
+trap cleanup_upgrade_state EXIT
+node scripts/queue-maintenance.js pause-and-drain --state-file "$QUEUE_STATE_FILE"
+
 # ─── resolve immutable release ───────────────────────────────────────────────
 
 section "Pulling code"
@@ -77,42 +162,25 @@ if [[ "$PREV_COMMIT" == "$NEW_COMMIT" ]]; then
   warn "Already up to date ($NEW_COMMIT).  Continuing to reinstall dependencies and restart."
 fi
 
-# ─── dependencies ────────────────────────────────────────────────────────────
+# ─── activate and verify candidate ───────────────────────────────────────────
 
-section "Dependencies"
-npm ci --omit=dev
-sudo -u hellodeploy-web node scripts/validate-config.js --component web
-sudo -u hellodeploy-worker node scripts/validate-config.js --component worker
-
-# Refresh the platform ingress so proxy/security changes apply to existing installs.
-bash infrastructure/nginx/render-platform-ingress.sh "$HD_HOME/.env"
-info "Platform ingress refreshed."
-
-# ─── restart services ────────────────────────────────────────────────────────
-
-section "Restarting services"
-install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
-install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/
-install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/
-systemctl daemon-reload
-systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
-info "Services restarted."
-
-# ─── readiness and installation checks ──────────────────────────────────────
-
-section "Readiness check"
-sleep 3
-if ! systemctl is-active --quiet hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker || \
-   ! curl --fail --silent --show-error "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || \
-   ! bash infrastructure/verify-installation.sh; then
-  error "One or more services are not online after upgrade."
+if ! activate_checked_out_release; then
+  error "The candidate release failed installation, configuration, restart, or verification."
   error "Rolling back to $PREV_COMMIT…"
-  git checkout --detach "$PREV_COMMIT"
-  npm ci --omit=dev
-  systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
-  error "Rollback complete. Investigate the logs: journalctl -u 'hellodeploy-*'"
+  if rollback_release "$PREV_COMMIT"; then
+    error "Rollback verified at $PREV_COMMIT. Investigate the logs: journalctl -u 'hellodeploy-*'"
+  else
+    KEEP_QUEUE_PAUSED=true
+    error "CRITICAL: rollback to $PREV_COMMIT failed verification. Services may be unavailable."
+    error "Inspect immediately: journalctl -u 'hellodeploy-*'"
+  fi
   exit 1
 fi
+
+resume_upgrade_queue
+rm -f "$QUEUE_STATE_FILE"
+QUEUE_STATE_FILE=""
+trap - EXIT
 
 echo ""
 echo -e "${GREEN}${BOLD}Upgrade complete!${NC}"

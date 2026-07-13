@@ -69,7 +69,7 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 
 ### MEDIUM
 
-- [ ] **Navigation drift** — the contextual sidebar and the show-page "Quick Links" card expose different sets of pages (sidebar has Domains but not Deploy Hook; Quick Links vice-versa; Settings appears in neither). **Fix:** single source of truth for project nav — ideally the consolidated Settings sub-nav noted in the Render-parity plan. _Effort: M._ → Phase 18
+- [x] **Navigation drift** — Phase 18 now drives the contextual sidebar and overview Quick Links from one role-aware registry, adds the consolidated Settings shell/section registry, and composes existing project controls through their authoritative routes. _Effort: M. Fixed 2026-07-13._
 - [ ] **Thin dashboard** — shows only a 5-row project table duplicating `/projects`. **Fix:** recent deployment activity, failure alerts, "needs attention" items. _Effort: M._ → Phase 18
 - [ ] **Deployments list doesn't auto-refresh** — in-progress rows show "Running…" statically until manual reload (the detail page has live SSE). Also the detail page hard-reloads 1.2 s after terminal status, which is jarring. **Fix:** light polling on the list; replace reload with in-place status swap. _Effort: S–M._ → Phase 18
 

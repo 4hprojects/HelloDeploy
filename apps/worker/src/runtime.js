@@ -4,6 +4,7 @@ import {
   createRedisConnection,
   createDeploymentQueue,
   createDeploymentWorker,
+  classifyRedisError,
 } from '@hellodeploy/queue';
 import { JobType, validateJobPayload } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
@@ -24,7 +25,7 @@ import { createGracefulWorkerShutdown } from './lifecycle.js';
 logger.info('Worker: starting HelloDeploy deployment worker', {
   nodeEnv: env.NODE_ENV,
   concurrency: env.WORKER_CONCURRENCY,
-  redis: `${env.REDIS_HOST}:${env.REDIS_PORT}`,
+  redisMode: env.REDIS_MODE,
 });
 
 if (env.NGINX_ENABLED) {
@@ -39,14 +40,10 @@ logger.info('Worker: database connected');
 
 // ── Redis + BullMQ worker ──────────────────────────────────────────────────────
 
-const redis = createRedisConnection({
-  host: env.REDIS_HOST,
-  port: env.REDIS_PORT,
-  password: env.REDIS_PASSWORD,
-});
+const redis = createRedisConnection(env.REDIS_CONNECTION);
 
 redis.on('error', (err) => {
-  logger.error('Worker: Redis connection error', { error: err.message });
+  logger.error('Worker: Redis connection error', { error: classifyRedisError(err) });
 });
 
 // Expose queue to job handlers that need to enqueue follow-on jobs
@@ -117,7 +114,7 @@ worker.on('failed', (job, err) => {
 });
 
 worker.on('error', (err) => {
-  logger.error('Worker: worker error', { error: err.message });
+  logger.error('Worker: worker error', { error: classifyRedisError(err) });
 });
 
 logger.info('Worker: ready — listening for jobs');

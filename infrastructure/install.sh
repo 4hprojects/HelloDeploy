@@ -18,8 +18,10 @@ HD_HOME="/opt/hellodeploy"
 HD_DATA="/var/lib/hellodeploy"
 HD_LOG="/var/log/hellodeploy"
 REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/4hprojects/HelloDeploy.git}"
-REPO_BRANCH="${HELLODEPLOY_BRANCH:-main}"
+RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 NODE_MAJOR=22
+HOST_ROLE="${HELLODEPLOY_HOST_ROLE:-full}"
+CONFIG_SOURCE="${HELLODEPLOY_CONFIG_SOURCE:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -36,6 +38,18 @@ section() { echo -e "\n${BOLD}── $* ──${NC}"; }
 
 if [[ $EUID -ne 0 ]]; then
   error "This script must be run as root.  Try: sudo bash $0"
+  exit 1
+fi
+if [[ "$HOST_ROLE" != "full" && "$HOST_ROLE" != "worker" ]]; then
+  error "HELLODEPLOY_HOST_ROLE must be full or worker."
+  exit 1
+fi
+if [[ -z "$RELEASE_REF" ]]; then
+  error "HELLODEPLOY_RELEASE_REF must name an immutable tag or full commit."
+  exit 1
+fi
+if [[ "$HOST_ROLE" == "worker" && ( -z "$CONFIG_SOURCE" || ! -f "$CONFIG_SOURCE" ) ]]; then
+  error "Worker-only installation requires HELLODEPLOY_CONFIG_SOURCE with shared production configuration."
   exit 1
 fi
 
@@ -70,14 +84,16 @@ else
   info "Nginx $(nginx -v 2>&1 | grep -oP '[\d.]+') already installed."
 fi
 
-# Redis
-if ! command -v redis-cli &>/dev/null; then
-  info "Installing Redis…"
-  apt-get install -y redis-server
-  systemctl enable redis-server
-  systemctl start redis-server
-else
-  info "Redis already installed."
+# Redis is local in the full topology. Hybrid worker hosts use managed TLS Redis.
+if [[ "$HOST_ROLE" == "full" ]]; then
+  if ! command -v redis-cli &>/dev/null; then
+    info "Installing Redis…"
+    apt-get install -y redis-server
+    systemctl enable redis-server
+    systemctl start redis-server
+  else
+    info "Redis already installed."
+  fi
 fi
 
 # Docker
@@ -103,7 +119,7 @@ section "System user"
 getent group "$HD_CONFIG_GROUP" &>/dev/null || groupadd --system "$HD_CONFIG_GROUP"
 getent group "$HD_NGINX_GROUP" &>/dev/null || groupadd --system "$HD_NGINX_GROUP"
 
-if ! id "$HD_WEB_USER" &>/dev/null; then
+if [[ "$HOST_ROLE" == "full" ]] && ! id "$HD_WEB_USER" &>/dev/null; then
   useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/hellodeploy-web --create-home "$HD_WEB_USER"
   info "Created unprivileged web user '$HD_WEB_USER'."
 fi
@@ -112,7 +128,9 @@ if ! id "$HD_WORKER_USER" &>/dev/null; then
   info "Created deployment worker user '$HD_WORKER_USER'."
 fi
 
-usermod -aG "$HD_CONFIG_GROUP" "$HD_WEB_USER"
+if [[ "$HOST_ROLE" == "full" ]]; then
+  usermod -aG "$HD_CONFIG_GROUP" "$HD_WEB_USER"
+fi
 usermod -aG "$HD_CONFIG_GROUP","$HD_NGINX_GROUP",docker "$HD_WORKER_USER"
 
 # ─── directories ─────────────────────────────────────────────────────────────
@@ -141,14 +159,20 @@ fi
 
 section "Application"
 if [[ -d "$HD_HOME/.git" ]]; then
-  warn "Repository already exists at $HD_HOME — skipping clone."
-  warn "To upgrade, run:  sudo bash infrastructure/upgrade.sh"
+  if [[ -n "$(git -C "$HD_HOME" status --porcelain)" ]]; then
+    error "Existing installation checkout is dirty; refusing to replace it."
+    exit 1
+  fi
+  info "Repository already exists at $HD_HOME; resolving the requested release."
 else
-  info "Cloning $REPO_URL…"
-  git clone --branch "$REPO_BRANCH" --depth 1 "$REPO_URL" "$HD_HOME"
-  chown -R root:"$HD_CONFIG_GROUP" "$HD_HOME"
-  chmod -R u=rwX,g=rX,o= "$HD_HOME"
+  info "Cloning release metadata from $REPO_URL…"
+  git clone --no-checkout --filter=blob:none "$REPO_URL" "$HD_HOME"
 fi
+
+git -C "$HD_HOME" fetch --depth 1 origin "$RELEASE_REF"
+RELEASE_COMMIT=$(git -C "$HD_HOME" rev-parse --verify 'FETCH_HEAD^{commit}')
+git -C "$HD_HOME" checkout --detach "$RELEASE_COMMIT"
+info "Checked out immutable release commit $RELEASE_COMMIT."
 
 chown -R root:"$HD_CONFIG_GROUP" "$HD_HOME"
 chmod -R u=rwX,g=rX,o= "$HD_HOME"
@@ -162,47 +186,75 @@ npm ci --omit=dev
 section "Configuration"
 ENV_FILE="$HD_HOME/.env"
 
-if [[ -f "$ENV_FILE" ]]; then
-  warn ".env already exists — skipping secret generation."
+if [[ "$HOST_ROLE" == "worker" ]]; then
+  install -m 0640 -o root -g "$HD_CONFIG_GROUP" "$CONFIG_SOURCE" "$ENV_FILE"
+  info "Installed pre-provisioned worker configuration without generating secrets."
 else
-  info "Generating secrets…"
-  node scripts/generate-secrets.js --write --output "$ENV_FILE"
-fi
+  if [[ -f "$ENV_FILE" ]]; then
+    warn ".env already exists — skipping secret generation."
+  else
+    info "Generating secrets…"
+    node scripts/generate-secrets.js --write --output "$ENV_FILE"
+  fi
 
-info "Launching setup wizard…"
-node scripts/setup.js --output "$ENV_FILE" --skip-existing
+  info "Launching setup wizard…"
+  node scripts/setup.js --output "$ENV_FILE" --skip-existing
+fi
 chown root:"$HD_CONFIG_GROUP" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
-info "Validating production configuration for each service identity…"
-sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web
-sudo -u "$HD_WORKER_USER" node scripts/validate-config.js --component worker
+info "Validating production configuration for installed service identities…"
+if [[ "$HOST_ROLE" == "full" ]]; then
+  sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web --require-production
+fi
+sudo -u "$HD_WORKER_USER" node scripts/validate-config.js --component worker --require-production
 
-bash infrastructure/nginx/render-platform-ingress.sh "$ENV_FILE"
-info "Configured platform ingress."
+if [[ "$HOST_ROLE" == "full" ]]; then
+  bash infrastructure/nginx/render-platform-ingress.sh "$ENV_FILE"
+  info "Configured platform ingress."
+else
+  info "Worker-only host: dashboard ingress remains on Render."
+fi
 
 # ─── systemd services ────────────────────────────────────────────────────────
 
 section "Systemd services"
-install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
 install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/
 install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/
+if [[ "$HOST_ROLE" == "full" ]]; then
+  install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
+else
+  if systemctl list-unit-files hellodeploy-web.service --no-legend 2>/dev/null | grep -q '^hellodeploy-web.service'; then
+    systemctl disable --now hellodeploy-web
+  fi
+  rm -f /etc/systemd/system/hellodeploy-web.service
+fi
 systemctl daemon-reload
-systemctl enable --now hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker
+SERVICES=(hellodeploy-nginx-helper hellodeploy-worker)
+if [[ "$HOST_ROLE" == "full" ]]; then
+  SERVICES+=(hellodeploy-web)
+fi
+systemctl enable --now "${SERVICES[@]}"
 info "Systemd services enabled and started."
 
 section "Installation verification"
-bash infrastructure/verify-installation.sh
+HELLODEPLOY_VERIFY_ROLE="$HOST_ROLE" bash infrastructure/verify-installation.sh
 
 # ─── done ─────────────────────────────────────────────────────────────────────
 
 echo ""
 echo -e "${GREEN}${BOLD}HelloDeploy installed successfully!${NC}"
 echo ""
-echo "  Web UI:       https://$(grep PLATFORM_DOMAIN "$ENV_FILE" | cut -d= -f2)"
+if [[ "$HOST_ROLE" == "full" ]]; then
+  echo "  Web UI:       https://$(grep PLATFORM_DOMAIN "$ENV_FILE" | cut -d= -f2)"
+else
+  echo "  Host role:    worker plane (dashboard remains external)"
+fi
 echo "  Logs:         journalctl -u 'hellodeploy-*'"
 echo "  Status:       systemctl status hellodeploy-web hellodeploy-worker hellodeploy-nginx-helper"
-echo "  Seed admin:   sudo -u $HD_WEB_USER node $HD_HOME/scripts/seed-super-admin.js"
+if [[ "$HOST_ROLE" == "full" ]]; then
+  echo "  Seed admin:   sudo -u $HD_WEB_USER node $HD_HOME/scripts/seed-super-admin.js"
+fi
 echo ""
 echo -e "${YELLOW}IMPORTANT:${NC} Back up HELLODEPLOY_MASTER_KEY from $ENV_FILE to a secure"
 echo "location outside this server.  Losing it makes all stored secrets unrecoverable."

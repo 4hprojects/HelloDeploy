@@ -38,7 +38,7 @@ export async function handleSetProjectMaintenance(job) {
   if (enabled) {
     const maintenanceConfig = generateMaintenanceBlock({
       subdomain,
-      domain: env.PLATFORM_DOMAIN,
+      domain: env.DEPLOYMENT_DOMAIN,
       message,
     });
 
@@ -72,7 +72,7 @@ export async function handleSetProjectMaintenance(job) {
 
   const appConfig = generateServerBlock({
     subdomain,
-    domain: env.PLATFORM_DOMAIN,
+    domain: env.DEPLOYMENT_DOMAIN,
     port: activeDeployment.containerPort,
     deploymentId: activeDeployment._id.toString(),
   });

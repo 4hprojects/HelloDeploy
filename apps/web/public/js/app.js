@@ -574,7 +574,9 @@
       btn.setAttribute('aria-pressed', String(!isShowing));
       const label = btn.querySelector('.sr-only');
       if (label) {
-        label.textContent = isShowing ? 'Show password' : 'Hide password';
+        label.textContent = isShowing
+          ? (btn.dataset.showLabel ?? 'Show password')
+          : (btn.dataset.hideLabel ?? 'Hide password');
       }
     });
   }
@@ -803,6 +805,203 @@
     connectLogStream();
   }
 
+  function initEnvFileImport() {
+    const form = document.querySelector('[data-env-file-form]');
+    if (!form) {
+      return;
+    }
+
+    const input = form.querySelector('[data-env-file-input]');
+    const content = form.querySelector('[data-env-file-content]');
+    const status = form.querySelector('[data-env-file-status]');
+    const submit = form.querySelector('[data-env-file-submit]');
+
+    function readFileText(file) {
+      if (typeof file.text === 'function') {
+        return file.text();
+      }
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.addEventListener('load', () => resolve(String(reader.result ?? '')));
+        reader.addEventListener('error', reject);
+        reader.readAsText(file);
+      });
+    }
+
+    function countEnvEntries(text) {
+      return text.split(/\r?\n/).filter((line) => {
+        const candidate = line.trim().replace(/^export\s+/, '');
+        return candidate && !candidate.startsWith('#') && candidate.includes('=');
+      }).length;
+    }
+
+    input.addEventListener('change', async () => {
+      content.value = '';
+      submit.disabled = true;
+      delete form.dataset.confirm;
+      const file = input.files?.[0];
+      if (!file) {
+        return;
+      }
+      if (file.size > 64 * 1024) {
+        status.textContent = 'The .env file must be 64 KB or smaller.';
+        return;
+      }
+      try {
+        content.value = await readFileText(file);
+        if (content.value.length === 0) {
+          status.textContent = 'The selected .env file is empty.';
+          return;
+        }
+        const entryCount = countEnvEntries(content.value);
+        if (entryCount === 0) {
+          status.textContent =
+            'No environment variable entries were detected in the selected file.';
+          return;
+        }
+        const noun = entryCount === 1 ? 'variable' : 'variables';
+        status.textContent = `${file.name}: ${entryCount} ${noun} detected. Matching stored names will be replaced after confirmation.`;
+        form.dataset.confirm = `Import ${entryCount} environment ${noun}? Matching stored names will be replaced.`;
+        form.dataset.confirmTitle = 'Import environment variables';
+        form.dataset.confirmAcceptLabel = 'Import Variables';
+        form.dataset.confirmPendingLabel = 'Importing...';
+        form.dataset.confirmVariant = 'warning';
+        submit.disabled = false;
+      } catch {
+        status.textContent = 'The selected file could not be read.';
+      }
+    });
+  }
+
+  function initSettingsSectionNavigation() {
+    const links = [...document.querySelectorAll('[data-settings-section-link]')];
+    const sections = [...document.querySelectorAll('[data-settings-section]')];
+    if (!links.length || !sections.length) {
+      return;
+    }
+
+    function setCurrent(sectionId) {
+      links.forEach((link) => {
+        if (link.hash === `#${sectionId}`) {
+          link.setAttribute('aria-current', 'location');
+        } else {
+          link.removeAttribute('aria-current');
+        }
+      });
+    }
+
+    links.forEach((link) => {
+      link.addEventListener('click', (event) => {
+        const section = document.getElementById(link.hash.slice(1));
+        if (!section) {
+          return;
+        }
+        event.preventDefault();
+        window.history.pushState(null, '', link.hash);
+        setCurrent(section.id);
+        section.focus({ preventScroll: true });
+        section.scrollIntoView({
+          behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches
+            ? 'auto'
+            : 'smooth',
+          block: 'start',
+        });
+      });
+    });
+
+    if ('IntersectionObserver' in window) {
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const visible = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => a.boundingClientRect.top - b.boundingClientRect.top)[0];
+          if (visible) {
+            setCurrent(visible.target.id);
+          }
+        },
+        { rootMargin: '-20% 0px -65% 0px' },
+      );
+      sections.forEach((section) => observer.observe(section));
+    }
+
+    const initialSection = document.getElementById(window.location.hash.slice(1));
+    if (initialSection?.matches('[data-settings-section]')) {
+      setCurrent(initialSection.id);
+    }
+  }
+
+  function initSettingsEditGroups() {
+    const groups = [...document.querySelectorAll('[data-settings-edit-group]')];
+    if (!groups.length) {
+      return;
+    }
+
+    let activeGroup = null;
+    let activeTrigger = null;
+
+    function closeGroup(group, restoreFocus = true) {
+      const form = group.querySelector('[data-settings-edit-form]');
+      const display = group.querySelector('[data-settings-display]');
+      form?.reset();
+      if (form) {
+        form.hidden = true;
+      }
+      if (display) {
+        display.hidden = false;
+      }
+      group.removeAttribute('data-editing');
+      if (restoreFocus) {
+        activeTrigger?.focus();
+      }
+      if (activeGroup === group) {
+        activeGroup = null;
+        activeTrigger = null;
+      }
+    }
+
+    groups.forEach((group) => {
+      const form = group.querySelector('[data-settings-edit-form]');
+      const display = group.querySelector('[data-settings-display]');
+      const edit = group.querySelector('[data-settings-edit]');
+      const cancel = group.querySelector('[data-settings-cancel]');
+      if (!form || !display || !edit) {
+        return;
+      }
+
+      edit.addEventListener('click', () => {
+        if (activeGroup && activeGroup !== group) {
+          closeGroup(activeGroup, false);
+        }
+        activeGroup = group;
+        activeTrigger = edit;
+        display.hidden = true;
+        form.hidden = false;
+        group.setAttribute('data-editing', '');
+        form.querySelector('input:not([type="hidden"]), select, textarea, button')?.focus();
+      });
+
+      cancel?.addEventListener('click', () => closeGroup(group));
+
+      if (!form.hidden && !activeGroup) {
+        activeGroup = group;
+        activeTrigger = edit;
+        group.setAttribute('data-editing', '');
+        requestAnimationFrame(() => {
+          form
+            .querySelector('.form-errors-summary, .form-input--error, .form-select--error')
+            ?.focus();
+        });
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && activeGroup) {
+        event.preventDefault();
+        closeGroup(activeGroup);
+      }
+    });
+  }
+
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -815,6 +1014,9 @@
     initPasswordRequirements();
     initRepositoryBranchLoader();
     initDeploymentLiveLogs();
+    initEnvFileImport();
+    initSettingsSectionNavigation();
+    initSettingsEditGroups();
   }
 
   if (document.readyState === 'loading') {

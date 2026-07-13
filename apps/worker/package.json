@@ -6,7 +6,7 @@
   "main": "src/worker.js",
   "scripts": {
     "dev": "node --env-file=../../.env --watch src/worker.js",
-    "start": "node --env-file=../../.env src/worker.js",
+    "start": "NODE_ENV=production node --env-file=../../.env src/worker.js",
     "lint": "eslint src/"
   },
   "dependencies": {

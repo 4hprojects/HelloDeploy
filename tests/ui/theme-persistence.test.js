@@ -29,7 +29,7 @@ describe('theme persistence UI', () => {
     assert.match(head, /localStorage\.getItem\(storageKey\)/);
     assert.match(head, /prefers-color-scheme: dark/);
     assert.match(head, /root\.setAttribute\('data-theme', safeTheme\)/);
-    assert.match(head, /<link rel="stylesheet" href="\/css\/main\.css" \/>/);
+    assert.match(head, /<link rel="stylesheet" href="\/css\/main\.css\?v=[^"]+" \/>/);
     assert.ok(head.indexOf('applyTheme(theme, false)') < head.indexOf('/css/main.css'));
   });
 

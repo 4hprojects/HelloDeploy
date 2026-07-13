@@ -11,6 +11,10 @@ const files = {
     new URL('../../apps/web/src/views/partials/sidebar.ejs', import.meta.url),
     'utf8',
   ),
+  projectNavigation: await readFile(
+    new URL('../../apps/web/src/config/project-navigation.js', import.meta.url),
+    'utf8',
+  ),
   header: await readFile(
     new URL('../../apps/web/src/views/partials/header.ejs', import.meta.url),
     'utf8',
@@ -55,9 +59,10 @@ describe('icon consistency', () => {
   });
 
   it('uses named icons for primary, project, and admin sidebar navigation', () => {
+    ['dashboard', 'projects', 'reviews', 'audit', 'server'].forEach((name) => {
+      assert.match(files.sidebar, new RegExp(`name: '${name}'`));
+    });
     [
-      'dashboard',
-      'projects',
       'overview',
       'deploy',
       'repository',
@@ -65,12 +70,11 @@ describe('icon consistency', () => {
       'domain',
       'environment',
       'users',
-      'reviews',
-      'audit',
-      'server',
+      'settings',
     ].forEach((name) => {
-      assert.match(files.sidebar, new RegExp(`name: '${name}'`));
+      assert.match(files.projectNavigation, new RegExp(`icon: '${name}'`));
     });
+    assert.match(files.sidebar, /name: item\.icon/);
     assert.match(files.layoutCss, /\.sidebar__icon/);
     assert.doesNotMatch(files.sidebar, /[⊞◫◉▶⎇◎◈⚿◑◧◷]/);
   });
