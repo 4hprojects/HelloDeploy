@@ -1632,7 +1632,7 @@
 
 ## Single-Host V1 Implementation Reconciliation
 
-- Status: Implemented and focused verification passed; review and CI pending
+- Status: Implemented; local verification and draft PR CI passed; review and merge pending
 - Implemented: 2026-07-13
 
 ### Changes
@@ -1652,4 +1652,5 @@
 - Focused configuration, preflight, checklist, installer, upgrade, verifier, and Nginx tests passed: 51 tests across 7 suites, no failures or skips.
 - `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
 - The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- Published commit `3db74be` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
 - Supported-host installation and privilege evidence remain blocked until execution on a clean Ubuntu host.

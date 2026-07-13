@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T15:27:00+08:00
+Updated: 2026-07-13T15:34:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                  |
-| ---------------- | ------------------------------------------------------ |
-| Overall status   | Deployed; validation blocked                           |
-| Release progress | `v0.1.1` published; topology correction in review      |
-| Current batch    | Group 1 — Product and Topology Reconciliation          |
-| Next action      | Review Phase 1 diff, publish draft PR, and validate CI |
-| Release state    | NO-GO                                                  |
+| Field            | Value                                             |
+| ---------------- | ------------------------------------------------- |
+| Overall status   | Deployed; validation blocked                      |
+| Release progress | `v0.1.1` published; topology correction in review |
+| Current batch    | Group 1 — Product and Topology Reconciliation     |
+| Next action      | Review and merge the green Phase 1 draft PR #5    |
+| Release state    | NO-GO                                             |
 
-The public application is externally reachable through Cloudflare, but its current hosting path is not accepted as proof of the target production topology. HelloDeploy is the hosting platform: V1 runs the privilege-separated web, worker, Docker, Nginx helper, Nginx, and Cloudflare Tunnel on one administrator-controlled Ubuntu host. The unsupported vendor-dashboard/remote-worker paths have been removed locally while provider-neutral Redis and environment compatibility remain. Review, CI, and supported-host proof are still required. The public session cookie omits `Secure`; authenticated, Docker, routing, and recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
+The public application is externally reachable through Cloudflare, but its current hosting path is not accepted as proof of the target production topology. HelloDeploy is the hosting platform: V1 runs the privilege-separated web, worker, Docker, Nginx helper, Nginx, and Cloudflare Tunnel on one administrator-controlled Ubuntu host. The unsupported vendor-dashboard/remote-worker paths have been removed on commit `3db74be`; draft PR #5 has green Node.js 22 CI. Review, merge, and supported-host proof are still required. The public session cookie omits `Secure`; authenticated, Docker, routing, and recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
 
 ## Status Legend
 
@@ -65,7 +65,7 @@ These groups order the remaining batches by dependency and identify work that ca
 - Retain provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support.
 - Reconcile blueprint, architecture, installer, preflight, configuration, tests, runbooks, and acceptance evidence. Stop if any production path still implies that another PaaS hosts or deploys HelloDeploy projects.
 
-**Local evidence:** The vendor-specific checklist and host modes, worker-only lifecycle branches, and production external-router acknowledgment are removed. Install, upgrade, and verification always include web, worker, and helper services. Preflight accepts local Redis or managed TLS Redis without changing host role. The platform-ingress helper has a provider-neutral name. Shell syntax and 51 focused configuration/installer/Nginx tests pass. Review and CI remain required before Group 1 is complete.
+**Local and CI evidence:** Commit `3db74be` on draft PR #5 removes the vendor-specific checklist and host modes, worker-only lifecycle branches, and production external-router acknowledgment. Install, upgrade, and verification always include web, worker, and helper services. Preflight accepts local Redis or managed TLS Redis without changing host role. The platform-ingress helper has a provider-neutral name. Shell syntax, 51 focused configuration/installer/Nginx tests, the 717-test full local suite, and the PR's Node.js 22 CI pass. Review and merge remain required before Group 1 is complete.
 
 ### Group 2 — Ubuntu Platform Host and Cloudflare Routing
 
