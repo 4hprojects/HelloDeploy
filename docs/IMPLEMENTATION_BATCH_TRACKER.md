@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T15:34:00+08:00
+Updated: 2026-07-13T16:04:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                             |
-| ---------------- | ------------------------------------------------- |
-| Overall status   | Deployed; validation blocked                      |
-| Release progress | `v0.1.1` published; topology correction in review |
-| Current batch    | Group 1 — Product and Topology Reconciliation     |
-| Next action      | Review and merge the green Phase 1 draft PR #5    |
-| Release state    | NO-GO                                             |
+| Field            | Value                                                         |
+| ---------------- | ------------------------------------------------------------- |
+| Overall status   | Live local pilot; productionization pending                   |
+| Release progress | `v0.1.1` published; PR #5 green and awaiting host correction  |
+| Current batch    | Priority 0 — Documentation and Release Reconciliation         |
+| Next action      | Reconcile PR #5 with the observed Ubuntu 26.04 pilot topology |
+| Release state    | NO-GO for customer application hosting                        |
 
-The public application is externally reachable through Cloudflare, but its current hosting path is not accepted as proof of the target production topology. HelloDeploy is the hosting platform: V1 runs the privilege-separated web, worker, Docker, Nginx helper, Nginx, and Cloudflare Tunnel on one administrator-controlled Ubuntu host. The unsupported vendor-dashboard/remote-worker paths have been removed on commit `3db74be`; draft PR #5 has green Node.js 22 CI. Review, merge, and supported-host proof are still required. The public session cookie omits `Secure`; authenticated, Docker, routing, and recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md).
+The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web and worker from the repository, local Redis, and a Cloudflare Tunnel that sends dashboard traffic directly to the web process. Public liveness and readiness pass. It does not yet provide the complete production application-hosting plane: Docker, isolated HelloDeploy service identities, systemd units, the constrained Nginx helper, the application route directory, and wildcard application ingress are absent. The public session cookie also omits `Secure`. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
 
 ## Status Legend
 
@@ -41,60 +41,65 @@ The public application is externally reachable through Cloudflare, but its curre
 
 These groups order the remaining batches by dependency and identify work that can be executed together. Group status follows this tracker's status legend; individual live checks continue to use `Passed`, `Failed`, `Blocked`, or `Not Run` in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md).
 
-| Group | Name                                      | Status      | Dependency                        | Required outcome                                             |
-| ----- | ----------------------------------------- | ----------- | --------------------------------- | ------------------------------------------------------------ |
-| 0     | Tracker and Release Baseline              | Complete    | Clean PR branch and green CI      | Reviewed merge commit and verified annotated `v0.1.0`        |
-| 1     | Product and Topology Reconciliation       | In Review   | Group 0                           | Repository agrees on the self-hosted single-host V1 boundary |
-| 2     | Ubuntu Platform Host and Cloudflare Route | Blocked     | Group 1 and guided host access    | Isolated full platform and rollback-safe public routing      |
-| 3     | Deployment and Authenticated Product QA   | Not Started | Group 2                           | Runtime, security, role, and accessibility QA passes         |
-| 4     | Upgrade, Rollback, Backup, and Restore    | Not Started | Group 3 and second-host/S3 access | Verified recovery from release and host failures             |
-| 5     | Final GO/NO-GO Decision                   | Not Started | Groups 0–4                        | Every release gate has direct evidence                       |
+| Priority | Group                                    | Status      | Dependency                              | Required outcome                                             |
+| -------- | ---------------------------------------- | ----------- | --------------------------------------- | ------------------------------------------------------------ |
+| 0        | Documentation and Release Reconciliation | In Progress | Green draft PR #5                       | Repository and PR describe the observed local pilot          |
+| 1        | Safe In-Place Baseline                   | Not Started | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
+| 1        | Production Service Foundation            | Blocked     | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
+| 2        | Routing and Production Cutover           | Blocked     | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
+| 3        | Application and Product Validation       | Not Started | Production routing                      | Runtime, role, secret, and accessibility QA passes           |
+| 4        | Recovery and Ubuntu 26 Graduation        | Not Started | Validated application plane             | Upgrade, rollback, restore, and OS-support evidence passes   |
+| 5        | Final GO/NO-GO Decision                  | Not Started | Priorities 0–4                          | Every release gate has direct evidence                       |
 
-### Group 0 — Tracker and Release Baseline
-
-- Update this tracker and the worklog with dependency-ordered groups and sanitized PR/CI evidence.
-- Push the documentation update to draft PR #1 and require the Node.js 22 CI workflow to pass again.
-- Review and merge the clean PR into `main`, then create annotated tag `v0.1.0` on the merge commit.
-- Record the tag and full commit SHA. Stop on review, CI, merge-state, clean-checkout, or tag-verification failure.
-
-### Group 1 — Product and Topology Reconciliation
+### Priority 0 — Documentation and Release Reconciliation
 
 - Treat commercial dashboard screenshots as UX references only; HelloDeploy builds and hosts applications itself.
-- Make one administrator-controlled Ubuntu host the only supported V1 production topology, with separate web and worker identities on that host.
-- Remove the vendor-specific checklist, remote-dashboard guidance, and worker-only V1 install/upgrade/verification branches introduced by the superseded assumption.
-- Retain provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support.
-- Reconcile blueprint, architecture, installer, preflight, configuration, tests, runbooks, and acceptance evidence. Stop if any production path still implies that another PaaS hosts or deploys HelloDeploy projects.
+- Record the current Ubuntu 26.04 laptop as the live pilot host and remove the assumption that a different Ubuntu host is required for initial productionization.
+- Keep Ubuntu 22.04 and 24.04 supported; classify Ubuntu 26.04 as candidate support until its host and recovery gates pass.
+- Revise draft PR #5, rerun CI, review, and merge only after the repository and evidence agree.
 
-**Local and CI evidence:** Commit `3db74be` on draft PR #5 removes the vendor-specific checklist and host modes, worker-only lifecycle branches, and production external-router acknowledgment. Install, upgrade, and verification always include web, worker, and helper services. Preflight accepts local Redis or managed TLS Redis without changing host role. The platform-ingress helper has a provider-neutral name. Shell syntax, 51 focused configuration/installer/Nginx tests, the 717-test full local suite, and the PR's Node.js 22 CI pass. Review and merge remain required before Group 1 is complete.
+**Evidence:** Commit `3db74be` removed the unsupported vendor-dashboard, remote-worker, worker-only lifecycle, and external-router paths; PR #5 is green. Direct inspection on 2026-07-13 then proved that the current Ubuntu 26.04 laptop is the live pilot host, so the PR requires this documentation correction before review and merge.
 
-### Group 2 — Ubuntu Platform Host and Cloudflare Routing
+### Priority 1 — Safe In-Place Baseline
 
-- Run full-host preflight and install a reviewed immutable release on one supported Ubuntu host.
-- Run the web, worker, and constrained Nginx helper under separate identities; route `hellodeploy.online` and `*.apps.hellodeploy.online` through the host's Cloudflare Tunnel and Nginx.
-- Verify protected configuration and key permissions, helper socket ownership, systemd services, Redis mode, `nginx -t`, dashboard ingress, project route activation/replacement/removal, and rollback.
-- Prove the web identity cannot access Docker or the helper while the worker can perform only its required deployment operations.
-- Run the public checker and require HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`. Stop on unsafe privileges, tunnel/routing failure, insecure cookies, shared-service failure, or release-identity mismatch.
+- Capture a sanitized inventory and verified backup of the current environment, Nginx, tunnel, processes, repository release, and required state before host changes.
+- Add Ubuntu 26.04 candidate checks and tests without declaring general support.
+- Define the exact service, Nginx, tunnel, and repository rollback path while the current dashboard remains available.
+- Stop if current health, backup integrity, immutable release identity, or rollback preparation fails.
 
-### Group 3 — Deployment and Authenticated Product QA
+### Priority 1 — Production Service Foundation
 
-- In parallel lanes, deploy every supported runtime and exercise the complete Owner, Maintainer, and Viewer workflow with dedicated QA accounts and a noncritical repository.
-- Verify non-root containers, loopback binding, limits, redaction, cleanup, concurrency, broken-candidate continuity, retained-image rollback, and controlled Docker interruption.
-- Verify authentication, repository/detection/settings, environment secrets, deployment/logs, domains, maintenance, role boundaries, responsive behavior, keyboard/screen-reader behavior, duplicate submission, and recovery states.
+- Install and validate Docker, the web/worker/helper identities, protected files, helper socket, and systemd units on the current host.
+- Keep the repository-run pilot processes available until replacement services pass readiness and authorization checks.
+- Prove the web identity cannot access Docker or the helper while the worker can perform only the required deployment operations.
+- Stop on unsafe group membership, regenerated secrets, permission repair, service failure, or loss of the current dashboard.
+
+### Priority 2 — Routing and Production Cutover
+
+- Correct the inactive Nginx dashboard upstream and install the constrained project route directory and helper path.
+- Add `*.apps.hellodeploy.online` to the existing tunnel while retaining the dashboard routes.
+- Validate candidate Nginx, dashboard readiness, wildcard routing, route activation/replacement/removal, and rollback before switching traffic.
+- Run the web service in production mode and require `Secure; HttpOnly; SameSite=Strict` after cutover.
+
+### Priority 3 — Application and Product Validation
+
+- Deploy Static, React, Vue, Express, generic Node.js, and supported Next.js samples through the wildcard route.
+- Verify non-root containers, loopback binding, limits, redaction, cleanup, concurrency, broken-candidate continuity, and retained-image rollback.
+- Exercise authentication, repository/detection/settings, environment secrets, deployment/logs, domains, maintenance, role boundaries, responsive behavior, accessibility, duplicate submission, and recovery states.
 - Stop on secret exposure, unsafe container state, privilege bypass, healthy-release displacement, or an unresolved critical/high defect.
 
-### Group 4 — Upgrade, Rollback, Backup, and Restore
+### Priority 4 — Recovery and Ubuntu 26 Graduation
 
-- Create, encrypt, checksum, upload, retrieve, and reverify a backup in private versioned S3-compatible storage.
-- Upgrade from the corrected `v0.1.1` baseline to a reviewed `v0.1.2`, proving queue pause/drain, candidate verification, routing, and prior queue-state restoration.
-- Use a full-SHA, isolated, never-merged failing worker-unit drill commit to prove automatic rollback, then delete its remote branch after sanitized evidence is recorded.
-- Restore on the available second clean Ubuntu host, verify a representative project, record RPO/RTO, and drill MongoDB, Redis, Docker, Nginx, worker, and tunnel interruptions.
-- Keep the queue paused and stop immediately on rollback- or restore-verification failure.
+- Prove a successful upgrade and an intentionally failed candidate with automatic restoration of release, dependencies, units, ingress, services, readiness, routing, and queue state.
+- Create and verify an encrypted off-host backup, then restore it on a second machine with a representative project and recorded RPO/RTO.
+- Drill MongoDB, Redis, Docker, Nginx, worker, and tunnel interruptions.
+- Promote Ubuntu 26.04 from candidate to supported only after installation, deployment, rollback, interruption, and restore evidence passes.
 
-### Group 5 — Final GO/NO-GO Decision
+### Priority 5 — Final GO/NO-GO Decision
 
-- Reconcile every batch and live-acceptance row, rerun all release gates, and define monitoring, retention, alert, and incident ownership.
+- Reconcile every batch and live-acceptance row, rerun every release gate, and define monitoring, retention, alert, and incident ownership.
 - Resolve every critical/high defect and explicitly accept documented lower-severity risks.
-- Mark production `GO` only when cookie, authenticated QA, host isolation, runtime deployment, failed-upgrade rollback, and cross-host restore gates all have direct passing evidence.
+- Mark customer application hosting `GO` only when cookie, authenticated QA, host isolation, runtime deployment, failed-upgrade rollback, and cross-host restore gates all pass directly.
 
 ### Evidence Safety
 
@@ -142,8 +147,8 @@ git status --short
 **Started:** 2026-07-12T05:49:00+08:00
 **Completed:** —
 **Objective:** Complete safe route activation while keeping the web process isolated from Docker and Nginx control.
-**Dependencies:** Batch 1; supported Ubuntu host with systemd and Nginx.
-**Blockers:** Target-host validation requires a supported Ubuntu environment.
+**Dependencies:** Batch 1; the current Ubuntu 26.04 candidate host with systemd and Nginx.
+**Blockers:** Privileged in-place validation requires a verified backup, rollback plan, Docker installation, and explicit authorization.
 
 ### Tasks
 
@@ -153,7 +158,7 @@ git status --short
 - [x] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
 - [x] Automate ownership and permission checks in post-install diagnostics.
 - [ ] Prove the web service cannot access Docker or the privileged route helper.
-- [ ] Validate route creation, replacement, removal, rollback, and reload on a clean supported host.
+- [ ] Validate route creation, replacement, removal, rollback, and reload on the current candidate host without disrupting the dashboard.
 
 ### Verification
 
@@ -162,7 +167,7 @@ git status --short
 - Record target-host users, groups, socket permissions, route file ownership, `nginx -t`, activation, and rollback results without secrets.
 
 **Completion gate:** The worker activates routes through the constrained helper, the web process has no Docker or Nginx-control access, and invalid configuration leaves the last healthy route active.
-**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Separate web, worker, and helper identities plus automated metadata checks are implemented locally. Install and verification now require the complete V1 platform rather than a worker-only host role. Focused routing/helper/privilege/verifier tests pass locally; full-host clean installation, live reload, route activation, and denial-of-privilege proof remain required.
+**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Separate web, worker, and helper identities plus automated metadata checks are implemented in source. The inspected pilot does not yet have those identities, units, helper paths, or Docker. Focused tests pass; in-place activation, live reload, rollback, and denial-of-privilege proof remain required.
 
 ## Batch 3 — Production Configuration
 
@@ -190,7 +195,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard; both are routed by the V1 host's Nginx/Cloudflare ingress. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode, and the value-safe public checker still fails the live missing `Secure` attribute. Removal of the unsupported remote-dashboard path, complete GitHub App proof, full-host shared-service connectivity, and service-identity evidence remain blockers.
+**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. On the pilot, the dashboard tunnel currently bypasses Nginx, wildcard ingress is absent, and the value-safe public checker fails the missing `Secure` attribute. Complete GitHub App proof, production-unit startup, shared-service connectivity, ingress cutover, and service-identity evidence remain blockers.
 
 ## Batch 4 — Health and Graceful Shutdown
 

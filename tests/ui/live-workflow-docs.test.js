@@ -18,6 +18,7 @@ const runbook = await readFile(
 describe('live workflow documentation', () => {
   it('separates public, authenticated, and host evidence', () => {
     assert.match(checklist, /## Public Production Boundary/);
+    assert.match(checklist, /## Local Ubuntu 26\.04 Pilot Host/);
     assert.match(checklist, /## Project-Owner Workflow/);
     assert.match(checklist, /## Operator Lifecycle Workflow/);
     assert.match(checklist, /Public HTTP evidence never proves/);
@@ -34,9 +35,11 @@ describe('live workflow documentation', () => {
   });
 
   it('keeps the public deployment distinct from the release decision', () => {
-    assert.match(tracker, /Deployed; validation blocked/);
-    assert.match(tracker, /Release state\s+\| NO-GO/);
-    assert.match(checklist, /Current decision: \*\*NO-GO\*\*/);
+    assert.match(tracker, /Live local pilot; productionization pending/);
+    assert.match(tracker, /Release state\s+\| NO-GO for customer application hosting/);
+    assert.match(checklist, /Current decision: \*\*NO-GO for customer application hosting\*\*/);
+    assert.match(checklist, /Public dashboard availability is not evidence/);
+    assert.match(checklist, /Ubuntu 26\.04 is a candidate platform/);
   });
 
   it('defines one ordered operator lifecycle with evidence safety', () => {

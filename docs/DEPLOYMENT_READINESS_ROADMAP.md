@@ -1,5 +1,7 @@
 # Deployment Readiness Roadmap
 
+Updated: 2026-07-13T16:04:00+08:00
+
 ## Purpose
 
 This roadmap tracks the work required to move HelloDeploy from late-stage staging/pilot quality to a production-ready release. It is based on a repository, configuration, security, test, operations, and deployment-path audit performed on July 10, 2026.
@@ -8,15 +10,15 @@ Work through the phases in order. Phase 0 through Phase 3 contain release-blocki
 
 ## Current Readiness Summary
 
-| Area                     | Status            | Summary                                                                                                                     |
-| ------------------------ | ----------------- | --------------------------------------------------------------------------------------------------------------------------- |
-| Application architecture | In review         | The self-hosted single-host V1 boundary is implemented locally; clean-host and CI evidence remain required.                 |
-| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                         |
-| Automated checks         | Locally green     | Lint, formatting, configuration validation, and the full local suite pass; reviewed CI evidence remains required.           |
-| Production configuration | Blocking          | Public web/readiness is live, but the session cookie lacks `Secure` and complete V1-host configuration evidence is missing. |
-| Nginx routing            | Blocking          | The constrained helper is implemented locally; full-host activation and rollback need proof after topology reconciliation.  |
-| Deployment validation    | Blocking          | Public availability is confirmed; authenticated, Docker-backed, upgrade-recovery, and restore exercises remain incomplete.  |
-| Operations               | Needs validation  | Local lifecycle safeguards are implemented; clean-host upgrade, backup, rollback, and restore drills remain.                |
+| Area                     | Status            | Summary                                                                                                                       |
+| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Application architecture | In review         | The single-host V1 boundary is implemented in source; the current Ubuntu 26.04 laptop is the live pilot and hardening target. |
+| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                           |
+| Automated checks         | Locally green     | Lint, formatting, configuration validation, and the full local suite pass; reviewed CI evidence remains required.             |
+| Production configuration | Blocking          | Public web/readiness is live, but the session cookie lacks `Secure` and the pilot runs outside isolated production units.     |
+| Nginx routing            | Blocking          | The dashboard tunnel bypasses an inactive Nginx upstream; helper and wildcard application routing are absent on the pilot.    |
+| Deployment validation    | Blocking          | Dashboard availability is confirmed, but Docker is absent and no application-runtime deployment has been proven.              |
+| Operations               | Needs validation  | In-place backup, cutover, rollback, interruption, and second-machine restore drills remain.                                   |
 
 ## Phase 0 — Establish a Reproducible Release Baseline
 
@@ -108,7 +110,7 @@ The installer also adds the shared `hellodeploy` account to the Docker group whi
 - [x] Replace the shared PM2 process model with systemd services running under the intended identities.
 - [ ] Update installer, upgrade, uninstall, backup, restore, and documentation for the new identities.
 - [ ] Add installation tests or scripts that verify directory ownership and permissions.
-- [ ] Test route creation, replacement, removal, invalid-config rollback, and reload on a clean supported Ubuntu host.
+- [ ] Test route creation, replacement, removal, invalid-config rollback, and reload on the current Ubuntu 26.04 candidate host without disrupting the dashboard.
 
 ### Acceptance criteria
 
@@ -341,23 +343,42 @@ When moving tasks into the phase tracker or issue system, record:
 | Status          | Not started, in progress, blocked, in review, or complete.     |
 | Acceptance date | Date the acceptance criteria were verified.                    |
 
-## Audit Evidence Snapshot
+## Historical Audit Evidence Snapshot
 
 The initial audit observed the following results. These are a baseline, not substitutes for rerunning checks after fixes.
 
-| Check                            | Result                                                     |
-| -------------------------------- | ---------------------------------------------------------- |
-| ESLint                           | Passed                                                     |
-| Prettier                         | Failed; 21 files reported                                  |
-| Standard `npm test`              | Failed during test discovery                               |
-| Explicit full test run           | 588 passed, 2 failed, 590 total                            |
-| Production dependency audit      | Passed; 0 known vulnerabilities                            |
-| Redis connectivity               | Passed                                                     |
-| Docker CLI                       | Installed                                                  |
-| Docker daemon                    | Not reachable in audit environment                         |
-| Nginx                            | Installed                                                  |
-| systemd                          | Available in audit environment                             |
-| Node.js                          | 20.20.2; project preflight requires 22 or newer            |
-| Host OS                          | Ubuntu 26.04; project preflight supports 22.04 and 24.04   |
-| Current production worker config | Blocking because Nginx is disabled without acknowledgement |
-| GitHub App config                | Incomplete because `GITHUB_APP_NAME` is missing            |
+| Check                            | Result                                                      |
+| -------------------------------- | ----------------------------------------------------------- |
+| ESLint                           | Passed                                                      |
+| Prettier                         | Failed; 21 files reported                                   |
+| Standard `npm test`              | Failed during test discovery                                |
+| Explicit full test run           | 588 passed, 2 failed, 590 total                             |
+| Production dependency audit      | Passed; 0 known vulnerabilities                             |
+| Redis connectivity               | Passed                                                      |
+| Docker CLI                       | Installed                                                   |
+| Docker daemon                    | Not reachable in audit environment                          |
+| Nginx                            | Installed                                                   |
+| systemd                          | Available in audit environment                              |
+| Node.js                          | 20.20.2; project preflight requires 22 or newer             |
+| Host OS                          | Ubuntu 26.04; candidate status pending full host validation |
+| Current production worker config | Blocking because Nginx is disabled without acknowledgement  |
+| GitHub App config                | Incomplete because `GITHUB_APP_NAME` is missing             |
+
+## Current Local Pilot Evidence Snapshot
+
+Observed directly on 2026-07-13. This replaces assumptions about where the public dashboard runs but does not replace the historical audit or prove production readiness.
+
+| Check                         | Result                                                                    |
+| ----------------------------- | ------------------------------------------------------------------------- |
+| Host OS                       | Ubuntu 26.04 LTS candidate platform                                       |
+| Web and worker                | Running from the repository under the interactive account                 |
+| Redis                         | Local service active; `redis-cli ping` returned `PONG`                    |
+| Local/public readiness        | `/health` and `/ready` returned `200`                                     |
+| Cloudflare dashboard route    | Active and connected directly to the local web port                       |
+| Public policy                 | Homepage, assets, HSTS, CSP, sign-in, and readiness pass                  |
+| Session cookie                | Failed because `Secure` is missing                                        |
+| Docker                        | CLI and socket absent                                                     |
+| HelloDeploy identities/units  | Absent                                                                    |
+| Nginx/helper application path | Dashboard upstream inactive; helper, route directory, and wildcard absent |
+
+The next production work is an availability-preserving in-place migration on this host. Ubuntu 26.04 becomes supported only after the installer, Docker plane, isolation, routing, deployment, rollback, interruption, and recovery gates pass.

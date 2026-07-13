@@ -1,6 +1,6 @@
 # HelloDeploy Product and Platform Architecture
 
-Updated: 2026-07-13
+Updated: 2026-07-13T16:04:00+08:00
 
 ## Purpose
 
@@ -29,7 +29,7 @@ HelloDeploy owns account and project state, deployment orchestration, Docker rel
 
 ## Canonical V1 Production Topology
 
-V1 uses one supported Ubuntu 22.04 or 24.04 platform host. Web and worker run as separate systemd services and identities on that host, while Docker and Nginx provide the application execution plane.
+V1 uses one administrator-controlled Ubuntu platform host. Ubuntu 22.04 and 24.04 are supported; Ubuntu 26.04 is a candidate platform until its installation, deployment, rollback, interruption, and recovery gates pass. Web and worker run as separate systemd services and identities on the completed host, while Docker and Nginx provide the application execution plane.
 
 ```text
 Browser or application visitor
@@ -81,6 +81,19 @@ The single-host model does not mean a single privileged process. OS identities a
 
 The dashboard domain and application wildcard are separated to avoid collisions between platform routes and user projects.
 
+## Current Local Pilot
+
+The current Ubuntu 26.04 laptop is the live HelloDeploy pilot host. It is not a remote control workstation and it does not delegate application deployment to another hosting provider. Direct inspection on 2026-07-13 established this boundary:
+
+- The web and worker run from the repository under the interactive account rather than isolated systemd identities.
+- Local Redis is active and both local and public web readiness pass.
+- Cloudflare Tunnel sends the dashboard hostnames directly to the active web port.
+- Docker, the HelloDeploy systemd units and identities, the constrained helper runtime, and the managed application route directory are absent.
+- The configured Nginx dashboard upstream is inactive, the tunnel bypasses Nginx, and no wildcard application tunnel route exists.
+- The public session cookie fails the required `Secure` attribute.
+
+This state proves a publicly reachable dashboard pilot. It does not prove that HelloDeploy can currently build, run, route, or roll back customer applications on this host. Productionization will harden this same machine in place, with a verified backup and rollback path before service or traffic changes.
+
 ## Deployment Lifecycle
 
 1. A verified user creates a project and connects a GitHub repository through the GitHub App.
@@ -130,14 +143,15 @@ The Project Settings work adapts general interaction patterns observed in a comm
 
 ## Architecture Reconciliation Status
 
-The later experimental `hybrid_worker`/worker-only path that assumed a vendor-hosted dashboard has been removed locally from the checklist, preflight, installer, upgrade, verifier, production routing configuration, and their tests. The full single-host installation is the only supported V1 production role. Provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support remain available.
+The later experimental `hybrid_worker`/worker-only path that assumed a vendor-hosted dashboard has been removed from the draft PR's checklist, preflight, installer, upgrade, verifier, production routing configuration, and tests. The full single-host installation is the only V1 production role. Provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support remain available.
 
-Local implementation and automated tests do not prove clean-host behavior. Web/worker privilege separation, service startup, Nginx activation, Cloudflare routing, and rollback still require direct evidence on one supported Ubuntu host. Until those checks pass, production remains **NO-GO**.
+Local implementation, a reachable dashboard, and automated tests do not prove the application execution plane. Web/worker privilege separation, Docker, service startup, Nginx activation, wildcard Cloudflare routing, deployment, and rollback still require direct evidence on the current Ubuntu 26.04 candidate host. Recovery still requires a second-machine restore. Until those checks pass, customer application hosting remains **NO-GO**.
 
 ## Architecture Acceptance Criteria
 
 - A new contributor can explain that HelloDeploy hosts user applications itself.
-- Production guidance names one administrator-controlled Ubuntu platform host for V1.
+- Production guidance names the current administrator-controlled Ubuntu platform host as the in-place V1 productionization target.
+- Ubuntu 26.04 remains candidate support until its host and recovery evidence passes.
 - The dashboard and hosted-project domain spaces are distinct and consistent.
 - Web, worker, Docker, helper, Nginx, and Cloudflare responsibilities are explicit.
 - Managed MongoDB or Redis are described as dependencies, not application deployment providers.

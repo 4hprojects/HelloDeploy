@@ -1,6 +1,10 @@
 # HelloDeploy Self-Hosted Install Guide
 
+Updated: 2026-07-13T16:04:00+08:00
+
 HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
+
+Ubuntu 26.04 is a candidate platform because the live pilot currently runs on it. Do not describe it as generally supported until the installer, Docker execution plane, isolated services, Nginx routing, upgrade rollback, and second-machine restore pass on that release.
 
 Production installations require Node.js 22 and npm 10 or newer. The installer provisions Node.js 22 when needed, and preflight rejects unsupported major versions before making host changes.
 
@@ -39,9 +43,23 @@ The supported V1 production topology installs the HelloDeploy web service, deplo
 
 A vendor-hosted dashboard with a remote worker is not a supported V1 install mode. Managed MongoDB Atlas and managed TLS Redis may still be used as platform dependencies.
 
+## Existing Ubuntu 26.04 Pilot
+
+The current live pilot is already on the intended single host, so its next lifecycle is an in-place productionization rather than a separate-worker installation or an immediate clean reinstall.
+
+Before any privileged change:
+
+1. Capture a sanitized process, release, service, Nginx, tunnel, and dependency inventory.
+2. Create and verify a protected backup without copying secret values into evidence.
+3. Record the exact current dashboard health and immutable repository reference.
+4. Define rollback for the repository-run processes, Nginx configuration, tunnel configuration, and candidate systemd units.
+5. Keep the current web process and tunnel route available until replacement readiness passes.
+
+The current pilot's dashboard availability does not validate Docker deployments or wildcard application routing. Ubuntu 26.04 graduates to supported status only after the readiness tracker records direct passing host and recovery evidence.
+
 ## Clean Install Steps
 
-1. Start from a clean Ubuntu 22.04 or 24.04 server.
+1. Start from a clean supported Ubuntu 22.04 or 24.04 server. Ubuntu 26.04 remains a candidate and requires the separate graduation evidence above.
 2. Run `node scripts/preflight.js` if the repo is already present, or run the installer preflight after cloning.
 3. Set `HELLODEPLOY_RELEASE_REF` to a reviewed immutable tag or full commit SHA, then install with `sudo HELLODEPLOY_RELEASE_REF=<tag-or-commit> bash infrastructure/install.sh`.
 4. Complete `node scripts/setup.js` when prompted by the installer.

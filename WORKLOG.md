@@ -1653,4 +1653,35 @@
 - `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
 - The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
 - Published commit `3db74be` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
-- Supported-host installation and privilege evidence remain blocked until execution on a clean Ubuntu host.
+- Host installation and privilege evidence remained blocked at that checkpoint; the following entry identifies the current Ubuntu 26.04 pilot as the in-place validation target.
+
+## Local Ubuntu 26.04 Pilot Host Reconciliation
+
+- Status: Direct pilot evidence and documentation reconciliation completed locally; PR review pending
+- Observed: 2026-07-13T16:04:00+08:00
+
+### Sanitized Host Evidence
+
+- `hostnamectl`, `/etc/os-release`, and `uname` confirmed that the current laptop runs Ubuntu 26.04 LTS and is the machine serving the HelloDeploy pilot. Machine and boot identifiers were not recorded.
+- Process and listener inspection confirmed that the web and worker run from this repository under the interactive account rather than separate HelloDeploy system identities or units.
+- `systemctl status` confirmed active Nginx, Redis, and Cloudflare Tunnel services. HelloDeploy web, worker, and helper units are not installed.
+- `redis-cli ping` returned `PONG`; local web `/health` and `/ready` returned `200`.
+- Sanitized tunnel inspection confirmed that both dashboard hostnames connect directly to web port 3001. Tunnel identifiers and credential paths were excluded.
+- Nginx configuration inspection found a dashboard upstream with no active listener. The current dashboard tunnel therefore bypasses Nginx.
+- Docker CLI and socket checks found neither present. The HelloDeploy helper runtime directory, managed Nginx route directory, and wildcard application tunnel route are also absent.
+- `npm run production:check -- https://hellodeploy.online` passed homepage, expected assets, HSTS, CSP, sign-in, liveness, and readiness; it failed only `session-cookie: missing secure`. Cookie values were not captured.
+
+### Readiness Interpretation
+
+- The current machine is the live local dashboard pilot and the in-place productionization target; it is not a control workstation for a separate host.
+- Dashboard availability does not prove Docker-backed customer application hosting, wildcard routing, privilege isolation, rollback, or recovery.
+- Ubuntu 26.04 is candidate-supported. Ubuntu 22.04 and 24.04 remain the generally supported releases until Ubuntu 26.04 passes installer, Docker, systemd, routing, deployment, rollback, interruption, and restore gates.
+- Privileged host changes remain unperformed. The next implementation group must first verify backups, immutable release identity, health, and explicit rollback steps while preserving the current dashboard.
+
+### Documentation Verification
+
+- Focused live-workflow documentation tests passed: 4 tests, 1 suite, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- Every local link in the touched documentation resolves. The stale-claim review preserves historical observations while distinguishing them from the current pilot evidence.
