@@ -3,8 +3,10 @@ import { accessSync, constants as fsConstants } from 'node:fs';
 import {
   assertAllOrNoneEnvironment,
   assertProductionSecrets,
+  parseHostnameEnv,
   parseIntegerEnv,
 } from '@hellodeploy/contracts';
+import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 
 const required = (name) => {
   const value = process.env[name];
@@ -18,9 +20,19 @@ const optional = (name, defaultValue) => process.env[name] ?? defaultValue;
 
 const nodeEnv = optional('NODE_ENV', 'development');
 const production = nodeEnv === 'production';
-const redisPort = parseIntegerEnv('REDIS_PORT', optional('REDIS_PORT', '6379'), {
-  min: 1,
-  max: 65535,
+const redisUrl = optional('REDIS_URL', '');
+const redisPort = redisUrl
+  ? 6379
+  : parseIntegerEnv('REDIS_PORT', optional('REDIS_PORT', '6379'), {
+      min: 1,
+      max: 65535,
+    });
+const redisConfig = resolveRedisConnectionConfig({
+  url: redisUrl,
+  host: optional('REDIS_HOST', '127.0.0.1'),
+  port: redisPort,
+  password: optional('REDIS_PASSWORD', undefined),
+  production,
 });
 const workerConcurrency = parseIntegerEnv(
   'WORKER_CONCURRENCY',
@@ -51,6 +63,14 @@ const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 const nginxEnabled = optional('NGINX_ENABLED', 'false') === 'true';
+const platformDomainRaw = optional('PLATFORM_DOMAIN', 'hellodeploy.online');
+const deploymentDomainRaw = optional('DEPLOYMENT_DOMAIN', platformDomainRaw);
+const platformDomain = production
+  ? parseHostnameEnv('PLATFORM_DOMAIN', platformDomainRaw)
+  : platformDomainRaw;
+const deploymentDomain = production
+  ? parseHostnameEnv('DEPLOYMENT_DOMAIN', deploymentDomainRaw)
+  : deploymentDomainRaw;
 
 if (production) {
   assertProductionSecrets({ masterKey });
@@ -85,9 +105,12 @@ export const env = {
     ? required('MONGODB_URI')
     : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
 
+  REDIS_URL: redisUrl,
   REDIS_HOST: optional('REDIS_HOST', '127.0.0.1'),
   REDIS_PORT: redisPort,
   REDIS_PASSWORD: optional('REDIS_PASSWORD', undefined),
+  REDIS_CONNECTION: redisConfig.connection,
+  REDIS_MODE: redisConfig.mode,
 
   WORKER_CONCURRENCY: workerConcurrency,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
@@ -104,7 +127,8 @@ export const env = {
   NGINX_BINARY_PATH: optional('NGINX_BINARY_PATH', 'nginx'),
   NGINX_HELPER_SOCKET: optional('NGINX_HELPER_SOCKET', '/run/hellodeploy/nginx-helper.sock'),
   NGINX_HELPER_TIMEOUT_MS: helperTimeoutMs,
-  PLATFORM_DOMAIN: optional('PLATFORM_DOMAIN', 'hellodeploy.online'),
+  PLATFORM_DOMAIN: platformDomain,
+  DEPLOYMENT_DOMAIN: deploymentDomain,
   // When true the worker skips nginx operations (useful for local dev without nginx)
   NGINX_ENABLED: nginxEnabled,
 

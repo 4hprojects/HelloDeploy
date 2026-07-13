@@ -1,4 +1,8 @@
-import { createRedisConnection, createDeploymentQueue } from '@hellodeploy/queue';
+import {
+  classifyRedisError,
+  createRedisConnection,
+  createDeploymentQueue,
+} from '@hellodeploy/queue';
 import { env } from '../config/env.js';
 import { logger } from '@hellodeploy/observability';
 
@@ -15,19 +19,15 @@ export function getRedisConnection() {
   }
 
   try {
-    _redis = createRedisConnection({
-      host: env.REDIS_HOST,
-      port: env.REDIS_PORT,
-      password: env.REDIS_PASSWORD,
-    });
+    _redis = createRedisConnection(env.REDIS_CONNECTION);
 
     _redis.on('error', (err) => {
-      logger.warn('Redis connection error', { error: err.message });
+      logger.warn('Redis connection error', { error: classifyRedisError(err) });
     });
 
     return _redis;
   } catch (err) {
-    logger.warn('Could not connect to Redis', { error: err.message });
+    logger.warn('Could not connect to Redis', { error: classifyRedisError(err) });
     return null;
   }
 }
@@ -50,7 +50,7 @@ export function getDeploymentQueue() {
     _queue = createDeploymentQueue(redis);
     return _queue;
   } catch (err) {
-    logger.warn('Could not initialize deployment queue', { error: err.message });
+    logger.warn('Could not initialize deployment queue', { error: classifyRedisError(err) });
     return null;
   }
 }

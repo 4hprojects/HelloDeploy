@@ -4,8 +4,10 @@ import {
   assertAllOrNoneEnvironment,
   assertPairedEnvironment,
   assertProductionSecrets,
+  parseHostnameEnv,
   parseIntegerEnv,
 } from '@hellodeploy/contracts';
+import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 
 const required = (name) => {
   const value = process.env[name];
@@ -20,9 +22,19 @@ const optional = (name, defaultValue) => process.env[name] ?? defaultValue;
 const nodeEnv = optional('NODE_ENV', 'development');
 const production = nodeEnv === 'production';
 const port = parseIntegerEnv('PORT', optional('PORT', '3000'), { min: 1, max: 65535 });
-const redisPort = parseIntegerEnv('REDIS_PORT', optional('REDIS_PORT', '6379'), {
-  min: 1,
-  max: 65535,
+const redisUrl = optional('REDIS_URL', '');
+const redisPort = redisUrl
+  ? 6379
+  : parseIntegerEnv('REDIS_PORT', optional('REDIS_PORT', '6379'), {
+      min: 1,
+      max: 65535,
+    });
+const redisConfig = resolveRedisConnectionConfig({
+  url: redisUrl,
+  host: optional('REDIS_HOST', '127.0.0.1'),
+  port: redisPort,
+  password: optional('REDIS_PASSWORD', undefined),
+  production,
 });
 const sessionSecret = production
   ? required('SESSION_SECRET')
@@ -30,8 +42,25 @@ const sessionSecret = production
 const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const platformDomainRaw = optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`);
+const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.apps.hellodeploy.online');
+const deploymentDomainRaw = optional(
+  'DEPLOYMENT_DOMAIN',
+  platformSubdomainSuffix.startsWith('.')
+    ? platformSubdomainSuffix.slice(1)
+    : platformSubdomainSuffix,
+);
+const platformDomain = production
+  ? parseHostnameEnv('PLATFORM_DOMAIN', platformDomainRaw)
+  : platformDomainRaw;
+const deploymentDomain = production
+  ? parseHostnameEnv('DEPLOYMENT_DOMAIN', deploymentDomainRaw)
+  : deploymentDomainRaw;
 
 if (production) {
+  if (platformSubdomainSuffix !== `.${deploymentDomain}`) {
+    throw new Error('PLATFORM_SUBDOMAIN_SUFFIX must equal a dot followed by DEPLOYMENT_DOMAIN.');
+  }
   assertProductionSecrets({ sessionSecret, masterKey });
   assertPairedEnvironment(
     'TURNSTILE_SITE_KEY',
@@ -71,8 +100,9 @@ export const env = {
     ? required('MONGODB_URI')
     : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
 
-  PLATFORM_DOMAIN: optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`),
-  PLATFORM_SUBDOMAIN_SUFFIX: optional('PLATFORM_SUBDOMAIN_SUFFIX', '.apps.hellodeploy.online'),
+  PLATFORM_DOMAIN: platformDomain,
+  DEPLOYMENT_DOMAIN: deploymentDomain,
+  PLATFORM_SUBDOMAIN_SUFFIX: platformSubdomainSuffix,
 
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
   EMAIL_FROM: optional('EMAIL_FROM', 'noreply@hellodeploy.online'),
@@ -85,9 +115,12 @@ export const env = {
   HELLODEPLOY_MASTER_KEY: masterKey,
 
   // Redis — required for deployment queue
+  REDIS_URL: redisUrl,
   REDIS_HOST: optional('REDIS_HOST', '127.0.0.1'),
   REDIS_PORT: redisPort,
   REDIS_PASSWORD: optional('REDIS_PASSWORD', undefined),
+  REDIS_CONNECTION: redisConfig.connection,
+  REDIS_MODE: redisConfig.mode,
 
   // GitHub App — all optional in dev; required to use GitHub features
   GITHUB_APP_ID: optional('GITHUB_APP_ID', ''),

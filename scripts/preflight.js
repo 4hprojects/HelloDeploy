@@ -15,6 +15,13 @@ import os from 'node:os';
 
 const ARGS = process.argv.slice(2);
 const JSON_OUTPUT = ARGS.includes('--json');
+const MODE_FLAG = ARGS.indexOf('--mode');
+const MODE = MODE_FLAG >= 0 ? ARGS[MODE_FLAG + 1] : 'full';
+
+if (!['full', 'hybrid_worker'].includes(MODE)) {
+  process.stderr.write('Preflight mode must be full or hybrid_worker.\n');
+  process.exit(2);
+}
 
 const MIN_NODE_MAJOR = 22;
 const MIN_DISK_BYTES = 10 * 1024 ** 3; // 10 GB free
@@ -87,16 +94,32 @@ check('Nginx installed', () => {
   return { ok: r.ok || output.includes('nginx/'), detail: output || 'nginx not found in PATH' };
 });
 
-check('Redis installed (redis-cli)', () => {
-  const r = run('redis-cli', ['--version']);
-  return { ok: r.ok, detail: r.ok ? r.stdout : 'redis-cli not found in PATH' };
-});
+if (MODE === 'hybrid_worker') {
+  check('Managed TLS Redis URL configured', () => {
+    let parsed;
+    try {
+      parsed = new URL(process.env.REDIS_URL);
+    } catch {
+      return { ok: false, detail: 'REDIS_URL is missing or invalid' };
+    }
+    const ok = parsed.protocol === 'rediss:';
+    return {
+      ok,
+      detail: ok ? 'managed TLS Redis configured' : 'remote Redis must use rediss://',
+    };
+  });
+} else {
+  check('Redis installed (redis-cli)', () => {
+    const r = run('redis-cli', ['--version']);
+    return { ok: r.ok, detail: r.ok ? r.stdout : 'redis-cli not found in PATH' };
+  });
 
-check('Redis accepting connections', () => {
-  const r = run('redis-cli', ['ping']);
-  const ok = r.stdout === 'PONG';
-  return { ok, detail: ok ? 'PONG' : `Unexpected response: "${r.stdout || r.stderr}"` };
-});
+  check('Redis accepting connections', () => {
+    const r = run('redis-cli', ['ping']);
+    const ok = r.stdout === 'PONG';
+    return { ok, detail: ok ? 'PONG' : `Unexpected response: "${r.stdout || r.stderr}"` };
+  });
+}
 
 check(`Free disk space >= 10 GB`, () => {
   const stats = statfsSync('/var/lib');
@@ -127,7 +150,9 @@ const passed = results.filter((r) => r.ok).length;
 const failed = results.filter((r) => !r.ok).length;
 
 if (JSON_OUTPUT) {
-  process.stdout.write(JSON.stringify({ passed, failed, checks: results }, null, 2) + '\n');
+  process.stdout.write(
+    JSON.stringify({ mode: MODE, passed, failed, checks: results }, null, 2) + '\n',
+  );
 } else {
   const GREEN = '\x1b[32m';
   const RED = '\x1b[31m';

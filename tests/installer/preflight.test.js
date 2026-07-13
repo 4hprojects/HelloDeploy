@@ -54,4 +54,26 @@ describe('preflight — JSON output', () => {
     const { passed, failed, checks } = JSON.parse(r.stdout);
     assert.equal(passed + failed, checks.length, 'passed + failed must equal total checks');
   });
+
+  it('supports hybrid worker mode without exposing managed Redis credentials', () => {
+    const sentinel = 'managed-redis-password-must-not-appear';
+    const r = spawnSync(process.execPath, [SCRIPT, '--mode', 'hybrid_worker', '--json'], {
+      encoding: 'utf8',
+      timeout: 15000,
+      env: {
+        ...process.env,
+        REDIS_URL: `rediss://user:${sentinel}@managed.example.test:6380/0`,
+      },
+    });
+    const output = JSON.parse(r.stdout);
+    assert.equal(output.mode, 'hybrid_worker');
+    const redisCheck = output.checks.find((check) => check.label.includes('Managed TLS Redis'));
+    assert.deepEqual(redisCheck, {
+      label: 'Managed TLS Redis URL configured',
+      ok: true,
+      detail: 'managed TLS Redis configured',
+    });
+    assert.doesNotMatch(r.stdout, new RegExp(sentinel));
+    assert.doesNotMatch(r.stderr, new RegExp(sentinel));
+  });
 });

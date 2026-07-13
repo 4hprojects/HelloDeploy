@@ -9,6 +9,18 @@ export function parseIntegerEnv(name, rawValue, { min, max }) {
   return value;
 }
 
+export function parseHostnameEnv(name, rawValue) {
+  const value = String(rawValue ?? '')
+    .trim()
+    .toLowerCase();
+  const label = '[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?';
+  const hostname = new RegExp(`^(?=.{1,253}$)(?:${label}\\.)+${label}$`);
+  if (!hostname.test(value)) {
+    throw new Error(`${name} must be a valid hostname without a scheme, port, path, or wildcard.`);
+  }
+  return value;
+}
+
 export function assertPairedEnvironment(firstName, firstValue, secondName, secondValue) {
   if (Boolean(firstValue) !== Boolean(secondValue)) {
     throw new Error(`${firstName} and ${secondName} must either both be set or both be unset.`);

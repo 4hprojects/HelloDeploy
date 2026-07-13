@@ -22,11 +22,64 @@ describe('upgrade safety policy', () => {
 
   it('records and restores the full previous commit', () => {
     assert.match(script, /PREV_COMMIT=\$\(git rev-parse --verify HEAD\)/);
-    assert.match(script, /git checkout --detach "\$PREV_COMMIT"/);
+    assert.match(script, /rollback_release "\$PREV_COMMIT"/);
+    assert.match(script, /git checkout --detach "\$previous_commit"/);
   });
 
   it('requires an explicit external database mode before skipping mongodump', () => {
     assert.match(script, /HELLODEPLOY_DATABASE_BACKUP_MODE:-local/);
     assert.match(script, /BACKUP_ARGS\+=\(--skip-database\)/);
+  });
+
+  it('restores release artifacts and verifies a failed-upgrade rollback', () => {
+    const rollback = script.slice(
+      script.indexOf('rollback_release()'),
+      script.indexOf('if [[ $EUID'),
+    );
+    assert.match(rollback, /activate_checked_out_release/);
+    assert.match(script, /npm ci --omit=dev \|\| return 1/);
+    assert.match(script, /validate-config\.js --component web --require-production \|\| return 1/);
+    assert.match(
+      script,
+      /validate-config\.js --component worker --require-production \|\| return 1/,
+    );
+    assert.match(script, /install_service_units \|\| return 1/);
+    assert.match(script, /render-platform-ingress\.sh[\s\S]*\|\| return 1/);
+    assert.match(script, /systemctl restart[\s\S]*\|\| return 1/);
+    assert.match(script, /Rollback verified at \$PREV_COMMIT/);
+    assert.match(script, /CRITICAL: rollback to \$PREV_COMMIT failed verification/);
+  });
+
+  it('uses the same readiness verifier for the new and restored releases', () => {
+    assert.match(script, /verify_release\(\)/);
+    assert.equal(script.match(/verify_release/g)?.length, 2);
+    assert.match(script, /bash infrastructure\/verify-installation\.sh/);
+  });
+
+  it('supports worker-only activation without restarting a local web service', () => {
+    assert.match(script, /HELLODEPLOY_HOST_ROLE:-full/);
+    assert.match(script, /local services=\(hellodeploy-nginx-helper hellodeploy-worker\)/);
+    assert.match(script, /if \[\[ "\$HOST_ROLE" == "full" \]\]; then/);
+    assert.match(script, /HELLODEPLOY_VERIFY_ROLE="\$HOST_ROLE"/);
+  });
+
+  it('guards every candidate activation failure with automatic rollback', () => {
+    const activationCall = script.indexOf('if ! activate_checked_out_release; then');
+    const rollbackCall = script.indexOf('rollback_release "$PREV_COMMIT"', activationCall);
+    assert.ok(activationCall > 0 && rollbackCall > activationCall);
+    assert.match(
+      script,
+      /candidate release failed installation, configuration, restart, or verification/,
+    );
+  });
+
+  it('pauses and drains deployments before checkout and restores prior queue state', () => {
+    const pause = script.indexOf('queue-maintenance.js pause-and-drain');
+    const checkout = script.indexOf('git checkout --detach "$NEW_COMMIT"');
+    assert.ok(pause > 0 && pause < checkout);
+    assert.match(script, /trap cleanup_upgrade_state EXIT/);
+    assert.match(script, /queue-maintenance\.js resume --state-file/);
+    assert.match(script, /KEEP_QUEUE_PAUSED=true/);
+    assert.match(script, /queue remains paused because rollback verification failed/);
   });
 });
