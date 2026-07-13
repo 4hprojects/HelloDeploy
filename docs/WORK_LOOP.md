@@ -1,6 +1,6 @@
 # HelloDeploy Autonomous Work Loop
 
-Updated: 2026-07-12
+Updated: 2026-07-13T16:04:00+08:00
 
 This document defines how Codex continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
 
@@ -92,6 +92,6 @@ Before stopping, record the blocker, evidence already collected, and the exact i
 
 ## Current Handoff
 
-As of 2026-07-12, the release state remains **NO-GO**. The batch tracker is the authoritative current handoff. Local quality checks and locally executable readiness work have advanced, while review/CI, supported-host validation, production configuration, Nginx/systemd checks, backup and restore drills, and real deployment evidence remain required.
+As of 2026-07-13, the current Ubuntu 26.04 laptop is the live HelloDeploy dashboard pilot and the intended in-place productionization target. The release remains **NO-GO for customer application hosting**: Docker, isolated service identities, the constrained Nginx helper, wildcard application ingress, secure production cookies, real deployments, rollback, and restore still require direct evidence. Ubuntu 26.04 is candidate-supported until those host and recovery gates pass. The batch tracker is the authoritative current handoff; draft PR #5 must be reconciled with this observed topology before review and merge.
 
 Refresh this short handoff only when the overall execution boundary changes. Keep detailed task state and command evidence in the tracker and worklog.

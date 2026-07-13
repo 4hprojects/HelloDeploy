@@ -32,47 +32,29 @@ const INSTALL_MODES = Object.freeze({
       'Route wildcard app hostname through the tunnel.',
     ],
   },
-  hybrid_worker: {
-    label: 'Hybrid Render + Ubuntu worker',
-    summary:
-      'Run the public dashboard on Render and the privileged deployment plane on dedicated Ubuntu.',
-    requires: [
-      'Render web service',
-      'MongoDB Atlas shared by web and worker',
-      'Managed TLS Redis shared by web and worker',
-      'Dedicated Ubuntu worker host',
-      'Docker',
-      'Nginx',
-      'Cloudflare Tunnel',
-      'Cloudflare DNS',
-    ],
-    dns: [
-      'Route the dashboard hostname to Render.',
-      'Route the wildcard app hostname through the Ubuntu Cloudflare Tunnel.',
-    ],
-  },
 });
 
 export function buildSelfHostedChecklist({
   mode = 'cloudflare_tunnel',
   domain = 'hellodeploy.example.com',
 } = {}) {
-  const selected = INSTALL_MODES[mode] ?? INSTALL_MODES.cloudflare_tunnel;
+  const resolvedMode = Object.hasOwn(INSTALL_MODES, mode) ? mode : 'cloudflare_tunnel';
+  const selected = INSTALL_MODES[resolvedMode];
   return {
-    mode,
+    mode: resolvedMode,
     label: selected.label,
     summary: selected.summary,
     domain,
     license: 'MIT',
     supportedUbuntu: ['22.04', '24.04'],
+    candidateUbuntu: ['26.04'],
     startupBlockingEnvironment: [
       'NODE_ENV',
       'MONGODB_URI',
-      'REDIS_URL (rediss:// for hybrid or managed Redis)',
+      'REDIS_URL (rediss:// for managed Redis) or local REDIS_HOST/REDIS_PORT',
       'SESSION_SECRET',
       'HELLODEPLOY_MASTER_KEY',
       'NGINX_ENABLED',
-      'NGINX_DISABLED_ACK (required only when NGINX_ENABLED=false)',
     ],
     integrationEnvironment: [
       {

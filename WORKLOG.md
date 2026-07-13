@@ -1618,9 +1618,9 @@
 - Reconciled the blueprint, settings UX boundary, install guide, environment reference, user guide, readiness tracker, roadmap, implementation overview, and live acceptance checklist.
 - Removed the obsolete hybrid deployment guide and made topology reconciliation the next implementation group.
 
-### Limitation
+### Limitation at Documentation Merge
 
-- Documentation does not remove the `hybrid_worker` checklist, worker-only installer/upgrade/verifier branches, or their tests. Those are the next implementation task and keep production at **NO-GO** until corrected and verified.
+- At the time of the documentation correction, the `hybrid_worker` checklist and worker-only installer/upgrade/verifier branches still existed. The following implementation entry records their local removal; supported-host verification remains open.
 
 ### Verification
 
@@ -1629,3 +1629,107 @@
 - The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
 - `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
 - Architecture-specific links and domain references resolve. A repository-wide link scan separately found eight pre-existing missing phase-spec targets referenced by `docs/phases/README.md`; no missing files were invented or claimed as part of this correction.
+
+## Single-Host V1 Implementation Reconciliation
+
+- Status: Implemented; local verification and draft PR CI passed; review and merge pending
+- Implemented: 2026-07-13
+
+### Changes
+
+- Removed the `hybrid_worker` preflight and checklist modes and rejected removed host-mode arguments explicitly.
+- Removed worker-only branches and host-role variables from install, upgrade, and installed-host verification.
+- Made installation, upgrade, rollback verification, and service activation always include the web, worker, and constrained Nginx helper services.
+- Removed the production external-router acknowledgment; V1 production now requires `NGINX_ENABLED=true` and the local helper path.
+- Kept managed `rediss://` support in the normal full-host preflight while retaining local Redis checks when no managed URL is configured.
+- Renamed the ingress configurator to `configure-platform-ingress.sh` to avoid confusing the verb “render” with a hosting-provider dependency.
+- Updated configuration, installer, preflight, upgrade, Nginx, environment, roadmap, architecture, acceptance, and historical phase documentation.
+
+### Verification
+
+- `bash -n` passed for install, upgrade, verifier, and platform-ingress scripts.
+- Node syntax checks passed for preflight, checklist, and configuration validation.
+- Focused configuration, preflight, checklist, installer, upgrade, verifier, and Nginx tests passed: 51 tests across 7 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- Published commit `3db74be` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- Host installation and privilege evidence remained blocked at that checkpoint; the following entry identifies the current Ubuntu 26.04 pilot as the in-place validation target.
+
+## Local Ubuntu 26.04 Pilot Host Reconciliation
+
+- Status: Direct pilot evidence recorded; local and draft PR validation passed; review and merge pending
+- Observed: 2026-07-13T16:04:00+08:00
+
+### Sanitized Host Evidence
+
+- `hostnamectl`, `/etc/os-release`, and `uname` confirmed that the current laptop runs Ubuntu 26.04 LTS and is the machine serving the HelloDeploy pilot. Machine and boot identifiers were not recorded.
+- Process and listener inspection confirmed that the web and worker run from this repository under the interactive account rather than separate HelloDeploy system identities or units.
+- `systemctl status` confirmed active Nginx, Redis, and Cloudflare Tunnel services. HelloDeploy web, worker, and helper units are not installed.
+- `redis-cli ping` returned `PONG`; local web `/health` and `/ready` returned `200`.
+- Sanitized tunnel inspection confirmed that both dashboard hostnames connect directly to web port 3001. Tunnel identifiers and credential paths were excluded.
+- Nginx configuration inspection found a dashboard upstream with no active listener. The current dashboard tunnel therefore bypasses Nginx.
+- Docker CLI and socket checks found neither present. The HelloDeploy helper runtime directory, managed Nginx route directory, and wildcard application tunnel route are also absent.
+- `npm run production:check -- https://hellodeploy.online` passed homepage, expected assets, HSTS, CSP, sign-in, liveness, and readiness; it failed only `session-cookie: missing secure`. Cookie values were not captured.
+
+### Readiness Interpretation
+
+- The current machine is the live local dashboard pilot and the in-place productionization target; it is not a control workstation for a separate host.
+- Dashboard availability does not prove Docker-backed customer application hosting, wildcard routing, privilege isolation, rollback, or recovery.
+- Ubuntu 26.04 is candidate-supported. Ubuntu 22.04 and 24.04 remain the generally supported releases until Ubuntu 26.04 passes installer, Docker, systemd, routing, deployment, rollback, interruption, and restore gates.
+- Privileged host changes remain unperformed. The next implementation group must first verify backups, immutable release identity, health, and explicit rollback steps while preserving the current dashboard.
+
+### Documentation Verification
+
+- Focused live-workflow documentation tests passed: 4 tests, 1 suite, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- Every local link in the touched documentation resolves. The stale-claim review preserves historical observations while distinguishing them from the current pilot evidence.
+- Published documentation commit `80a439b` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+
+## Ubuntu 26.04 Candidate Gate
+
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
+- Implemented: 2026-07-13T16:42:00+08:00
+
+### Changes
+
+- Added one shared Ubuntu release classifier that keeps 22.04 and 24.04 supported, identifies 26.04 as candidate, and rejects other distributions or versions.
+- Made preflight fail closed on Ubuntu 26.04 unless `--allow-candidate-os` is explicit.
+- Made installation fail closed on Ubuntu 26.04 unless `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` is explicit.
+- Kept the preflight flag and installer variable separate so a prior diagnostic acknowledgment cannot silently authorize privileged installation.
+- Added the candidate release to the generated self-hosted checklist without adding it to the supported-release list.
+- Added an availability-preserving in-place baseline and rollback workflow to the operations runbook and documented the installer-only control outside application `.env` configuration.
+
+### Verification
+
+- Shell and Node syntax checks passed for the installer, preflight, shared classifier, and checklist.
+- Focused installer, preflight, checklist, and Ubuntu policy tests passed: 27 tests across 4 suites, no failures or skips.
+- Direct preflight on the pilot failed the candidate OS row plus both Docker rows by default. With candidate acknowledgment, only the OS row changed to passing; both Docker blockers remained failed.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 722 tests across 157 suites, no failures or skips.
+- Published commit `d920b35` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- No package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
+
+## Sanitized In-Place Host Baseline
+
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
+- Implemented: 2026-07-13T16:48:00+08:00
+
+### Changes
+
+- Added `npm run host:baseline` as a read-only inventory command with JSON and concise human output.
+- Reports only the OS support tier, full release commit and clean/dirty state, bounded prerequisite/service/identity/routing booleans, liveness/readiness status codes, and enumerated blocker codes.
+- Reads the tunnel configuration only to determine whether dashboard and wildcard route shapes exist; it never returns hostnames, services, identifiers, credentials, paths, or file contents.
+- Accepts an explicit active web port for local health checks but does not return an address.
+- Rejects unknown arguments and invalid ports before inspection.
+
+### Verification
+
+- Focused host-baseline tests passed: 4 tests, 1 suite, no failures or skips.
+- Sentinel tests confirmed that environment secrets, Redis URLs, endpoints, hostnames, and process details are absent from stdout and stderr.
+- The first sanitized pilot run reported candidate OS, healthy liveness/readiness, active Nginx/Redis/tunnel, and bounded blockers for dirty release state, Docker, isolated identities/units, helper, managed routes, and wildcard ingress.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 726 tests across 158 suites, no failures or skips.
+- Published commit `e0aa0f7` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- No backup, package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.

@@ -1,6 +1,6 @@
 # Live Workflow Acceptance Checklist
 
-Updated: 2026-07-13
+Updated: 2026-07-13T16:04:00+08:00
 
 ## Status Contract
 
@@ -15,12 +15,12 @@ Public HTTP evidence never proves authenticated behavior, host isolation, Docker
 
 ## Product and Architecture Boundary
 
-| Check                    | Expected result                                                                 | Status | Evidence or next action                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
-| Product responsibility   | HelloDeploy builds, runs, routes, and rolls back hosted projects itself         | Passed | Blueprint, web/worker code, Docker pipeline, and Nginx routing establish HelloDeploy as the hosting layer |
-| V1 topology              | One administrator-controlled Ubuntu host with privilege-separated services      | Passed | Canonical target is defined in the blueprint and product architecture                                     |
-| Repository conformance   | Installer, preflight, tests, and runbooks expose only the supported V1 topology | Failed | Remove the later vendor-dashboard and worker-only implementation before host validation                   |
-| Multi-node/remote worker | Remains deferred until an approved ADR and implementation plan                  | Passed | Blueprint decision log explicitly defers this capability                                                  |
+| Check                    | Expected result                                                                 | Status | Evidence or next action                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| Product responsibility   | HelloDeploy builds, runs, routes, and rolls back hosted projects itself         | Passed | Blueprint, web/worker code, Docker pipeline, and Nginx routing establish HelloDeploy as the hosting layer   |
+| V1 topology              | One administrator-controlled Ubuntu host with privilege-separated services      | Passed | Canonical target is defined in the blueprint and product architecture                                       |
+| Repository conformance   | Installer, preflight, tests, and runbooks expose only the supported V1 topology | Passed | Local source and focused tests contain only the complete V1 platform role; supported-host proof is separate |
+| Multi-node/remote worker | Remains deferred until an approved ADR and implementation plan                  | Passed | Blueprint decision log explicitly defers this capability                                                    |
 
 ## Public Production Boundary
 
@@ -33,6 +33,26 @@ Public HTTP evidence never proves authenticated behavior, host isolation, Docker
 | HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                              |
 | Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout; this does not prove the target host topology or exact release   |
 | Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Failed | The fresh public check reports `missing secure`; validate production mode and trusted HTTPS forwarding on the actual HelloDeploy ingress, then restart and recheck |
+
+## Local Ubuntu 26.04 Pilot Host
+
+Observed directly on the current host on 2026-07-13. Ubuntu 26.04 is a candidate platform until installation, deployment, rollback, and recovery gates pass; these observations do not promote it to supported status.
+
+| Check                        | Expected result                                                    | Status  | Evidence or next action                                                                                           |
+| ---------------------------- | ------------------------------------------------------------------ | ------- | ----------------------------------------------------------------------------------------------------------------- |
+| Host identity                | The inspected machine is the active local HelloDeploy pilot        | Passed  | Web, worker, and the HelloDeploy tunnel run from the current Ubuntu 26.04 host                                    |
+| Web and worker               | Both repository-run processes are active                           | Passed  | The workspace start process has active web and worker children under the interactive account                      |
+| Local Redis                  | The configured local queue dependency responds                     | Passed  | `redis-cli ping` returned `PONG`                                                                                  |
+| Local health and readiness   | The active web port returns sanitized healthy responses            | Passed  | Local `/health` and `/ready` returned `200`                                                                       |
+| Dashboard tunnel             | Public dashboard traffic reaches the active local web process      | Passed  | The HelloDeploy tunnel maps the dashboard hostnames directly to the active web port                               |
+| Production cookie            | Public sessions use `Secure; HttpOnly; SameSite=Strict`            | Failed  | The sanitized public checker reports `missing secure`                                                             |
+| Docker execution plane       | Docker is installed, active, and available only to the worker path | Blocked | Docker CLI and socket are absent; no real application container can be validated                                  |
+| Isolated service identities  | Web, worker, and helper run as separate systemd identities         | Blocked | HelloDeploy identities and units are absent; current processes run from the repository under the interactive user |
+| Constrained routing helper   | Helper socket and managed application route directory are active   | Blocked | The helper runtime directory and HelloDeploy Nginx route directory are absent                                     |
+| Dashboard Nginx path         | Nginx routes the dashboard to the active candidate web service     | Blocked | The configured Nginx upstream has no listener; the tunnel currently bypasses Nginx                                |
+| Wildcard application ingress | `*.apps.hellodeploy.online` reaches managed project routes         | Blocked | The current tunnel has dashboard routes but no wildcard application route                                         |
+| Upgrade and rollback         | In-place candidate failure restores the live pilot                 | Blocked | Requires backup, immutable candidate, isolated units, queue control, and privileged execution                     |
+| Backup and restore           | Encrypted backup restores on a second machine                      | Blocked | No cross-machine restore evidence has been recorded                                                               |
 
 ## Project-Owner Workflow
 
@@ -55,7 +75,7 @@ Use a user-guided session or restricted staging account. Do not share credential
 
 | Stage         | Expected result                                                                                            | Stop condition                                                         | Status  |
 | ------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------- |
-| Preflight     | Supported Ubuntu, Node/npm, Docker, Redis, Nginx, systemd, capacity, and required tools pass               | Any blocking preflight failure                                         | Blocked |
+| Preflight     | Supported or candidate Ubuntu, Node/npm, Docker, Redis, Nginx, systemd, capacity, and tools pass           | Any blocking preflight failure                                         | Blocked |
 | Configuration | Web and worker validation pass on the V1 host with one database, queue, encryption key, and routing policy | Missing, invalid, partial, insecure Redis, or unreadable configuration | Blocked |
 | Installation  | Immutable full-platform release installs web, worker, helper, Nginx integration, and protected config      | Permission repair, regenerated existing secrets, or unverified startup | Blocked |
 | Verification  | Identities, protected files, helper socket, Nginx, services, and `/ready` pass                             | Web has Docker/helper access or routing validation fails               | Blocked |
@@ -67,4 +87,4 @@ Use a user-guided session or restricted staging account. Do not share credential
 
 ## Production Decision
 
-Current decision: **NO-GO**. Public availability is confirmed, but repository topology drift, the failed session-cookie check, and every authenticated, privilege-isolation, Docker, upgrade-recovery, and cross-host-restore row must be resolved with direct evidence before a GO decision.
+Current decision: **NO-GO for customer application hosting**. The dashboard is a verified live local pilot, but the failed session-cookie check and every authenticated, privilege-isolation, Docker, wildcard-routing, upgrade-recovery, and cross-host-restore row must pass directly before a GO decision. Public dashboard availability is not evidence that hosted project deployment works.

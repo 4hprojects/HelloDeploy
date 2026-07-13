@@ -55,9 +55,9 @@ describe('preflight — JSON output', () => {
     assert.equal(passed + failed, checks.length, 'passed + failed must equal total checks');
   });
 
-  it('supports hybrid worker mode without exposing managed Redis credentials', () => {
+  it('supports managed TLS Redis without introducing a separate host mode', () => {
     const sentinel = 'managed-redis-password-must-not-appear';
-    const r = spawnSync(process.execPath, [SCRIPT, '--mode', 'hybrid_worker', '--json'], {
+    const r = spawnSync(process.execPath, [SCRIPT, '--json'], {
       encoding: 'utf8',
       timeout: 15000,
       env: {
@@ -66,7 +66,7 @@ describe('preflight — JSON output', () => {
       },
     });
     const output = JSON.parse(r.stdout);
-    assert.equal(output.mode, 'hybrid_worker');
+    assert.equal('mode' in output, false);
     const redisCheck = output.checks.find((check) => check.label.includes('Managed TLS Redis'));
     assert.deepEqual(redisCheck, {
       label: 'Managed TLS Redis URL configured',
@@ -75,5 +75,27 @@ describe('preflight — JSON output', () => {
     });
     assert.doesNotMatch(r.stdout, new RegExp(sentinel));
     assert.doesNotMatch(r.stderr, new RegExp(sentinel));
+  });
+
+  it('rejects removed host-mode arguments', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--mode', 'hybrid_worker', '--json'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    assert.equal(r.status, 2);
+    assert.match(r.stderr, /Unknown preflight argument/);
+    assert.doesNotMatch(r.stdout, /Hybrid Render|hybrid_worker/);
+  });
+
+  it('accepts the explicit candidate OS acknowledgement flag', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--allow-candidate-os', '--json'], {
+      encoding: 'utf8',
+      timeout: 15000,
+    });
+    const output = JSON.parse(r.stdout);
+    const osCheck = output.checks.find((check) => check.label.startsWith('OS:'));
+    assert.ok(osCheck);
+    assert.doesNotMatch(r.stderr, /Unknown preflight argument/);
+    assert.doesNotMatch(r.stdout, /supported status established/i);
   });
 });

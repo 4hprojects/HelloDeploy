@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# HelloDeploy installer for Ubuntu 22.04 / 24.04.
+# HelloDeploy installer for supported Ubuntu 22.04 / 24.04.
+# Ubuntu 26.04 is candidate-only and requires explicit acknowledgement.
 #
 # Run as root on a clean Ubuntu server:
 #   curl -fsSL https://raw.githubusercontent.com/.../install.sh | sudo bash
@@ -20,8 +21,7 @@ HD_LOG="/var/log/hellodeploy"
 REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/4hprojects/HelloDeploy.git}"
 RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 NODE_MAJOR=22
-HOST_ROLE="${HELLODEPLOY_HOST_ROLE:-full}"
-CONFIG_SOURCE="${HELLODEPLOY_CONFIG_SOURCE:-}"
+ALLOW_CANDIDATE_OS="${HELLODEPLOY_ALLOW_CANDIDATE_OS:-false}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -40,25 +40,29 @@ if [[ $EUID -ne 0 ]]; then
   error "This script must be run as root.  Try: sudo bash $0"
   exit 1
 fi
-if [[ "$HOST_ROLE" != "full" && "$HOST_ROLE" != "worker" ]]; then
-  error "HELLODEPLOY_HOST_ROLE must be full or worker."
-  exit 1
-fi
 if [[ -z "$RELEASE_REF" ]]; then
   error "HELLODEPLOY_RELEASE_REF must name an immutable tag or full commit."
   exit 1
 fi
-if [[ "$HOST_ROLE" == "worker" && ( -z "$CONFIG_SOURCE" || ! -f "$CONFIG_SOURCE" ) ]]; then
-  error "Worker-only installation requires HELLODEPLOY_CONFIG_SOURCE with shared production configuration."
-  exit 1
-fi
 
-if ! grep -qE 'VERSION_ID="(22\.04|24\.04)"' /etc/os-release 2>/dev/null; then
-  error "Unsupported OS.  HelloDeploy requires Ubuntu 22.04 or 24.04."
-  exit 1
-fi
-
-info "Ubuntu $(grep VERSION_ID /etc/os-release | cut -d= -f2 | tr -d '"') detected."
+OS_ID=$(awk -F= '$1 == "ID" {gsub(/"/, "", $2); print tolower($2); exit}' /etc/os-release 2>/dev/null || true)
+OS_VERSION=$(awk -F= '$1 == "VERSION_ID" {gsub(/"/, "", $2); print $2; exit}' /etc/os-release 2>/dev/null || true)
+case "$OS_ID:$OS_VERSION" in
+  ubuntu:22.04|ubuntu:24.04)
+    info "Supported Ubuntu $OS_VERSION detected."
+    ;;
+  ubuntu:26.04)
+    if [[ "$ALLOW_CANDIDATE_OS" != "true" ]]; then
+      error "Ubuntu 26.04 is candidate-only. Set HELLODEPLOY_ALLOW_CANDIDATE_OS=true only after the in-place backup and rollback baseline passes."
+      exit 1
+    fi
+    warn "Ubuntu 26.04 candidate explicitly acknowledged; this does not establish supported status."
+    ;;
+  *)
+    error "Unsupported OS. HelloDeploy supports Ubuntu 22.04 and 24.04; Ubuntu 26.04 is candidate-only."
+    exit 1
+    ;;
+esac
 
 # ─── system packages ─────────────────────────────────────────────────────────
 
@@ -84,16 +88,15 @@ else
   info "Nginx $(nginx -v 2>&1 | grep -oP '[\d.]+') already installed."
 fi
 
-# Redis is local in the full topology. Hybrid worker hosts use managed TLS Redis.
-if [[ "$HOST_ROLE" == "full" ]]; then
-  if ! command -v redis-cli &>/dev/null; then
-    info "Installing Redis…"
-    apt-get install -y redis-server
-    systemctl enable redis-server
-    systemctl start redis-server
-  else
-    info "Redis already installed."
-  fi
+# Redis is installed locally by default. Operators may configure a managed
+# rediss:// service during setup without changing the single-host platform role.
+if ! command -v redis-cli &>/dev/null; then
+  info "Installing Redis…"
+  apt-get install -y redis-server
+  systemctl enable redis-server
+  systemctl start redis-server
+else
+  info "Redis already installed."
 fi
 
 # Docker
@@ -119,7 +122,7 @@ section "System user"
 getent group "$HD_CONFIG_GROUP" &>/dev/null || groupadd --system "$HD_CONFIG_GROUP"
 getent group "$HD_NGINX_GROUP" &>/dev/null || groupadd --system "$HD_NGINX_GROUP"
 
-if [[ "$HOST_ROLE" == "full" ]] && ! id "$HD_WEB_USER" &>/dev/null; then
+if ! id "$HD_WEB_USER" &>/dev/null; then
   useradd --system --shell /usr/sbin/nologin --home-dir /var/lib/hellodeploy-web --create-home "$HD_WEB_USER"
   info "Created unprivileged web user '$HD_WEB_USER'."
 fi
@@ -128,9 +131,7 @@ if ! id "$HD_WORKER_USER" &>/dev/null; then
   info "Created deployment worker user '$HD_WORKER_USER'."
 fi
 
-if [[ "$HOST_ROLE" == "full" ]]; then
-  usermod -aG "$HD_CONFIG_GROUP" "$HD_WEB_USER"
-fi
+usermod -aG "$HD_CONFIG_GROUP" "$HD_WEB_USER"
 usermod -aG "$HD_CONFIG_GROUP","$HD_NGINX_GROUP",docker "$HD_WORKER_USER"
 
 # ─── directories ─────────────────────────────────────────────────────────────
@@ -186,75 +187,48 @@ npm ci --omit=dev
 section "Configuration"
 ENV_FILE="$HD_HOME/.env"
 
-if [[ "$HOST_ROLE" == "worker" ]]; then
-  install -m 0640 -o root -g "$HD_CONFIG_GROUP" "$CONFIG_SOURCE" "$ENV_FILE"
-  info "Installed pre-provisioned worker configuration without generating secrets."
+if [[ -f "$ENV_FILE" ]]; then
+  warn ".env already exists — skipping secret generation."
 else
-  if [[ -f "$ENV_FILE" ]]; then
-    warn ".env already exists — skipping secret generation."
-  else
-    info "Generating secrets…"
-    node scripts/generate-secrets.js --write --output "$ENV_FILE"
-  fi
-
-  info "Launching setup wizard…"
-  node scripts/setup.js --output "$ENV_FILE" --skip-existing
+  info "Generating secrets…"
+  node scripts/generate-secrets.js --write --output "$ENV_FILE"
 fi
+
+info "Launching setup wizard…"
+node scripts/setup.js --output "$ENV_FILE" --skip-existing
 chown root:"$HD_CONFIG_GROUP" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
 info "Validating production configuration for installed service identities…"
-if [[ "$HOST_ROLE" == "full" ]]; then
-  sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web --require-production
-fi
+sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web --require-production
 sudo -u "$HD_WORKER_USER" node scripts/validate-config.js --component worker --require-production
 
-if [[ "$HOST_ROLE" == "full" ]]; then
-  bash infrastructure/nginx/render-platform-ingress.sh "$ENV_FILE"
-  info "Configured platform ingress."
-else
-  info "Worker-only host: dashboard ingress remains on Render."
-fi
+bash infrastructure/nginx/configure-platform-ingress.sh "$ENV_FILE"
+info "Configured platform ingress."
 
 # ─── systemd services ────────────────────────────────────────────────────────
 
 section "Systemd services"
 install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/
 install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/
-if [[ "$HOST_ROLE" == "full" ]]; then
-  install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
-else
-  if systemctl list-unit-files hellodeploy-web.service --no-legend 2>/dev/null | grep -q '^hellodeploy-web.service'; then
-    systemctl disable --now hellodeploy-web
-  fi
-  rm -f /etc/systemd/system/hellodeploy-web.service
-fi
+install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
 systemctl daemon-reload
-SERVICES=(hellodeploy-nginx-helper hellodeploy-worker)
-if [[ "$HOST_ROLE" == "full" ]]; then
-  SERVICES+=(hellodeploy-web)
-fi
+SERVICES=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
 systemctl enable --now "${SERVICES[@]}"
 info "Systemd services enabled and started."
 
 section "Installation verification"
-HELLODEPLOY_VERIFY_ROLE="$HOST_ROLE" bash infrastructure/verify-installation.sh
+bash infrastructure/verify-installation.sh
 
 # ─── done ─────────────────────────────────────────────────────────────────────
 
 echo ""
 echo -e "${GREEN}${BOLD}HelloDeploy installed successfully!${NC}"
 echo ""
-if [[ "$HOST_ROLE" == "full" ]]; then
-  echo "  Web UI:       https://$(grep PLATFORM_DOMAIN "$ENV_FILE" | cut -d= -f2)"
-else
-  echo "  Host role:    worker plane (dashboard remains external)"
-fi
+echo "  Web UI:       https://$(grep PLATFORM_DOMAIN "$ENV_FILE" | cut -d= -f2)"
 echo "  Logs:         journalctl -u 'hellodeploy-*'"
 echo "  Status:       systemctl status hellodeploy-web hellodeploy-worker hellodeploy-nginx-helper"
-if [[ "$HOST_ROLE" == "full" ]]; then
-  echo "  Seed admin:   sudo -u $HD_WEB_USER node $HD_HOME/scripts/seed-super-admin.js"
-fi
+echo "  Seed admin:   sudo -u $HD_WEB_USER node $HD_HOME/scripts/seed-super-admin.js"
 echo ""
 echo -e "${YELLOW}IMPORTANT:${NC} Back up HELLODEPLOY_MASTER_KEY from $ENV_FILE to a secure"
 echo "location outside this server.  Losing it makes all stored secrets unrecoverable."

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Render and activate the HelloDeploy platform UI ingress from an env file.
+# Configure and activate the HelloDeploy platform UI ingress from an env file.
 set -euo pipefail
 
 ENV_FILE="${1:-.env}"

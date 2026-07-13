@@ -74,10 +74,8 @@ const deploymentDomain = production
 
 if (production) {
   assertProductionSecrets({ masterKey });
-  if (!nginxEnabled && process.env.NGINX_DISABLED_ACK !== 'true') {
-    throw new Error(
-      'NGINX_ENABLED=false requires NGINX_DISABLED_ACK=true in production to acknowledge external routing.',
-    );
+  if (!nginxEnabled) {
+    throw new Error('NGINX_ENABLED must be true in production for the V1 local Nginx helper.');
   }
   assertAllOrNoneEnvironment(
     [

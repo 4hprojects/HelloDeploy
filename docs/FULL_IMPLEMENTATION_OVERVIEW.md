@@ -1,26 +1,27 @@
 # HelloDeploy Full Implementation Overview
 
+Updated: 2026-07-13T16:04:00+08:00
+
 Current release state: **NO-GO**
 Local baseline: **717 tests passing**
-Primary blocker: reconcile the unsupported vendor-dashboard/worker-only drift, then validate the complete self-hosted platform on a supported Ubuntu host.
+Pilot state: **Dashboard live on the current Ubuntu 26.04 laptop**
+Primary blocker: productionize the current candidate host without disrupting the dashboard, then prove Docker-backed application hosting and recovery.
 
-| Batch | Objective                  | Current status           | Remaining outcome                                              |
-| ----- | -------------------------- | ------------------------ | -------------------------------------------------------------- |
-| 1     | Green quality baseline     | In review                | Review changes, create clean commit, run CI                    |
-| 2     | Nginx privilege isolation  | Blocked on host          | Prove identities, permissions, routing, reload, and rollback   |
-| 3     | Production configuration   | Blocked on configuration | Supply GitHub App settings and select routing mode             |
-| 4     | Health and shutdown        | In review                | Add worker diagnostics and prove systemd restart behavior      |
-| 5     | Installation and recovery  | In progress              | Queue draining, encrypted off-host backup, second-host restore |
-| 6     | Real deployment validation | Not started              | Deploy every runtime and exercise failure/security scenarios   |
-| 7     | Pilot and recovery drills  | Not started              | Run realistic user, outage, rollback, and recovery workflows   |
-| 8     | Release decision           | Not started              | Review all evidence and issue formal GO/NO-GO                  |
+| Priority | Objective                                | Current status | Remaining outcome                                                    |
+| -------- | ---------------------------------------- | -------------- | -------------------------------------------------------------------- |
+| 0        | Documentation and release reconciliation | In progress    | Correct and merge green draft PR #5                                  |
+| 1        | Safe baseline and service foundation     | Blocked        | Back up, install Docker, and isolate services without dashboard loss |
+| 2        | Routing and production cutover           | Blocked        | Route dashboard and wildcard applications through validated Nginx    |
+| 3        | Application and product validation       | Not started    | Deploy every runtime and complete authenticated QA                   |
+| 4        | Recovery and Ubuntu 26 graduation        | Not started    | Prove rollback/restore and promote candidate OS support              |
+| 5        | Release decision                         | Not started    | Review direct evidence and issue formal GO/NO-GO                     |
 
-## Phase 1 — Prepare a release candidate
+## Phase 1 — Reconcile Documentation and Release
 
-- Review the accumulated code and documentation changes.
-- Resolve any unintended worktree changes.
-- Commit the intended implementation to a reviewed branch.
-- Run Node.js 22 CI:
+- Record that the current Ubuntu 26.04 laptop is the live pilot host.
+- Distinguish the reachable dashboard from the incomplete application-hosting plane.
+- Keep Ubuntu 22.04 and 24.04 supported and Ubuntu 26.04 candidate-supported.
+- Revise draft PR #5 and run Node.js 22 CI:
   - Clean `npm ci`
   - Lint
   - Formatting
@@ -29,18 +30,21 @@ Primary blocker: reconcile the unsupported vendor-dashboard/worker-only drift, t
   - Production dependency audit
 - Create an immutable release candidate using a full commit SHA or annotated SemVer tag.
 
-Completion: a clean, reviewed commit with passing CI.
+Completion: the tracker, architecture, runbooks, evidence, code, and green PR agree before merge.
 
-## Phase 2 — Build the staging host
+## Phase 2 — Establish a Safe In-Place Foundation
 
-Use a clean Ubuntu 22.04 or 24.04 host.
+Use the current Ubuntu 26.04 pilot as the in-place productionization target. Preserve dashboard availability throughout this phase.
 
-- Install using the immutable release reference.
+- Capture and verify protected backups of configuration, routes, tunnel state, application data, and the current immutable release.
+- Define rollback for the current repository-run processes, candidate units, Nginx, and tunnel configuration.
+- Add Ubuntu 26.04 candidate validation without declaring general support.
+- Install and validate Docker.
 - Configure separate identities:
   - `hellodeploy-web`
   - `hellodeploy-worker`
   - Privileged Nginx helper
-- Configure MongoDB, Redis, Docker, Nginx, systemd, and ingress.
+- Configure MongoDB, Redis, Nginx, systemd, and ingress while retaining the pilot process until candidate readiness passes.
 - Provide GitHub App credentials outside source control.
 - Enable the constrained local Nginx helper; an external application router is not part of the V1 production topology.
 - Run:
@@ -49,7 +53,7 @@ Use a clean Ubuntu 22.04 or 24.04 host.
 sudo bash infrastructure/verify-installation.sh
 ```
 
-Completion: every identity, permission, service, Nginx, and readiness check passes.
+Completion: every identity, permission, Docker, service, Nginx, readiness, and rollback check passes without losing the live dashboard.
 
 ## Phase 3 — Validate service lifecycle
 
@@ -65,7 +69,7 @@ Completion: every identity, permission, service, Nginx, and readiness check pass
 
 Completion: service restarts and upgrades do not corrupt or abruptly abandon normal work.
 
-## Phase 4 — Validate routing and isolation
+## Phase 4 — Validate Routing, Cutover, and Isolation
 
 - Prove the web user cannot access Docker.
 - Prove the web user cannot access the Nginx helper socket.
@@ -79,10 +83,13 @@ Completion: service restarts and upgrades do not corrupt or abruptly abandon nor
   - Reload failure
   - Restoration of the last healthy route
 - Confirm all route files are written atomically.
+- Correct the inactive dashboard upstream and route the dashboard through Nginx only after readiness passes.
+- Add and validate the wildcard application tunnel route.
+- Require the production session cookie to include `Secure; HttpOnly; SameSite=Strict`.
 
 Completion: compromised web access cannot become host control, and routing failures preserve live traffic.
 
-## Phase 5 — Prove backup and recovery
+## Phase 5 — Prove Recovery and Graduate Ubuntu 26.04
 
 - Choose an encrypted, access-controlled off-host backup destination.
 - Decide the database backup mode:
@@ -101,6 +108,8 @@ Completion: compromised web access cannot become host control, and routing failu
 - Record measured RPO and RTO.
 
 Completion: a verified second host can recover the platform and a representative application.
+
+Ubuntu 26.04 becomes officially supported only after this recovery evidence and the application validation phase both pass.
 
 ## Phase 6 — Run real deployment tests
 
@@ -173,4 +182,4 @@ Production becomes **GO** only after:
 - All critical/high defects are closed.
 - Remaining lower risks are explicitly accepted.
 
-Until every release-blocking item has recorded evidence, HelloDeploy remains **NO-GO**.
+Until every release-blocking item has recorded evidence, customer application hosting remains **NO-GO**. The public dashboard remains a live pilot, not proof of the execution plane.
