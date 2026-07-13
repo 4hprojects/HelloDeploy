@@ -44,7 +44,7 @@ describe('upgrade safety policy', () => {
       /validate-config\.js --component worker --require-production \|\| return 1/,
     );
     assert.match(script, /install_service_units \|\| return 1/);
-    assert.match(script, /render-platform-ingress\.sh[\s\S]*\|\| return 1/);
+    assert.match(script, /configure-platform-ingress\.sh[\s\S]*\|\| return 1/);
     assert.match(script, /systemctl restart[\s\S]*\|\| return 1/);
     assert.match(script, /Rollback verified at \$PREV_COMMIT/);
     assert.match(script, /CRITICAL: rollback to \$PREV_COMMIT failed verification/);
@@ -56,11 +56,15 @@ describe('upgrade safety policy', () => {
     assert.match(script, /bash infrastructure\/verify-installation\.sh/);
   });
 
-  it('supports worker-only activation without restarting a local web service', () => {
-    assert.match(script, /HELLODEPLOY_HOST_ROLE:-full/);
-    assert.match(script, /local services=\(hellodeploy-nginx-helper hellodeploy-worker\)/);
-    assert.match(script, /if \[\[ "\$HOST_ROLE" == "full" \]\]; then/);
-    assert.match(script, /HELLODEPLOY_VERIFY_ROLE="\$HOST_ROLE"/);
+  it('always activates and verifies the complete V1 service set', () => {
+    assert.doesNotMatch(script, /HELLODEPLOY_HOST_ROLE/);
+    assert.doesNotMatch(script, /HELLODEPLOY_VERIFY_ROLE/);
+    assert.match(
+      script,
+      /local services=\(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web\)/,
+    );
+    assert.match(script, /validate-config\.js --component web --require-production/);
+    assert.match(script, /validate-config\.js --component worker --require-production/);
   });
 
   it('guards every candidate activation failure with automatic rollback', () => {

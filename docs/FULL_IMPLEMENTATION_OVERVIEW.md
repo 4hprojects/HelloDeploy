@@ -2,7 +2,7 @@
 
 Current release state: **NO-GO**
 Local baseline: **717 tests passing**
-Primary blocker: reconcile the unsupported vendor-dashboard/worker-only drift, then validate the complete self-hosted platform on a supported Ubuntu host.
+Primary blocker: validate the reconciled complete self-hosted platform on a supported Ubuntu host.
 
 | Batch | Objective                  | Current status           | Remaining outcome                                              |
 | ----- | -------------------------- | ------------------------ | -------------------------------------------------------------- |

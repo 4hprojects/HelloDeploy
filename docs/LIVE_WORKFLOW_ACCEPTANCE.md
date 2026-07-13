@@ -15,12 +15,12 @@ Public HTTP evidence never proves authenticated behavior, host isolation, Docker
 
 ## Product and Architecture Boundary
 
-| Check                    | Expected result                                                                 | Status | Evidence or next action                                                                                   |
-| ------------------------ | ------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------- |
-| Product responsibility   | HelloDeploy builds, runs, routes, and rolls back hosted projects itself         | Passed | Blueprint, web/worker code, Docker pipeline, and Nginx routing establish HelloDeploy as the hosting layer |
-| V1 topology              | One administrator-controlled Ubuntu host with privilege-separated services      | Passed | Canonical target is defined in the blueprint and product architecture                                     |
-| Repository conformance   | Installer, preflight, tests, and runbooks expose only the supported V1 topology | Failed | Remove the later vendor-dashboard and worker-only implementation before host validation                   |
-| Multi-node/remote worker | Remains deferred until an approved ADR and implementation plan                  | Passed | Blueprint decision log explicitly defers this capability                                                  |
+| Check                    | Expected result                                                                 | Status | Evidence or next action                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------- |
+| Product responsibility   | HelloDeploy builds, runs, routes, and rolls back hosted projects itself         | Passed | Blueprint, web/worker code, Docker pipeline, and Nginx routing establish HelloDeploy as the hosting layer   |
+| V1 topology              | One administrator-controlled Ubuntu host with privilege-separated services      | Passed | Canonical target is defined in the blueprint and product architecture                                       |
+| Repository conformance   | Installer, preflight, tests, and runbooks expose only the supported V1 topology | Passed | Local source and focused tests contain only the complete V1 platform role; supported-host proof is separate |
+| Multi-node/remote worker | Remains deferred until an approved ADR and implementation plan                  | Passed | Blueprint decision log explicitly defers this capability                                                    |
 
 ## Public Production Boundary
 

@@ -128,17 +128,11 @@ The Project Settings work adapts general interaction patterns observed in a comm
 | Product specification | `hellodeploy-blueprint`                                                                  |
 | Readiness evidence    | `docs/IMPLEMENTATION_BATCH_TRACKER.md`, `docs/LIVE_WORKFLOW_ACCEPTANCE.md`, `WORKLOG.md` |
 
-## Current Architecture Drift to Correct
+## Architecture Reconciliation Status
 
-The repository currently contains a later experimental `hybrid_worker`/worker-only path that assumed a vendor-hosted dashboard. That path is not authoritative and must not be used as production guidance. A follow-up implementation should:
+The later experimental `hybrid_worker`/worker-only path that assumed a vendor-hosted dashboard has been removed locally from the checklist, preflight, installer, upgrade, verifier, production routing configuration, and their tests. The full single-host installation is the only supported V1 production role. Provider-neutral process-environment loading, local Redis compatibility, and managed `rediss://` support remain available.
 
-1. Remove the vendor-specific checklist and worker-only install messaging.
-2. Make the full single-host installation the only supported V1 production role.
-3. Retain provider-neutral process-environment loading and managed `rediss://` compatibility.
-4. Reconcile installer, upgrade, verification, preflight, tests, and documentation with the single-host boundary.
-5. Prove web/worker privilege separation on one clean supported Ubuntu host.
-
-Documentation correction does not prove those code changes or host checks complete. Until they are implemented and verified, production remains **NO-GO**.
+Local implementation and automated tests do not prove clean-host behavior. Web/worker privilege separation, service startup, Nginx activation, Cloudflare routing, and rollback still require direct evidence on one supported Ubuntu host. Until those checks pass, production remains **NO-GO**.
 
 ## Architecture Acceptance Criteria
 

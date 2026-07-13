@@ -26,8 +26,8 @@ describe('platform Nginx ingress', () => {
     assert.doesNotMatch(template, /proxy_set_header X-Forwarded-Proto \$scheme;/);
   });
 
-  it('is rendered for both fresh installs and upgrades', () => {
-    assert.match(installScript, /render-platform-ingress\.sh/);
-    assert.match(upgradeScript, /render-platform-ingress\.sh/);
+  it('is configured for both fresh installs and upgrades', () => {
+    assert.match(installScript, /configure-platform-ingress\.sh/);
+    assert.match(upgradeScript, /configure-platform-ingress\.sh/);
   });
 });

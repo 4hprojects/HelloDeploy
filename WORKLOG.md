@@ -1618,9 +1618,9 @@
 - Reconciled the blueprint, settings UX boundary, install guide, environment reference, user guide, readiness tracker, roadmap, implementation overview, and live acceptance checklist.
 - Removed the obsolete hybrid deployment guide and made topology reconciliation the next implementation group.
 
-### Limitation
+### Limitation at Documentation Merge
 
-- Documentation does not remove the `hybrid_worker` checklist, worker-only installer/upgrade/verifier branches, or their tests. Those are the next implementation task and keep production at **NO-GO** until corrected and verified.
+- At the time of the documentation correction, the `hybrid_worker` checklist and worker-only installer/upgrade/verifier branches still existed. The following implementation entry records their local removal; supported-host verification remains open.
 
 ### Verification
 
@@ -1629,3 +1629,27 @@
 - The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
 - `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
 - Architecture-specific links and domain references resolve. A repository-wide link scan separately found eight pre-existing missing phase-spec targets referenced by `docs/phases/README.md`; no missing files were invented or claimed as part of this correction.
+
+## Single-Host V1 Implementation Reconciliation
+
+- Status: Implemented and focused verification passed; review and CI pending
+- Implemented: 2026-07-13
+
+### Changes
+
+- Removed the `hybrid_worker` preflight and checklist modes and rejected removed host-mode arguments explicitly.
+- Removed worker-only branches and host-role variables from install, upgrade, and installed-host verification.
+- Made installation, upgrade, rollback verification, and service activation always include the web, worker, and constrained Nginx helper services.
+- Removed the production external-router acknowledgment; V1 production now requires `NGINX_ENABLED=true` and the local helper path.
+- Kept managed `rediss://` support in the normal full-host preflight while retaining local Redis checks when no managed URL is configured.
+- Renamed the ingress configurator to `configure-platform-ingress.sh` to avoid confusing the verb “render” with a hosting-provider dependency.
+- Updated configuration, installer, preflight, upgrade, Nginx, environment, roadmap, architecture, acceptance, and historical phase documentation.
+
+### Verification
+
+- `bash -n` passed for install, upgrade, verifier, and platform-ingress scripts.
+- Node syntax checks passed for preflight, checklist, and configuration validation.
+- Focused configuration, preflight, checklist, installer, upgrade, verifier, and Nginx tests passed: 51 tests across 7 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- Supported-host installation and privilege evidence remain blocked until execution on a clean Ubuntu host.

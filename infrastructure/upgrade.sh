@@ -14,7 +14,6 @@ BACKUP_ROOT="/var/backups/hellodeploy"
 RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 QUEUE_STATE_FILE=""
 KEEP_QUEUE_PAUSED=false
-HOST_ROLE="${HELLODEPLOY_HOST_ROLE:-full}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -30,44 +29,30 @@ section() { echo -e "\n${BOLD}── $* ──${NC}"; }
 install_service_units() {
   install -m 0644 infrastructure/systemd/hellodeploy-worker.service /etc/systemd/system/ || return 1
   install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/systemd/system/ || return 1
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/ || return 1
-  fi
+  install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/ || return 1
   systemctl daemon-reload || return 1
 }
 
 verify_release() {
-  local services=(hellodeploy-nginx-helper hellodeploy-worker)
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    services+=(hellodeploy-web)
-  fi
+  local services=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
   systemctl is-active --quiet "${services[@]}" || return 1
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    curl --fail --silent --show-error \
-      "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || return 1
-  fi
-  HELLODEPLOY_VERIFY_ROLE="$HOST_ROLE" bash infrastructure/verify-installation.sh
+  curl --fail --silent --show-error \
+    "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || return 1
+  bash infrastructure/verify-installation.sh
 }
 
 activate_checked_out_release() {
   section "Dependencies and configuration"
   npm ci --omit=dev || return 1
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    sudo -u hellodeploy-web node scripts/validate-config.js --component web --require-production || return 1
-  fi
+  sudo -u hellodeploy-web node scripts/validate-config.js --component web --require-production || return 1
   sudo -u hellodeploy-worker node scripts/validate-config.js --component worker --require-production || return 1
 
   section "Service and ingress configuration"
   install_service_units || return 1
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    bash infrastructure/nginx/render-platform-ingress.sh "$HD_HOME/.env" || return 1
-  fi
+  bash infrastructure/nginx/configure-platform-ingress.sh "$HD_HOME/.env" || return 1
 
   section "Restarting services"
-  local services=(hellodeploy-nginx-helper hellodeploy-worker)
-  if [[ "$HOST_ROLE" == "full" ]]; then
-    services+=(hellodeploy-web)
-  fi
+  local services=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
   systemctl restart "${services[@]}" || return 1
 
   section "Readiness check"
@@ -101,11 +86,6 @@ if [[ $EUID -ne 0 ]]; then
   error "This script must be run as root.  Try: sudo bash $0"
   exit 1
 fi
-if [[ "$HOST_ROLE" != "full" && "$HOST_ROLE" != "worker" ]]; then
-  error "HELLODEPLOY_HOST_ROLE must be full or worker."
-  exit 1
-fi
-
 while [[ $# -gt 0 ]]; do
   case $1 in
     --ref) RELEASE_REF="${2:-}"; shift 2 ;;

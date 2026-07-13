@@ -50,20 +50,16 @@ describe('self-hosted checklist', () => {
     assert.ok(checklist.dns.some((item) => item.includes('public IP')));
   });
 
-  it('supports the hybrid Render and Ubuntu worker topology', () => {
-    const checklist = buildSelfHostedChecklist({
-      mode: 'hybrid_worker',
-      domain: 'deploy.example.com',
-    });
-    assert.equal(checklist.label, 'Hybrid Render + Ubuntu worker');
-    assert.ok(checklist.prerequisites.includes('Managed TLS Redis shared by web and worker'));
-    assert.ok(checklist.dns.some((item) => item.includes('dashboard hostname to Render')));
+  it('does not expose a remote-worker or vendor-dashboard install mode', () => {
+    const checklist = buildSelfHostedChecklist({ mode: 'hybrid_worker' });
+    assert.equal(checklist.mode, 'cloudflare_tunnel');
+    assert.equal(checklist.label, 'Cloudflare Tunnel');
     assert.ok(
       checklist.startupBlockingEnvironment.includes(
-        'REDIS_URL (rediss:// for hybrid or managed Redis)',
+        'REDIS_URL (rediss:// for managed Redis) or local REDIS_HOST/REDIS_PORT',
       ),
     );
-    assert.ok(checklist.steps.some((item) => item.includes('HELLODEPLOY_RELEASE_REF')));
+    assert.ok(!checklist.startupBlockingEnvironment.some((item) => item.includes('ACK')));
   });
 
   it('falls back to Cloudflare Tunnel for unknown modes', () => {

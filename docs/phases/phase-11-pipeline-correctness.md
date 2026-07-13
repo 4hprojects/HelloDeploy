@@ -32,7 +32,7 @@ Goal: no deployment can end up stuck, pointing at a deleted image, leaking a con
 
 ### W7 — `NGINX_ENABLED=false` can't silently produce unreachable "HEALTHY" deploys
 
-- `worker.js`: boot-time guard — in production with nginx disabled the worker refuses to start unless `NGINX_DISABLED_ACK=true` (documented in `docs/ENVIRONMENT.md`) acknowledges an external router. Chosen over a per-deploy failure so the misconfiguration surfaces immediately at deploy of the worker, not one deployment at a time. (Also placed at boot because the test harness loads the repo `.env`, which is production-shaped with nginx off — an in-pipeline guard would misfire there.)
+- `worker.js`: boot-time guard — in production with Nginx disabled the worker refuses to start. The original external-router acknowledgment was removed when V1 was reconciled to the single-host local-helper topology. Keeping the guard at boot surfaces misconfiguration before any deployment is accepted.
 - `pipeline.js`: when nginx is skipped (dev), a WARN deploy event now tells the viewer the app won't be reachable via its platform subdomain.
 
 ## Verification

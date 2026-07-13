@@ -46,25 +46,17 @@ describe('installed-host verification wiring', () => {
     }
   });
 
-  it('supports a worker-only hybrid host without requiring a local web service', () => {
-    assert.match(verifier, /HELLODEPLOY_VERIFY_ROLE:-full/);
-    assert.match(verifier, /web service must not run on a worker-only host/);
-    assert.match(verifier, /web user is absent from the worker-only host/);
-    assert.match(
-      verifier,
-      /node scripts\/validate-config\.js --component worker --require-production/,
-    );
-  });
-
-  it('wires the worker-only role through install and upgrade verification', () => {
+  it('installs and verifies only the complete V1 platform role', () => {
     for (const script of [installer, upgrade]) {
-      assert.match(script, /HELLODEPLOY_HOST_ROLE:-full/);
-      assert.match(
-        script,
-        /HELLODEPLOY_VERIFY_ROLE="\$HOST_ROLE" bash infrastructure\/verify-installation\.sh/,
-      );
+      assert.doesNotMatch(script, /HELLODEPLOY_HOST_ROLE/);
+      assert.doesNotMatch(script, /HELLODEPLOY_VERIFY_ROLE/);
+      assert.doesNotMatch(script, /worker-only/i);
     }
-    assert.match(installer, /Worker-only host: dashboard ingress remains on Render/);
+    assert.match(installer, /hellodeploy-web\.service/);
+    assert.match(installer, /hellodeploy-worker\.service/);
+    assert.match(installer, /hellodeploy-nginx-helper\.service/);
+    assert.match(verifier, /check_user hellodeploy-web/);
+    assert.match(verifier, /check_user hellodeploy-worker/);
   });
 
   it('installs only an explicitly resolved immutable release', () => {
@@ -75,16 +67,11 @@ describe('installed-host verification wiring', () => {
     assert.doesNotMatch(installer, /git clone --branch/);
   });
 
-  it('requires pre-provisioned shared configuration for worker-only installation', () => {
-    assert.match(installer, /HELLODEPLOY_CONFIG_SOURCE/);
-    assert.match(installer, /Worker-only installation requires HELLODEPLOY_CONFIG_SOURCE/);
-    assert.match(
-      installer,
-      /Installed pre-provisioned worker configuration without generating secrets/,
-    );
-    assert.match(
-      installer,
-      /install -m 0640 -o root -g "\$HD_CONFIG_GROUP" "\$CONFIG_SOURCE" "\$ENV_FILE"/,
-    );
+  it('configures both service identities from the protected platform environment', () => {
+    assert.doesNotMatch(installer, /HELLODEPLOY_CONFIG_SOURCE/);
+    assert.match(installer, /chown root:"\$HD_CONFIG_GROUP" "\$ENV_FILE"/);
+    assert.match(installer, /chmod 640 "\$ENV_FILE"/);
+    assert.match(installer, /sudo -u "\$HD_WEB_USER" node scripts\/validate-config\.js/);
+    assert.match(installer, /sudo -u "\$HD_WORKER_USER" node scripts\/validate-config\.js/);
   });
 });

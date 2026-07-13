@@ -106,20 +106,21 @@ describe('production worker routing validation', () => {
     });
   }
 
-  it('rejects disabled production routing without explicit acknowledgement', () => {
-    const result = validateWorker({ NGINX_ENABLED: 'false', NGINX_DISABLED_ACK: 'false' });
+  it('rejects disabled production routing', () => {
+    const result = validateWorker({ NGINX_ENABLED: 'false' });
     assert.equal(result.status, 1);
-    assert.match(result.stdout, /NGINX_DISABLED_ACK=true/);
+    assert.match(result.stdout, /NGINX_ENABLED must be true in production/);
   });
 
   it('accepts the local Nginx helper routing mode', () => {
-    const result = validateWorker({ NGINX_ENABLED: 'true', NGINX_DISABLED_ACK: 'false' });
+    const result = validateWorker({ NGINX_ENABLED: 'true' });
     assert.equal(result.status, 0, result.stdout || result.stderr);
   });
 
-  it('accepts acknowledged external routing mode', () => {
+  it('does not permit the removed acknowledgement to bypass V1 routing', () => {
     const result = validateWorker({ NGINX_ENABLED: 'false', NGINX_DISABLED_ACK: 'true' });
-    assert.equal(result.status, 0, result.stdout || result.stderr);
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /NGINX_ENABLED must be true in production/);
   });
 
   it('prefers managed TLS Redis URL configuration and reports only its mode', () => {
@@ -129,8 +130,7 @@ describe('production worker routing validation', () => {
       REDIS_HOST: 'ignored.example.test',
       REDIS_PORT: 'not-a-port',
       REDIS_PASSWORD: 'ignored-password',
-      NGINX_ENABLED: 'false',
-      NGINX_DISABLED_ACK: 'true',
+      NGINX_ENABLED: 'true',
     });
     assert.equal(result.status, 0, result.stdout || result.stderr);
     const output = JSON.parse(result.stdout);
@@ -146,8 +146,7 @@ describe('production worker routing validation', () => {
     const sentinel = 'insecure-redis-password-must-not-appear';
     const result = validateWorker({
       REDIS_URL: `redis://user:${sentinel}@managed.example.test:6379/0`,
-      NGINX_ENABLED: 'false',
-      NGINX_DISABLED_ACK: 'true',
+      NGINX_ENABLED: 'true',
     });
     assert.equal(result.status, 1);
     assert.match(result.stdout, /requires a rediss:\/\//);
@@ -158,8 +157,7 @@ describe('production worker routing validation', () => {
   it('rejects unsafe or inconsistent production deployment domains', () => {
     const unsafe = validateWorker({
       DEPLOYMENT_DOMAIN: 'apps.example.test; include evil.conf',
-      NGINX_ENABLED: 'false',
-      NGINX_DISABLED_ACK: 'true',
+      NGINX_ENABLED: 'true',
     });
     assert.equal(unsafe.status, 1);
     assert.match(unsafe.stdout, /DEPLOYMENT_DOMAIN must be a valid hostname/);
@@ -171,8 +169,7 @@ describe('production worker routing validation', () => {
         ...baseEnv,
         SESSION_SECRET: 's'.repeat(64),
         PLATFORM_SUBDOMAIN_SUFFIX: '.different.example.test',
-        NGINX_ENABLED: 'false',
-        NGINX_DISABLED_ACK: 'true',
+        NGINX_ENABLED: 'true',
       },
     });
     assert.equal(webResult.status, 1);
@@ -182,8 +179,7 @@ describe('production worker routing validation', () => {
   it('reports configuration names and statuses without values', () => {
     const sentinel = 'must-not-appear-in-diagnostics';
     const result = validateWorker({
-      NGINX_ENABLED: 'false',
-      NGINX_DISABLED_ACK: 'true',
+      NGINX_ENABLED: 'true',
       REDIS_PASSWORD: sentinel,
       RESEND_API_KEY: sentinel,
     });
@@ -195,7 +191,7 @@ describe('production worker routing validation', () => {
     );
     assert.deepEqual(
       output.results[0].checks.find((check) => check.name === 'routing'),
-      { name: 'routing', status: 'external-router' },
+      { name: 'routing', status: 'local-nginx-helper' },
     );
     assert.deepEqual(
       output.results[0].checks.find((check) => check.name === 'email'),
@@ -214,8 +210,7 @@ describe('production worker routing validation', () => {
         env: {
           ...baseEnv,
           NODE_ENV: 'development',
-          NGINX_ENABLED: 'false',
-          NGINX_DISABLED_ACK: 'true',
+          NGINX_ENABLED: 'true',
         },
       },
     );
@@ -226,8 +221,7 @@ describe('production worker routing validation', () => {
 
   it('labels partially populated integration groups as incomplete', () => {
     const result = validateWorker({
-      NGINX_ENABLED: 'false',
-      NGINX_DISABLED_ACK: 'true',
+      NGINX_ENABLED: 'true',
       GITHUB_APP_ID: 'configured-id',
       GITHUB_APP_PRIVATE_KEY_PATH: '',
       GITHUB_APP_PRIVATE_KEY: '',
@@ -262,7 +256,6 @@ describe('production worker routing validation', () => {
     const result = validateWorker({
       HELLODEPLOY_MASTER_KEY: sentinel,
       NGINX_ENABLED: 'true',
-      NGINX_DISABLED_ACK: 'false',
     });
     assert.equal(result.status, 1);
     assert.match(result.stdout, /HELLODEPLOY_MASTER_KEY/);

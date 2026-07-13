@@ -31,17 +31,16 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 
 ## Platform / routing
 
-| Variable                       | Used by     | Required (prod) | Default                               | Purpose                                                                                                                |
-| ------------------------------ | ----------- | --------------- | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility                               |
-| `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                    |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`            | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                   |
-| `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                     |
-| `NGINX_DISABLED_ACK`           | worker      | no              | `false`                               | Explicitly acknowledges disabled Nginx for development or a future approved router; not a supported V1 production mode |
-| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                                                          |
-| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                                                       |
-| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                                                       |
-| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                                                        |
+| Variable                       | Used by     | Required (prod) | Default                               | Purpose                                                                                  |
+| ------------------------------ | ----------- | --------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
+| `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility |
+| `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`      |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`            | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                     |
+| `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation       |
+| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                            |
+| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                         |
+| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                         |
+| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                          |
 
 ## GitHub App
 
@@ -78,7 +77,7 @@ Resend is optional. When `RESEND_API_KEY` is empty, outbound verification and de
 
 ## Configuration validation
 
-Run `npm run config:check` after editing `.env`. The supported `npm start` commands force `NODE_ENV=production`; development remains available through `npm run dev`. Installation and upgrade additionally run `scripts/validate-config.js --require-production`, so they fail before service activation if the runtime is not actually in production mode. Production validation also rejects insecure remote Redis, missing or invalid startup values, partial conditional integrations, unreadable configured private keys, and routing disabled without `NGINX_DISABLED_ACK=true`. Diagnostics report configuration names and bounded statuses such as `production`, `managed-tls-url`, `configured`, `disabled`, or `incomplete`, never configured values.
+Run `npm run config:check` after editing `.env`. The supported `npm start` commands force `NODE_ENV=production`; development remains available through `npm run dev`. Installation and upgrade additionally run `scripts/validate-config.js --require-production`, so they fail before service activation if the runtime is not actually in production mode. Production validation also rejects insecure remote Redis, missing or invalid startup values, partial conditional integrations, unreadable configured private keys, and disabled local Nginx routing. Diagnostics report configuration names and bounded statuses such as `production`, `managed-tls-url`, `local-nginx-helper`, `configured`, `disabled`, or `incomplete`, never configured values.
 
 After deploying a public release, verify the HTTPS, header, health, readiness, and session-cookie contract without printing cookie values:
 

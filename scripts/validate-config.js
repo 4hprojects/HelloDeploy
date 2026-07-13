@@ -59,7 +59,7 @@ function componentChecks(component, config) {
     ...common,
     {
       name: 'routing',
-      status: process.env.NGINX_ENABLED === 'true' ? 'local-nginx-helper' : 'external-router',
+      status: process.env.NGINX_ENABLED === 'true' ? 'local-nginx-helper' : 'disabled',
     },
     {
       name: 'github-app',
