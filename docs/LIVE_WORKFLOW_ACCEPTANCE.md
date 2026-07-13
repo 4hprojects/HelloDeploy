@@ -1,6 +1,6 @@
 # Live Workflow Acceptance Checklist
 
-Updated: 2026-07-13T20:37:26+08:00
+Updated: 2026-07-14T06:49:21+08:00
 
 ## Status Contract
 
@@ -43,6 +43,7 @@ Observed directly on the current host on 2026-07-13. Ubuntu 26.04 is a candidate
 | Host identity                | The inspected machine is the active local HelloDeploy pilot        | Passed  | Web, worker, and the HelloDeploy tunnel run from the current Ubuntu 26.04 host                                                                                                          |
 | Web and worker               | Both repository-run processes are active                           | Passed  | The workspace start process has active web and worker children under the interactive account                                                                                            |
 | Immutable runtime identity   | Active processes correspond to one reviewed commit or release tag  | Failed  | PM2 started before several later checkout changes; emergency capture and controlled restart on the reviewed export-aware fix release are required                                       |
+| Production configuration     | Web and worker pass value-safe production validation               | Failed  | Validation reports an incomplete GitHub App name and unavailable local helper; worker startup synchronously validates that helper, so PM2 was not restarted                             |
 | Local Redis                  | The configured local queue dependency responds                     | Passed  | `redis-cli ping` returned `PONG`                                                                                                                                                        |
 | Local health and readiness   | The active web port returns sanitized healthy responses            | Passed  | Local `/health` and `/ready` returned `200`                                                                                                                                             |
 | Dashboard tunnel             | Public dashboard traffic reaches the active local web process      | Passed  | The HelloDeploy tunnel maps the dashboard hostnames directly to the active web port                                                                                                     |
@@ -55,7 +56,8 @@ Observed directly on the current host on 2026-07-13. Ubuntu 26.04 is a candidate
 | Upgrade and rollback         | In-place candidate failure restores the live pilot                 | Blocked | Requires backup, immutable candidate, isolated units, queue control, and privileged execution                                                                                           |
 | Backup media                 | Encrypted off-host storage and separate recovery-key custody       | Passed  | Dedicated LUKS2/ext4 backup storage is root-only; the protected recovery export is on separate media, ephemeral secret-key import passed, and only the public key persists on the pilot |
 | Database export              | Recoverable database state exists before host mutation             | Passed  | Atlas Free has no managed snapshot; signed Database Tools created a compressed export directly on encrypted storage and the non-restoring archive check passed                          |
-| Backup and restore           | Encrypted pilot backup restores on a second machine                | Blocked | The database export exists, but the complete encrypted pilot artifact, remount/retrieval verification, and second-machine restore remain required                                       |
+| Emergency pilot capture      | Current pilot state decrypts and verifies after media remount      | Passed  | The encrypted artifact and recovery media passed checksums; temporary recovery-key decryption, fixed archive inventory, and every internal checksum passed                              |
+| Backup and restore           | Encrypted pilot backup restores on a second machine                | Blocked | Same-host retrieval integrity passed, but a second clean host has not restored the platform or representative project                                                                   |
 
 ## Project-Owner Workflow
 
@@ -79,13 +81,13 @@ Use a user-guided session or restricted staging account. Do not share credential
 | Stage         | Expected result                                                                                            | Stop condition                                                         | Status  |
 | ------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------- |
 | Preflight     | Supported or candidate Ubuntu, Node/npm, Docker, Redis, Nginx, systemd, capacity, and tools pass           | Any blocking preflight failure                                         | Blocked |
-| Configuration | Web and worker validation pass on the V1 host with one database, queue, encryption key, and routing policy | Missing, invalid, partial, insecure Redis, or unreadable configuration | Blocked |
+| Configuration | Web and worker validation pass on the V1 host with one database, queue, encryption key, and routing policy | Missing, invalid, partial, insecure Redis, or unreadable configuration | Failed  |
 | Installation  | Immutable full-platform release installs web, worker, helper, Nginx integration, and protected config      | Permission repair, regenerated existing secrets, or unverified startup | Blocked |
 | Verification  | Identities, protected files, helper socket, Nginx, services, and `/ready` pass                             | Web has Docker/helper access or routing validation fails               | Blocked |
 | Real deploy   | Every supported runtime serves through production routing with non-root and resource limits                | Secret leak, unsafe binding, residue, or healthy-release displacement  | Blocked |
 | Upgrade       | Backup verifies; queue pauses/drains; candidate installs and verifies before prior queue state is restored | Drain timeout, candidate verification failure, or unknown queue state  | Blocked |
 | Rollback      | Previous full commit, dependencies, units, ingress, services, readiness, and queue state restore           | Critical rollback-verification failure; keep queue paused              | Blocked |
-| Backup        | Required state is complete, checksummed, encrypted, access-controlled, and stored off-host                 | Missing database/route/config state or failed integrity check          | Blocked |
+| Backup        | Required state is complete, checksummed, encrypted, access-controlled, and stored off-host                 | Missing database/route/config state or failed integrity check          | Passed  |
 | Restore       | Second clean host restores the platform and representative project with recorded RPO/RTO                   | Integrity, startup, route, or representative-project failure           | Blocked |
 
 ## Production Decision
