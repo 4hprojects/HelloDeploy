@@ -1,18 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T16:04:00+08:00
+Updated: 2026-07-13T16:13:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                         |
-| ---------------- | ------------------------------------------------------------- |
-| Overall status   | Live local pilot; productionization pending                   |
-| Release progress | `v0.1.1` published; PR #5 green and awaiting host correction  |
-| Current batch    | Priority 0 — Documentation and Release Reconciliation         |
-| Next action      | Reconcile PR #5 with the observed Ubuntu 26.04 pilot topology |
-| Release state    | NO-GO for customer application hosting                        |
+| Field            | Value                                                    |
+| ---------------- | -------------------------------------------------------- |
+| Overall status   | Live local pilot; productionization pending              |
+| Release progress | `v0.1.1` published; reconciled PR #5 green and in review |
+| Current batch    | Priority 0 — Documentation and Release Reconciliation    |
+| Next action      | Review and merge the reconciled draft PR #5              |
+| Release state    | NO-GO for customer application hosting                   |
 
 The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web and worker from the repository, local Redis, and a Cloudflare Tunnel that sends dashboard traffic directly to the web process. Public liveness and readiness pass. It does not yet provide the complete production application-hosting plane: Docker, isolated HelloDeploy service identities, systemd units, the constrained Nginx helper, the application route directory, and wildcard application ingress are absent. The public session cookie also omits `Secure`. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
 
@@ -43,7 +43,7 @@ These groups order the remaining batches by dependency and identify work that ca
 
 | Priority | Group                                    | Status      | Dependency                              | Required outcome                                             |
 | -------- | ---------------------------------------- | ----------- | --------------------------------------- | ------------------------------------------------------------ |
-| 0        | Documentation and Release Reconciliation | In Progress | Green draft PR #5                       | Repository and PR describe the observed local pilot          |
+| 0        | Documentation and Release Reconciliation | In Review   | Green draft PR #5                       | Repository and PR describe the observed local pilot          |
 | 1        | Safe In-Place Baseline                   | Not Started | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
 | 1        | Production Service Foundation            | Blocked     | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
 | 2        | Routing and Production Cutover           | Blocked     | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
@@ -58,7 +58,7 @@ These groups order the remaining batches by dependency and identify work that ca
 - Keep Ubuntu 22.04 and 24.04 supported; classify Ubuntu 26.04 as candidate support until its host and recovery gates pass.
 - Revise draft PR #5, rerun CI, review, and merge only after the repository and evidence agree.
 
-**Evidence:** Commit `3db74be` removed the unsupported vendor-dashboard, remote-worker, worker-only lifecycle, and external-router paths; PR #5 is green. Direct inspection on 2026-07-13 then proved that the current Ubuntu 26.04 laptop is the live pilot host, so the PR requires this documentation correction before review and merge.
+**Evidence:** Commit `3db74be` removed the unsupported vendor-dashboard, remote-worker, worker-only lifecycle, and external-router paths. Direct inspection on 2026-07-13 then proved that the current Ubuntu 26.04 laptop is the live pilot host. Commit `80a439b` reconciled the documentation and focused contract test with that evidence; draft PR #5 passed Node.js 22 CI again. Review and merge remain required before Priority 0 is complete.
 
 ### Priority 1 — Safe In-Place Baseline
 

@@ -1657,7 +1657,7 @@
 
 ## Local Ubuntu 26.04 Pilot Host Reconciliation
 
-- Status: Direct pilot evidence and documentation reconciliation completed locally; PR review pending
+- Status: Direct pilot evidence recorded; local and draft PR validation passed; review and merge pending
 - Observed: 2026-07-13T16:04:00+08:00
 
 ### Sanitized Host Evidence
@@ -1685,3 +1685,4 @@
 - The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
 - `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
 - Every local link in the touched documentation resolves. The stale-claim review preserves historical observations while distinguishing them from the current pilot evidence.
+- Published documentation commit `80a439b` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
