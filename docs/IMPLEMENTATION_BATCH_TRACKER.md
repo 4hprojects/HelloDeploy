@@ -1,17 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-13T14:05:00+08:00
+Updated: 2026-07-13T14:24:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field          | Value                                                           |
-| -------------- | --------------------------------------------------------------- |
-| Overall status | Deployed; validation blocked                                    |
-| Current batch  | Batch 2 — Host validation                                       |
-| Next action    | Review release baseline, redeploy web, provision staging worker |
-| Release state  | NO-GO                                                           |
+| Field            | Value                                                     |
+| ---------------- | --------------------------------------------------------- |
+| Overall status   | Deployed; validation blocked                              |
+| Release progress | Baseline in review; external validation blocked           |
+| Current batch    | Batch 1 / Group 0 — Tracker and Release Baseline          |
+| Next action      | Update, review, and merge PR #1; create and verify v0.1.0 |
+| Release state    | NO-GO                                                     |
 
 The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
 
@@ -36,6 +37,67 @@ The public application is deployed and externally reachable through Cloudflare. 
 | 7     | Pilot and Recovery Drills           | Not Started | Phase 7          |
 | 8     | Final Release Decision              | Not Started | Phase 8          |
 
+## Remaining Execution Groups
+
+These groups order the remaining batches by dependency and identify work that can be executed together. Group status follows this tracker's status legend; individual live checks continue to use `Passed`, `Failed`, `Blocked`, or `Not Run` in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md).
+
+| Group | Name                                     | Status      | Dependency                        | Required outcome                                       |
+| ----- | ---------------------------------------- | ----------- | --------------------------------- | ------------------------------------------------------ |
+| 0     | Tracker and Release Baseline             | In Progress | Clean PR branch and green CI      | Reviewed merge commit and verified annotated `v0.1.0`  |
+| 1     | Render Security and Shared Services      | Blocked     | Group 0                           | Exact release deployed and every public check passes   |
+| 2     | Ubuntu Worker Plane and Cloudflare Route | Blocked     | Groups 0–1 and guided host access | Isolated worker plane and rollback-safe wildcard route |
+| 3     | Deployment and Authenticated Product QA  | Not Started | Group 2                           | Runtime, security, role, and accessibility QA passes   |
+| 4     | Upgrade, Rollback, Backup, and Restore   | Not Started | Group 3 and second-host/S3 access | Verified recovery from release and host failures       |
+| 5     | Final GO/NO-GO Decision                  | Not Started | Groups 0–4                        | Every release gate has direct evidence                 |
+
+### Group 0 — Tracker and Release Baseline
+
+- Update this tracker and the worklog with dependency-ordered groups and sanitized PR/CI evidence.
+- Push the documentation update to draft PR #1 and require the Node.js 22 CI workflow to pass again.
+- Review and merge the clean PR into `main`, then create annotated tag `v0.1.0` on the merge commit.
+- Record the tag and full commit SHA. Stop on review, CI, merge-state, clean-checkout, or tag-verification failure.
+
+### Group 1 — Render Security and Shared Services
+
+- Configure the Render web service for the supported production start path, Atlas, managed TLS Redis, domains, queue, and existing encryption key through provider secret management.
+- Let Render auto-deploy the exact tagged `main` commit and verify its commit identity.
+- Require the public checker to pass assets, HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`.
+- If the cookie remains insecure, inspect only bounded production/proxy booleans. Stop on any public, shared-service, configuration, or commit-identity failure.
+
+### Group 2 — Ubuntu Worker Plane and Cloudflare Routing
+
+- Run hybrid-worker preflight, securely deliver the shared configuration, and install immutable `v0.1.0` in worker-only mode.
+- Route `*.apps.hellodeploy.online` through the Ubuntu Cloudflare Tunnel and Nginx.
+- Verify identities, protected configuration and key permissions, helper socket, systemd, managed Redis mode, `nginx -t`, route transactions, and rollback.
+- Prove that no web service runs on the worker host and the public web plane has no Docker/helper path. Stop on unsafe privileges, generated replacement secrets, tunnel failure, or rollback failure.
+
+### Group 3 — Deployment and Authenticated Product QA
+
+- In parallel lanes, deploy every supported runtime and exercise the complete Owner, Maintainer, and Viewer workflow with dedicated QA accounts and a noncritical repository.
+- Verify non-root containers, loopback binding, limits, redaction, cleanup, concurrency, broken-candidate continuity, retained-image rollback, and controlled Docker interruption.
+- Verify authentication, repository/detection/settings, environment secrets, deployment/logs, domains, maintenance, role boundaries, responsive behavior, keyboard/screen-reader behavior, duplicate submission, and recovery states.
+- Stop on secret exposure, unsafe container state, privilege bypass, healthy-release displacement, or an unresolved critical/high defect.
+
+### Group 4 — Upgrade, Rollback, Backup, and Restore
+
+- Create, encrypt, checksum, upload, retrieve, and reverify a backup in private versioned S3-compatible storage.
+- Upgrade from `v0.1.0` to a reviewed `v0.1.1`, proving queue pause/drain, candidate verification, routing, and prior queue-state restoration.
+- Use a full-SHA, isolated, never-merged failing worker-unit drill commit to prove automatic rollback, then delete its remote branch after sanitized evidence is recorded.
+- Restore on the available second clean Ubuntu host, verify a representative project, record RPO/RTO, and drill MongoDB, Redis, Docker, Nginx, worker, and tunnel interruptions.
+- Keep the queue paused and stop immediately on rollback- or restore-verification failure.
+
+### Group 5 — Final GO/NO-GO Decision
+
+- Reconcile every batch and live-acceptance row, rerun all release gates, and define monitoring, retention, alert, and incident ownership.
+- Resolve every critical/high defect and explicitly accept documented lower-severity risks.
+- Mark production `GO` only when cookie, authenticated QA, host isolation, runtime deployment, failed-upgrade rollback, and cross-host restore gates all have direct passing evidence.
+
+### Evidence Safety
+
+- Keep group status here, row-level live results in the acceptance checklist, strategy in the roadmap, and detailed command results in `WORKLOG.md`.
+- Never infer host success from local tests or public HTTP evidence.
+- Never record credentials, secret values, cookie/session values, private endpoints, internal addresses, or infrastructure identifiers.
+
 ## Batch 1 — Green Quality Baseline
 
 **Status:** In Review
@@ -43,7 +105,7 @@ The public application is deployed and externally reachable through Cloudflare. 
 **Completed:** —
 **Objective:** Establish a clean, reproducible release baseline with reliable automated quality gates.
 **Dependencies:** Node.js 22+, npm 10+, and access to install locked dependencies.
-**Blockers:** Review/commit is required to produce a clean release checkout; remote CI has not yet run on this change set.
+**Blockers:** Review, merge, and immutable tag creation are required before the release checkout is complete.
 
 ### Tasks
 
@@ -51,7 +113,7 @@ The public application is deployed and externally reachable through Cloudflare. 
 - [x] Align local-development and production documentation with the Node.js 22 support policy.
 - [x] Verify `npm ci` installs from `package-lock.json` without modifying it.
 - [x] Run lint, formatting, full tests, production dependency audit, and diff validation.
-- [ ] Confirm CI runs clean installation, lint, formatting, tests, and the production dependency audit.
+- [x] Confirm CI runs clean installation, lint, formatting, tests, and the production dependency audit.
 - [x] Document the release branch, tag format, and rollback commit/tag policy.
 - [x] Record exact command results and test counts in the worklog.
 
@@ -68,7 +130,7 @@ git status --short
 ```
 
 **Completion gate:** Every required local command and supported-runtime CI job passes, dependency installation leaves tracked files unchanged, and evidence is recorded.
-**Evidence:** Local verification on Node.js `v22.23.1` and npm `10.9.8` completed 2026-07-12. `npm ci` installed 314 packages and left `package-lock.json` unchanged (SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`). Lint and formatting passed; all 601 tests passed with no skips; the production dependency audit reported zero vulnerabilities. See the Batch 1 entry in `WORKLOG.md`.
+**Evidence:** Local verification on Node.js `v22.23.1` and npm `10.9.8` completed 2026-07-13. `npm ci` installed 314 packages and left `package-lock.json` unchanged (SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`). Lint, formatting, configuration validation, and all 717 tests passed with no skips; the production dependency audit reported zero vulnerabilities. Draft PR #1 is cleanly mergeable and its Node.js 22 CI run passed installation, lint, formatting, configuration validation, all tests, and the production dependency audit at head commit `85428baacf6cd5b80cf8d3b3aff1a5094e9fd363`. Review, merge, and immutable tag creation remain open.
 
 ## Batch 2 — Nginx Privilege Isolation
 

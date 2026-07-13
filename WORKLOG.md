@@ -1543,3 +1543,23 @@
 - Full Node.js suite passed after the hybrid preflight was added: 717 tests, 156 suites, 0 failures, 0 skipped.
 - The public production check passed homepage, checkout-derived assets, HSTS, CSP, sign-in, health, and readiness, but still failed `session-cookie: missing secure`.
 - Managed Redis connectivity, Render environment changes, immutable deployment, Ubuntu host verification, real Docker runtimes, authenticated QA, upgrade failure recovery, and second-host restore were not run and remain external blockers.
+
+## Grouped Production Completion Baseline
+
+- Status: Group 0 in progress; external execution groups remain blocked by their documented dependencies
+- Recorded: 2026-07-13
+
+### Execution Structure
+
+- Grouped the remaining production work into release, Render security, Ubuntu routing, deployment/product QA, recovery, and final-decision stages in the authoritative implementation tracker.
+- Kept individual live results in the existing acceptance checklist instead of creating a second status source.
+- Selected guided execution for credentialed Render, Cloudflare, Ubuntu, S3-compatible backup, and restore-host actions.
+- Selected an annotated `v0.1.0` tag on the reviewed `main` merge commit as the first immutable release reference.
+
+### Release Evidence
+
+- Draft PR #1 contains three coherent commits for settings/secrets UX, the hybrid worker foundation, and production-readiness documentation.
+- The PR head is cleanly mergeable at `85428baacf6cd5b80cf8d3b3aff1a5094e9fd363`.
+- GitHub Actions completed the Node.js 22 CI workflow successfully for that head, including clean dependency installation, lint, formatting, configuration validation, tests, and the production dependency audit.
+- Local release verification passed with 717 tests across 156 suites, no failures or skips, and zero reported production dependency vulnerabilities.
+- Review, merge, annotated-tag creation, Render redeployment, and every target-host or authenticated acceptance row remain unverified and must not be inferred from this repository evidence.
