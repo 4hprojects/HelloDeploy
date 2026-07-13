@@ -1818,3 +1818,53 @@
 - Draft PR #6 contains the intended three commits, passed Node.js 22 CI, and was reported cleanly mergeable at the reviewed head.
 - No disk, GPG keyring, database snapshot, package, PM2 process, identity, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
 - Both removable media and exact destructive-device confirmation remain required before the emergency backup stage can begin.
+
+## `v0.1.2` Publication and Protected-Media Gate
+
+- Status: Release published; external-media gate blocked without mutation
+- Updated: 2026-07-13T19:30:22+08:00
+
+### Release Evidence
+
+- The final three-commit head of PR #6 passed Node.js 22 CI after its evidence update and GitHub reported a clean merge state.
+- PR #6 merged at full commit `4b6c15ebd8ba8dc2251d9c17fb9331892414d967`.
+- Annotated tag `v0.1.2` was created without moving an existing tag, pushed, and verified to peel to the reviewed merge commit.
+
+### Protected-Media Stop Condition
+
+- Read-only block-device discovery found the internal system disk and optical device only; no removable storage candidate or stable removable-device path was present.
+- The current user GPG keyring contains no secret key. No dedicated backup identity was generated because the separate recovery-key medium is absent.
+- No partitioning, formatting, mounting, key generation, key import, database snapshot, backup creation, PM2 restart, package installation, service preparation, Nginx change, tunnel change, Docker change, or traffic change occurred.
+- Resume only after both separate removable media are attached. Display and confirm the exact backup device before any destructive operation.
+
+## Protected Media and Atlas Free Database Export
+
+- Status: Media and database-export prerequisites passed; complete pilot capture pending
+- Updated: 2026-07-13T20:37:26+08:00
+
+### Sanitized Host Evidence
+
+- The explicitly confirmed external backup drive was repartitioned as one LUKS2 container with an ext4 filesystem, mounted at a root-only location, and given a root-owned mode-`0700` artifact directory. The internal system disk and separate recovery-key medium were not modified by that operation.
+- A dedicated passphrase-protected Ed25519 recovery identity with a cv25519 encryption subkey was generated in an ephemeral GPG home. The protected secret export, public key, revocation certificate, fingerprint record, and checksums are held on separate removable media. An ephemeral secret-key re-import passed and the temporary keyring was removed; only the public key was imported into the root keyring.
+- Atlas reported the database as a Free cluster with managed backups inactive, so no snapshot capability was claimed. MongoDB Database Tools `100.17.0` were downloaded from the official distribution endpoint and their detached signature verified successfully.
+- `mongodump` created one compressed archive directly on the encrypted backup filesystem. `mongorestore --dryRun` checked the archive without restoring data, and a private checksum file was created. The first verification attempt failed because the helper omitted the protected connection configuration and therefore selected its default local target; it retained no completed or partial artifact. The corrected run passed.
+- The database copy is a verified `mongodump` export, not an Atlas snapshot, full pilot backup, remount/retrieval proof, or cross-host restore.
+
+### Repository Follow-up
+
+- Added a repeatable database-export command that loads the connection setting through a protected runtime config, writes only to a root-private destination, refuses overwrite, runs a non-restoring archive check, and removes the temporary config on every exit path.
+- Require the MongoDB tool binaries used by the privileged export command to be root-owned and not group/other writable; this removes the temporary-helper trust path from the supported workflow.
+- Added a mutually exclusive `--database-export` evidence mode to the pilot backup command while preserving the existing external-snapshot mode.
+- Require the export, checksum, and parent directory to be root-owned and private; require the export to be nonempty, outside the repository, and checksum-matched before staging.
+- Include the export under a fixed payload name and require the verifier's manifest mode, member inventory, and checksum inventory to agree.
+- PM2, Nginx, tunnel, Docker, queue, and traffic state remain unchanged. The next gate is a reviewed immutable release of this fix, followed by root-private rollback instructions and the emergency encrypted pilot capture.
+
+### Verification
+
+- Shell syntax passed for the database exporter, pilot backup command, and non-restoring verifier.
+- Focused backup, malicious-archive, installed-backup, and workflow-documentation checks passed: 22 tests across 4 suites, with no failures or skips.
+- The official Node.js `v22.22.1` archive matched its published SHA-256 manifest; its bundled npm `10.9.4` ran the broad gate without replacing the live PM2 interpreter.
+- A detached clean worktree installed 314 locked packages with `npm ci`, reran the complete gate, and remained clean afterward.
+- Lint, formatting, and configuration validation passed. The full suite passed 752 tests across 162 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities; `git diff --check` and the secret-sensitive diff scan passed.
+- The complete encrypted pilot artifact, remount/retrieval verification, PM2 normalization, cookie recheck, Docker installation, service preparation, and traffic changes remain unrun.

@@ -38,6 +38,7 @@ if ! awk '
     allowed["payload/tunnel-credentials"]=1
     allowed["payload/release-commit.txt"]=1
     allowed["payload/rollback-instructions"]=1
+    allowed["payload/database-export.archive.gz"]=1
     allowed["payload/CHECKSUMS.sha256"]=1
     allowed["payload/manifest.json"]=1
     allowed["payload/hellodeploy-data.tar.gz"]=1
@@ -76,6 +77,7 @@ fi
       allowed["tunnel-credentials"]=1
       allowed["release-commit.txt"]=1
       allowed["rollback-instructions"]=1
+      allowed["database-export.archive.gz"]=1
       allowed["manifest.json"]=1
       allowed["hellodeploy-data.tar.gz"]=1
       required["environment"]=1
@@ -106,7 +108,7 @@ MANIFEST="$VERIFY_DIR/payload/manifest.json"
 if ! grep -Eq '^  "formatVersion": 1,$' "$MANIFEST" ||
   ! grep -Eq '^  "kind": "hellodeploy-pilot-pre-cutover",$' "$MANIFEST" ||
   ! grep -Eq '^  "commitSha": "[0-9a-f]{40}",$' "$MANIFEST" ||
-  ! grep -Eq '^  "databaseMode": "verified-external-snapshot",$' "$MANIFEST" ||
+  ! grep -Eq '^  "databaseMode": "(verified-external-snapshot|verified-mongodump-export)",$' "$MANIFEST" ||
   ! grep -Eq '^  "dataIncluded": (true|false)$' "$MANIFEST"; then
   error "Pilot backup manifest is invalid."
   exit 1
@@ -125,6 +127,16 @@ if grep -q '^  "dataIncluded": true$' "$MANIFEST"; then
   }
 elif [[ -e "$VERIFY_DIR/payload/hellodeploy-data.tar.gz" ]]; then
   error "Pilot backup data inventory is inconsistent."
+  exit 1
+fi
+
+if grep -q '^  "databaseMode": "verified-mongodump-export",$' "$MANIFEST"; then
+  [[ -f "$VERIFY_DIR/payload/database-export.archive.gz" ]] || {
+    error "Pilot backup database inventory is inconsistent."
+    exit 1
+  }
+elif [[ -e "$VERIFY_DIR/payload/database-export.archive.gz" ]]; then
+  error "Pilot backup database inventory is inconsistent."
   exit 1
 fi
 

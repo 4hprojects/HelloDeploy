@@ -1,6 +1,6 @@
 # HelloDeploy Autonomous Work Loop
 
-Updated: 2026-07-13T19:17:00+08:00
+Updated: 2026-07-13T20:37:26+08:00
 
 This document defines how Codex continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
 
@@ -92,6 +92,6 @@ Before stopping, record the blocker, evidence already collected, and the exact i
 
 ## Current Handoff
 
-As of 2026-07-13, the current Ubuntu 26.04 laptop is the live HelloDeploy dashboard pilot and the intended in-place productionization target. PR #5 is merged; Priority 1 is active. The PM2 processes predate several checkout changes, so runtime identity must be normalized on reviewed `v0.1.2` after an emergency capture. The release remains **NO-GO for customer application hosting**: verified encrypted off-host storage and retrieval, rehearsed rollback, Docker, isolated service identities, the constrained Nginx helper, wildcard application ingress, secure production cookies, real deployments, and cross-host restore still require direct evidence. The next external inputs are two removable media, an exact approved GPG fingerprint, destructive-device confirmation, and a verified external database snapshot. No installer or host mutation may begin before the captured artifact is retrieved and verified.
+As of 2026-07-13, the current Ubuntu 26.04 laptop is the live HelloDeploy dashboard pilot and the intended in-place productionization target. Reviewed release `v0.1.2` is published and Priority 1 is active. Protected backup storage and separate recovery-key media are prepared, and a signed-tool `mongodump` export on the encrypted drive passed a non-restoring archive check. Export-aware pilot-backup support is implemented locally but must pass the release gate before use. The PM2 processes still predate several checkout changes, so runtime identity must be normalized only after the emergency encrypted pilot artifact is retrieved and verified. The release remains **NO-GO for customer application hosting**: complete pilot capture, rehearsed rollback, Docker, isolated service identities, the constrained Nginx helper, wildcard application ingress, secure production cookies, real deployments, and cross-host restore still require direct evidence. No installer or traffic mutation may begin before the export-aware release, root-private rollback instructions, complete encrypted capture, and retrieval verification pass.
 
 Refresh this short handoff only when the overall execution boundary changes. Keep detailed task state and command evidence in the tracker and worklog.

@@ -14,9 +14,23 @@ TUNNEL_CONFIG="/etc/cloudflared/hellodeploy.yml"
 DATA_DIR=""
 ROLLBACK_INSTRUCTIONS=""
 DATABASE_SNAPSHOT_CONFIRMED=false
+DATABASE_EXPORT=""
 
 error() { printf '[error] %s\n' "$*" >&2; }
 info() { printf '[info] %s\n' "$*"; }
+
+require_root_trusted_path() {
+  local current="$1"
+  while [[ "$current" != "/" ]]; do
+    local owner mode
+    owner=$(stat -c '%u' "$current")
+    mode=$(stat -c '%a' "$current")
+    if [[ "$owner" != 0 || $((8#$mode & 8#022)) -ne 0 ]]; then
+      return 1
+    fi
+    current=$(dirname "$current")
+  done
+}
 
 usage() {
   cat <<'EOF'
@@ -26,7 +40,8 @@ Usage: sudo bash infrastructure/backup-pilot.sh \
   --gpg-recipient RECIPIENT_FINGERPRINT \
   --nginx-config /path/to/active-dashboard.conf \
   --rollback-instructions /root/private/pilot-rollback.txt \
-  --external-database-snapshot-confirmed \
+  (--external-database-snapshot-confirmed | \
+   --database-export /protected/path/mongodb.archive.gz) \
   [--tunnel-config /etc/cloudflared/hellodeploy.yml] \
   [--data-dir /path/to/existing/hellodeploy-data]
 
@@ -47,6 +62,7 @@ while [[ $# -gt 0 ]]; do
     --data-dir) DATA_DIR="${2:-}"; shift 2 ;;
     --rollback-instructions) ROLLBACK_INSTRUCTIONS="${2:-}"; shift 2 ;;
     --external-database-snapshot-confirmed) DATABASE_SNAPSHOT_CONFIRMED=true; shift ;;
+    --database-export) DATABASE_EXPORT="${2:-}"; shift 2 ;;
     --help|-h) usage; exit 0 ;;
     *) error "Unknown or incomplete argument."; usage >&2; exit 2 ;;
   esac
@@ -62,8 +78,12 @@ if [[ -z "$REPO_DIR" || -z "$OUTPUT_FILE" || -z "$GPG_RECIPIENT" || -z "$NGINX_C
   usage >&2
   exit 2
 fi
-if [[ "$DATABASE_SNAPSHOT_CONFIRMED" != true ]]; then
-  error "Confirm a current external database snapshot before capturing the pilot backup."
+if [[ "$DATABASE_SNAPSHOT_CONFIRMED" == true && -n "$DATABASE_EXPORT" ]]; then
+  error "Choose exactly one database evidence mode: external snapshot or verified export."
+  exit 1
+fi
+if [[ "$DATABASE_SNAPSHOT_CONFIRMED" != true && -z "$DATABASE_EXPORT" ]]; then
+  error "Provide either a confirmed external database snapshot or a verified database export."
   exit 1
 fi
 if ! command -v gpg >/dev/null 2>&1; then
@@ -93,6 +113,10 @@ if [[ ! "$OUTPUT_MODE" =~ ^[0-7]*00$ ]]; then
   error "The protected output directory must deny group and other access."
   exit 1
 fi
+if ! require_root_trusted_path "$OUTPUT_PARENT"; then
+  error "The protected output path must not traverse writable directories."
+  exit 1
+fi
 
 if [[ ! -d "$REPO_DIR/.git" || ! -f "$REPO_DIR/.env" ]]; then
   error "The repository must be a Git checkout with an existing .env file."
@@ -108,9 +132,66 @@ if [[ ! -f "$ROLLBACK_INSTRUCTIONS" || "$ROLLBACK_OWNER" != 0 || ! "$ROLLBACK_MO
   error "Rollback instructions must be a root-owned private regular file."
   exit 1
 fi
+if ! require_root_trusted_path "$(dirname "$ROLLBACK_INSTRUCTIONS")"; then
+  error "The rollback-instructions path must not traverse writable directories."
+  exit 1
+fi
 if [[ "$OUTPUT_FILE" == "$REPO_DIR"/* ]]; then
   error "The encrypted output must be outside the source repository."
   exit 1
+fi
+
+DATABASE_MODE="verified-external-snapshot"
+if [[ -n "$DATABASE_EXPORT" ]]; then
+  if [[ -L "$DATABASE_EXPORT" ]]; then
+    error "The database export must be a nonempty regular file."
+    exit 1
+  fi
+  DATABASE_EXPORT=$(realpath -e "$DATABASE_EXPORT")
+  DATABASE_EXPORT_PARENT=$(dirname "$DATABASE_EXPORT")
+  DATABASE_EXPORT_NAME=$(basename "$DATABASE_EXPORT")
+  DATABASE_EXPORT_CHECKSUM="$DATABASE_EXPORT.sha256"
+  if [[ ! -f "$DATABASE_EXPORT" || ! -s "$DATABASE_EXPORT" ]]; then
+    error "The database export must be a nonempty regular file."
+    exit 1
+  fi
+  if [[ "$DATABASE_EXPORT" == "$REPO_DIR"/* ]]; then
+    error "The database export must be outside the source repository."
+    exit 1
+  fi
+  if [[ ! "$DATABASE_EXPORT_NAME" =~ ^[A-Za-z0-9._+-]+$ ]]; then
+    error "The database export filename contains unsupported characters."
+    exit 1
+  fi
+  if [[ ! -f "$DATABASE_EXPORT_CHECKSUM" || -L "$DATABASE_EXPORT_CHECKSUM" ]]; then
+    error "The database export requires a matching checksum file."
+    exit 1
+  fi
+  export_parent_owner=$(stat -c '%u' "$DATABASE_EXPORT_PARENT")
+  export_parent_mode=$(stat -c '%a' "$DATABASE_EXPORT_PARENT")
+  if [[ "$export_parent_owner" != 0 || ! "$export_parent_mode" =~ ^[0-7]*00$ ]]; then
+    error "The database export directory must be root-owned and private."
+    exit 1
+  fi
+  if ! require_root_trusted_path "$DATABASE_EXPORT_PARENT"; then
+    error "The database export path must not traverse writable directories."
+    exit 1
+  fi
+  for protected_file in "$DATABASE_EXPORT" "$DATABASE_EXPORT_CHECKSUM"; do
+    protected_owner=$(stat -c '%u' "$protected_file")
+    protected_mode=$(stat -c '%a' "$protected_file")
+    if [[ "$protected_owner" != 0 || ! "$protected_mode" =~ ^[0-7]*00$ ]]; then
+      error "The database export and checksum must be root-owned and private."
+      exit 1
+    fi
+  done
+  expected_checksum=$(sha256sum "$DATABASE_EXPORT" | awk '{print $1}')
+  recorded_checksum_line=$(cat "$DATABASE_EXPORT_CHECKSUM")
+  if [[ "$recorded_checksum_line" != "$expected_checksum  $DATABASE_EXPORT_NAME" ]]; then
+    error "The database export checksum is invalid."
+    exit 1
+  fi
+  DATABASE_MODE="verified-mongodump-export"
 fi
 if [[ -e "$OUTPUT_FILE" ]]; then
   error "Refusing to overwrite an existing backup artifact."
@@ -173,6 +254,10 @@ install -m 0600 "$TUNNEL_CONFIG" "$STAGING_DIR/payload/tunnel.yml"
 install -m 0600 "$TUNNEL_CREDENTIAL" "$STAGING_DIR/payload/tunnel-credentials"
 install -m 0600 "$ROLLBACK_INSTRUCTIONS" "$STAGING_DIR/payload/rollback-instructions"
 
+if [[ -n "$DATABASE_EXPORT" ]]; then
+  install -m 0600 "$DATABASE_EXPORT" "$STAGING_DIR/payload/database-export.archive.gz"
+fi
+
 if [[ -n "$DATA_DIR" ]]; then
   tar -czf "$STAGING_DIR/payload/hellodeploy-data.tar.gz" -C "$(dirname "$DATA_DIR")" "$(basename "$DATA_DIR")"
 fi
@@ -192,7 +277,7 @@ cat > "$STAGING_DIR/payload/manifest.json" <<EOF
   "kind": "hellodeploy-pilot-pre-cutover",
   "createdAt": "$CREATED_AT",
   "commitSha": "$COMMIT_SHA",
-  "databaseMode": "verified-external-snapshot",
+  "databaseMode": "$DATABASE_MODE",
   "dataIncluded": $DATA_INCLUDED
 }
 EOF
