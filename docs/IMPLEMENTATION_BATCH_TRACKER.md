@@ -11,7 +11,7 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Overall status   | Deployed; validation blocked                            |
 | Release progress | `v0.1.0` published; Render validation blocked           |
 | Current batch    | Batch 3 / Group 1 — Render Security and Shared Services |
-| Next action      | Confirm Render commit/configuration, redeploy, recheck  |
+| Next action      | Review/tag v0.1.1; confirm Render configuration/deploy  |
 | Release state    | NO-GO                                                   |
 
 The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
@@ -60,7 +60,7 @@ These groups order the remaining batches by dependency and identify work that ca
 ### Group 1 — Render Security and Shared Services
 
 - Configure the Render web service for the supported production start path, Atlas, managed TLS Redis, domains, queue, and existing encryption key through provider secret management.
-- Let Render auto-deploy the exact tagged `main` commit and verify its commit identity.
+- Release the provider-environment compatibility fix as `v0.1.1`, then let Render auto-deploy that exact tagged `main` commit and verify its commit identity.
 - Require the public checker to pass assets, HTTPS policy, sanitized health/readiness, and `Secure; HttpOnly; SameSite=Strict`.
 - If the cookie remains insecure, inspect only bounded production/proxy booleans. Stop on any public, shared-service, configuration, or commit-identity failure.
 
@@ -81,7 +81,7 @@ These groups order the remaining batches by dependency and identify work that ca
 ### Group 4 — Upgrade, Rollback, Backup, and Restore
 
 - Create, encrypt, checksum, upload, retrieve, and reverify a backup in private versioned S3-compatible storage.
-- Upgrade from `v0.1.0` to a reviewed `v0.1.1`, proving queue pause/drain, candidate verification, routing, and prior queue-state restoration.
+- Upgrade from the corrected `v0.1.1` baseline to a reviewed `v0.1.2`, proving queue pause/drain, candidate verification, routing, and prior queue-state restoration.
 - Use a full-SHA, isolated, never-merged failing worker-unit drill commit to prove automatic rollback, then delete its remote branch after sanitized evidence is recorded.
 - Restore on the available second clean Ubuntu host, verify a representative project, record RPO/RTO, and drill MongoDB, Redis, Docker, Nginx, worker, and tunnel interruptions.
 - Keep the queue paused and stop immediately on rollback- or restore-verification failure.

@@ -1582,3 +1582,4 @@
 - Confirmed Node.js exits before startup when `--env-file` references a missing file, which would make the supported workspace command incompatible with a Render service that supplies process environment variables without creating `.env`.
 - Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while provider-managed environments can start without a physical file.
 - Added a configuration contract test for both service start scripts and documented the provider behavior in the hybrid guide.
+- Kept `v0.1.0` immutable. The compatibility correction requires reviewed patch release `v0.1.1`, and the later successful-upgrade drill moves to `v0.1.1` → `v0.1.2`.
