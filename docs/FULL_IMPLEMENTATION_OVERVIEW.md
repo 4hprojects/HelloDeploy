@@ -1,27 +1,27 @@
 # HelloDeploy Full Implementation Overview
 
-Updated: 2026-07-13T16:04:00+08:00
+Updated: 2026-07-13T18:12:00+08:00
 
 Current release state: **NO-GO**
-Local baseline: **717 tests passing**
+Local baseline: **745 tests passing**
 Pilot state: **Dashboard live on the current Ubuntu 26.04 laptop**
 Primary blocker: productionize the current candidate host without disrupting the dashboard, then prove Docker-backed application hosting and recovery.
 
-| Priority | Objective                                | Current status | Remaining outcome                                                    |
-| -------- | ---------------------------------------- | -------------- | -------------------------------------------------------------------- |
-| 0        | Documentation and release reconciliation | In progress    | Correct and merge green draft PR #5                                  |
-| 1        | Safe baseline and service foundation     | Blocked        | Back up, install Docker, and isolate services without dashboard loss |
-| 2        | Routing and production cutover           | Blocked        | Route dashboard and wildcard applications through validated Nginx    |
-| 3        | Application and product validation       | Not started    | Deploy every runtime and complete authenticated QA                   |
-| 4        | Recovery and Ubuntu 26 graduation        | Not started    | Prove rollback/restore and promote candidate OS support              |
-| 5        | Release decision                         | Not started    | Review direct evidence and issue formal GO/NO-GO                     |
+| Priority | Objective                                | Current status | Remaining outcome                                                  |
+| -------- | ---------------------------------------- | -------------- | ------------------------------------------------------------------ |
+| 0        | Documentation and release reconciliation | Complete       | PR #5 merged after final implementation/security diff review       |
+| 1        | Safe baseline and service foundation     | In progress    | Verify backup, install Docker, and isolate services without outage |
+| 2        | Routing and production cutover           | Blocked        | Route dashboard and wildcard applications through validated Nginx  |
+| 3        | Application and product validation       | Not started    | Deploy every runtime and complete authenticated QA                 |
+| 4        | Recovery and Ubuntu 26 graduation        | Not started    | Prove rollback/restore and promote candidate OS support            |
+| 5        | Release decision                         | Not started    | Review direct evidence and issue formal GO/NO-GO                   |
 
 ## Phase 1 — Reconcile Documentation and Release
 
 - Record that the current Ubuntu 26.04 laptop is the live pilot host.
 - Distinguish the reachable dashboard from the incomplete application-hosting plane.
 - Keep Ubuntu 22.04 and 24.04 supported and Ubuntu 26.04 candidate-supported.
-- Revise draft PR #5 and run Node.js 22 CI:
+- Review PR #5 and run Node.js 22 CI:
   - Clean `npm ci`
   - Lint
   - Formatting
@@ -30,7 +30,7 @@ Primary blocker: productionize the current candidate host without disrupting the
   - Production dependency audit
 - Create an immutable release candidate using a full commit SHA or annotated SemVer tag.
 
-Completion: the tracker, architecture, runbooks, evidence, code, and green PR agree before merge.
+Completion: the tracker, architecture, runbooks, evidence, code, and green PR agreed; PR #5 merged at full commit `789b903157b3872d26c82721a9628063f8d82cc4`.
 
 ## Phase 2 — Establish a Safe In-Place Foundation
 
@@ -45,6 +45,7 @@ Use the current Ubuntu 26.04 pilot as the in-place productionization target. Pre
   - `hellodeploy-worker`
   - Privileged Nginx helper
 - Configure MongoDB, Redis, Nginx, systemd, and ingress while retaining the pilot process until candidate readiness passes.
+- Prepare the inactive installation from reviewed protected configuration without generating secrets, changing ingress, or starting candidate services.
 - Provide GitHub App credentials outside source control.
 - Enable the constrained local Nginx helper; an external application router is not part of the V1 production topology.
 - Run:

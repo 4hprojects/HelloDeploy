@@ -61,6 +61,8 @@ describe('Ubuntu support policy', () => {
     assert.match(installer, /ubuntu:26\.04/);
     assert.match(installer, /Ubuntu 26\.04 is candidate-only/);
     assert.match(installer, /ALLOW_CANDIDATE_OS" != "true"/);
+    assert.match(installer, /HELLODEPLOY_PILOT_BACKUP_VERIFIED:-false/);
+    assert.match(installer, /HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED:-false/);
     assert.match(installer, /does not establish supported status/);
   });
 });

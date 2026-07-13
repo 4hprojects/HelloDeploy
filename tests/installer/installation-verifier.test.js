@@ -46,6 +46,12 @@ describe('installed-host verification wiring', () => {
     }
   });
 
+  it('upgrades an outdated npm before installing the immutable release', () => {
+    assert.match(installer, /NPM_MAJOR=10/);
+    assert.match(installer, /npm install --global "npm@\$NPM_MAJOR"/);
+    assert.match(installer, /npm >= \$NPM_MAJOR requirement/);
+  });
+
   it('installs and verifies only the complete V1 platform role', () => {
     for (const script of [installer, upgrade]) {
       assert.doesNotMatch(script, /HELLODEPLOY_HOST_ROLE/);
@@ -67,8 +73,9 @@ describe('installed-host verification wiring', () => {
     assert.doesNotMatch(installer, /git clone --branch/);
   });
 
-  it('configures both service identities from the protected platform environment', () => {
-    assert.doesNotMatch(installer, /HELLODEPLOY_CONFIG_SOURCE/);
+  it('configures both service identities from one protected platform environment', () => {
+    assert.match(installer, /HELLODEPLOY_CONFIG_SOURCE/);
+    assert.match(installer, /install -m 0640 -o root -g "\$HD_CONFIG_GROUP"/);
     assert.match(installer, /chown root:"\$HD_CONFIG_GROUP" "\$ENV_FILE"/);
     assert.match(installer, /chmod 640 "\$ENV_FILE"/);
     assert.match(installer, /sudo -u "\$HD_WEB_USER" node scripts\/validate-config\.js/);

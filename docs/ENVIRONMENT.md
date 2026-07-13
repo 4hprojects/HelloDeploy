@@ -89,10 +89,14 @@ npm run production:check -- https://your-platform-domain.example
 
 These values control host lifecycle scripts and do not belong in the application `.env`:
 
-| Variable                              | Purpose                                                                                                                                   |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `HELLODEPLOY_RELEASE_REF`             | Required immutable tag or full commit for installation                                                                                    |
-| `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` | Explicitly acknowledges Ubuntu 26.04 candidate validation after the protected backup and rollback baseline passes; does not grant support |
+| Variable                                      | Purpose                                                                                                                                   |
+| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `HELLODEPLOY_RELEASE_REF`                     | Required immutable tag or full commit for installation                                                                                    |
+| `HELLODEPLOY_ALLOW_CANDIDATE_OS=true`         | Explicitly acknowledges Ubuntu 26.04 candidate validation after the protected backup and rollback baseline passes; does not grant support |
+| `HELLODEPLOY_PILOT_BACKUP_VERIFIED=true`      | Required for Ubuntu 26.04 installation after off-host storage, retrieval, and integrity verification                                      |
+| `HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED=true` | Required for Ubuntu 26.04 installation after exact rollback preparation                                                                   |
+| `HELLODEPLOY_PREPARE_ONLY=true`               | Prepares an inactive in-place foundation without ingress or service activation                                                            |
+| `HELLODEPLOY_CONFIG_SOURCE`                   | Root-owned private reviewed production configuration used without generating or changing secrets                                          |
 
 Preflight uses the corresponding `--allow-candidate-os` flag. Both paths fail closed by default, and neither acknowledgment bypasses Docker, service, routing, capacity, or recovery checks.
 

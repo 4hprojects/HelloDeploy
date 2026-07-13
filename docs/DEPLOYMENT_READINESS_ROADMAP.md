@@ -1,6 +1,6 @@
 # Deployment Readiness Roadmap
 
-Updated: 2026-07-13T16:04:00+08:00
+Updated: 2026-07-13T18:12:00+08:00
 
 ## Purpose
 
@@ -10,15 +10,15 @@ Work through the phases in order. Phase 0 through Phase 3 contain release-blocki
 
 ## Current Readiness Summary
 
-| Area                     | Status            | Summary                                                                                                                       |
-| ------------------------ | ----------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Application architecture | In review         | The single-host V1 boundary is implemented in source; the current Ubuntu 26.04 laptop is the live pilot and hardening target. |
-| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                           |
-| Automated checks         | Locally green     | Lint, formatting, configuration validation, and the full local suite pass; reviewed CI evidence remains required.             |
-| Production configuration | Blocking          | Public web/readiness is live, but the session cookie lacks `Secure` and the pilot runs outside isolated production units.     |
-| Nginx routing            | Blocking          | The dashboard tunnel bypasses an inactive Nginx upstream; helper and wildcard application routing are absent on the pilot.    |
-| Deployment validation    | Blocking          | Dashboard availability is confirmed, but Docker is absent and no application-runtime deployment has been proven.              |
-| Operations               | Needs validation  | In-place backup, cutover, rollback, interruption, and second-machine restore drills remain.                                   |
+| Area                     | Status            | Summary                                                                                                                    |
+| ------------------------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| Application architecture | Reconciled        | The single-host V1 boundary merged in PR #5; the current Ubuntu 26.04 laptop is the live pilot and hardening target.       |
+| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                        |
+| Automated checks         | Green baseline    | PR #5 passed Node.js 22 CI; lint, formatting, configuration validation, 745 local tests, and production audit pass.        |
+| Production configuration | Blocking          | Public web/readiness is live, but the session cookie lacks `Secure` and the pilot runs outside isolated production units.  |
+| Nginx routing            | Blocking          | The dashboard tunnel bypasses an inactive Nginx upstream; helper and wildcard application routing are absent on the pilot. |
+| Deployment validation    | Blocking          | Dashboard availability is confirmed, but Docker is absent and no application-runtime deployment has been proven.           |
+| Operations               | Needs validation  | Encrypted pilot capture/verification tooling exists; actual off-host backup, rollback, interruption, and restore remain.   |
 
 ## Phase 0 — Establish a Reproducible Release Baseline
 

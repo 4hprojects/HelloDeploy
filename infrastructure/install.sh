@@ -21,7 +21,12 @@ HD_LOG="/var/log/hellodeploy"
 REPO_URL="${HELLODEPLOY_REPO_URL:-https://github.com/4hprojects/HelloDeploy.git}"
 RELEASE_REF="${HELLODEPLOY_RELEASE_REF:-}"
 NODE_MAJOR=22
+NPM_MAJOR=10
 ALLOW_CANDIDATE_OS="${HELLODEPLOY_ALLOW_CANDIDATE_OS:-false}"
+PILOT_BACKUP_VERIFIED="${HELLODEPLOY_PILOT_BACKUP_VERIFIED:-false}"
+ROLLBACK_BASELINE_VERIFIED="${HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED:-false}"
+PREPARE_ONLY="${HELLODEPLOY_PREPARE_ONLY:-false}"
+CONFIG_SOURCE="${HELLODEPLOY_CONFIG_SOURCE:-}"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -44,6 +49,38 @@ if [[ -z "$RELEASE_REF" ]]; then
   error "HELLODEPLOY_RELEASE_REF must name an immutable tag or full commit."
   exit 1
 fi
+if [[ "$PREPARE_ONLY" != "true" && "$PREPARE_ONLY" != "false" ]]; then
+  error "HELLODEPLOY_PREPARE_ONLY must be true or false."
+  exit 1
+fi
+if [[ "$PREPARE_ONLY" == "true" && -z "$CONFIG_SOURCE" ]]; then
+  error "Preparation mode requires HELLODEPLOY_CONFIG_SOURCE with reviewed production configuration."
+  exit 1
+fi
+if [[ -n "$CONFIG_SOURCE" ]]; then
+  if [[ -L "$CONFIG_SOURCE" || ! -f "$CONFIG_SOURCE" ]]; then
+    error "HELLODEPLOY_CONFIG_SOURCE must be a private regular file, not a symlink."
+    exit 1
+  fi
+  CONFIG_SOURCE=$(realpath -e "$CONFIG_SOURCE")
+  CONFIG_SOURCE_MODE=$(stat -c '%a' "$CONFIG_SOURCE")
+  CONFIG_SOURCE_OWNER=$(stat -c '%u' "$CONFIG_SOURCE")
+  CONFIG_SOURCE_PARENT=$(dirname "$CONFIG_SOURCE")
+  CONFIG_SOURCE_PARENT_OWNER=$(stat -c '%u' "$CONFIG_SOURCE_PARENT")
+  CONFIG_SOURCE_PARENT_MODE=$(stat -c '%a' "$CONFIG_SOURCE_PARENT")
+  if [[ "$CONFIG_SOURCE_OWNER" != 0 || ! "$CONFIG_SOURCE_MODE" =~ ^[0-7]*00$ ]]; then
+    error "HELLODEPLOY_CONFIG_SOURCE must be root-owned and deny group and other access."
+    exit 1
+  fi
+  if [[ "$CONFIG_SOURCE_PARENT_OWNER" != 0 || $((8#$CONFIG_SOURCE_PARENT_MODE & 0022)) -ne 0 ]]; then
+    error "HELLODEPLOY_CONFIG_SOURCE parent must be root-owned and not group or other writable."
+    exit 1
+  fi
+  if [[ "$CONFIG_SOURCE" == "$HD_HOME"/* ]]; then
+    error "HELLODEPLOY_CONFIG_SOURCE must remain outside the installation checkout."
+    exit 1
+  fi
+fi
 
 OS_ID=$(awk -F= '$1 == "ID" {gsub(/"/, "", $2); print tolower($2); exit}' /etc/os-release 2>/dev/null || true)
 OS_VERSION=$(awk -F= '$1 == "VERSION_ID" {gsub(/"/, "", $2); print $2; exit}' /etc/os-release 2>/dev/null || true)
@@ -56,6 +93,10 @@ case "$OS_ID:$OS_VERSION" in
       error "Ubuntu 26.04 is candidate-only. Set HELLODEPLOY_ALLOW_CANDIDATE_OS=true only after the in-place backup and rollback baseline passes."
       exit 1
     fi
+    if [[ "$PILOT_BACKUP_VERIFIED" != "true" || "$ROLLBACK_BASELINE_VERIFIED" != "true" ]]; then
+      error "Ubuntu 26.04 candidate installation requires separately verified pilot backup and rollback baseline acknowledgements."
+      exit 1
+    fi
     warn "Ubuntu 26.04 candidate explicitly acknowledged; this does not establish supported status."
     ;;
   *)
@@ -63,6 +104,15 @@ case "$OS_ID:$OS_VERSION" in
     exit 1
     ;;
 esac
+
+if [[ "$PREPARE_ONLY" == "true" ]]; then
+  for service in hellodeploy-web hellodeploy-worker hellodeploy-nginx-helper; do
+    if systemctl is-active --quiet "$service" 2>/dev/null || systemctl is-enabled --quiet "$service" 2>/dev/null; then
+      error "Preparation mode refuses to replace an active or enabled HelloDeploy service."
+      exit 1
+    fi
+  done
+fi
 
 # ─── system packages ─────────────────────────────────────────────────────────
 
@@ -76,6 +126,15 @@ if ! command -v node &>/dev/null || [[ $(node -e 'process.stdout.write(process.v
   apt-get install -y nodejs
 else
   info "Node.js $(node --version) already installed."
+fi
+
+NPM_VERSION=$(npm --version 2>/dev/null || true)
+NPM_CURRENT_MAJOR=${NPM_VERSION%%.*}
+if [[ ! "$NPM_CURRENT_MAJOR" =~ ^[0-9]+$ || "$NPM_CURRENT_MAJOR" -lt $NPM_MAJOR ]]; then
+  info "Installing npm $NPM_MAJOR…"
+  npm install --global "npm@$NPM_MAJOR"
+else
+  info "npm $NPM_VERSION already satisfies the npm >= $NPM_MAJOR requirement."
 fi
 
 # Nginx
@@ -151,7 +210,9 @@ chmod 755 /etc/nginx/hellodeploy.d
 
 # Add include directive if not already present
 NGINX_INCLUDE="include /etc/nginx/hellodeploy.d/*.conf;"
-if ! grep -qF "hellodeploy.d" /etc/nginx/nginx.conf; then
+if [[ "$PREPARE_ONLY" == "true" ]]; then
+  info "Preparation mode: global Nginx includes remain unchanged."
+elif ! grep -qF "hellodeploy.d" /etc/nginx/nginx.conf; then
   echo -e "\n# HelloDeploy managed routes\n${NGINX_INCLUDE}" >> /etc/nginx/conf.d/hellodeploy.conf
   info "Added Nginx include for hellodeploy.d"
 fi
@@ -187,15 +248,24 @@ npm ci --omit=dev
 section "Configuration"
 ENV_FILE="$HD_HOME/.env"
 
-if [[ -f "$ENV_FILE" ]]; then
+if [[ -n "$CONFIG_SOURCE" ]]; then
+  if [[ -f "$ENV_FILE" ]]; then
+    error "Installed configuration already exists; refusing to replace it from HELLODEPLOY_CONFIG_SOURCE."
+    exit 1
+  fi
+  install -m 0640 -o root -g "$HD_CONFIG_GROUP" "$CONFIG_SOURCE" "$ENV_FILE"
+  info "Installed reviewed configuration without generating or modifying secrets."
+elif [[ -f "$ENV_FILE" ]]; then
   warn ".env already exists — skipping secret generation."
 else
   info "Generating secrets…"
   node scripts/generate-secrets.js --write --output "$ENV_FILE"
 fi
 
-info "Launching setup wizard…"
-node scripts/setup.js --output "$ENV_FILE" --skip-existing
+if [[ -z "$CONFIG_SOURCE" ]]; then
+  info "Launching setup wizard…"
+  node scripts/setup.js --output "$ENV_FILE" --skip-existing
+fi
 chown root:"$HD_CONFIG_GROUP" "$ENV_FILE"
 chmod 640 "$ENV_FILE"
 
@@ -203,8 +273,12 @@ info "Validating production configuration for installed service identities…"
 sudo -u "$HD_WEB_USER" node scripts/validate-config.js --component web --require-production
 sudo -u "$HD_WORKER_USER" node scripts/validate-config.js --component worker --require-production
 
-bash infrastructure/nginx/configure-platform-ingress.sh "$ENV_FILE"
-info "Configured platform ingress."
+if [[ "$PREPARE_ONLY" == "true" ]]; then
+  info "Preparation mode: platform ingress remains unchanged."
+else
+  bash infrastructure/nginx/configure-platform-ingress.sh "$ENV_FILE"
+  info "Configured platform ingress."
+fi
 
 # ─── systemd services ────────────────────────────────────────────────────────
 
@@ -214,6 +288,13 @@ install -m 0644 infrastructure/systemd/hellodeploy-nginx-helper.service /etc/sys
 install -m 0644 infrastructure/systemd/hellodeploy-web.service /etc/systemd/system/
 systemctl daemon-reload
 SERVICES=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
+if [[ "$PREPARE_ONLY" == "true" ]]; then
+  info "Verifying the inactive prepared foundation…"
+  HELLODEPLOY_EXPECTED_RELEASE_COMMIT="$RELEASE_COMMIT" bash infrastructure/verify-prepared-installation.sh
+  info "Preparation mode complete; HelloDeploy services remain disabled and stopped."
+  info "Do not activate them until the queue, pilot processes, ingress, and rollback gates are ready."
+  exit 0
+fi
 systemctl enable --now "${SERVICES[@]}"
 info "Systemd services enabled and started."
 

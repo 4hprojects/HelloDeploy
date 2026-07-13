@@ -19,7 +19,27 @@ Before any package, identity, service, Nginx, tunnel, or traffic change:
 
 Stop immediately if the backup cannot be verified, the current release is ambiguous, health is degraded, or any rollback destination is missing. Keep the current repository-run pilot and tunnel route in place until isolated candidate services pass readiness.
 
+For the repository-run pilot, use `infrastructure/backup-pilot.sh` rather than the installed-host `backup.sh`. First create a root-owned destination directory that denies group and other access, import only the intended recipient's public GPG key into the root keyring, record its complete 40-character fingerprint, and verify the external database snapshot independently. Create a separate root-owned mode-`0600` text file containing the exact current repository path and full commit, existing web/worker startup mechanism, active Nginx/tunnel files, prior queue state, and the ordered recovery commands. Do not put credentials or secret values in that file.
+
+The destination and instruction files can be prepared with `sudo install -d -m 0700 <destination>` and `sudo install -m 0600 /dev/null <rollback-instructions>`, followed by `sudoedit <rollback-instructions>`. Keep both outside the repository. Then run:
+
+```sh
+sudo bash infrastructure/backup-pilot.sh \
+  --repo "$PILOT_REPO" \
+  --output "$PROTECTED_DESTINATION/hellodeploy-pilot.tar.gz.gpg" \
+  --gpg-recipient "$BACKUP_GPG_FINGERPRINT" \
+  --nginx-config "$ACTIVE_DASHBOARD_NGINX_CONFIG" \
+  --rollback-instructions "$PRIVATE_ROLLBACK_INSTRUCTIONS" \
+  --external-database-snapshot-confirmed
+```
+
+Store the encrypted artifact on the approved off-host medium, unmount and remount or otherwise retrieve it, then run `bash infrastructure/verify-pilot-backup.sh <encrypted-artifact>` from a temporary GPG home containing the recovered private key. The verifier does not restore files or change services. Retrieval verification on the pilot host proves that the artifact and separately held key are usable; it does not satisfy the cross-host restore gate. Do not proceed based only on successful encryption.
+
+Only after off-host storage and retrieval verification pass, create a root-owned mode-`0600` candidate configuration under a root-owned directory that is not group/other-writable. Preserve the existing cryptographic and integration values, set production-safe routing, and choose a candidate web port that does not conflict with the repository-run pilot. Run the installer with `HELLODEPLOY_PREPARE_ONLY=true`, `HELLODEPLOY_CONFIG_SOURCE`, the immutable release ref, and all three Ubuntu 26.04 acknowledgements. Preparation must leave the global Nginx include, platform ingress, and service activation unchanged. Its read-only prepared-foundation verifier must pass the expected full commit, identities, permissions, Docker allow/deny boundary, inactive/disabled units, absent helper socket, candidate port, existing Nginx syntax, and both production configuration checks before a separate activation workflow can be authorized.
+
 Rollback from a failed pre-cutover candidate by stopping only the new HelloDeploy units, restoring the recorded Nginx and tunnel files, validating Nginx, restoring the prior repository release and command, and rechecking local and public health. Do not remove the pilot process or switch traffic until this recovery path has been rehearsed without secret exposure.
+
+Record the following values outside the repository before rehearsal: the pilot's full commit, exact existing startup mechanism, encrypted artifact location, active dashboard Nginx file, active tunnel file, and whether the queue was already paused. Stop only the candidate `hellodeploy-*` units; never terminate the repository-run pilot until the candidate passes. If a cutover-stage check fails, restore the encrypted backup on an isolated staging path, install the recorded Nginx and tunnel files with their prior ownership/modes, run `nginx -t`, reload Nginx, restart the tunnel only if its file changed, restore the recorded full Git commit and locked dependencies, start the recorded pilot command, and require both local and public health before resuming the queue. Keep the queue paused if any rollback verification fails.
 
 ## Ordered Production Workflow
 

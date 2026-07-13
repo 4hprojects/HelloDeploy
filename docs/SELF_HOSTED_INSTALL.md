@@ -1,6 +1,6 @@
 # HelloDeploy Self-Hosted Install Guide
 
-Updated: 2026-07-13T16:04:00+08:00
+Updated: 2026-07-13T18:12:00+08:00
 
 HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
 
@@ -58,6 +58,23 @@ Before any privileged change:
 5. Keep the current web process and tunnel route available until replacement readiness passes.
 
 The current pilot's dashboard availability does not validate Docker deployments or wildcard application routing. Ubuntu 26.04 graduates to supported status only after the readiness tracker records direct passing host and recovery evidence.
+
+After the encrypted artifact has been stored off-host, retrieved, and verified, prepare the installation foundation without activating it. Verification on the pilot host proves artifact integrity but does not satisfy the later cross-host restore gate. Create a reviewed production configuration under a root-owned, non-writable parent directory with mode `0600`. Preserve the current `SESSION_SECRET`, `HELLODEPLOY_MASTER_KEY`, database, Redis, GitHub App, and integration values; use an unused candidate web port and the intended production routing values. Never copy secret values into a shell command or Markdown evidence.
+
+Run the installer with all preparation gates explicit:
+
+```sh
+sudo env \
+  HELLODEPLOY_RELEASE_REF=<immutable-tag-or-full-commit> \
+  HELLODEPLOY_ALLOW_CANDIDATE_OS=true \
+  HELLODEPLOY_PILOT_BACKUP_VERIFIED=true \
+  HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED=true \
+  HELLODEPLOY_PREPARE_ONLY=true \
+  HELLODEPLOY_CONFIG_SOURCE=<root-owned-private-config> \
+  bash infrastructure/install.sh
+```
+
+Preparation installs prerequisites, identities, protected directories, the immutable checkout, dependencies, reviewed configuration, and service units. It refuses active or enabled HelloDeploy units and does not generate secrets, run the setup wizard, add the global Nginx include, configure platform ingress, enable services, start services, or run cutover verification. It runs only `verify-prepared-installation.sh`, a read-only check of release identity, permissions, Docker isolation, unit inactivity, candidate-port availability, existing Nginx syntax, and production configuration. Activation remains a separate operator workflow after the prepared foundation is inspected.
 
 ## Clean Install Steps
 
@@ -118,6 +135,7 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 
 ## Backup And Restore
 
+- Protect the current repository-run pilot before installation: `infrastructure/backup-pilot.sh` followed by off-host `infrastructure/verify-pilot-backup.sh`
 - Backup with local MongoDB dump: `sudo bash infrastructure/backup.sh`
 - Backup with a separately verified Atlas/external snapshot: `sudo bash infrastructure/backup.sh --skip-database`
 - Restore: `sudo bash infrastructure/restore.sh <backup-directory>`
@@ -127,6 +145,8 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 - Uninstall: `sudo bash infrastructure/uninstall.sh`
 
 Backups must include MongoDB data, protected configuration, Nginx route files, Cloudflare Tunnel configuration, and HelloDeploy release metadata.
+
+`backup-pilot.sh` is the pre-cutover path for the current repository-run laptop. It refuses a dirty checkout, missing required configuration, an unconfirmed external database snapshot, a destination or rollback-instructions file that is not root-owned and private, a recipient that is not an exact available GPG fingerprint, or an existing output file. It creates one encrypted artifact and removes plaintext staging on exit. The verifier accepts only the expected regular files and directories, rejects duplicate/link/device members and unsafe checksum names, and never restores state. The installed-host `backup.sh` remains the post-install lifecycle command and must not be used to claim that the current pilot was captured.
 
 `--skip-database` is an explicit acknowledgement that a current external database snapshot has already been verified. For non-interactive upgrades backed by external snapshots, set `HELLODEPLOY_DATABASE_BACKUP_MODE=external`; the default `local` mode requires `mongodump` to succeed. Backup directories contain secrets and must be transferred to an encrypted, access-controlled off-host destination.
 

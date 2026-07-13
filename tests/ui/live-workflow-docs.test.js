@@ -47,6 +47,11 @@ describe('live workflow documentation', () => {
     assert.match(runbook, /npm run host:baseline/);
     assert.match(runbook, /--allow-candidate-os/);
     assert.match(runbook, /HELLODEPLOY_ALLOW_CANDIDATE_OS=true/);
+    assert.match(runbook, /HELLODEPLOY_PREPARE_ONLY=true/);
+    assert.match(
+      runbook,
+      /global Nginx include, platform ingress, and service activation unchanged/,
+    );
     assert.match(runbook, /Keep the current repository-run pilot/);
     assert.match(runbook, /## Ordered Production Workflow/);
     for (const stage of [

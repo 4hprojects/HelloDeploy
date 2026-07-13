@@ -41,12 +41,24 @@ describe('preflight — JSON output', () => {
     assert.ok(nodeCheck.ok, `Node.js check failed: ${nodeCheck.detail}`);
   });
 
-  it('npm check passes', () => {
+  it('requires npm 10 or newer', () => {
     const r = spawnSync(process.execPath, [SCRIPT, '--json'], { encoding: 'utf8', timeout: 15000 });
     const { checks } = JSON.parse(r.stdout);
     const npmCheck = checks.find((c) => c.label.includes('npm'));
     assert.ok(npmCheck, 'npm check not found');
     assert.ok(npmCheck.ok, `npm check failed: ${npmCheck.detail}`);
+    assert.match(npmCheck.label, /npm >= 10/);
+  });
+
+  it('does not treat missing Docker prerequisites as passing', () => {
+    const r = spawnSync(process.execPath, [SCRIPT, '--json'], { encoding: 'utf8', timeout: 15000 });
+    const { checks } = JSON.parse(r.stdout);
+    const dockerChecks = checks.filter((check) => check.label.startsWith('Docker'));
+    assert.equal(dockerChecks.length, 2);
+    for (const check of dockerChecks) {
+      assert.equal(typeof check.ok, 'boolean');
+      assert.doesNotMatch(check.detail, /expected|ignored|skipped/i);
+    }
   });
 
   it('passed + failed equals total checks', () => {

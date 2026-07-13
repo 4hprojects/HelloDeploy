@@ -1733,3 +1733,88 @@
 - The full Node.js suite passed: 726 tests across 158 suites, no failures or skips.
 - Published commit `e0aa0f7` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
 - No backup, package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
+
+## PR #5 Merge and Encrypted Pilot Backup Guardrail
+
+- Status: PR merged; repository-local backup tooling implemented; actual protected backup blocked on external inputs
+- Updated: 2026-07-13T17:22:00+08:00
+
+### Release Evidence
+
+- Rechecked PR #5 at head `5a6b0ed20e089558069d67a044663f5b64eb393b`: merge state was clean and its Node.js 22 `Lint & Test` check passed.
+- Reviewed the release policy, implementation/security diff, changed-file list, secret-sensitive additions, and stale topology terms. No credential, machine identifier, private endpoint, tunnel identifier, or provider dependency was introduced.
+- GitHub showed no separately submitted reviewer approval; the user authorized continuation and the final implementation/security diff review was completed before merge.
+- Marked PR #5 ready and merged it without deleting or switching the live pilot checkout. GitHub recorded merge commit `789b903157b3872d26c82721a9628063f8d82cc4` on `main`.
+- Existing tags are `v0.1.0` and `v0.1.1`; no tag was moved or created during this merge.
+
+### Pilot Backup Guardrail
+
+- Direct inspection showed that the installed-host backup script cannot safely represent the current repository-run pilot: its fixed installed paths do not match this checkout, the MongoDB dump tool is absent, active tunnel state is not included, and its output directory contains plaintext secrets.
+- Added a separate pre-cutover pilot command that requires a clean full Git commit, active environment/Nginx/tunnel files, tunnel credentials, explicit confirmation of a verified external database snapshot, a private output directory, and an existing public GPG recipient.
+- The command stages with restrictive permissions, records only a sanitized manifest, checksums every payload file, encrypts to the selected recipient, refuses overwrite, and removes plaintext staging on every exit path. It does not stop services or change traffic.
+- Added a non-mutating verifier that decrypts to private temporary storage, rejects absolute/parent-traversal archive paths, verifies checksums and manifest shape, and removes plaintext on exit.
+- Hardened the destination against privileged temporary-output symlink attacks by requiring a root-owned directory with no group/other access, and removed ambiguous recipient lookup by requiring a complete 40-character GPG fingerprint.
+- Made a root-owned private rollback-instructions file mandatory so the exact existing process startup and recovery sequence is preserved inside the encrypted artifact without appearing in repository evidence.
+- Restricted verification to the exact generated member and checksum inventories; duplicate members, symlinks, hard links, devices, unexpected files, and unsafe checksum paths fail before integrity can be accepted.
+
+### Verification and Limitation
+
+- `bash -n infrastructure/backup-pilot.sh infrastructure/verify-pilot-backup.sh` passed.
+- Focused pilot-backup safety tests passed: 4 tests, 1 suite, no failures or skips.
+- Functional verifier tests passed for one valid archive plus unexpected-member, symlink-member, unsafe-checksum-path, and missing-checksum attacks: 5 tests, 1 suite, no failures or skips.
+- Focused backup, restore, verifier, and workflow-documentation tests passed: 17 tests across 4 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 735 tests across 160 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- The host has GPG and OpenSSL, but no `age`, `restic`, `rclone`, AWS CLI, or MongoDB dump command. No approved GPG recipient or protected off-host destination was discoverable.
+- No secret-bearing file was copied, no encrypted artifact was created, and no package, identity, service, Nginx, tunnel, Docker, queue, or traffic state was changed. Priority 1 remains blocked from privileged execution until the user selects the recipient and off-host destination and confirms the external database snapshot.
+
+## Inactive In-Place Installer Preparation
+
+- Status: Repository implementation complete; target-host execution blocked by the protected backup gate
+- Updated: 2026-07-13T18:12:00+08:00
+
+### Changes
+
+- Added an explicit preparation-only installer mode for availability-preserving migration of the current repository-run pilot.
+- Ubuntu 26.04 installation now requires separate candidate-OS, verified-off-host-backup, and verified-rollback-baseline acknowledgements; no single flag bypasses the other gates.
+- Preparation requires a reviewed configuration source that is a non-symlink, root-owned private file under a root-owned parent that is not group/other-writable and outside the installation checkout.
+- The reviewed configuration is copied unchanged. Preparation never runs secret generation or the setup wizard and refuses to overwrite an existing installed `.env`.
+- Preparation refuses any active or enabled HelloDeploy unit. It creates the immutable checkout, prerequisites, identities, protected directories, dependencies, configuration, and inactive unit files while leaving the global Nginx include and platform ingress unchanged.
+- Preparation exits before enabling, starting, or verifying services. Activation and traffic cutover remain a separate workflow after foundation inspection and queue coordination.
+- Added a read-only prepared-foundation verifier and invoke it before preparation succeeds. It requires the expected full commit and clean checkout, validates identities and protected files, proves worker Docker access and web denial, requires every HelloDeploy unit inactive/disabled, rejects a pre-existing helper socket or occupied candidate port, validates current Nginx syntax, and runs both production configuration checks.
+- The prepared verifier contains no service, ingress, Docker-container, queue, or traffic mutation commands and emits bounded component results without configuration values.
+
+### Verification and Limitations
+
+- `bash -n infrastructure/install.sh` passed.
+- Focused preparation, installed-host verifier, prepared-foundation verifier, Ubuntu policy, and workflow-documentation tests passed: 26 tests across 5 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 745 tests across 162 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- No package, identity, file under system installation paths, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
+- Actual preparation remains blocked until the encrypted artifact is created, retrieved, and verified off-host and exact rollback evidence is accepted.
+
+## Priority 1 Release Candidate and Runtime-Identity Gate
+
+- Status: Repository release candidate verified; protected-media and host execution pending
+- Updated: 2026-07-13T19:24:50+08:00
+
+### Changes and Findings
+
+- Added an npm `>=10` preflight requirement and made the installer upgrade older npm installations before dependency installation.
+- Clarified that retrieval verification from remounted off-host storage on the pilot proves artifact and recovery-key integrity but does not satisfy the cross-host restore gate.
+- Direct process inspection found that the PM2 web and worker processes started before several later Git checkout changes. The active runtime therefore cannot be attributed to the current checkout or one immutable release tag.
+- The approved recovery workflow now requires an emergency encrypted capture, controlled restart on reviewed `v0.1.2` under Node.js 22 in production mode, public cookie verification, and a second final capture before inactive installation.
+
+### Verification and Limitations
+
+- Shell syntax and the focused backup, malicious-archive, installer, preparation, preflight, Nginx, and documentation suites passed: 47 tests across 9 suites.
+- Node.js `v22.22.1` and npm `10.9.8` were used for the release gate without replacing dependencies under the live PM2 process.
+- A separate detached worktree ran `npm ci`, installing 314 packages without tracked changes. Lint and formatting passed.
+- An isolated full test run passed all 747 tests across 162 suites with no failures or skips. An earlier overlapping diagnostic run was discarded after it contended with a duplicate test invocation and reported one failure; no overlapping process remained for the accepted run.
+- Configuration validation passed in the pilot checkout. The clean worktree intentionally contained no copied `.env` or secret-bearing state.
+- The production dependency audit reported zero vulnerabilities; `git diff --check` and the clean-worktree status check passed.
+- Draft PR #6 contains the intended three commits, passed Node.js 22 CI, and was reported cleanly mergeable at the reviewed head.
+- No disk, GPG keyring, database snapshot, package, PM2 process, identity, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
+- Both removable media and exact destructive-device confirmation remain required before the emergency backup stage can begin.

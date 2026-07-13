@@ -21,7 +21,7 @@ Close the WORKLOG.md verification checkboxes that are verifiable in this environ
 **Resend end-to-end:** the agent environment's safety policy blocks sending real external email autonomously (recipient not explicitly user-named). The prepared script composes a genuine notification through the app's own `buildDeploymentNotificationEmail` and sends via the `.env` Resend key, printing only the provider-accepted response id. To close WORKLOG P8-06, run from the repo root:
 
 ```bash
-node /tmp/claude-1000/-home-henz-Documents-MyProjects-HelloDeploy/8b9b4944-3a5d-4517-a14d-604e6b78a62d/scratchpad/send-resend-e2e.mjs
+node "$PRIVATE_RESEND_E2E_SCRIPT"
 ```
 
 (or re-create it — 30 lines, imports `buildDeploymentNotificationEmail`, sends to the owner address, prints `ACCEPTED id: …`), then confirm the inbox copy and tick the WORKLOG box.
