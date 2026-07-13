@@ -1576,3 +1576,9 @@
 - Published annotated tag `v0.1.0`; local and remote verification resolve the tag to that exact merge commit.
 - A fresh public production check passed homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but still failed `session-cookie: missing secure`.
 - Public asset matching does not prove the deployed Render commit. Exact commit identity, production environment, supported start command, managed TLS Redis configuration, and redeployment remain guided provider checks.
+
+### Provider Environment Compatibility
+
+- Confirmed Node.js exits before startup when `--env-file` references a missing file, which would make the supported workspace command incompatible with a Render service that supplies process environment variables without creating `.env`.
+- Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while provider-managed environments can start without a physical file.
+- Added a configuration contract test for both service start scripts and documented the provider behavior in the hybrid guide.

@@ -18,6 +18,7 @@ describe('environment validation', () => {
         await readFile(new URL(`../../apps/${component}/package.json`, import.meta.url), 'utf8'),
       );
       assert.match(packageJson.scripts.start, /^NODE_ENV=production /);
+      assert.match(packageJson.scripts.start, /--env-file-if-exists=\.\.\/\.\.\/\.env/);
     }
   });
 
