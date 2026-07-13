@@ -1303,3 +1303,243 @@
 - The full Node.js 22 suite passed: 647 tests, 147 suites, 0 failures, 0 skipped.
 - Prettier passed for all files owned by this slice.
 - Repository-wide formatting remains blocked only by the preserved, pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`.
+
+## Bounded `.env` File Import
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-12
+
+### Changes
+
+- Added an owner-only `.env` upload form alongside the existing one-variable-at-a-time form.
+- Read the selected file into the existing CSRF-protected form flow without adding multipart storage or logging file contents.
+- Validate the complete file before writes, with 64 KB and 100-variable limits, uppercase environment-name enforcement, duplicate and empty-value rejection, and errors that never reflect values.
+- Reused encrypted secret storage and audit events; imports update existing names and retain all existing manual-entry behavior.
+- Cache-busted the shared client bundle so newly deployed upload behavior cannot be masked by the previous one-hour browser cache, and added a `FileReader` fallback for browsers without `File.text()`.
+- Refined stored-secret controls into distinct Reveal value, Show/Hide value, and Clear revealed value actions; replacement editing explicitly keeps current plaintext out of form fields.
+- Reshaped secret rotation into a Render-style inline Stored Secrets editor: Edit changes table rows into masked replacement inputs, blank rows remain unchanged, and Save/Cancel stay attached to the table.
+- Marked all environment-management responses `Cache-Control: no-store` and `Pragma: no-cache` so reveal and validation responses are not retained in browser caches.
+
+### Verification
+
+- Focused parser, encrypted persistence, no-partial-write, upload UI, and related environment UI tests passed.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed after the reveal and rotation refinement: 660 tests, 150 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 1 Shell
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Added an Owner-only consolidated Settings route with seven stable section anchors and compatibility links to current authoritative setting pages.
+- Added shared role-aware project-navigation and settings-section registries; the sidebar and overview Quick Links now consume the same project navigation source.
+- Added sticky desktop and in-flow mobile section navigation with active-section tracking, keyboard focus movement, and reduced-motion-aware fragment scrolling.
+- Preserved all existing project settings, repository, detection, domain, deploy-hook, environment, member, and deployment routes for the Phase 2 migration.
+
+### Verification
+
+- Focused settings shell, navigation, icon, sidebar, authorization, and empty-state tests passed.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 666 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 2 Composition
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Composed General, Source & Build, Deployment, Custom Domains, Notifications, Health & Maintenance, and Danger Zone into the consolidated Settings page.
+- Reused every existing mutation route, validator, service, queue, confirmation, and CSRF contract instead of introducing parallel settings logic.
+- Load repository state, active domains, and effective project quota in parallel; resource limits remain display-only.
+- Strip the stored deploy-hook hash before rendering and expose only configured/not-configured state plus existing generate/revoke actions.
+- Kept repository connection, detection execution, domain DNS-token display, Environment, Members, and Deployments as focused workflows.
+
+### Verification
+
+- Focused settings composition, authorization, destructive-action, responsive-table, pending-form, navigation, and icon tests passed.
+- Settings EJS compiled and rendered with representative data.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 668 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 3 Interaction Standardization
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Converted project name, build configuration, build filters, deployment mode, notification preference, and health-check path to read-first, edit-on-demand groups.
+- Enforced one open editor at a time; Cancel and Escape reset unsaved changes and restore focus to the triggering Edit control.
+- Added constrained same-project Settings return targets so successful mutations return to the relevant fragment without allowing open redirects.
+- Re-render General, Build, Filters, and Health validation failures in their active Settings group with safe submitted values and established field-level errors.
+- Retained direct confirmed behavior for deploy hooks, domains, maintenance, archive, and deletion because they are operational or destructive actions rather than ordinary field editing.
+- Cache-busted the shared client bundle for the new interaction behavior.
+
+### Verification
+
+- Focused settings interaction, return-target security, validation, pending-state, accessibility, authorization, and project-validator tests passed.
+- Settings EJS compiled and rendered in default and server-error edit states.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 671 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 4 Deferred Capability Evaluation
+
+- Status: Evaluation complete; all capabilities remain deferred
+- Evaluated: 2026-07-13
+
+### Changes
+
+- Evaluated pull-request previews, edge caching, region selection, instance sizing, shell access, scaling, persistent disks, one-off jobs, custom maintenance URLs, and advanced networking controls.
+- Recorded the user need, architecture and data impact, security boundary, operational requirements, acceptance evidence, and explicit approval gate for every capability.
+- Kept the settings UI limited to existing HelloDeploy behavior; no placeholder control, route, model, or unsupported capability was added.
+- Linked the evaluation from the Project Settings UX specification and documentation index.
+
+### Verification
+
+- `npm run format:check` passed after formatting the new evaluation document.
+- Focused Project Settings shell tests passed: 11 tests, 1 suite, 0 failures, 0 skipped.
+- `npm run lint` passed.
+- Full Node.js suite passed: 671 tests, 151 suites, 0 failures, 0 skipped.
+- Documentation links resolved, the sensitive screenshot-identifier scan returned no matches, and `git diff --check` passed.
+
+## Production Configuration Source Alignment
+
+- Status: Implemented and verified locally; production-equivalent startup remains externally blocked
+- Implemented: 2026-07-13
+
+### Changes
+
+- Separated startup-blocking environment keys from complete-or-empty and optional integration groups in the generated self-hosted checklist.
+- Aligned `.env.example`, the environment reference, setup prompts, and setup completion output with the web and worker runtime-validation contracts.
+- Stopped the setup wizard from defaulting a GitHub private-key path when the GitHub integration is otherwise left empty, avoiding an invalid partial configuration.
+- Added `npm run config:check` to the setup completion steps and documented that diagnostics report names and statuses without values.
+- Kept GitHub App configuration identified as required for repository deployments while allowing the platform processes to start with the complete group absent, matching current runtime behavior.
+- Added sanitized component diagnostics with bounded status labels and explicit `incomplete` reporting for partially populated integration groups.
+
+### Verification
+
+- Focused environment-validation and self-hosted-checklist tests passed, including sentinel-value success/failure diagnostics and incomplete integration reporting.
+- `npm run config:check` passed for both web and worker using the local environment.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed after configuration diagnostics were added: 675 tests, 151 suites, 0 failures, 0 skipped.
+
+## Verified Automatic Upgrade Rollback
+
+- Status: Implemented and verified locally; clean-host failed-upgrade exercise remains required
+- Implemented: 2026-07-13
+
+### Changes
+
+- Replaced the restart-only upgrade fallback with a bounded rollback function that checks out the previous full commit and reinstalls its locked production dependencies.
+- Validate both restored service configurations, reinstall the restored release's systemd units, rerender platform ingress, restart all HelloDeploy services, and wait for readiness.
+- Apply the same dependency-aware installed-host verification to both the candidate and restored releases.
+- Report verified rollback and critical rollback-verification failure as distinct operator outcomes.
+- Updated the operations runbook with the automatic rollback contract and critical-failure response.
+
+### Verification
+
+- `bash -n infrastructure/upgrade.sh` passed.
+- Focused upgrade, installation-verifier, and backup/restore safety tests passed after the complete failure guard was added: 15 tests, 3 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- Full Node.js suite passed: 678 tests, 151 suites, 0 failures, 0 skipped.
+
+## Upgrade Queue Pause and Drain
+
+- Status: Implemented and verified locally; clean-host execution remains required
+- Implemented: 2026-07-13
+
+### Changes
+
+- Added an operational BullMQ queue-maintenance CLI that globally pauses deployment starts and waits for active jobs to reach zero before checkout.
+- Added a bounded 10-minute default drain deadline with a validated 1-second to 1-hour operator override.
+- Preserve queues that operators had already paused and resume only queues paused by the upgrade.
+- Automatically resume after a pre-checkout drain failure, verified candidate activation, or verified rollback; keep the queue paused when rollback verification fails critically.
+- Wired state restoration through an exit trap so ordinary upgrade failures cannot silently strand the queue.
+
+### Verification
+
+- `bash -n infrastructure/upgrade.sh` passed.
+- Focused queue-maintenance, upgrade-safety, and installation-verifier tests passed: 16 tests, 3 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- Full Node.js suite passed: 683 tests, 152 suites, 0 failures, 0 skipped.
+
+## Public Deployment Evidence and Workflow Refinement
+
+- Status: Public boundary verified; authenticated and host workflows blocked
+- Observed: 2026-07-13
+
+### Public Evidence
+
+- Confirmed the public homepage and authentication entry point return `200` through Cloudflare.
+- Confirmed `/health` returns sanitized liveness and `/ready` returns `200` with MongoDB, Redis, and queue checks true.
+- Confirmed HSTS and the application CSP are present.
+- Observed deployed Phase 3 JavaScript and Phase 2 stylesheet asset identifiers; this does not prove later local changes are deployed.
+- Observed that the public session cookie includes `HttpOnly` and `SameSite=Strict` but omits `Secure`; no cookie value or session identifier was recorded. Host-side production environment and trusted-proxy verification remains required.
+
+### Workflow Changes
+
+- Added one prominent Next action to the owner onboarding checklist.
+- Added client-side `.env` entry-count feedback, zero-entry rejection, and explicit replacement confirmation without displaying values; server parsing remains authoritative.
+- Added a single Passed/Failed/Blocked/Not Run acceptance checklist separating public, authenticated owner, and operator evidence.
+- Reconciled the readiness roadmap and tracker with the deployed-but-NO-GO state and added the ordered production lifecycle to the operations runbook.
+
+### Verification
+
+- Focused workflow/settings tests passed before broad verification: 27 tests, 4 suites, 0 failures, 0 skipped.
+- Final focused security, workflow, settings, and documentation checks passed: 37 tests, 7 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities.
+- Full Node.js suite passed: 690 tests, 153 suites, 0 failures, 0 skipped.
+
+## Production Session-Cookie Gate
+
+- Status: Prevention implemented locally; live release remains failed pending redeployment
+- Implemented: 2026-07-13
+
+### Changes
+
+- Made the supported web and worker `npm start` commands force `NODE_ENV=production`; `npm run dev` remains the explicit development path.
+- Added `--require-production` to configuration validation and made install/upgrade activation use it under each service identity.
+- Added bounded `runtime: production`/`non-production` diagnostics without exposing environment values.
+- Added `npm run production:check -- <https-url>` to verify the public homepage, HSTS, CSP, sanitized `/health` and `/ready`, and `Secure; HttpOnly; SameSite=Strict` without printing cookie values or response bodies.
+- Added operator recovery instructions that preserve strict cookies and constrained proxy trust.
+
+### Evidence
+
+- A fresh public check against `https://hellodeploy.online` passed homepage, sign-in, checkout-derived frontend assets, HSTS, CSP, sanitized health, and dependency readiness, but failed `session-cookie: missing secure`.
+- Focused configuration, lifecycle, ingress, public-check, and session-security tests passed: 40 tests, 8 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- Full Node.js suite passed after the production gate was completed: 697 tests, 154 suites, 0 failures, 0 skipped.
+- The live failure remains open until the new production start path is deployed and the external check passes; local changes are not production evidence.
+
+## Hybrid Render and Ubuntu Worker Foundation
+
+- Status: Implemented and verified locally; external services and host drills remain blocked
+- Implemented: 2026-07-13
+
+### Changes
+
+- Added shared `REDIS_URL` support for the web queue, rate limiting, live-log subscription, maintenance CLI, and worker. Managed production endpoints require `rediss://`; URL configuration takes precedence while loopback host/port/password remains backward compatible.
+- Replaced Redis endpoint and raw connection-error logging with bounded connection modes and error classifications.
+- Separated the Render dashboard hostname from wildcard application routing through `PLATFORM_DOMAIN`, `DEPLOYMENT_DOMAIN`, and the aligned dashboard suffix.
+- Added production hostname validation so schemes, ports, wildcards, paths, control syntax, and other Nginx-unsafe domain values fail before startup.
+- Added a hybrid checklist and deployment guide for Render web, shared MongoDB Atlas and managed TLS Redis, and an Ubuntu Docker/Nginx/Cloudflare Tunnel worker plane.
+- Added a hybrid worker preflight mode that requires managed TLS Redis without probing or exposing its endpoint and does not require a local Redis daemon.
+- Added worker-only install, upgrade, and verification roles. Worker installation requires an explicit immutable release and securely pre-provisioned shared configuration; it never generates a replacement encryption key or starts a local web service.
+
+### Verification
+
+- Focused Redis, configuration, routing, installer, privilege, upgrade, queue, SSE, and rate-limit tests passed during implementation.
+- `npm ci` installed 314 packages, reported zero vulnerabilities, and left `package-lock.json` unchanged at SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed.
+- Full Node.js suite passed after the hybrid preflight was added: 717 tests, 156 suites, 0 failures, 0 skipped.
+- The public production check passed homepage, checkout-derived assets, HSTS, CSP, sign-in, health, and readiness, but still failed `session-cookie: missing secure`.
+- Managed Redis connectivity, Render environment changes, immutable deployment, Ubuntu host verification, real Docker runtimes, authenticated QA, upgrade failure recovery, and second-host restore were not run and remain external blockers.

@@ -1,19 +1,19 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-12T19:02:25+08:00
+Updated: 2026-07-13T14:05:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field          | Value                           |
-| -------------- | ------------------------------- |
-| Overall status | Blocked                         |
-| Current batch  | Batch 2 — Host validation       |
-| Next action    | Run Batches 1–5 on target hosts |
-| Release state  | NO-GO                           |
+| Field          | Value                                                           |
+| -------------- | --------------------------------------------------------------- |
+| Overall status | Deployed; validation blocked                                    |
+| Current batch  | Batch 2 — Host validation                                       |
+| Next action    | Review release baseline, redeploy web, provision staging worker |
+| Release state  | NO-GO                                                           |
 
-The safe local implementation loop is green through the locally executable portions of Batches 1–5. Completion is blocked on review/CI plus supported-host, production-configuration, Nginx/systemd, backup, restore, and real deployment evidence. A batch may be marked `Complete` only after every required task is checked, its completion gate is satisfied, and verification evidence is recorded or linked.
+The public application is deployed and externally reachable through Cloudflare. The selected production topology keeps the web dashboard on Render and runs the privileged deployment plane on a dedicated Ubuntu host, sharing MongoDB Atlas and managed TLS Redis. The public session cookie still omits `Secure`; the worker host and all authenticated/recovery gates remain unverified. See the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) and [Hybrid Deployment Guide](HYBRID_DEPLOYMENT.md).
 
 ## Status Legend
 
@@ -84,7 +84,7 @@ git status --short
 - [x] Make route creation, replacement, and removal atomic.
 - [x] Validate candidate configuration before activation and preserve the last healthy route on validation or reload failure.
 - [ ] Restrict `.env` and GitHub private-key access to only the services that require them.
-- [ ] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
+- [x] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
 - [x] Automate ownership and permission checks in post-install diagnostics.
 - [ ] Prove the web service cannot access Docker or the privileged route helper.
 - [ ] Validate route creation, replacement, removal, rollback, and reload on a clean supported host.
@@ -96,7 +96,7 @@ git status --short
 - Record target-host users, groups, socket permissions, route file ownership, `nginx -t`, activation, and rollback results without secrets.
 
 **Completion gate:** The worker activates routes through the constrained helper, the web process has no Docker or Nginx-control access, and invalid configuration leaves the last healthy route active.
-**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. `infrastructure/verify-installation.sh` automatically checks service identities and groups, `.env`/route-directory/helper-socket metadata, private-key readability, service activity, `nginx -t`, and `/ready`; installer and upgrade run it as a blocking gate. Focused routing/helper/privilege/verifier tests passed locally. Clean-host execution, live reload, and route activation proof remains required.
+**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Install, upgrade, and verification support an explicit worker-only host role that omits the web service and dashboard ingress, validates worker configuration, and still checks identities, groups, protected metadata, helper socket, service activity, and `nginx -t`. Focused routing/helper/privilege/verifier tests passed locally. Clean-host execution, live reload, and route activation proof remain required.
 
 ## Batch 3 — Production Configuration
 
@@ -105,17 +105,17 @@ git status --short
 **Completed:** —
 **Objective:** Make valid production configuration start reliably and invalid configuration fail early with safe diagnostics.
 **Dependencies:** Batches 1–2 and the intended production GitHub App and routing details.
-**Blockers:** Final startup proof requires production-equivalent configuration.
+**Blockers:** The public web and readiness endpoints are running, but the session-cookie result indicates the deployed web runtime or proxy path is not satisfying the production cookie contract. Production start and lifecycle validation now require production mode locally; redeployment plus external revalidation and host-side service-identity evidence remain required.
 
 ### Tasks
 
 - [ ] Complete and verify GitHub App configuration, including `GITHUB_APP_NAME`.
-- [ ] Select and document the production routing mode.
-- [ ] Align `.env.example`, environment documentation, setup output, and runtime validation.
-- [ ] Clearly distinguish blocking configuration from optional integrations.
+- [x] Select and document the production routing mode.
+- [x] Align `.env.example`, environment documentation, setup output, and runtime validation.
+- [x] Clearly distinguish blocking configuration from optional integrations.
 - [ ] Confirm web and worker startup under their intended service identities.
 - [x] Confirm invalid secrets, ports, routing settings, unreadable keys, and partial integrations fail before accepting work.
-- [ ] Confirm diagnostics expose configuration names and statuses but never values.
+- [x] Confirm diagnostics expose configuration names and statuses but never values.
 
 ### Verification
 
@@ -124,7 +124,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** Production worker configuration now rejects disabled local routing unless external routing is explicitly acknowledged, and focused valid/invalid routing fixtures pass. Real GitHub App credentials, the production routing selection, service-identity startup, and production-equivalent configuration remain external blockers.
+**Evidence:** The hybrid topology now explicitly routes the Render dashboard through `PLATFORM_DOMAIN` and worker-managed wildcard applications through `DEPLOYMENT_DOMAIN` with the local Nginx helper enabled on Ubuntu. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode, and the value-safe public checker still fails only the live missing `Secure` attribute. Redeployment, complete GitHub App proof, managed Redis connectivity, and service-identity evidence remain blockers.
 
 ## Batch 4 — Health and Graceful Shutdown
 
@@ -166,10 +166,10 @@ git status --short
 ### Tasks
 
 - [ ] Run comprehensive preflight before host changes and configuration validation before service startup.
-- [ ] Install immutable release tags or commits with lockfile-reproducible dependencies.
+- [x] Install immutable release tags or commits with lockfile-reproducible dependencies.
 - [ ] Verify service readiness, Nginx configuration, and route activation after installation.
 - [x] Refuse unsafe dirty-checkout upgrades and record the prior full commit.
-- [ ] Make failed upgrades automatically return to a verified working release and record outcomes.
+- [x] Make failed upgrades automatically return to a verified working release and record outcomes.
 - [ ] Back up required application, database, route, and ingress state to an encrypted access-controlled destination.
 - [x] Add explicit failure handling, checksums, and a machine-readable backup manifest.
 - [ ] Restore the platform and a representative deployed project on a second clean host and record RPO/RTO results.
@@ -181,7 +181,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** A clean host installs without permission repair, upgrades either succeed fully or roll back safely, and an encrypted backup restores successfully on a second host.
-**Evidence:** `upgrade.sh` now requires an explicit immutable tag or commit, resolves it to a full SHA, uses detached checkouts, rejects dirty production trees before backup, and retains the full prior SHA for rollback. Backups fail closed on missing/failed local MongoDB dumps unless an external snapshot is explicitly acknowledged, include Nginx routing state, SHA-256 checksums, and a JSON manifest; restore verifies integrity before changing services and treats database restore failure as fatal. Install and upgrade run blocking identity, permission, service, Nginx, and dependency-readiness verification. Shell syntax and focused safety tests pass. Queue drain, clean-host lifecycle, encrypted off-host storage, and cross-host restore proof remain open.
+**Evidence:** Install and upgrade require explicit immutable refs, resolve full commits, and use detached checkouts. Worker-only installation requires securely pre-provisioned shared configuration and refuses to generate a different encryption key. Upgrade pauses/drains BullMQ and verifies either candidate or rollback while preserving operator pause state. Backup/restore integrity protections remain in place. Shell syntax and focused lifecycle tests pass; clean-host install, managed Redis connectivity, failed-upgrade execution, encrypted off-host storage, and cross-host restore proof remain open.
 
 ## Batch 6 — Real Deployment Validation
 
