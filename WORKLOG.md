@@ -1563,3 +1563,16 @@
 - GitHub Actions completed the Node.js 22 CI workflow successfully for that head, including clean dependency installation, lint, formatting, configuration validation, tests, and the production dependency audit.
 - Local release verification passed with 717 tests across 156 suites, no failures or skips, and zero reported production dependency vulnerabilities.
 - Review, merge, annotated-tag creation, Render redeployment, and every target-host or authenticated acceptance row remain unverified and must not be inferred from this repository evidence.
+
+## Immutable v0.1.0 Release Baseline
+
+- Status: Group 0 complete; Group 1 blocked on guided Render configuration and deployment confirmation
+- Published: 2026-07-13
+
+### Release Evidence
+
+- The grouped documentation update passed focused workflow-documentation checks and the full local release gate: lint, formatting, configuration validation, 717 tests across 156 suites, production dependency audit, and diff validation.
+- PR #1 passed the refreshed Node.js 22 CI workflow and was merged into `main` as `740b9a83d4414bf85b97894ea6a1dca0056cfc9e`.
+- Published annotated tag `v0.1.0`; local and remote verification resolve the tag to that exact merge commit.
+- A fresh public production check passed homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but still failed `session-cookie: missing secure`.
+- Public asset matching does not prove the deployed Render commit. Exact commit identity, production environment, supported start command, managed TLS Redis configuration, and redeployment remain guided provider checks.
