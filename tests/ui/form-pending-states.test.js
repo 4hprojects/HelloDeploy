@@ -8,6 +8,14 @@ const files = {
     'utf8',
   ),
   appJs: await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8'),
+  mainLayout: await readFile(
+    new URL('../../apps/web/src/views/layouts/main.ejs', import.meta.url),
+    'utf8',
+  ),
+  authLayout: await readFile(
+    new URL('../../apps/web/src/views/layouts/auth.ejs', import.meta.url),
+    'utf8',
+  ),
   componentsCss: await readFile(
     new URL('../../apps/web/public/css/components.css', import.meta.url),
     'utf8',
@@ -60,6 +68,11 @@ describe('form pending states', () => {
       files.appJs,
       /preserveSubmitterValue\(form, submitter\)[\s\S]{0,160}button\.disabled = true/,
     );
+  });
+
+  it('loads the decision-preservation script through a fresh asset version', () => {
+    assert.match(files.mainLayout, /app\.js\?v=20260730-submit-decision/);
+    assert.match(files.authLayout, /app\.js\?v=20260730-submit-decision/);
   });
 
   it('uses action-specific labels with a safe fallback', () => {

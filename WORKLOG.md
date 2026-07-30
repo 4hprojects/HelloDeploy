@@ -2041,3 +2041,20 @@
 - A real Chromium form submission retained `CHANGES_REQUESTED` after the clicked button was disabled and changed to its pending label.
 - `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 - `npm test` passed 838 tests across 174 suites with zero failures, cancellations, or skips.
+
+## Approval Decision Asset Refresh
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:46:12+08:00
+
+### Implemented Behavior
+
+- Updated the shared authenticated and public layout asset versions so browsers immediately load the submit-decision preservation fix instead of retaining the prior script for its four-hour cache lifetime.
+- Added regression coverage requiring both layouts to reference the fresh script version.
+
+### Verification Evidence
+
+- Focused pending-form and approval-guidance checks passed 11 tests across 2 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
+- Confirmed the live script contains the decision-preservation implementation; no approval decisions, production services, queues, workers, deployments, or traffic were changed.
