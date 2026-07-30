@@ -52,6 +52,16 @@ describe('form pending states', () => {
     assert.match(files.appJs, /setSubmitterText\(submitter, pendingLabel\(form, submitter\)\)/);
   });
 
+  it('preserves named submit-button decisions before disabling buttons', () => {
+    assert.match(files.appJs, /function preserveSubmitterValue\(form, submitter\)/);
+    assert.match(files.appJs, /field\.name = submitter\.name/);
+    assert.match(files.appJs, /field\.value = submitter\.value/);
+    assert.match(
+      files.appJs,
+      /preserveSubmitterValue\(form, submitter\)[\s\S]{0,160}button\.disabled = true/,
+    );
+  });
+
   it('uses action-specific labels with a safe fallback', () => {
     assert.match(files.appJs, /data-pending-label/);
     assert.match(files.appJs, /data-confirm-pending-label/);

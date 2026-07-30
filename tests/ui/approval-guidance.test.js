@@ -53,6 +53,8 @@ describe('initial project approval guidance', () => {
     assert.match(adminView, /value="CHANGES_REQUESTED"/);
     assert.match(adminView, /Required when requesting changes/);
     assert.doesNotMatch(adminView, /value="REJECTED"/);
+    assert.match(adminView, /name="decision" value="APPROVED"/);
+    assert.match(adminView, /name="decision" value="CHANGES_REQUESTED"/);
   });
 
   it('keeps admin authorization, object-id validation, and CSRF forms in the path', () => {

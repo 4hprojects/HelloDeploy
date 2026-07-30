@@ -2023,3 +2023,21 @@
 - `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 - `npm test` passed 837 tests across 174 suites with zero failures, cancellations, or skips.
 - Real EJS fixtures for the one-time TXT screen and lost-token recovery state were inspected at 1440px desktop and 390px mobile widths. Long TXT values wrapped without horizontal overflow. No DNS records, verification jobs, approval decisions, routes, workers, deployments, or production traffic were changed.
+
+## Named Submit Decision Preservation
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:35:50+08:00
+
+### Implemented Behavior
+
+- Fixed the shared pending-form handler so disabling a clicked submit button no longer removes its name and value from the submitted form data.
+- Preserved approval decisions such as `CHANGES_REQUESTED` in a hidden field before applying the disabled and pending presentation.
+- Added focused regression coverage for named submit-button preservation and both approval decision values.
+
+### Verification Evidence
+
+- Focused pending-form, approval UI, and transactional approval workflow checks passed 18 tests across 3 suites.
+- A real Chromium form submission retained `CHANGES_REQUESTED` after the clicked button was disabled and changed to its pending label.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 838 tests across 174 suites with zero failures, cancellations, or skips.

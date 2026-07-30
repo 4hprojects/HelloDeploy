@@ -520,6 +520,19 @@
       submitter.textContent = label;
     }
 
+    function preserveSubmitterValue(form, submitter) {
+      if (!submitter?.name) {
+        return;
+      }
+
+      const field = document.createElement('input');
+      field.type = 'hidden';
+      field.name = submitter.name;
+      field.value = submitter.value;
+      field.setAttribute('data-preserved-submitter', '');
+      form.appendChild(field);
+    }
+
     document.addEventListener('submit', (e) => {
       if (e.defaultPrevented) {
         return;
@@ -539,6 +552,7 @@
       form.setAttribute('data-submitting', '1');
       form.setAttribute('aria-busy', 'true');
       form.classList.add('form--pending');
+      preserveSubmitterValue(form, submitter);
 
       submitButtons(form).forEach((button) => {
         button.disabled = true;
