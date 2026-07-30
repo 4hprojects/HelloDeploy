@@ -16,6 +16,7 @@ Use this index as the starting point for repository documentation. The top-level
 - [Self-Hosted Install Guide](SELF_HOSTED_INSTALL.md) - supported Ubuntu versions, install modes, setup steps, required environment keys, and lifecycle commands.
 - [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md) - canonical self-hosted product definition, single-host V1 topology, process boundaries, domains, deployment lifecycle, and deferred multi-node scope.
 - [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) - authoritative monitor for current production-readiness execution, verification evidence, blockers, and completion gates.
+- [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) - prioritized P0-P6 execution plan for completing the real deployment workflow and hosting HelloRun through HelloDeploy.
 - [Autonomous Work Loop](WORK_LOOP.md) - task-selection, continuation, evidence, failure-handling, autonomy, and stopping protocol for Codex work.
 - [Full Implementation Overview](FULL_IMPLEMENTATION_OVERVIEW.md) - human-readable phase map for the complete production-readiness program.
 - [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) - release requirements, sequencing strategy, and the final production go/no-go gate.
@@ -53,6 +54,7 @@ Use this index as the starting point for repository documentation. The top-level
 
 - P9-P12 implementation commits are recorded in [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md).
 - Current implementation and validation status is tracked in the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+- The [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) translates that status into the goal-specific sequence for the controlled HelloRun pilot.
 - Continuous Codex work follows the [Autonomous Work Loop](WORK_LOOP.md); the tracker remains authoritative for status.
 - Release requirements and strategy are defined by the [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md), while detailed completion evidence is preserved in the [Worklog](../WORKLOG.md).
 - UI/UX implementation planning is tracked in [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).
