@@ -96,10 +96,17 @@ recovery-key access.
 **Tracker mapping:** Priority 1 Safe In-Place Baseline; Batches 1 and 5; Roadmap
 Phases 0, 1, and 5.
 
+**Execution update:** The clean merged candidate
+`6d0bf82530d01bb941b6309c83a1a8bde18a4447` passes the complete Node.js 22 release
+gate. The dashboard is healthy, but the HelloRun fallback is publicly unavailable
+with Cloudflare error 1033 because its hostname is absent from the active tunnel.
+Backup execution is also blocked until approved off-host media, database export
+tooling, recovery-key access, and root-owned rollback instructions are available.
+
 ### Actions
 
-- [ ] Select a reviewed immutable HelloDeploy commit from a clean checkout.
-- [ ] Capture a current value-safe host baseline covering platform, release,
+- [x] Select a reviewed immutable HelloDeploy commit from a clean checkout.
+- [x] Capture a current value-safe host baseline covering platform, release,
       prerequisites, services, identities, routing, health, and blockers.
 - [ ] Create an encrypted off-host backup of MongoDB, protected configuration,
       GitHub App material, Nginx, Cloudflare Tunnel configuration, managed routes,
@@ -108,10 +115,10 @@ Phases 0, 1, and 5.
       non-restoring backup verifier.
 - [ ] Record the exact rollback path for the PM2 dashboard, independent HelloRun
       process, Nginx, tunnel configuration, repository release, and queue state.
-- [ ] Inventory deployment and DNS jobs created while the worker was offline.
-- [ ] Identify stale deployment jobs for cancellation and valid DNS checks for
+- [x] Inventory deployment and DNS jobs created while the worker was offline.
+- [x] Identify stale deployment jobs for cancellation and valid DNS checks for
       deliberate requeue after P2.
-- [ ] Run the supported local quality and configuration gates against the selected
+- [x] Run the supported local quality and configuration gates against the selected
       release.
 
 ### Stop Conditions
@@ -477,9 +484,11 @@ addresses, or secret values.
 Add one row after each meaningful execution or verification step. Keep results
 sanitized and link detailed evidence to the worklog or authoritative checklist.
 
-| Date | Priority | Commit or release | Command or check | Sanitized result | Blocker or next action | Evidence link |
-| ---- | -------- | ----------------- | ---------------- | ---------------- | ---------------------- | ------------- |
-| -    | -        | -                 | -                | -                | Start with P0          | -             |
+| Date       | Priority | Commit or release                          | Command or check                       | Sanitized result                                                    | Blocker or next action                                  | Evidence link                                    |
+| ---------- | -------- | ------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Node.js 22 release gate                | 839 tests and production audit passed                               | Capture host and backup evidence                        | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Value-safe host and queue inventory    | Dashboard ready; no deployments queued; one valid DNS check waiting | Keep DNS job waiting until P2                           | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check | HelloRun public fallback failed; backup inputs incomplete           | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
 
 ## Required Verification
 

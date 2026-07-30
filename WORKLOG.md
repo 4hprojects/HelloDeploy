@@ -2095,3 +2095,23 @@
 - `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
 - `npm audit --omit=dev --audit-level=moderate` reported zero production vulnerabilities.
 - No host services, queues, DNS records, routes, deployments, or production traffic were changed.
+
+## P0 Baseline and Stop-Gate Evidence
+
+- Status: In Progress; blocked before privileged backup execution
+- Updated: 2026-07-31T00:33:54+08:00
+
+### Verified State
+
+- PR #11 passed Node.js 22 CI and merged to `main` at full candidate commit `6d0bf82530d01bb941b6309c83a1a8bde18a4447`.
+- The same clean commit passed local Node.js 22.23.2 clean installation, lint, formatting, configuration validation, 839 tests across 174 suites, production audit, and diff checks.
+- A fresh value-safe baseline confirmed local and public dashboard health while Docker, isolated identities and units, the helper, managed routes, and wildcard application ingress remain absent.
+- Read-only queue inspection found no deployment job or in-flight deployment and one valid DNS verification job waiting for deliberate processing after P2.
+- Backup and preparation shell syntax passed, and focused backup, verifier, preparation, baseline, and queue-maintenance coverage passed 33 tests across 6 suites.
+
+### Active Blockers
+
+- The independent HelloRun PM2 process is stable, but the public hostname returns Cloudflare error 1033 because it is missing from the active tunnel configuration.
+- The PM2 dashboard has not been cut over to the merged candidate, so the public checker reports one expected frontend asset missing.
+- No approved off-host medium is mounted, `mongodump` is unavailable, the recovery private key is not loaded, and root-owned rollback evidence cannot be inspected without privileged access.
+- No service, queue, DNS, Cloudflare, route, deployment, or traffic mutation was performed. P0 remains In Progress and P1 remains blocked.

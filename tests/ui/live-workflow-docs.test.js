@@ -35,7 +35,7 @@ describe('live workflow documentation', () => {
   });
 
   it('keeps the public deployment distinct from the release decision', () => {
-    assert.match(tracker, /Live local pilot; productionization pending/);
+    assert.match(tracker, /Live dashboard pilot; P0 recovery baseline blocked/);
     assert.match(tracker, /Release state\s+\| NO-GO for customer application hosting/);
     assert.match(checklist, /Current decision: \*\*NO-GO for customer application hosting\*\*/);
     assert.match(checklist, /Public dashboard availability is not evidence/);
