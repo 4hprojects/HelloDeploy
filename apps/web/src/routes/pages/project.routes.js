@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { ProjectRole } from '@hellodeploy/contracts';
 import { requireAuth } from '../../middleware/require-auth.js';
 import { requireProjectRole } from '../../middleware/require-project-role.js';
-import { deployActionLimiter } from '../../middleware/rate-limit.js';
+import { deployActionLimiter, repositoryInspectLimiter } from '../../middleware/rate-limit.js';
 import {
   getProjectIndex,
   getNewProject,
@@ -28,6 +28,7 @@ import {
   getRepository,
   postConnectRepository,
   postDisconnectRepository,
+  postInspectPublicRepository,
 } from '../../controllers/github.controller.js';
 import {
   getDetection,
@@ -100,6 +101,13 @@ router.post('/:slug/transfer-ownership', requireAuth, ownerOnly, postTransferOwn
 
 // Repository
 router.get('/:slug/repository', requireAuth, ownerOnly, getRepository);
+router.post(
+  '/:slug/repository/inspect',
+  requireAuth,
+  ownerOnly,
+  repositoryInspectLimiter,
+  postInspectPublicRepository,
+);
 router.post('/:slug/repository', requireAuth, ownerOnly, postConnectRepository);
 router.post('/:slug/repository/disconnect', requireAuth, ownerOnly, postDisconnectRepository);
 

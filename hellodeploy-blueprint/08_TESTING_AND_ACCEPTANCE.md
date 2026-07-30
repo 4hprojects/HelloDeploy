@@ -18,6 +18,7 @@
 - MongoDB indexes and persistence
 - Redis queue and retry behavior
 - GitHub App token flow using mocks or test installation
+- Public Git URL rejection, bounded metadata inspection, exact-commit clone, and ambient-credential denial
 - Resend adapter
 - Docker build and container lifecycle
 - Nginx validation and route activation
@@ -26,7 +27,7 @@
 ### End-to-End Tests
 
 - Registration through verified login
-- Project creation and GitHub connection
+- Project creation with both Public Git and GitHub App connection paths
 - Approval and manual deployment
 - Optional automatic deployment
 - Failed deployment preserving current release

@@ -491,6 +491,14 @@ export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
     return res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
   }
 
+  if (deploymentMode === DeploymentMode.AUTOMATIC && project.repositoryId) {
+    const repository = await Repository.findById(project.repositoryId).lean();
+    if (repository?.sourceType === 'PUBLIC_GIT') {
+      req.flash('error', 'Automatic deployment requires a connected GitHub App repository.');
+      return res.redirect(projectReturnTarget(req, `/projects/${project.slug}`));
+    }
+  }
+
   await Project.updateOne({ _id: project._id }, { $set: { deploymentMode } });
 
   await writeAuditEvent({

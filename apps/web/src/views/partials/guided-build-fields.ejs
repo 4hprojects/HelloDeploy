@@ -1,0 +1,159 @@
+<%
+  const _gbPrefix = typeof fieldPrefix !== 'undefined' ? fieldPrefix : '';
+  const _gbRuntime = typeof runtimeType !== 'undefined' ? runtimeType : null;
+  const _gbConfig = typeof configuration !== 'undefined' ? configuration : {};
+  const _gbErrors = typeof errors !== 'undefined' ? errors : {};
+  const _gbValues = typeof values !== 'undefined' ? values : null;
+  const _gbIncludeHealth = typeof includeHealthCheck !== 'undefined' ? includeHealthCheck : true;
+  const _gbGridClass = typeof gridClass !== 'undefined' ? gridClass : 'guided-build-grid';
+  const _gbValue = (field, fallback) =>
+    _gbValues ? (_gbValues[field] ?? '') : (fallback ?? '');
+  const _gbId = (field) => `${_gbPrefix}${field}`;
+  const _gbStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime);
+  const _gbBuiltStaticRuntime = ['REACT', 'VUE'].includes(_gbRuntime);
+  const _gbServerRuntime = ['EXPRESS', 'NODEJS'].includes(_gbRuntime);
+%>
+
+<div class="<%= _gbGridClass %>">
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-command') %>">Build command</label>
+    <input
+      class="form-input<%= _gbErrors.buildCommand ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-command') %>"
+      name="buildCommand"
+      value="<%= _gbValue('buildCommand', _gbConfig.buildCommand) %>"
+      maxlength="500"
+      placeholder="npm run build"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('build-command-hint') %><%= _gbErrors.buildCommand ? ` ${_gbId('build-command-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('build-command-hint') %>">
+      <% if (_gbRuntime === 'STATIC') { %>
+        A plain HTML site does not need a build command. Leave this blank.
+      <% } else if (_gbBuiltStaticRuntime || _gbRuntime === 'NEXTJS') { %>
+        HelloDeploy found the command that prepares your app. Keep it unless the person who built
+        the app gave you a different one. A common value is <code class="code-inline">npm run build</code>.
+      <% } else { %>
+        Most server apps do not need a separate build step. Leave this blank unless the person who
+        built the app provided a command.
+      <% } %>
+    </p>
+    <% if (_gbErrors.buildCommand) { %>
+    <span id="<%= _gbId('build-command-error') %>" class="form-error" role="alert"><%= _gbErrors.buildCommand %></span>
+    <% } %>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('start-command') %>">Start command</label>
+    <input
+      class="form-input<%= _gbErrors.startCommand ? ' form-input--error' : '' %>"
+      id="<%= _gbId('start-command') %>"
+      name="startCommand"
+      value="<%= _gbValue('startCommand', _gbConfig.startCommand) %>"
+      maxlength="500"
+      placeholder="npm start"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('start-command-hint') %><%= _gbErrors.startCommand ? ` ${_gbId('start-command-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('start-command-hint') %>">
+      <% if (_gbServerRuntime) { %>
+        This starts your app after it is deployed. Keep the detected value; a common value is
+        <code class="code-inline">npm start</code>.
+      <% } else { %>
+        HelloDeploy serves this app automatically, so a start command is usually not needed.
+      <% } %>
+    </p>
+    <% if (_gbErrors.startCommand) { %>
+    <span id="<%= _gbId('start-command-error') %>" class="form-error" role="alert"><%= _gbErrors.startCommand %></span>
+    <% } %>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('output-directory') %>">Published folder</label>
+    <input
+      class="form-input<%= _gbErrors.outputDirectory ? ' form-input--error' : '' %>"
+      id="<%= _gbId('output-directory') %>"
+      name="outputDirectory"
+      value="<%= _gbValue('outputDirectory', _gbConfig.outputDirectory) %>"
+      maxlength="255"
+      placeholder="<%= _gbRuntime === 'STATIC' ? '.' : _gbRuntime === 'REACT' ? 'dist or build' : 'dist' %>"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('output-directory-hint') %><%= _gbErrors.outputDirectory ? ` ${_gbId('output-directory-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('output-directory-hint') %>">
+      <% if (_gbRuntime === 'STATIC') { %>
+        Keep <code class="code-inline">.</code> to publish the files in the repository.
+      <% } else if (_gbBuiltStaticRuntime) { %>
+        This is where the finished website is created. HelloDeploy has selected the usual folder
+        for your app.
+      <% } else { %>
+        Server apps normally do not use a published folder. Leave this blank unless your developer
+        provided one.
+      <% } %>
+    </p>
+    <% if (_gbErrors.outputDirectory) { %>
+    <span id="<%= _gbId('output-directory-error') %>" class="form-error" role="alert"><%= _gbErrors.outputDirectory %></span>
+    <% } %>
+  </div>
+
+  <% if (_gbStaticRuntime) { %>
+  <div class="form-group guided-build-field--informational">
+    <span class="form-label">App port</span>
+    <p class="form-hint">
+      HelloDeploy chooses the port automatically for this type of website. Nothing is required here.
+    </p>
+  </div>
+  <% } else { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('application-port') %>">App port</label>
+    <input
+      class="form-input<%= _gbErrors.applicationPort ? ' form-input--error' : '' %>"
+      type="number"
+      id="<%= _gbId('application-port') %>"
+      name="applicationPort"
+      value="<%= _gbValue('applicationPort', _gbConfig.applicationPort) %>"
+      min="1"
+      max="65535"
+      placeholder="3000"
+      inputmode="numeric"
+      aria-describedby="<%= _gbId('application-port-hint') %><%= _gbErrors.applicationPort ? ` ${_gbId('application-port-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('application-port-hint') %>">
+      The internal port your app listens on. Keep the detected value; most Node.js apps use
+      <code class="code-inline">3000</code>.
+    </p>
+    <% if (_gbErrors.applicationPort) { %>
+    <span id="<%= _gbId('application-port-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationPort %></span>
+    <% } %>
+  </div>
+  <% } %>
+
+  <% if (_gbIncludeHealth) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('health-check-path') %>">Page used to confirm the app is working</label>
+    <input
+      class="form-input<%= _gbErrors.healthCheckPath ? ' form-input--error' : '' %>"
+      id="<%= _gbId('health-check-path') %>"
+      name="healthCheckPath"
+      value="<%= _gbValue('healthCheckPath', _gbConfig.healthCheckPath || '/') %>"
+      maxlength="255"
+      placeholder="/"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('health-check-path-hint') %><%= _gbErrors.healthCheckPath ? ` ${_gbId('health-check-path-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('health-check-path-hint') %>">
+      Keep <code class="code-inline">/</code> unless your developer provided a dedicated page such
+      as <code class="code-inline">/health</code>.
+    </p>
+    <% if (_gbErrors.healthCheckPath) { %>
+    <span id="<%= _gbId('health-check-path-error') %>" class="form-error" role="alert"><%= _gbErrors.healthCheckPath %></span>
+    <% } %>
+  </div>
+  <% } else { %>
+  <input type="hidden" name="healthCheckPath" value="<%= _gbConfig.healthCheckPath || '/' %>" />
+  <% } %>
+</div>

@@ -1910,3 +1910,57 @@
 - Value-safe production validation failed before restart: the web configuration is missing `GITHUB_APP_NAME`, and the worker requires `NGINX_ENABLED=true` with the constrained local helper path. The current helper, identities, Docker plane, and managed route directory remain absent.
 - Source inspection confirmed the production worker synchronously calls the Nginx helper during startup. Full runtime normalization therefore cannot safely precede helper preparation as the earlier plan required.
 - The proposed corrected sequence is complete production configuration, use the verified emergency capture as the recovery gate for prepare-only foundation installation, pause and drain the deployment queue, separately activate and validate the helper, perform controlled Node.js 22 normalization, verify the cookie, and create the second final baseline before traffic cutover or application deployment. This sequencing amendment requires explicit approval; host mutation remains stopped, cross-host restore remains blocked, and no GO claim is made.
+
+## Production Web Pilot Recovery and Cookie Gate
+
+- Status: Dashboard recovery and cookie gate Passed; worker foundation Blocked
+- Updated: 2026-07-14T14:01:16+08:00
+
+### Release and Configuration Evidence
+
+- PR #10 passed Node.js 22 CI, merged cleanly at full commit `c16f33db2ca57147d266d9a0ae30cab22971030d`, and was published as annotated tag `v0.1.5`.
+- A value-safe environment audit found no malformed or duplicate assignments and confirmed mode `0600`. The GitHub App slug and deployment domain were completed, the dashboard/application domain relationship was corrected, and the intended helper socket was recorded while routing remained explicitly disabled.
+- The configured numeric GitHub App identity authenticated two downloaded keys for the expected private app. The newest verified key was selected without printing its filename, identifiers, JWT, or contents, then installed outside the checkout with root ownership and mode `0640`. An authenticated app-identity request passed from the installed file.
+- Local Redis remains in the supported host/port compatibility mode. Unused client-credential fields remain present but are not consumed by the current HelloDeploy GitHub App runtime contract; they were not displayed or changed during this recovery.
+
+### Fail-Closed Restart and Recovery
+
+- A PM2 reload picked up the reviewed start scripts, which force production mode. The combined web/worker pilot then failed closed because the production worker requires the unavailable constrained Nginx helper. It accumulated 970 restart attempts without opening the web port; the public edge returned `502`.
+- The combined entry was stopped. It was preserved rather than deleted, and the other PM2 applications were not modified.
+- Production web configuration passed after the protected GitHub App key and corrected application domain were available. A separate web-only PM2 pilot started from the clean `v0.1.5` checkout with zero restarts.
+- Local and public `/health` and `/ready` returned successful sanitized responses. The public production checker passed the homepage, expected frontend assets, HSTS, CSP, `Secure; HttpOnly; SameSite=Strict`, sign-in page, health, and dependency readiness without capturing response bodies, cookies, sessions, or secret values.
+
+### Remaining Boundaries
+
+- The recovered web still runs through the interactive PM2 pilot using Node.js 24; this is not the isolated Node.js 22 systemd target.
+- The worker is intentionally offline. Docker, isolated identities, the constrained helper, Nginx dashboard ingress, wildcard application routing, real deployments, final post-normalization backup, failed-upgrade rollback, and cross-host restore remain blocked or unrun.
+- Customer application hosting remains **NO-GO** despite the restored dashboard and passing cookie gate.
+
+### Verification
+
+- `node --test tests/ui/live-workflow-docs.test.js` passed 4 tests in 1 suite.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- `npm test` passed 753 tests across 162 suites with no failures, cancellations, or skips.
+- `npm run production:check -- https://hellodeploy.online` passed every public boundary check, including the strict cookie contract.
+
+## Public Git Repository Source Implementation
+
+- Status: Repository implementation Passed; live deployment validation Blocked
+- Updated: 2026-07-14T14:52:30+08:00
+
+### Implemented Behavior
+
+- Added an accepted `PUBLIC_GIT` source type for canonical public GitHub HTTPS repositories while preserving existing GitHub App records and flows.
+- Added strict URL reconstruction and validation, bounded redirect-denying public metadata inspection, branch selection, server-side revalidation, conditional repository persistence, and Owner-only rate-limited routes.
+- Added credential-free public detection and exact-commit worker cloning with terminal prompts, system configuration, and ambient credential helpers disabled. Git commands retain argument arrays, bounded output, bounded execution time, safe errors, remote removal, and Git metadata cleanup.
+- Added public-source commit resolution during deployment creation and prevented Automatic mode in the Overview, consolidated Settings, and server mutation path. Connecting from an Automatic project requires explicit confirmation and changes the project to Manual in the audited persistence operation.
+- Reworked the Repository page into public URL and GitHub App paths with pending, validation, retry, branch-selection, connected-source, and explanatory states. Private repositories and signed Automatic deployments continue to require the GitHub App.
+- Reconciled the user guide, FAQ, architecture, blueprint, accepted ADR, UX backlog, and implementation specification. These changes describe HelloDeploy as the hosting platform and use reference products only as interaction inspiration.
+
+### Verification Evidence
+
+- Focused repository contract, model, public metadata, detection, UI, worker, build-context, command-injection, and rate-limit checks passed. The final public metadata, UI, and fail-closed rate-limit regression set passed 19 tests across 3 suites, including streaming response limits without relying on `Content-Length`.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed. The value-safe configuration check reported this shell's current non-production mode and disabled routing; it was not treated as live worker evidence.
+- `npm test` passed 779 tests across 166 suites with zero failures, cancellations, or skips after updating established guided-copy and fail-closed limiter inventory contracts.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- PM2, Nginx, Cloudflare Tunnel, Docker, Redis, the deployment queue, and live traffic were not changed. A real Docker-backed Public Git deployment remains Blocked while the isolated worker plane is offline; customer application hosting remains **NO-GO**.

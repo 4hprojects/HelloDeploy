@@ -16,7 +16,7 @@
 | Queue                      | Redis and BullMQ                                     |
 | Email                      | Resend                                               |
 | Bot protection             | Cloudflare Turnstile                                 |
-| Source provider            | GitHub App                                           |
+| Source provider            | GitHub App (current implemented provider)            |
 | Runtime isolation          | Docker                                               |
 | Reverse proxy              | Nginx                                                |
 | Public ingress             | Cloudflare Tunnel                                    |
@@ -92,6 +92,12 @@ The quota model should remain plan-ready even though V1 is free.
 - Retention periods after empirical disk-growth testing
 - Whether inactive applications will eventually sleep and wake on request
 - Final HelloDeploy logo and icon artwork
+
+## Public Source Extension
+
+Accepted ADR-006 adds a second `PUBLIC_GIT` source mode for public GitHub HTTPS repositories. It allows manual or approval-required deployment from a pasted public URL without a GitHub App installation while retaining the GitHub App requirement for private repositories and automatic deployments.
+
+The repository implementation includes URL normalization, public metadata inspection, conditional source persistence, detection, exact-commit worker cloning, deployment-mode enforcement, UX states, and focused tests. Real Docker-backed worker deployment remains an acceptance blocker and must not be inferred from local tests. The full contract is defined in the [Public Git Repository Connection Specification](../docs/PUBLIC_GIT_REPOSITORY_SPEC.md) and [ADR-006](../infrastructure/decisions/ADR-006-public-git-sources.md).
 
 ## Change-Control Rule
 

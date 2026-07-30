@@ -145,3 +145,14 @@ export const deployActionLimiter = rateLimit({
   store: makeStore('deploy-action'),
   handler: onLimitReached,
 });
+
+/** Public repository metadata checks — bounded external provider traffic. */
+export const repositoryInspectLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('repository-inspect'),
+  handler: onLimitReached,
+});

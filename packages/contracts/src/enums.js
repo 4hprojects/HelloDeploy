@@ -125,6 +125,17 @@ export const DeploymentMode = Object.freeze({
   APPROVAL_REQUIRED: 'APPROVAL_REQUIRED',
 });
 
+/** Repository source authentication mode */
+export const RepositorySourceType = Object.freeze({
+  GITHUB_APP: 'GITHUB_APP',
+  PUBLIC_GIT: 'PUBLIC_GIT',
+});
+
+/** Supported repository provider */
+export const RepositoryProvider = Object.freeze({
+  GITHUB: 'GITHUB',
+});
+
 /** Detected runtime types (framework detection output) */
 export const RuntimeType = Object.freeze({
   STATIC: 'STATIC',

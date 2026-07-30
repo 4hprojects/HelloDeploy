@@ -25,7 +25,7 @@ describe('live workflow documentation', () => {
   });
 
   it('uses only the defined execution statuses in checklist table cells', () => {
-    const statuses = [...checklist.matchAll(/\| (Passed|Failed|Blocked|Not Run) \|/g)].map(
+    const statuses = [...checklist.matchAll(/\| (Passed|Failed|Blocked|Not Run)\s+\|/g)].map(
       (match) => match[1],
     );
     assert.ok(statuses.includes('Passed'));

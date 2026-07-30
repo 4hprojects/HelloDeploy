@@ -62,7 +62,7 @@ describe('form pending states', () => {
     assert.match(files.deployments, /data-pending-label="Retrying\.\.\."/);
     assert.match(files.repository, /data-pending-label="Connecting\.\.\."/);
     assert.match(files.domains, /data-pending-label="Checking\.\.\."/);
-    assert.match(files.detection, /data-pending-label="Running\.\.\."/);
+    assert.match(files.detection, /data-pending-label="Checking\.\.\."/);
     assert.match(files.adminServer, /data-pending-label="Resuming\.\.\."/);
   });
 

@@ -169,13 +169,16 @@
       <form method="POST" action="/projects/<%= project.slug %>/deployment-mode">
         <%- include('../../partials/csrf-field') %>
         <div class="button-group">
-          <% ['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'].forEach(mode => { %>
+          <% (repository?.sourceType === 'PUBLIC_GIT' ? ['MANUAL', 'APPROVAL_REQUIRED'] : ['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED']).forEach(mode => { %>
           <button type="submit" name="deploymentMode" value="<%= mode %>"
                   class="button button--sm <%= project.deploymentMode === mode ? 'button--primary' : 'button--secondary' %>">
             <%= mode.charAt(0) + mode.slice(1).toLowerCase().replace('_', ' ') %>
           </button>
           <% }) %>
         </div>
+        <% if (repository?.sourceType === 'PUBLIC_GIT') { %>
+          <p class="form-hint mt-2">Automatic deployment requires a GitHub App connection.</p>
+        <% } %>
       </form>
       <% } %>
     </div>

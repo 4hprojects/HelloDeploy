@@ -1,6 +1,12 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { User, Project, Repository } from '@hellodeploy/database';
-import { AuditOutcome } from '@hellodeploy/contracts';
+import {
+  AuditOutcome,
+  DeploymentMode,
+  RepositoryProvider,
+  RepositorySourceError,
+  RepositorySourceType,
+} from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import {
@@ -8,6 +14,9 @@ import {
   listInstallationRepos,
   listBranches,
   getLatestCommit,
+  inspectPublicGithubRepository,
+  listPublicGithubBranches,
+  getPublicGithubLatestCommit,
 } from '../services/github.service.js';
 
 // ─── GitHub App installation flow ─────────────────────────────────────────────
@@ -171,8 +180,12 @@ export const getRepository = asyncHandler(async (req, res) => {
  */
 export const postConnectRepository = asyncHandler(async (req, res) => {
   const project = req.project;
-  const user = await User.findById(req.session.user.id).lean();
 
+  if (req.body.sourceType === RepositorySourceType.PUBLIC_GIT) {
+    return connectPublicRepository(req, res);
+  }
+
+  const user = await User.findById(req.session.user.id).lean();
   if (!user.githubInstallationId) {
     req.flash('error', 'You need to connect your GitHub account first.');
     return res.redirect(`/projects/${project.slug}/repository`);
@@ -223,6 +236,9 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
 
   // Create or update Repository record
   const repoData = {
+    sourceType: RepositorySourceType.GITHUB_APP,
+    provider: RepositoryProvider.GITHUB,
+    canonicalCloneUrl: null,
     projectId: project._id,
     installationId: user.githubInstallationId,
     githubRepoId: parseInt(githubRepoId, 10),
@@ -274,6 +290,112 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
 
   req.flash('success', `Repository ${fullName} connected on branch ${productionBranch}.`);
   res.redirect(`/projects/${project.slug}`);
+});
+
+async function connectPublicRepository(req, res) {
+  const project = req.project;
+  const repositoryUrl = req.body.repositoryUrl ?? '';
+  const productionBranch = req.body.productionBranch ?? '';
+  let source;
+  let latestCommit;
+  try {
+    source = await inspectPublicGithubRepository(repositoryUrl);
+    const branches = await listPublicGithubBranches(source);
+    if (!branches.some((branch) => branch.name === productionBranch)) {
+      throw new RepositorySourceError('BRANCH_NOT_FOUND', 'The selected branch was not found.');
+    }
+    latestCommit = await getPublicGithubLatestCommit(source, productionBranch);
+  } catch (err) {
+    const message =
+      err instanceof RepositorySourceError
+        ? err.message
+        : 'The public repository could not be connected. Try again.';
+    req.flash('error', message);
+    return res.redirect(`/projects/${project.slug}/repository`);
+  }
+
+  const repoData = {
+    projectId: project._id,
+    sourceType: RepositorySourceType.PUBLIC_GIT,
+    provider: source.provider,
+    canonicalCloneUrl: source.canonicalCloneUrl,
+    installationId: null,
+    githubRepoId: source.githubRepoId,
+    nodeId: source.nodeId,
+    fullName: source.fullName,
+    name: source.name,
+    ownerLogin: source.ownerLogin,
+    defaultBranch: source.defaultBranch,
+    visibility: 'public',
+    accessStatus: 'ACTIVE',
+    lastCommitSha: latestCommit.sha,
+    lastCommitMessage: latestCommit.message,
+    lastCommitAt: latestCommit.committedAt ?? new Date(),
+    connectedAt: new Date(),
+    lastAccessCheckedAt: new Date(),
+    revokedAt: null,
+  };
+  let repo = await Repository.findOne({ projectId: project._id });
+  if (repo) {
+    Object.assign(repo, repoData);
+    await repo.save();
+  } else {
+    repo = await Repository.create(repoData);
+  }
+
+  const deploymentMode =
+    project.deploymentMode === DeploymentMode.AUTOMATIC
+      ? DeploymentMode.MANUAL
+      : project.deploymentMode;
+  await Project.updateOne(
+    { _id: project._id },
+    {
+      $set: {
+        repositoryId: repo._id,
+        productionBranch,
+        deploymentMode,
+        runtimeType: null,
+        configurationVersion: project.configurationVersion + 1,
+      },
+    },
+  );
+  await writeAuditEvent({
+    action: 'project.repository_connected',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: {
+      sourceType: RepositorySourceType.PUBLIC_GIT,
+      fullName: source.fullName,
+      productionBranch,
+      deploymentMode,
+    },
+  });
+  req.flash('success', `Public repository ${source.fullName} connected. Run detection next.`);
+  return res.redirect(`/projects/${project.slug}`);
+}
+
+export const postInspectPublicRepository = asyncHandler(async (req, res) => {
+  try {
+    const source = await inspectPublicGithubRepository(req.body.repositoryUrl ?? '');
+    const branches = await listPublicGithubBranches(source);
+    return res.json({
+      repository: { fullName: source.fullName, defaultBranch: source.defaultBranch },
+      branches: branches.map((branch) => ({ name: branch.name })),
+    });
+  } catch (err) {
+    const code = err instanceof RepositorySourceError ? err.code : 'REPOSITORY_UNAVAILABLE';
+    const message =
+      err instanceof RepositorySourceError
+        ? err.message
+        : 'The public repository could not be checked. Try again.';
+    return res.status(code === 'REPOSITORY_RATE_LIMITED' ? 429 : 400).json({
+      error: { code, message },
+    });
+  }
 });
 
 /**

@@ -7,27 +7,7 @@
   </div>
 </div>
 
-<% if (!githubConfigured) { %>
-<!-- GitHub App not configured on this server -->
-<div class="card">
-  <div class="card__body">
-    <div class="empty-state">
-      <p class="empty-state__title">GitHub integration not available</p>
-      <p class="empty-state__description">
-        The GitHub App is not configured on this server.
-        Contact the platform administrator to enable repository integration.
-      </p>
-      <ul class="empty-state__steps">
-        <li>Ask an administrator to configure the GitHub App credentials.</li>
-        <li>Return here after GitHub integration is enabled.</li>
-        <li>Connect a repository and run detection before deploying.</li>
-      </ul>
-    </div>
-  </div>
-</div>
-
-<% } else if (currentRepo) { %>
-<!-- Repository already connected -->
+<% if (currentRepo) { %>
 <div class="card">
   <div class="card__header">
     <span class="card__title">Connected Repository</span>
@@ -35,22 +15,17 @@
   </div>
   <div class="card__body">
     <dl class="detail-list">
+      <dt>Source</dt>
+      <dd><%= currentRepo.sourceType === 'PUBLIC_GIT' ? 'Public Git repository' : 'GitHub App' %></dd>
       <dt>Repository</dt>
       <dd>
         <code class="code-inline"><%= currentRepo.fullName %></code>
-        <% if (currentRepo.visibility === 'public') { %>
-          <span class="role-pill text-xs">public</span>
-        <% } else { %>
-          <span class="role-pill text-xs">private</span>
-        <% } %>
+        <span class="role-pill text-xs"><%= currentRepo.visibility %></span>
       </dd>
-
       <dt>Production branch</dt>
       <dd><code class="code-inline"><%= project.productionBranch || '—' %></code></dd>
-
       <dt>Default branch</dt>
       <dd><code class="code-inline"><%= currentRepo.defaultBranch %></code></dd>
-
       <% if (currentRepo.lastCommitSha) { %>
       <dt>Latest commit</dt>
       <dd>
@@ -58,10 +33,14 @@
         <span class="text-muted text-sm"><%= currentRepo.lastCommitMessage || '' %></span>
       </dd>
       <% } %>
-
       <dt>Connected</dt>
       <dd class="text-sm text-muted"><%= new Date(currentRepo.connectedAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %></dd>
     </dl>
+    <% if (currentRepo.sourceType === 'PUBLIC_GIT') { %>
+      <p class="form-hint mt-4">
+        Public Git repositories support manual deployments. Connect through the GitHub App to use private repositories or automatic deployments.
+      </p>
+    <% } %>
   </div>
 </div>
 
@@ -72,10 +51,10 @@
     <div class="danger-action">
       <div>
         <strong>Disconnect repository</strong>
-        <p class="text-sm text-muted">This will stop automatic deploys. Existing deployments are not affected.</p>
+        <p class="text-sm text-muted">New deployments will stop. Existing healthy releases and deployment history remain available.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/repository/disconnect"
-            data-confirm="Disconnect <%= currentRepo.fullName %> and stop automatic deploys?"
+            data-confirm="Disconnect <%= currentRepo.fullName %>? New deployments will stop."
             data-confirm-title="Disconnect repository"
             data-confirm-accept-label="Disconnect"
             data-confirm-pending-label="Disconnecting..."
@@ -88,113 +67,117 @@
 </div>
 <% } %>
 
-<% } else if (!locals.installationId) { %>
-<!-- GitHub App not yet installed -->
-<div class="card">
-  <div class="card__body">
-    <div class="empty-state">
-      <p class="empty-state__title">Connect your GitHub account</p>
-      <p class="empty-state__description">
-        Install the HelloDeploy GitHub App to grant repository access.
-        You control exactly which repositories are shared.
-      </p>
-      <ul class="empty-state__steps">
-        <li>Install the GitHub App on your account or organization.</li>
-        <li>Select the repositories HelloDeploy can access.</li>
-        <li>Choose a repository and production branch on this page.</li>
-      </ul>
-      <div class="empty-state__actions">
-        <a href="/github/connect?project=<%= project.slug %>" class="button button--primary">
-          Install GitHub App
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
-<% } else if (!repos || repos.length === 0) { %>
-<!-- Installed but no repos accessible -->
-<div class="card">
-  <div class="card__body">
-    <div class="empty-state">
-      <p class="empty-state__title">No repositories found</p>
-      <p class="empty-state__description">
-        The GitHub App is installed but no repositories are accessible.
-        Update your installation to grant access to specific repositories.
-      </p>
-      <ul class="empty-state__steps">
-        <li>Open GitHub App access settings.</li>
-        <li>Grant access to the repository you want to deploy.</li>
-        <li>Return here and select the production branch.</li>
-      </ul>
-      <div class="empty-state__actions">
-        <a href="/github/connect?project=<%= project.slug %>" class="button button--secondary">
-          Update GitHub App access
-        </a>
-      </div>
-    </div>
-  </div>
-</div>
-
 <% } else { %>
-<!-- Repo selection form -->
 <div class="card">
   <div class="card__header">
-    <span class="card__title">Connect a Repository</span>
+    <span class="card__title">Public Git Repository</span>
   </div>
   <div class="card__body">
-    <form method="POST" action="/projects/<%= project.slug %>/repository" id="repoForm">
+    <p class="text-sm text-muted mb-4">
+      Paste a public GitHub repository URL. No GitHub App installation is required. Public URL sources use manual deployments only.
+    </p>
+    <form method="POST" action="/projects/<%= project.slug %>/repository" id="publicRepoForm"
+          <% if (project.deploymentMode === 'AUTOMATIC') { %>
+          data-confirm="Connecting a public repository changes this project to Manual deployment mode. Continue?"
+          data-confirm-title="Switch to Manual deployment"
+          data-confirm-accept-label="Connect and switch"
+          data-confirm-pending-label="Connecting..."
+          data-confirm-variant="warning"
+          <% } %>>
       <%- include('../../partials/csrf-field') %>
-
+      <input type="hidden" name="sourceType" value="PUBLIC_GIT">
       <div class="form-group form-group--floating">
-        <label class="form-label" for="fullName">Repository</label>
-        <select class="form-input" name="fullName" id="fullName" required>
-          <option value="">— choose a repository —</option>
-          <% repos.forEach(repo => { %>
-          <option value="<%= repo.fullName %>"
-                  data-id="<%= repo.id %>"
-                  data-nodeid="<%= repo.nodeId %>"
-                  data-owner="<%= repo.ownerLogin %>"
-                  data-default-branch="<%= repo.defaultBranch %>"
-                  data-visibility="<%= repo.visibility %>"
-                  <% if (locals.values && values.fullName === repo.fullName) { %>selected<% } %>>
-            <%= repo.fullName %>
-            (<%= repo.visibility %>)
-          </option>
-          <% }) %>
-        </select>
-        <% if (locals.errors && errors.fullName) { %>
-          <p class="form-error"><%= errors.fullName %></p>
-        <% } %>
+        <label class="form-label" for="publicRepositoryUrl">Repository URL</label>
+        <input class="form-input" type="url" id="publicRepositoryUrl" name="repositoryUrl"
+               placeholder="https://github.com/owner/repository" autocomplete="url" required>
+        <p class="form-hint">Only public <code>https://github.com/owner/repository</code> URLs are accepted.</p>
       </div>
-
-      <!-- Hidden fields populated by JS when repo is selected -->
-      <input type="hidden" name="githubRepoId" id="githubRepoId">
-      <input type="hidden" name="nodeId" id="nodeId">
-      <input type="hidden" name="ownerLogin" id="ownerLogin">
-      <input type="hidden" name="defaultBranch" id="defaultBranch">
-      <input type="hidden" name="visibility" id="visibility">
-
-      <div class="form-group form-group--floating d-none" id="branchGroup">
-        <label class="form-label" for="productionBranch">Production branch</label>
-        <select class="form-input" name="productionBranch" id="productionBranch" required>
-          <option value="">— choose a branch —</option>
-        </select>
-        <p class="form-hint text-xs text-muted">Pushes to this branch trigger deployments in Automatic mode.</p>
-        <% if (locals.errors && errors.productionBranch) { %>
-          <p class="form-error"><%= errors.productionBranch %></p>
-        <% } %>
-      </div>
-
       <div class="form-actions">
-        <button type="submit" class="button button--primary" id="connectBtn" data-pending-label="Connecting..." disabled>Connect Repository</button>
+        <button type="button" class="button button--secondary" id="publicRepoInspectBtn">Check repository</button>
+      </div>
+      <p class="form-error mt-2" id="publicRepoError" role="alert" tabindex="-1" hidden></p>
+      <p class="text-sm text-muted mt-2" id="publicRepoStatus" aria-live="polite"></p>
+      <div class="form-group form-group--floating d-none" id="publicBranchGroup">
+        <label class="form-label" for="publicProductionBranch">Production branch</label>
+        <select class="form-input" name="productionBranch" id="publicProductionBranch" required disabled>
+          <option value="">— check a repository first —</option>
+        </select>
+      </div>
+      <div class="form-actions">
+        <button type="submit" class="button button--primary" id="publicConnectBtn" data-pending-label="Connecting..." disabled>Connect Public Repository</button>
         <a href="/projects/<%= project.slug %>" class="button button--ghost">Cancel</a>
       </div>
     </form>
   </div>
 </div>
 
-<a href="/github/connect?project=<%= project.slug %>" class="text-sm text-muted d-block mt-4">
-  Don't see your repository? Update GitHub App access
-</a>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Connect GitHub</span>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Use the GitHub App for private repository access and automatic deployments from your production branch.
+    </p>
+    <% if (!githubConfigured) { %>
+      <div class="empty-state">
+        <p class="empty-state__title">GitHub App integration is unavailable</p>
+        <p class="empty-state__description">Public repositories can still be connected above. Ask the platform administrator to configure the GitHub App for private repositories.</p>
+      </div>
+    <% } else if (!locals.installationId) { %>
+      <div class="empty-state">
+        <p class="empty-state__title">Authorize private repository access</p>
+        <p class="empty-state__description">Install the GitHub App and choose the repositories you want to share with HelloDeploy.</p>
+        <div class="empty-state__actions">
+          <a href="/github/connect?project=<%= project.slug %>" class="button button--primary">Install GitHub App</a>
+        </div>
+      </div>
+    <% } else if (!repos || repos.length === 0) { %>
+      <div class="empty-state">
+        <p class="empty-state__title">No authorized repositories found</p>
+        <p class="empty-state__description">Update the GitHub App installation and grant access to the repository you want to deploy.</p>
+        <div class="empty-state__actions">
+          <a href="/github/connect?project=<%= project.slug %>" class="button button--secondary">Update GitHub App access</a>
+        </div>
+      </div>
+    <% } else { %>
+      <form method="POST" action="/projects/<%= project.slug %>/repository" id="repoForm">
+        <%- include('../../partials/csrf-field') %>
+        <input type="hidden" name="sourceType" value="GITHUB_APP">
+        <div class="form-group form-group--floating">
+          <label class="form-label" for="fullName">Repository</label>
+          <select class="form-input" name="fullName" id="fullName" required>
+            <option value="">— choose a repository —</option>
+            <% repos.forEach(repo => { %>
+            <option value="<%= repo.fullName %>"
+                    data-id="<%= repo.id %>"
+                    data-nodeid="<%= repo.nodeId %>"
+                    data-owner="<%= repo.ownerLogin %>"
+                    data-default-branch="<%= repo.defaultBranch %>"
+                    data-visibility="<%= repo.visibility %>">
+              <%= repo.fullName %> (<%= repo.visibility %>)
+            </option>
+            <% }) %>
+          </select>
+        </div>
+        <input type="hidden" name="githubRepoId" id="githubRepoId">
+        <input type="hidden" name="nodeId" id="nodeId">
+        <input type="hidden" name="ownerLogin" id="ownerLogin">
+        <input type="hidden" name="defaultBranch" id="defaultBranch">
+        <input type="hidden" name="visibility" id="visibility">
+        <div class="form-group form-group--floating d-none" id="branchGroup">
+          <label class="form-label" for="productionBranch">Production branch</label>
+          <select class="form-input" name="productionBranch" id="productionBranch" required>
+            <option value="">— choose a branch —</option>
+          </select>
+          <p class="form-hint">Pushes to this branch can trigger deployments in Automatic mode.</p>
+        </div>
+        <div class="form-actions">
+          <button type="submit" class="button button--primary" id="connectBtn" data-pending-label="Connecting..." disabled>Connect GitHub Repository</button>
+        </div>
+      </form>
+      <a href="/github/connect?project=<%= project.slug %>" class="text-sm text-muted d-block mt-4">Don't see your repository? Update GitHub App access</a>
+    <% } %>
+  </div>
+</div>
 <% } %>

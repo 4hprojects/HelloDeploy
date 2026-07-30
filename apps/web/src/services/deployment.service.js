@@ -6,11 +6,13 @@ import {
   JobType,
   AuditOutcome,
   ProjectStatus,
+  RepositorySourceType,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
+import { getPublicGithubLatestCommit } from './github.service.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
@@ -178,7 +180,36 @@ export async function createDeployment({
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
   }
 
-  const targetCommitSha = commitShaOverride ?? repo.lastCommitSha;
+  let targetCommitSha = commitShaOverride ?? repo.lastCommitSha;
+  if (repo.sourceType === RepositorySourceType.PUBLIC_GIT) {
+    try {
+      const resolved = await getPublicGithubLatestCommit(
+        repo,
+        commitShaOverride ?? project.productionBranch ?? repo.defaultBranch,
+      );
+      targetCommitSha = resolved.sha;
+      if (!commitShaOverride) {
+        repo.lastCommitSha = resolved.sha;
+        repo.lastCommitMessage = resolved.message;
+        await Repository.updateOne(
+          { _id: repo._id },
+          {
+            $set: {
+              lastCommitSha: resolved.sha,
+              lastCommitMessage: resolved.message,
+              lastCommitAt: resolved.committedAt ?? new Date(),
+              lastAccessCheckedAt: new Date(),
+            },
+          },
+        );
+      }
+    } catch {
+      return {
+        success: false,
+        error: 'The public repository commit could not be verified. Check access and try again.',
+      };
+    }
+  }
   if (!targetCommitSha) {
     return {
       success: false,
@@ -260,7 +291,7 @@ export async function createDeployment({
     metadata: {
       projectId: projectId.toString(),
       sequenceNumber: seqNum,
-      commitSha: repo.lastCommitSha.slice(0, 7),
+      commitSha: targetCommitSha.slice(0, 7),
       triggerType,
     },
   });

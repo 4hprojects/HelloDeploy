@@ -49,7 +49,7 @@ The operator with platform-wide control, including quotas, server operations, po
 
 - Create project draft
 - Assign unique project slug
-- Connect one GitHub repository
+- Connect one public GitHub HTTPS repository or one GitHub App-authorized repository
 - Choose a production branch
 - Detect supported framework
 - Configure build command, start command, output directory, and application port
@@ -63,7 +63,7 @@ The operator with platform-wide control, including quotas, server operations, po
 
 - First deployment requires approval
 - Manual deployment is default
-- Optional automatic deployment for the configured branch
+- Optional automatic deployment for the configured branch when connected through the GitHub App
 - Deploy latest commit
 - Deploy a selected commit when available
 - Redeploy current commit

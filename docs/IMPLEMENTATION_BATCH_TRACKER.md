@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-14T06:49:21+08:00
+Updated: 2026-07-14T14:01:16+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                         |
-| ---------------- | --------------------------------------------- |
-| Overall status   | Live local pilot; productionization pending   |
-| Release progress | `v0.1.4` published from reviewed PR #9        |
-| Current batch    | Priority 1 — Safe In-Place Baseline           |
-| Next action      | Approve foundation-before-normalization order |
-| Release state    | NO-GO for customer application hosting        |
+| Field            | Value                                          |
+| ---------------- | ---------------------------------------------- |
+| Overall status   | Live local pilot; productionization pending    |
+| Release progress | `v0.1.5` published from reviewed PR #10        |
+| Current batch    | Priority 1 — Safe In-Place Baseline            |
+| Next action      | Prepare inactive Docker and service foundation |
+| Release state    | NO-GO for customer application hosting         |
 
-The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web and worker from the repository, local Redis, and a Cloudflare Tunnel that sends dashboard traffic directly to the web process. Public liveness and readiness pass. It does not yet provide the complete production application-hosting plane: Docker, isolated HelloDeploy service identities, systemd units, the constrained Nginx helper, the application route directory, and wildcard application ingress are absent. The public session cookie also omits `Secure`. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
+The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web from reviewed `v0.1.5` under a temporary PM2/Node.js 24 pilot identity, uses local Redis, and exposes the dashboard through a Cloudflare Tunnel that connects directly to the web process. Public liveness, readiness, security headers, and the strict production session-cookie contract pass. The combined PM2 web/worker entry is stopped and the worker remains intentionally offline because the constrained Nginx helper and Docker plane are not installed. The host does not yet provide isolated HelloDeploy systemd identities, the application route directory, or wildcard application ingress. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
 
 ## Status Legend
 
@@ -72,7 +72,9 @@ These groups order the remaining batches by dependency and identify work that ca
 
 **Local and CI evidence:** Preflight and installation now reject Ubuntu 26.04 by default and require separate explicit acknowledgments. The shared classifier keeps 22.04/24.04 supported, labels 26.04 candidate, and rejects other releases. On the pilot, default preflight reports three blockers; candidate acknowledgment clears only the OS row and leaves both missing Docker checks failed. The read-only baseline command reports only bounded platform, release, prerequisite, service, identity, routing, health, and blocker fields. Its first pilot run confirmed healthy local endpoints and the previously recorded missing Docker, identities, units, helper, managed routes, and wildcard ingress. The pilot-backup path requires clean immutable state, exactly one verified database evidence mode, required active configurations, root-owned private rollback instructions and destination, and an exact GPG fingerprint. A local export must be nonempty, root-owned, private, outside the repository, and match its private checksum. The verifier uses a fixed member/checksum allowlist, rejects duplicates and link/device members, checks every payload checksum without restoring, and requires the database member to match the manifest mode. Static and functional malicious-archive tests pass. The encrypted emergency pilot artifact passed remount checksum verification, recovery-media checksum verification, actual recovery-key decryption, the bounded archive inventory, and every internal checksum. This same-host retrieval proof supports recovery from a failed normalization but is not cross-host restoration and does not replace the required post-normalization final baseline or authorize the prepare-only installer by itself.
 
-The current PM2 web and worker processes started before several later checkout changes, so the active runtime is not attributable to the current checkout or a single reviewed tag. PR #9 corrected the public-key-only packet check, passed Node.js 22 CI, merged at `4c27b68e7e123e19064545205e2983badda69a81`, and was published as annotated tag `v0.1.4`. The root-installed reviewed command then created the emergency artifact and its fixed checksum; remount and temporary recovery-key verification passed, and both media were closed cleanly afterward. The active dashboard remained healthy locally and publicly throughout. A value-safe production validation then failed for two bounded reasons: the web integration lacks `GITHUB_APP_NAME`, and the worker correctly requires the constrained local Nginx helper policy in production. Source inspection confirmed that a production worker synchronously validates the helper during startup, so full runtime normalization cannot precede helper preparation as previously ordered. No gate is weakened automatically: the proposed amendment is verified emergency capture, prepare-only Docker/identities/units, separately authorized helper activation with the deployment queue paused, controlled Node.js 22 normalization, secure-cookie validation, and a second final baseline capture before traffic cutover or application deployment. This sequencing change requires explicit approval. Cross-host restoration remains blocked.
+PR #9 corrected the public-key-only packet check, passed Node.js 22 CI, merged at `4c27b68e7e123e19064545205e2983badda69a81`, and was published as annotated tag `v0.1.4`. The root-installed reviewed command then created the emergency artifact and its fixed checksum; remount and temporary recovery-key verification passed, and both media were closed cleanly afterward. PR #10 added the bounded terminal-only verifier and recorded the approved foundation-before-normalization sequence; it passed Node.js 22 CI, merged at `c16f33db2ca57147d266d9a0ae30cab22971030d`, and was published as annotated tag `v0.1.5`.
+
+After a later PM2 reload picked up the production-enforcing start scripts, the combined pilot entry crash-looped because the reviewed worker correctly rejected missing Nginx-helper policy. The entry was stopped after 970 restart attempts. The GitHub App slug, numeric identity, and newest downloaded private key were verified against GitHub without recording identifiers or key material; the protected key was installed with mode `0640`. A separate web-only PM2 pilot then started from the clean `v0.1.5` checkout and passed production web validation, local/public health and readiness, expected asset checks, HSTS, CSP, and `Secure; HttpOnly; SameSite=Strict` with zero restarts. This restores the dashboard and closes the cookie gate, but it is not Node.js 22 or service-identity normalization and the worker remains offline. The next authorized step is prepare-only Docker/identities/units, followed by queue control, helper validation, isolated candidate activation, and a second final baseline capture. Cross-host restoration remains blocked.
 
 ### Priority 1 — Production Service Foundation
 
@@ -189,7 +191,7 @@ git status --short
 
 ### Tasks
 
-- [ ] Complete and verify GitHub App configuration, including `GITHUB_APP_NAME`.
+- [x] Complete and verify GitHub App configuration, including `GITHUB_APP_NAME`.
 - [x] Select and document the production routing mode.
 - [x] Align `.env.example`, environment documentation, setup output, and runtime validation.
 - [x] Clearly distinguish blocking configuration from optional integrations.
@@ -204,7 +206,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. On the pilot, the dashboard tunnel currently bypasses Nginx, wildcard ingress is absent, and the value-safe public checker fails the missing `Secure` attribute. Complete GitHub App proof, production-unit startup, shared-service connectivity, ingress cutover, and service-identity evidence remain blockers.
+**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. The configured GitHub App identity and protected key passed an authenticated app-identity request, and the web-only pilot passes production configuration. The public checker now passes the strict session-cookie contract. The worker still fails closed until the constrained Nginx helper is installed, while production-unit startup, ingress cutover, and service-identity evidence remain blockers.
 
 ## Batch 4 — Health and Graceful Shutdown
 

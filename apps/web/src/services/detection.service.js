@@ -1,5 +1,5 @@
 import { Project, Repository } from '@hellodeploy/database';
-import { RuntimeType, AuditOutcome } from '@hellodeploy/contracts';
+import { RuntimeType, AuditOutcome, RepositorySourceType } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
 
@@ -209,12 +209,42 @@ const FILES_TO_FETCH = [
   'next.config.mjs',
   'next.config.ts',
 ];
+const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
+const DETECTION_RESPONSE_MAX_BYTES = 750_000;
+
+async function readBoundedDetectionResponse(res, path) {
+  const declaredLength = Number.parseInt(res.headers.get('content-length') ?? '0', 10);
+  if (declaredLength > DETECTION_RESPONSE_MAX_BYTES) {
+    throw new Error(`GitHub API response too large for ${path}`);
+  }
+  const chunks = [];
+  let receivedBytes = 0;
+  const reader = res.body?.getReader();
+  if (!reader) {
+    return res.text();
+  }
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    receivedBytes += value.byteLength;
+    if (receivedBytes > DETECTION_RESPONSE_MAX_BYTES) {
+      await reader.cancel();
+      throw new Error(`GitHub API response too large for ${path}`);
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks).toString('utf8');
+}
 
 async function fetchGithubFile(token, owner, repo, path, ref) {
   const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
+    redirect: 'error',
+    signal: AbortSignal.timeout(DETECTION_REQUEST_TIMEOUT_MS),
     headers: {
-      Authorization: `Bearer ${token}`,
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       Accept: 'application/vnd.github+json',
       'X-GitHub-Api-Version': '2022-11-28',
       'User-Agent': 'hellodeploy',
@@ -226,7 +256,8 @@ async function fetchGithubFile(token, owner, repo, path, ref) {
   if (!res.ok) {
     throw new Error(`GitHub API error fetching ${path}: ${res.status}`);
   }
-  const data = await res.json();
+  const responseText = await readBoundedDetectionResponse(res, path);
+  const data = JSON.parse(responseText);
   // Directories return an array — treat as missing
   if (Array.isArray(data)) {
     return null;
@@ -263,6 +294,22 @@ export async function fetchProjectFiles(installationId, fullName, ref) {
       logger.warn('Detection: failed to fetch file', { path, error: result.reason?.message });
       files[path] = null;
     }
+  });
+  return files;
+}
+
+export async function fetchProjectFilesForRepository(repository, ref) {
+  const token =
+    repository.sourceType === RepositorySourceType.PUBLIC_GIT
+      ? null
+      : await getInstallationToken(repository.installationId);
+  const [owner, repo] = repository.fullName.split('/');
+  const results = await Promise.allSettled(
+    FILES_TO_FETCH.map((path) => fetchGithubFile(token, owner, repo, path, ref)),
+  );
+  const files = {};
+  FILES_TO_FETCH.forEach((path, index) => {
+    files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
   });
   return files;
 }
@@ -305,7 +352,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
 
   let files;
   try {
-    files = await fetchProjectFiles(repo.installationId, repo.fullName, ref);
+    files = await fetchProjectFilesForRepository(repo, ref);
   } catch (err) {
     logger.warn('Detection: GitHub fetch failed', { projectId, error: err.message });
     return {
@@ -314,7 +361,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
       issues: [
         {
           level: 'ERROR',
-          message: `Could not retrieve repository files from GitHub: ${err.message}`,
+          message: 'Could not retrieve repository files from GitHub. Check access and try again.',
         },
       ],
     };

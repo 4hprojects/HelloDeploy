@@ -182,6 +182,11 @@ describe('brute-force protection — rate limit behaviour', () => {
 
   it('fails closed when the Redis rate-limit store errors', () => {
     const failClosedCount = (rateLimitSource.match(/passOnStoreError: false/g) || []).length;
-    assert.equal(failClosedCount, 7, 'each production limiter should fail closed on store errors');
+    assert.equal(failClosedCount, 8, 'each production limiter should fail closed on store errors');
+    assert.match(
+      rateLimitSource,
+      /export const repositoryInspectLimiter = rateLimit\([\s\S]*?passOnStoreError: false/,
+      'public repository inspection must be rate-limited and fail closed on store errors',
+    );
   });
 });

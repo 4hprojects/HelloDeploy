@@ -82,7 +82,10 @@ Unique compound index on `projectId + userId`.
 
 - `_id`
 - `projectId`
-- GitHub installation and repository identifiers
+- `sourceType`: `GITHUB_APP | PUBLIC_GIT`
+- `provider`: initially `GITHUB`
+- Canonical credential-free clone URL for Public Git
+- Conditional GitHub installation and repository identifiers for GitHub App sources
 - Repository full name
 - Default and selected branches
 - Visibility
@@ -223,6 +226,7 @@ Use bounded retention or aggregation.
 - `GET /github/installations`
 - `GET /github/repositories`
 - `POST /github/webhooks`
+- `POST /projects/:id/repository/inspect`
 - `POST /projects/:id/repository`
 
 ### Deployments

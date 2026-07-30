@@ -1,6 +1,10 @@
 import { spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
 import { logger } from '@hellodeploy/observability';
+import { normalizePublicGithubRepositoryUrl } from '@hellodeploy/contracts';
+
+const GIT_TIMEOUT_MS = 120_000;
+const GIT_OUTPUT_MAX_BYTES = 1_000_000;
 
 // ─── Git runner ────────────────────────────────────────────────────────────────
 
@@ -22,10 +26,36 @@ function runGit(args, opts = {}) {
 
     const out = [];
     const err = [];
-    proc.stdout.on('data', (d) => out.push(d));
-    proc.stderr.on('data', (d) => err.push(d));
+    let outputBytes = 0;
+    let limitExceeded = false;
+    let timedOut = false;
+    const collect = (target) => (data) => {
+      outputBytes += data.length;
+      if (outputBytes > GIT_OUTPUT_MAX_BYTES) {
+        limitExceeded = true;
+        proc.kill('SIGKILL');
+        return;
+      }
+      target.push(data);
+    };
+    proc.stdout.on('data', collect(out));
+    proc.stderr.on('data', collect(err));
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      proc.kill('SIGKILL');
+    }, GIT_TIMEOUT_MS);
+    timeout.unref();
 
     proc.on('close', (code) => {
+      clearTimeout(timeout);
+      if (timedOut) {
+        reject(new Error('git operation timed out'));
+        return;
+      }
+      if (limitExceeded) {
+        reject(new Error('git output limit exceeded'));
+        return;
+      }
       if (code === 0) {
         resolve(Buffer.concat(out).toString('utf8').trim());
       } else {
@@ -89,4 +119,48 @@ export async function cloneExactCommit({
   await rm(`${workDir}/.git`, { recursive: true, force: true });
 
   logger.info('Git: clone complete', { sha: commitSha.slice(0, 7), workDir });
+}
+
+/** Clone an exact commit from an allowlisted public GitHub repository. */
+export async function clonePublicExactCommit({ ownerLogin, repoName, commitSha, workDir }) {
+  let source;
+  try {
+    source = normalizePublicGithubRepositoryUrl(`https://github.com/${ownerLogin}/${repoName}`);
+  } catch {
+    throw new Error('Invalid public repository clone parameters.');
+  }
+  if (
+    source.ownerLogin !== ownerLogin ||
+    source.name !== repoName ||
+    !/^[a-f0-9]{40}$/.test(commitSha)
+  ) {
+    throw new Error('Invalid public repository clone parameters.');
+  }
+  await mkdir(workDir, { recursive: true });
+  const cloneUrl = source.canonicalCloneUrl;
+  const publicGitEnv = {
+    GIT_CONFIG_NOSYSTEM: '1',
+    GIT_CONFIG_COUNT: '1',
+    GIT_CONFIG_KEY_0: 'credential.helper',
+    GIT_CONFIG_VALUE_0: '',
+  };
+  logger.info('Git: initializing public clone', {
+    repository: `${ownerLogin}/${repoName}`,
+    sha: commitSha.slice(0, 7),
+    workDir,
+  });
+  await runGit(['init', workDir], { env: publicGitEnv });
+  await runGit(['remote', 'add', 'origin', cloneUrl], { cwd: workDir, env: publicGitEnv });
+  try {
+    await runGit(['fetch', '--depth', '1', 'origin', commitSha], {
+      cwd: workDir,
+      env: publicGitEnv,
+    });
+  } catch {
+    await runGit(['fetch', '--depth', '50', 'origin'], { cwd: workDir, env: publicGitEnv });
+  }
+  await runGit(['checkout', commitSha], { cwd: workDir, env: publicGitEnv });
+  await runGit(['remote', 'remove', 'origin'], { cwd: workDir, env: publicGitEnv });
+  await rm(`${workDir}/.git`, { recursive: true, force: true });
+  logger.info('Git: public clone complete', { sha: commitSha.slice(0, 7), workDir });
 }

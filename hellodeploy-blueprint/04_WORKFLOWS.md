@@ -19,9 +19,9 @@ Controls:
 
 1. User creates a project name and slug.
 2. System verifies ownership quota and slug availability.
-3. User installs or authorizes the GitHub App.
-4. User selects a repository and production branch.
-5. System retrieves repository metadata and latest commit.
+3. User either enters a public GitHub HTTPS URL or installs/authorizes the GitHub App for private or Automatic access.
+4. User selects a server-verified repository and production branch.
+5. System retrieves normalized public metadata without credentials or obtains short-lived authorized metadata through the GitHub App, then resolves the latest exact commit.
 6. Framework detector proposes configuration.
 7. User supplies required settings and secret names/values.
 8. System reserves `project-slug.apps.hellodeploy.online`.
@@ -53,7 +53,7 @@ Controls:
 
 ## Automatic Deployment
 
-1. GitHub sends a signed push webhook.
+1. An authorized GitHub App source sends a signed push webhook; Public Git sources cannot enable Automatic mode.
 2. API verifies signature, installation, repository, and delivery uniqueness.
 3. If the push is not for the production branch, record it without deployment.
 4. If automatic deployment is disabled, update the available-commit indicator.

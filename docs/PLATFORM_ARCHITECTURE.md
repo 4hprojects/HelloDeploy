@@ -96,7 +96,7 @@ This state proves a publicly reachable dashboard pilot. It does not prove that H
 
 ## Deployment Lifecycle
 
-1. A verified user creates a project and connects a GitHub repository through the GitHub App.
+1. A verified user creates a project and either connects a public GitHub HTTPS source without credentials or authorizes a repository through the GitHub App. Private sources and Automatic deployment require the app.
 2. HelloDeploy detects the runtime and validates the build, start, output, port, filter, and health settings.
 3. The Owner stores environment variables; values are encrypted before persistence and omitted from ordinary settings pages and logs.
 4. After required approval, an Owner or Maintainer requests a deployment, or an eligible signed push webhook creates one.

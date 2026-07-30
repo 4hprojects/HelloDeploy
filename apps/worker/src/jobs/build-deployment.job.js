@@ -1,11 +1,11 @@
 import { join } from 'node:path';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
-import { DeploymentStatus, JobType } from '@hellodeploy/contracts';
+import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import { getInstallationToken } from '../git/github-token.js';
-import { cloneExactCommit } from '../git/clone.js';
+import { cloneExactCommit, clonePublicExactCommit } from '../git/clone.js';
 import { prepareBuildContext } from '../deployment/build-context.js';
 import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
@@ -35,6 +35,7 @@ async function enqueueActivateRelease(payload, jobId) {
 const defaultDeps = {
   getInstallationToken,
   cloneExactCommit,
+  clonePublicExactCommit,
   prepareBuildContext,
   writeDockerfile,
   buildDockerImage,
@@ -116,33 +117,41 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   // ── Clone ───────────────────────────────────────────────────────────────────
-  let installationToken;
   try {
-    installationToken = await deps.getInstallationToken(repo.installationId);
-  } catch {
-    await logEvent(
-      deploymentId,
-      'VALIDATE',
-      'ERROR',
-      'Failed to obtain GitHub token.',
-      correlationId,
-    );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'GITHUB_TOKEN_FAILED',
-      failureSummary: 'Could not obtain GitHub installation token.',
-      completedAt: new Date(),
-    });
-    return;
-  }
-
-  try {
-    await deps.cloneExactCommit({
-      installationToken,
-      ownerLogin: repo.ownerLogin,
-      repoName: repo.name,
-      commitSha,
-      workDir,
-    });
+    if (repo.sourceType === RepositorySourceType.PUBLIC_GIT) {
+      await deps.clonePublicExactCommit({
+        ownerLogin: repo.ownerLogin,
+        repoName: repo.name,
+        commitSha,
+        workDir,
+      });
+    } else {
+      let installationToken;
+      try {
+        installationToken = await deps.getInstallationToken(repo.installationId);
+      } catch {
+        await logEvent(
+          deploymentId,
+          'VALIDATE',
+          'ERROR',
+          'Failed to obtain GitHub token.',
+          correlationId,
+        );
+        await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+          failureCode: 'GITHUB_TOKEN_FAILED',
+          failureSummary: 'Could not obtain GitHub installation token.',
+          completedAt: new Date(),
+        });
+        return;
+      }
+      await deps.cloneExactCommit({
+        installationToken,
+        ownerLogin: repo.ownerLogin,
+        repoName: repo.name,
+        commitSha,
+        workDir,
+      });
+    }
     await logEvent(
       deploymentId,
       'VALIDATE',

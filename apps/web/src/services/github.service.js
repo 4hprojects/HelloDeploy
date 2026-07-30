@@ -2,6 +2,161 @@ import { createSign, createHmac, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { env } from '../config/env.js';
 import { logger } from '@hellodeploy/observability';
+import { normalizePublicGithubRepositoryUrl, RepositorySourceError } from '@hellodeploy/contracts';
+
+const PUBLIC_GITHUB_TIMEOUT_MS = 10_000;
+const PUBLIC_GITHUB_MAX_RESPONSE_BYTES = 1_000_000;
+
+function isSafeBranchName(value) {
+  return (
+    typeof value === 'string' &&
+    value.length > 0 &&
+    value.length <= 255 &&
+    ![...value].some((character) => {
+      const code = character.charCodeAt(0);
+      return code <= 31 || code === 127;
+    })
+  );
+}
+
+async function readBoundedJson(res) {
+  const declaredLength = Number.parseInt(res.headers.get('content-length') ?? '0', 10);
+  if (declaredLength > PUBLIC_GITHUB_MAX_RESPONSE_BYTES) {
+    throw new RepositorySourceError('REPOSITORY_UNAVAILABLE', 'Repository response was too large.');
+  }
+  const chunks = [];
+  let receivedBytes = 0;
+  const reader = res.body?.getReader();
+  if (reader) {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) {
+        break;
+      }
+      receivedBytes += value.byteLength;
+      if (receivedBytes > PUBLIC_GITHUB_MAX_RESPONSE_BYTES) {
+        await reader.cancel();
+        throw new RepositorySourceError(
+          'REPOSITORY_UNAVAILABLE',
+          'Repository response was too large.',
+        );
+      }
+      chunks.push(Buffer.from(value));
+    }
+  }
+  const text = reader ? Buffer.concat(chunks).toString('utf8') : await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      'GitHub returned an invalid response.',
+    );
+  }
+}
+
+async function fetchPublicGithub(path) {
+  let res;
+  try {
+    res = await fetch(`https://api.github.com${path}`, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(PUBLIC_GITHUB_TIMEOUT_MS),
+      headers: {
+        Accept: 'application/vnd.github+json',
+        'X-GitHub-Api-Version': '2022-11-28',
+        'User-Agent': 'hellodeploy',
+      },
+    });
+  } catch {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      'The repository could not be checked. Try again.',
+    );
+  }
+  if (res.status === 404) {
+    throw new RepositorySourceError(
+      'REPOSITORY_NOT_PUBLIC',
+      'The repository was not found or is not public. Connect GitHub for private repositories.',
+    );
+  }
+  if (res.status === 403 && res.headers.get('x-ratelimit-remaining') === '0') {
+    throw new RepositorySourceError(
+      'REPOSITORY_RATE_LIMITED',
+      'GitHub public repository checks are temporarily limited. Try again later.',
+    );
+  }
+  if (!res.ok) {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      'The repository could not be checked. Try again.',
+    );
+  }
+  return readBoundedJson(res);
+}
+
+export async function inspectPublicGithubRepository(repositoryUrl) {
+  const normalized = normalizePublicGithubRepositoryUrl(repositoryUrl);
+  const data = await fetchPublicGithub(
+    `/repos/${encodeURIComponent(normalized.ownerLogin)}/${encodeURIComponent(normalized.name)}`,
+  );
+  if (data.private || data.visibility === 'private') {
+    throw new RepositorySourceError(
+      'REPOSITORY_NOT_PUBLIC',
+      'The repository is private. Connect GitHub to authorize access.',
+    );
+  }
+  return {
+    ...normalized,
+    githubRepoId: Number.isSafeInteger(data.id) ? data.id : null,
+    nodeId: typeof data.node_id === 'string' ? data.node_id : null,
+    defaultBranch: typeof data.default_branch === 'string' ? data.default_branch : 'main',
+    visibility: 'public',
+  };
+}
+
+export async function listPublicGithubBranches(source) {
+  const data = await fetchPublicGithub(
+    `/repos/${encodeURIComponent(source.ownerLogin)}/${encodeURIComponent(source.name)}/branches?per_page=100`,
+  );
+  if (!Array.isArray(data)) {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      'GitHub returned an invalid response.',
+    );
+  }
+  return data
+    .filter((branch) => isSafeBranchName(branch?.name))
+    .map((branch) => ({ name: branch.name, sha: branch.commit?.sha ?? null }));
+}
+
+export async function getPublicGithubLatestCommit(source, branch) {
+  if (!isSafeBranchName(branch)) {
+    throw new RepositorySourceError('BRANCH_NOT_FOUND', 'Select a valid repository branch.');
+  }
+  let data;
+  try {
+    data = await fetchPublicGithub(
+      `/repos/${encodeURIComponent(source.ownerLogin)}/${encodeURIComponent(source.name)}/commits/${encodeURIComponent(branch)}`,
+    );
+  } catch (err) {
+    if (err.code === 'REPOSITORY_NOT_PUBLIC') {
+      throw new RepositorySourceError('BRANCH_NOT_FOUND', 'The selected branch was not found.');
+    }
+    throw err;
+  }
+  if (typeof data.sha !== 'string' || !/^[a-f0-9]{40}$/i.test(data.sha)) {
+    throw new RepositorySourceError('BRANCH_NOT_FOUND', 'The selected branch was not found.');
+  }
+  const committedAt = data.commit?.author?.date ? new Date(data.commit.author.date) : null;
+  return {
+    sha: data.sha.toLowerCase(),
+    message: String(data.commit?.message ?? '')
+      .split('\n')[0]
+      .slice(0, 200),
+    authorName: data.commit?.author?.name ?? 'Unknown',
+    committedAt: committedAt && !Number.isNaN(committedAt.getTime()) ? committedAt : null,
+  };
+}
 
 // ─── Private key loading ───────────────────────────────────────────────────────
 

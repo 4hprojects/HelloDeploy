@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
 import { Deployment } from '@hellodeploy/database';
-import { DeploymentStatus } from '@hellodeploy/contracts';
+import { DeploymentStatus, RepositorySourceType } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment, createRepository } from '../helpers/worker-fixtures.js';
 
@@ -11,10 +11,21 @@ const { handleBuildDeployment } =
 
 /** All boundaries succeed; every call is recorded for behavioral assertions. */
 function makeDeps(overrides = {}) {
-  const calls = { builds: [], removedImages: [], cleanedWorkspaces: [], enqueued: [] };
+  const calls = {
+    builds: [],
+    removedImages: [],
+    cleanedWorkspaces: [],
+    enqueued: [],
+    publicClones: [],
+    tokenRequests: 0,
+  };
   const deps = {
-    getInstallationToken: async () => 'ghs_test-token',
+    getInstallationToken: async () => {
+      calls.tokenRequests += 1;
+      return 'ghs_test-token';
+    },
     cloneExactCommit: async () => {},
+    clonePublicExactCommit: async (opts) => calls.publicClones.push(opts),
     prepareBuildContext: async () => {},
     writeDockerfile: async () => {},
     buildDockerImage: async (opts) => calls.builds.push(opts),
@@ -155,6 +166,24 @@ describe('build-deployment job', () => {
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.failureCode, 'CLONE_FAILED');
     assert.equal(calls.builds.length, 0);
+  });
+
+  it('clones public sources without requesting an installation token', async () => {
+    const { project, deployment } = await seed();
+    const repo = await createRepository(project._id, {
+      sourceType: RepositorySourceType.PUBLIC_GIT,
+      provider: 'GITHUB',
+      installationId: null,
+      githubRepoId: null,
+      nodeId: null,
+      canonicalCloneUrl: 'https://github.com/owner/repo.git',
+      visibility: 'public',
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.tokenRequests, 0);
+    assert.equal(calls.publicClones.length, 1);
+    assert.equal(calls.publicClones[0].repoName, 'repo');
   });
 
   it('marks REPO_ACCESS_REVOKED when the repository is revoked', async () => {

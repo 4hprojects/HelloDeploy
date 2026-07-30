@@ -75,6 +75,14 @@ Apply at minimum:
 - Deduplicate webhook delivery IDs.
 - Confirm repository and installation ownership for every event.
 
+## Public Git Source Security
+
+- Accept only canonical `https://github.com/owner/repository[.git]` URLs without credentials, ports, queries, fragments, encoded separators, or redirects.
+- Reconstruct clone URLs from validated owner and repository components instead of trusting persisted arbitrary URLs.
+- Use bounded public metadata responses and timeouts, and never send GitHub App credentials on the public inspection path.
+- Disable ambient Git credential helpers and terminal prompts, fetch an exact commit, and remove Git metadata after cloning.
+- Restrict Automatic deployment to authenticated GitHub App sources.
+
 ## Domain Security
 
 - Normalize hostnames using a trusted parser.

@@ -45,17 +45,15 @@ The slug is used for the platform subdomain. For example, a project with slug `m
 
 New projects start as drafts. A draft must be configured and submitted for review before it can deploy.
 
-## Connect GitHub
+## Connect a Repository
 
 1. Open the project.
 2. Go to **Repository**.
-3. Select **Connect Repository**.
-4. Install or authorize the HelloDeploy GitHub App when prompted.
-5. Choose the repository.
-6. Choose the production branch.
-7. Save the repository connection.
+3. For a public GitHub repository, paste its HTTPS URL, select **Check repository**, choose a verified branch, and connect it. This path does not require GitHub App installation and supports Manual or Approval Required deployment.
+4. For a private repository or Automatic deployment, select **Connect GitHub**, install or authorize the HelloDeploy GitHub App, choose an authorized repository, and choose the production branch.
+5. Save the repository connection, then run Detection before deploying.
 
-HelloDeploy stores repository identifiers and installation details. It should not store personal access tokens.
+HelloDeploy stores canonical source metadata. GitHub App sources retain installation identifiers; Public Git sources retain no repository credential. HelloDeploy does not ask for personal access tokens or accept credentials embedded in repository URLs.
 
 ## Run Detection
 

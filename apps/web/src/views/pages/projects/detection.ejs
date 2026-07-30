@@ -1,6 +1,6 @@
 <div class="page-header page-header--actions">
   <div>
-    <h1 class="page-header__title">Project Detection</h1>
+    <h1 class="page-header__title">Check App Setup</h1>
     <p class="page-header__subtitle text-muted text-sm">
       <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
     </p>
@@ -13,12 +13,12 @@
     <div class="empty-state">
       <p class="empty-state__title">No repository connected</p>
       <p class="empty-state__description">
-        Connect a GitHub repository before running detection.
+        Connect the GitHub repository that contains your app before checking its setup.
       </p>
       <ul class="empty-state__steps">
         <li>Connect the repository that contains this application.</li>
         <li>Choose the production branch HelloDeploy should watch.</li>
-        <li>Run detection to identify runtime, build command, and port.</li>
+        <li>Let HelloDeploy work out how to build and run the app.</li>
       </ul>
       <div class="empty-state__actions">
         <a href="/projects/<%= project.slug %>/repository" class="button button--primary">
@@ -29,284 +29,230 @@
   </div>
 </div>
 <% } else { %>
+<%
+  const runtimeLabels = {
+    STATIC: 'Static website',
+    REACT: 'React app',
+    VUE: 'Vue app',
+    NEXTJS: 'Next.js app',
+    EXPRESS: 'Express app',
+    NODEJS: 'Node.js app',
+    UNKNOWN: 'App type not recognized',
+  };
+  const bc = project.buildConfiguration || {};
+  const bcErrors = locals.bcErrors || {};
+  const bcValues = locals.bcValues || null;
+  const bf = project.buildFilters || {};
+  const bfErrors = locals.bfErrors || {};
+  const bfValues = locals.bfValues || null;
+  const hasBuildErrors = Object.keys(bcErrors).length > 0;
+  const hasFilterErrors = Object.keys(bfErrors).length > 0;
+  const needsDetectedBuild = ['REACT', 'VUE', 'NEXTJS'].includes(project.runtimeType);
+  const needsDetectedStart = ['EXPRESS', 'NODEJS'].includes(project.runtimeType);
+  const hasBlockingConfigurationGap =
+    project.runtimeType === 'UNKNOWN' ||
+    (needsDetectedBuild && !bc.buildCommand) ||
+    (needsDetectedStart && !bc.startCommand);
+  const hasBeenChecked = Boolean(project.runtimeType);
+  const latestDetectionResult = locals.detectionResult && detectionResult;
+  const isReady = latestDetectionResult
+    ? latestDetectionResult.isValid
+    : hasBeenChecked && !hasBlockingConfigurationGap;
+  const checkState = !hasBeenChecked
+    ? { label: 'Not checked', modifier: 'pending', description: 'HelloDeploy has not checked this repository yet.' }
+    : isReady
+      ? { label: 'Ready to deploy', modifier: 'ready', description: 'HelloDeploy found the settings it needs. You usually do not need to change anything.' }
+      : { label: 'Needs attention', modifier: 'attention', description: 'One or more setup details need to be fixed before this app can deploy.' };
+%>
 
-<!-- Current state -->
-<div class="card">
-  <div class="card__header">
-    <span class="card__title">Runtime Configuration</span>
-  </div>
+<section class="card detection-summary" aria-labelledby="detection-summary-title">
   <div class="card__body">
-    <dl class="detail-list">
-      <dt>Detected runtime</dt>
-      <dd>
-        <% if (project.runtimeType) { %>
-          <%- include('../../partials/status-badge', { status: project.runtimeType }) %>
-        <% } else { %>
-          <span class="text-muted text-sm">Not yet detected</span>
-        <% } %>
-      </dd>
+    <div class="detection-summary__main">
+      <div>
+        <p class="detection-summary__eyebrow">App setup</p>
+        <h2 class="detection-summary__title" id="detection-summary-title"><%= checkState.label %></h2>
+        <p class="text-sm text-muted mt-1"><%= checkState.description %></p>
+      </div>
+      <span class="detection-state detection-state--<%= checkState.modifier %>">
+        <span class="detection-state__dot" aria-hidden="true"></span>
+        <%= checkState.label %>
+      </span>
+    </div>
 
-      <dt>Repository</dt>
-      <dd><code class="code-inline"><%= repo.fullName %></code></dd>
+    <dl class="detection-summary__details">
+      <div>
+        <dt>App type</dt>
+        <dd><%= runtimeLabels[project.runtimeType] || 'Waiting to be checked' %></dd>
+      </div>
+      <div>
+        <dt>Repository</dt>
+        <dd><code class="code-inline"><%= repo.fullName %></code></dd>
+      </div>
+      <div>
+        <dt>Production branch</dt>
+        <dd><code class="code-inline"><%= project.productionBranch || repo.defaultBranch %></code></dd>
+      </div>
     </dl>
-  </div>
-</div>
 
-<% const bc = project.buildConfiguration || {}; %>
-<div class="card mt-6">
-  <div class="card__header">
-    <span class="card__title">Build &amp; Deploy Configuration</span>
-  </div>
-  <div class="card__body">
     <% if (membership.role === 'OWNER') { %>
-    <p class="text-sm text-muted mb-4">
-      These values override auto-detected settings. Leave a field blank to fall back to detection defaults.
-    </p>
-    <%
-      const bcErrors = locals.bcErrors || {};
-      const bcValues = locals.bcValues || null;
-      const bcVal = (field, fallback) => (bcValues ? (bcValues[field] || '') : (fallback || ''));
-    %>
-    <%- include('../../partials/form-errors', { errors: bcErrors }) %>
-    <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
+    <form class="detection-summary__action" method="POST" action="/projects/<%= project.slug %>/detection">
       <%- include('../../partials/csrf-field') %>
-
-      <div class="form-field form-field--floating">
-        <label for="buildCommand" class="form-label">Build command</label>
-        <input
-          type="text"
-          id="buildCommand"
-          name="buildCommand"
-          class="form-input<%= bcErrors.buildCommand ? ' form-input--error' : '' %>"
-          value="<%= bcVal('buildCommand', bc.buildCommand) %>"
-          maxlength="500"
-          placeholder=" "
-          <% if (bcErrors.buildCommand) { %>aria-describedby="buildCommand-error"<% } %>
-        />
-        <% if (bcErrors.buildCommand) { %>
-        <span id="buildCommand-error" class="form-error" role="alert"><%= bcErrors.buildCommand %></span>
-        <% } %>
-      </div>
-
-      <div class="form-field form-field--floating">
-        <label for="startCommand" class="form-label">Start command</label>
-        <input
-          type="text"
-          id="startCommand"
-          name="startCommand"
-          class="form-input<%= bcErrors.startCommand ? ' form-input--error' : '' %>"
-          value="<%= bcVal('startCommand', bc.startCommand) %>"
-          maxlength="500"
-          placeholder=" "
-          <% if (bcErrors.startCommand) { %>aria-describedby="startCommand-error"<% } %>
-        />
-        <% if (bcErrors.startCommand) { %>
-        <span id="startCommand-error" class="form-error" role="alert"><%= bcErrors.startCommand %></span>
-        <% } %>
-      </div>
-
-      <div class="form-field form-field--floating">
-        <label for="outputDirectory" class="form-label">Output directory</label>
-        <input
-          type="text"
-          id="outputDirectory"
-          name="outputDirectory"
-          class="form-input<%= bcErrors.outputDirectory ? ' form-input--error' : '' %>"
-          value="<%= bcVal('outputDirectory', bc.outputDirectory) %>"
-          maxlength="255"
-          placeholder=" "
-          <% if (bcErrors.outputDirectory) { %>aria-describedby="outputDirectory-error"<% } %>
-        />
-        <% if (bcErrors.outputDirectory) { %>
-        <span id="outputDirectory-error" class="form-error" role="alert"><%= bcErrors.outputDirectory %></span>
-        <% } %>
-      </div>
-
-      <% const isStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(project.runtimeType); %>
-      <% if (isStaticRuntime) { %>
-      <div class="form-field">
-        <span class="form-label">Application port</span>
-        <p class="form-hint">
-          Static sites are served by nginx on a fixed internal port — this setting doesn't apply
-          to <%= project.runtimeType %> projects.
-        </p>
-      </div>
-      <% } else { %>
-      <div class="form-field form-field--floating">
-        <label for="applicationPort" class="form-label">Application port</label>
-        <input
-          type="number"
-          id="applicationPort"
-          name="applicationPort"
-          class="form-input<%= bcErrors.applicationPort ? ' form-input--error' : '' %>"
-          value="<%= bcVal('applicationPort', bc.applicationPort) %>"
-          min="1"
-          max="65535"
-          placeholder=" "
-          <% if (bcErrors.applicationPort) { %>aria-describedby="applicationPort-error"<% } %>
-        />
-        <% if (bcErrors.applicationPort) { %>
-        <span id="applicationPort-error" class="form-error" role="alert"><%= bcErrors.applicationPort %></span>
-        <% } %>
-      </div>
-      <% } %>
-
-      <div class="form-field form-field--floating">
-        <label for="healthCheckPath" class="form-label">Health check path</label>
-        <input
-          type="text"
-          id="healthCheckPath"
-          name="healthCheckPath"
-          class="form-input<%= bcErrors.healthCheckPath ? ' form-input--error' : '' %>"
-          value="<%= bcVal('healthCheckPath', bc.healthCheckPath || '/') %>"
-          maxlength="255"
-          placeholder=" "
-          aria-describedby="<%= bcErrors.healthCheckPath ? 'healthCheckPath-error' : 'healthCheckPath-hint' %>"
-        />
-        <% if (bcErrors.healthCheckPath) { %>
-        <span id="healthCheckPath-error" class="form-error" role="alert"><%= bcErrors.healthCheckPath %></span>
-        <% } else { %>
-        <span id="healthCheckPath-hint" class="form-hint">HTTP path HelloDeploy polls after each deploy to confirm the app is healthy.</span>
-        <% } %>
-      </div>
-
-      <div class="form-actions mt-6">
-        <button type="submit" class="button button--primary">Save Configuration</button>
-      </div>
+      <button type="submit" class="button button--primary" data-pending-label="Checking...">
+        <%= hasBeenChecked ? 'Check again' : 'Check my app' %>
+      </button>
+      <p class="form-hint">Run this again after changing your repository or production branch.</p>
     </form>
-    <% } else { %>
-    <dl class="detail-list">
-      <% if (bc.buildCommand) { %>
-      <dt>Build command</dt>
-      <dd><code class="code-inline"><%= bc.buildCommand %></code></dd>
-      <% } %>
-      <% if (bc.startCommand) { %>
-      <dt>Start command</dt>
-      <dd><code class="code-inline"><%= bc.startCommand %></code></dd>
-      <% } %>
-      <% if (bc.outputDirectory) { %>
-      <dt>Output directory</dt>
-      <dd><code class="code-inline"><%= bc.outputDirectory %></code></dd>
-      <% } %>
-      <% if (bc.applicationPort) { %>
-      <dt>Application port</dt>
-      <dd><code class="code-inline"><%= bc.applicationPort %></code></dd>
-      <% } %>
-      <dt>Health check path</dt>
-      <dd><code class="code-inline"><%= bc.healthCheckPath || '/' %></code></dd>
-    </dl>
     <% } %>
   </div>
-</div>
+</section>
 
-<% const bf = project.buildFilters || {}; %>
-<div class="card mt-6">
-  <div class="card__header">
-    <span class="card__title">Build Filters</span>
-  </div>
-  <div class="card__body">
-    <% if (membership.role === 'OWNER') { %>
-    <p class="text-sm text-muted mb-4">
-      Control which pushes trigger a build in this repository. One glob pattern per line
-      (e.g. <code class="code-inline">docs/**</code>, <code class="code-inline">*.md</code>).
-      If a push only touches ignored or non-included paths, the build is skipped.
-    </p>
-    <%
-      const bfErrors = locals.bfErrors || {};
-      const bfValues = locals.bfValues || null;
-    %>
-    <%- include('../../partials/form-errors', { errors: bfErrors }) %>
-    <form method="POST" action="/projects/<%= project.slug %>/build-filters" novalidate>
-      <%- include('../../partials/csrf-field') %>
-
-      <div class="form-field">
-        <label for="includedPaths" class="form-label">Included paths</label>
-        <textarea
-          id="includedPaths"
-          name="includedPaths"
-          class="form-textarea<%= bfErrors.includedPaths ? ' form-input--error' : '' %>"
-          rows="3"
-          placeholder="src/**"
-          aria-describedby="<%= bfErrors.includedPaths ? 'includedPaths-error' : 'includedPaths-hint' %>"
-        ><%= bfValues ? (bfValues.includedPaths || '') : (bf.includedPaths || []).join('\n') %></textarea>
-        <% if (bfErrors.includedPaths) { %>
-        <span id="includedPaths-error" class="form-error" role="alert"><%= bfErrors.includedPaths %></span>
-        <% } else { %>
-        <span id="includedPaths-hint" class="form-hint">Leave blank to include all paths by default.</span>
-        <% } %>
-      </div>
-
-      <div class="form-field">
-        <label for="ignoredPaths" class="form-label">Ignored paths</label>
-        <textarea
-          id="ignoredPaths"
-          name="ignoredPaths"
-          class="form-textarea<%= bfErrors.ignoredPaths ? ' form-input--error' : '' %>"
-          rows="3"
-          placeholder="docs/**"
-          <% if (bfErrors.ignoredPaths) { %>aria-describedby="ignoredPaths-error"<% } %>
-        ><%= bfValues ? (bfValues.ignoredPaths || '') : (bf.ignoredPaths || []).join('\n') %></textarea>
-        <% if (bfErrors.ignoredPaths) { %>
-        <span id="ignoredPaths-error" class="form-error" role="alert"><%= bfErrors.ignoredPaths %></span>
-        <% } %>
-      </div>
-
-      <div class="form-actions mt-6">
-        <button type="submit" class="button button--primary">Save Build Filters</button>
-      </div>
-    </form>
-    <% } else if ((bf.includedPaths && bf.includedPaths.length) || (bf.ignoredPaths && bf.ignoredPaths.length)) { %>
-    <dl class="detail-list">
-      <% if (bf.includedPaths && bf.includedPaths.length) { %>
-      <dt>Included paths</dt>
-      <dd><code class="code-inline"><%= bf.includedPaths.join(', ') %></code></dd>
-      <% } %>
-      <% if (bf.ignoredPaths && bf.ignoredPaths.length) { %>
-      <dt>Ignored paths</dt>
-      <dd><code class="code-inline"><%= bf.ignoredPaths.join(', ') %></code></dd>
-      <% } %>
-    </dl>
-    <% } %>
-  </div>
-</div>
-
-<!-- Detection result (shown immediately after running) -->
 <% if (locals.detectionResult && detectionResult) { %>
-<div class="card mt-6">
+<section class="card mt-6" aria-labelledby="detection-results-title">
   <div class="card__header">
-    <span class="card__title">Detection Results</span>
-    <%- include('../../partials/status-badge', { status: detectionResult.isValid ? 'ACTIVE' : 'FAILED' }) %>
+    <h2 class="card__title" id="detection-results-title">
+      <%= detectionResult.isValid ? 'Setup check complete' : 'Setup needs attention' %>
+    </h2>
   </div>
   <div class="card__body">
     <% if (detectionResult.issues.length === 0) { %>
-      <p class="text-sm text-success">No issues found. Your project looks good!</p>
+      <p class="text-sm detection-result-success">
+        Everything needed to build this app was found. You can continue to deployment.
+      </p>
     <% } else { %>
       <ul class="detection-issues">
         <% detectionResult.issues.forEach(issue => { %>
         <li class="detection-issue detection-issue--<%= issue.level.toLowerCase() %>">
-          <strong class="detection-issue__level"><%= issue.level %></strong>
-          <span class="detection-issue__message"><%= issue.message %></span>
+          <div>
+            <strong class="detection-issue__level"><%= issue.level === 'ERROR' ? 'Fix required' : 'Recommendation' %></strong>
+            <p class="detection-issue__message"><%= issue.message %></p>
+            <p class="detection-issue__action">
+              <%= issue.level === 'ERROR'
+                ? 'Share this message with the person who built the app, then check again after they update the repository.'
+                : 'You can continue, but sharing this recommendation with the person who built the app can make deployments more reliable.' %>
+            </p>
+          </div>
         </li>
         <% }) %>
       </ul>
     <% } %>
   </div>
-</div>
+</section>
 <% } %>
 
-<% if (membership.role === 'OWNER') { %>
-<div class="card mt-6">
-  <div class="card__body">
-    <p class="text-sm text-muted mb-4">
-      Detection fetches key files from your repository and identifies your runtime, build command, and port configuration.
-      Re-run any time after pushing changes.
-    </p>
-    <form method="POST" action="/projects/<%= project.slug %>/detection">
+<details class="guided-disclosure mt-6" <%= hasBuildErrors ? 'open' : '' %>>
+  <summary class="guided-disclosure__summary">
+    <span>
+      <span class="guided-disclosure__title">Advanced build settings</span>
+      <span class="guided-disclosure__description">
+        HelloDeploy filled these in for you. Only change them when the person who built the app gives you different values.
+      </span>
+    </span>
+    <span class="guided-disclosure__toggle" aria-hidden="true">Show</span>
+  </summary>
+  <div class="guided-disclosure__body">
+    <% if (membership.role === 'OWNER') { %>
+    <%- include('../../partials/form-errors', { errors: bcErrors }) %>
+    <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary" data-pending-label="Running...">Run Detection</button>
+      <%- include('../../partials/guided-build-fields', {
+        fieldPrefix: 'detection-',
+        runtimeType: project.runtimeType,
+        configuration: bc,
+        errors: bcErrors,
+        values: bcValues,
+        includeHealthCheck: true,
+        gridClass: 'guided-build-grid',
+      }) %>
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary" data-pending-label="Saving settings...">
+          Save advanced settings
+        </button>
+      </div>
     </form>
+    <% } else { %>
+    <dl class="detail-list">
+      <% if (bc.buildCommand) { %><dt>Build command</dt><dd><code class="code-inline"><%= bc.buildCommand %></code></dd><% } %>
+      <% if (bc.startCommand) { %><dt>Start command</dt><dd><code class="code-inline"><%= bc.startCommand %></code></dd><% } %>
+      <% if (bc.outputDirectory) { %><dt>Published folder</dt><dd><code class="code-inline"><%= bc.outputDirectory %></code></dd><% } %>
+      <% if (bc.applicationPort) { %><dt>App port</dt><dd><code class="code-inline"><%= bc.applicationPort %></code></dd><% } %>
+      <dt>Working-page check</dt><dd><code class="code-inline"><%= bc.healthCheckPath || '/' %></code></dd>
+    </dl>
+    <% } %>
   </div>
-</div>
-<% } %>
+</details>
 
+<details class="guided-disclosure mt-6" <%= hasFilterErrors ? 'open' : '' %>>
+  <summary class="guided-disclosure__summary">
+    <span>
+      <span class="guided-disclosure__title">Automatic deploy rules <span class="text-muted">(optional)</span></span>
+      <span class="guided-disclosure__description">
+        Leave both fields blank to deploy after every code change. This is recommended for most apps.
+      </span>
+    </span>
+    <span class="guided-disclosure__toggle" aria-hidden="true">Show</span>
+  </summary>
+  <div class="guided-disclosure__body">
+    <% if (membership.role === 'OWNER') { %>
+    <%- include('../../partials/form-errors', { errors: bfErrors }) %>
+    <form method="POST" action="/projects/<%= project.slug %>/build-filters" novalidate>
+      <%- include('../../partials/csrf-field') %>
+      <div class="guided-build-grid">
+        <div class="form-group">
+          <label for="includedPaths" class="form-label">Only deploy changes in these folders</label>
+          <textarea
+            id="includedPaths"
+            name="includedPaths"
+            class="form-textarea<%= bfErrors.includedPaths ? ' form-input--error' : '' %>"
+            rows="3"
+            placeholder="src/**"
+            aria-describedby="includedPaths-hint<%= bfErrors.includedPaths ? ' includedPaths-error' : '' %>"
+          ><%= bfValues ? (bfValues.includedPaths || '') : (bf.includedPaths || []).join('\n') %></textarea>
+          <p id="includedPaths-hint" class="form-hint">
+            Leave blank to watch the whole repository. Advanced example:
+            <code class="code-inline">src/**</code>.
+          </p>
+          <% if (bfErrors.includedPaths) { %>
+          <span id="includedPaths-error" class="form-error" role="alert"><%= bfErrors.includedPaths %></span>
+          <% } %>
+        </div>
+
+        <div class="form-group">
+          <label for="ignoredPaths" class="form-label">Do not deploy changes in these folders</label>
+          <textarea
+            id="ignoredPaths"
+            name="ignoredPaths"
+            class="form-textarea<%= bfErrors.ignoredPaths ? ' form-input--error' : '' %>"
+            rows="3"
+            placeholder="docs/**"
+            aria-describedby="ignoredPaths-hint<%= bfErrors.ignoredPaths ? ' ignoredPaths-error' : '' %>"
+          ><%= bfValues ? (bfValues.ignoredPaths || '') : (bf.ignoredPaths || []).join('\n') %></textarea>
+          <p id="ignoredPaths-hint" class="form-hint">
+            Leave blank unless some files should never start a deployment. Advanced example:
+            <code class="code-inline">docs/**</code>.
+          </p>
+          <% if (bfErrors.ignoredPaths) { %>
+          <span id="ignoredPaths-error" class="form-error" role="alert"><%= bfErrors.ignoredPaths %></span>
+          <% } %>
+        </div>
+      </div>
+      <div class="form-actions mt-6">
+        <button type="submit" class="button button--primary" data-pending-label="Saving rules...">
+          Save deploy rules
+        </button>
+      </div>
+    </form>
+    <% } else if ((bf.includedPaths && bf.includedPaths.length) || (bf.ignoredPaths && bf.ignoredPaths.length)) { %>
+    <dl class="detail-list">
+      <% if (bf.includedPaths && bf.includedPaths.length) { %>
+      <dt>Watched folders</dt><dd><code class="code-inline"><%= bf.includedPaths.join(', ') %></code></dd>
+      <% } %>
+      <% if (bf.ignoredPaths && bf.ignoredPaths.length) { %>
+      <dt>Ignored folders</dt><dd><code class="code-inline"><%= bf.ignoredPaths.join(', ') %></code></dd>
+      <% } %>
+    </dl>
+    <% } else { %>
+    <p class="text-sm text-muted">Every code change can start a deployment.</p>
+    <% } %>
+  </div>
+</details>
 <% } %>

@@ -1,6 +1,6 @@
 # Live Workflow Acceptance Checklist
 
-Updated: 2026-07-14T06:49:21+08:00
+Updated: 2026-07-14T14:01:16+08:00
 
 ## Status Contract
 
@@ -24,15 +24,15 @@ Public HTTP evidence never proves authenticated behavior, host isolation, Docker
 
 ## Public Production Boundary
 
-| Check            | Expected result                                         | Status | Evidence or next action                                                                                                                                            |
-| ---------------- | ------------------------------------------------------- | ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Public homepage  | HTTPS response through the configured public edge       | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                                                      |
-| Sign-in page     | Authentication entry point is reachable                 | Passed | `/auth/sign-in` returned `200`                                                                                                                                     |
-| Liveness         | Sanitized web-process response                          | Passed | `/health` returned `200` with service and timestamp only                                                                                                           |
-| Readiness        | Sanitized MongoDB, Redis, and queue state               | Passed | `/ready` returned `200`; all three named checks were true                                                                                                          |
-| HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                              |
-| Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout; this does not prove the target host topology or exact release   |
-| Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Failed | The fresh public check reports `missing secure`; validate production mode and trusted HTTPS forwarding on the actual HelloDeploy ingress, then restart and recheck |
+| Check            | Expected result                                         | Status | Evidence or next action                                                                                                                                          |
+| ---------------- | ------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Public homepage  | HTTPS response through the configured public edge       | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                                                    |
+| Sign-in page     | Authentication entry point is reachable                 | Passed | `/auth/sign-in` returned `200`                                                                                                                                   |
+| Liveness         | Sanitized web-process response                          | Passed | `/health` returned `200` with service and timestamp only                                                                                                         |
+| Readiness        | Sanitized MongoDB, Redis, and queue state               | Passed | `/ready` returned `200`; all three named checks were true                                                                                                        |
+| HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                            |
+| Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout; this does not prove the target host topology or exact release |
+| Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Passed | The production web-only pilot passed the value-safe public cookie check on 2026-07-14; no cookie or session value was captured                                   |
 
 ## Local Ubuntu 26.04 Pilot Host
 
@@ -41,13 +41,13 @@ Observed directly on the current host on 2026-07-13. Ubuntu 26.04 is a candidate
 | Check                        | Expected result                                                    | Status  | Evidence or next action                                                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Host identity                | The inspected machine is the active local HelloDeploy pilot        | Passed  | Web, worker, and the HelloDeploy tunnel run from the current Ubuntu 26.04 host                                                                                                          |
-| Web and worker               | Both repository-run processes are active                           | Passed  | The workspace start process has active web and worker children under the interactive account                                                                                            |
-| Immutable runtime identity   | Active processes correspond to one reviewed commit or release tag  | Failed  | PM2 started before several later checkout changes; emergency capture and controlled restart on the reviewed export-aware fix release are required                                       |
-| Production configuration     | Web and worker pass value-safe production validation               | Failed  | Validation reports an incomplete GitHub App name and unavailable local helper; worker startup synchronously validates that helper, so PM2 was not restarted                             |
+| Web and worker               | Both repository-run processes are active                           | Failed  | The reviewed web starts in production through a temporary PM2 pilot; the combined entry is stopped and the worker remains offline until helper preparation                              |
+| Immutable runtime identity   | Active processes correspond to one reviewed commit or release tag  | Passed  | The active web-only process starts from the clean tagged `v0.1.5` checkout; Node.js 22 and isolated-service normalization remain separate gates                                         |
+| Production configuration     | Web and worker pass value-safe production validation               | Failed  | The web passes with the verified GitHub App key; the worker fails closed because the required constrained local Nginx helper is not installed                                           |
 | Local Redis                  | The configured local queue dependency responds                     | Passed  | `redis-cli ping` returned `PONG`                                                                                                                                                        |
 | Local health and readiness   | The active web port returns sanitized healthy responses            | Passed  | Local `/health` and `/ready` returned `200`                                                                                                                                             |
 | Dashboard tunnel             | Public dashboard traffic reaches the active local web process      | Passed  | The HelloDeploy tunnel maps the dashboard hostnames directly to the active web port                                                                                                     |
-| Production cookie            | Public sessions use `Secure; HttpOnly; SameSite=Strict`            | Failed  | The sanitized public checker reports `missing secure`                                                                                                                                   |
+| Production cookie            | Public sessions use `Secure; HttpOnly; SameSite=Strict`            | Passed  | The sanitized public checker passed every required attribute after the production web-only pilot started; no cookie value was captured                                                  |
 | Docker execution plane       | Docker is installed, active, and available only to the worker path | Blocked | Docker CLI and socket are absent; no real application container can be validated                                                                                                        |
 | Isolated service identities  | Web, worker, and helper run as separate systemd identities         | Blocked | HelloDeploy identities and units are absent; current processes run from the repository under the interactive user                                                                       |
 | Constrained routing helper   | Helper socket and managed application route directory are active   | Blocked | The helper runtime directory and HelloDeploy Nginx route directory are absent                                                                                                           |
@@ -92,4 +92,4 @@ Use a user-guided session or restricted staging account. Do not share credential
 
 ## Production Decision
 
-Current decision: **NO-GO for customer application hosting**. The dashboard is a verified live local pilot, but the failed session-cookie check and every authenticated, privilege-isolation, Docker, wildcard-routing, upgrade-recovery, and cross-host-restore row must pass directly before a GO decision. Public dashboard availability is not evidence that hosted project deployment works.
+Current decision: **NO-GO for customer application hosting**. The dashboard and strict session-cookie contract are verified on the live local pilot, but the worker, authenticated workflows, privilege isolation, Docker, wildcard routing, upgrade recovery, and cross-host restore rows must pass directly before a GO decision. Public dashboard availability is not evidence that hosted project deployment works.

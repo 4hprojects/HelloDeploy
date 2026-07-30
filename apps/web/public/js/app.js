@@ -629,52 +629,131 @@
     const branchSelect = document.getElementById('productionBranch');
     const connectBtn = document.getElementById('connectBtn');
 
-    if (!repoSelect || !branchGroup || !branchSelect || !connectBtn) {
+    if (repoSelect && branchGroup && branchSelect && connectBtn) {
+      repoSelect.addEventListener('change', async () => {
+        const opt = repoSelect.options[repoSelect.selectedIndex];
+        const fullName = opt.value;
+
+        branchSelect.replaceChildren(option('', 'Loading branches...'));
+        branchGroup.classList.add('d-none');
+        connectBtn.disabled = true;
+
+        if (!fullName) {
+          return;
+        }
+
+        document.getElementById('githubRepoId').value = opt.dataset.id;
+        document.getElementById('nodeId').value = opt.dataset.nodeid;
+        document.getElementById('ownerLogin').value = opt.dataset.owner;
+        document.getElementById('defaultBranch').value = opt.dataset.defaultBranch;
+        document.getElementById('visibility').value = opt.dataset.visibility;
+
+        try {
+          const res = await fetch('/github/branches?fullName=' + encodeURIComponent(fullName));
+          const data = await res.json();
+          branchSelect.replaceChildren(option('', 'Choose a branch'));
+          (data.branches || []).forEach((branch) => {
+            const branchOption = option(
+              branch.name,
+              branch.name === opt.dataset.defaultBranch ? branch.name + ' (default)' : branch.name,
+            );
+            if (branch.name === opt.dataset.defaultBranch) {
+              branchOption.selected = true;
+            }
+            branchSelect.appendChild(branchOption);
+          });
+          branchGroup.classList.remove('d-none');
+          connectBtn.disabled = !branchSelect.value;
+        } catch {
+          branchSelect.replaceChildren(option('', 'Could not load branches'));
+          branchGroup.classList.remove('d-none');
+        }
+      });
+
+      branchSelect.addEventListener('change', () => {
+        connectBtn.disabled = !branchSelect.value;
+      });
+    }
+
+    const publicForm = document.getElementById('publicRepoForm');
+    const publicUrl = document.getElementById('publicRepositoryUrl');
+    const inspectBtn = document.getElementById('publicRepoInspectBtn');
+    const publicBranchGroup = document.getElementById('publicBranchGroup');
+    const publicBranch = document.getElementById('publicProductionBranch');
+    const publicConnect = document.getElementById('publicConnectBtn');
+    const publicError = document.getElementById('publicRepoError');
+    const publicStatus = document.getElementById('publicRepoStatus');
+    if (!publicForm || !publicUrl || !inspectBtn || !publicBranch || !publicConnect) {
       return;
     }
 
-    repoSelect.addEventListener('change', async () => {
-      const opt = repoSelect.options[repoSelect.selectedIndex];
-      const fullName = opt.value;
-
-      branchSelect.replaceChildren(option('', 'Loading branches...'));
-      branchGroup.classList.add('d-none');
-      connectBtn.disabled = true;
-
-      if (!fullName) {
-        return;
-      }
-
-      document.getElementById('githubRepoId').value = opt.dataset.id;
-      document.getElementById('nodeId').value = opt.dataset.nodeid;
-      document.getElementById('ownerLogin').value = opt.dataset.owner;
-      document.getElementById('defaultBranch').value = opt.dataset.defaultBranch;
-      document.getElementById('visibility').value = opt.dataset.visibility;
-
+    inspectBtn.addEventListener('click', async () => {
+      publicError.hidden = true;
+      publicError.textContent = '';
+      publicStatus.textContent = 'Checking repository…';
+      publicBranch.disabled = true;
+      publicBranch.replaceChildren(option('', 'Checking branches…'));
+      publicBranchGroup.classList.add('d-none');
+      publicConnect.disabled = true;
+      inspectBtn.disabled = true;
+      const originalLabel = inspectBtn.textContent;
+      inspectBtn.textContent = 'Checking…';
       try {
-        const res = await fetch('/github/branches?fullName=' + encodeURIComponent(fullName));
-        const data = await res.json();
-        branchSelect.replaceChildren(option('', 'Choose a branch'));
-        (data.branches || []).forEach((branch) => {
-          const branchOption = option(
-            branch.name,
-            branch.name === opt.dataset.defaultBranch ? branch.name + ' (default)' : branch.name,
-          );
-          if (branch.name === opt.dataset.defaultBranch) {
-            branchOption.selected = true;
-          }
-          branchSelect.appendChild(branchOption);
+        const csrf = publicForm.querySelector('input[name="_csrf"]')?.value || '';
+        const response = await fetch(publicForm.action + '/inspect', {
+          method: 'POST',
+          headers: {
+            Accept: 'application/json',
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrf,
+          },
+          body: JSON.stringify({ repositoryUrl: publicUrl.value }),
         });
-        branchGroup.classList.remove('d-none');
-        connectBtn.disabled = !branchSelect.value;
-      } catch {
-        branchSelect.replaceChildren(option('', 'Could not load branches'));
-        branchGroup.classList.remove('d-none');
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.error?.message || 'The repository could not be checked.');
+        }
+        const branches = data.branches || [];
+        if (branches.length === 0) {
+          throw new Error('The public repository has no branches to deploy.');
+        }
+        publicBranch.replaceChildren(option('', 'Choose a branch'));
+        branches.forEach((branch) => {
+          const item = option(
+            branch.name,
+            branch.name === data.repository.defaultBranch
+              ? branch.name + ' (default)'
+              : branch.name,
+          );
+          if (branch.name === data.repository.defaultBranch) {
+            item.selected = true;
+          }
+          publicBranch.appendChild(item);
+        });
+        publicBranch.disabled = false;
+        publicBranchGroup.classList.remove('d-none');
+        publicStatus.textContent = `${data.repository.fullName} is public. Select a branch to continue.`;
+        publicConnect.disabled = !publicBranch.value;
+      } catch (error) {
+        publicStatus.textContent = '';
+        publicError.textContent = error.message || 'The repository could not be checked.';
+        publicError.hidden = false;
+        publicError.focus();
+      } finally {
+        inspectBtn.disabled = false;
+        inspectBtn.textContent = originalLabel;
       }
     });
-
-    branchSelect.addEventListener('change', () => {
-      connectBtn.disabled = !branchSelect.value;
+    publicUrl.addEventListener('input', () => {
+      publicError.hidden = true;
+      publicError.textContent = '';
+      publicConnect.disabled = true;
+      publicBranch.disabled = true;
+      publicBranchGroup.classList.add('d-none');
+      publicStatus.textContent = '';
+    });
+    publicBranch.addEventListener('change', () => {
+      publicConnect.disabled = !publicBranch.value;
     });
   }
 

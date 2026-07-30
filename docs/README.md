@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-07-12T05:29:27+08:00
+Updated: 2026-07-14T14:41:55+08:00
 
 Use this index as the starting point for repository documentation. The top-level README stays concise; this file owns the detailed documentation map.
 
@@ -24,6 +24,7 @@ Use this index as the starting point for repository documentation. The top-level
 - [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md) - focused accessibility findings and verification after shared UI component updates.
 - [Project Settings UX Specification](PROJECT_SETTINGS_UX_SPEC.md) - sanitized reference analysis and phased specification for consolidating existing project settings without claiming unsupported platform capabilities.
 - [Project Settings Deferred Capability Evaluations](PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md) - product, architecture, security, operations, evidence, and approval gates for settings capabilities that remain explicitly deferred.
+- [Public Git Repository Connection Specification](PUBLIC_GIT_REPOSITORY_SPEC.md) - accepted two-path repository UX, source model, security boundaries, implementation contract, and acceptance criteria; implemented locally with live worker validation pending.
 - [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) - authoritative Passed/Failed/Blocked/Not Run matrix for public, authenticated owner, and operator lifecycle validation.
 - [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md) - implementation handoff notes for custom domains, admin operations, hardening/pilot, and self-hosted distribution.
 
@@ -46,6 +47,7 @@ Use this index as the starting point for repository documentation. The top-level
 - [ADR-003 Queue](../infrastructure/decisions/ADR-003-queue.md)
 - [ADR-004 Authentication](../infrastructure/decisions/ADR-004-auth.md)
 - [ADR-005 Encryption](../infrastructure/decisions/ADR-005-encryption.md)
+- [ADR-006 Public Git Repository Sources](../infrastructure/decisions/ADR-006-public-git-sources.md) - proposed; requires explicit approval before implementation.
 
 ## Current Maintenance Notes
 
