@@ -1,5 +1,10 @@
 import { Project, Repository } from '@hellodeploy/database';
-import { RuntimeType, AuditOutcome, RepositorySourceType } from '@hellodeploy/contracts';
+import {
+  RuntimeType,
+  AuditOutcome,
+  RepositorySourceType,
+  DetectionStatus,
+} from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
 
@@ -316,6 +321,29 @@ export async function fetchProjectFilesForRepository(repository, ref) {
 
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
+function safeDetectionIssues(issues) {
+  return issues.map(({ level, message }) => ({
+    level: level === 'WARNING' ? 'WARNING' : 'ERROR',
+    message: String(message).slice(0, 500),
+  }));
+}
+
+async function persistDetectionResult(projectId, result, checkedCommitSha = null) {
+  await Project.updateOne(
+    { _id: projectId },
+    {
+      $set: {
+        detection: {
+          status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
+          issues: safeDetectionIssues(result.issues),
+          checkedCommitSha,
+          checkedAt: new Date(),
+        },
+      },
+    },
+  );
+}
+
 /**
  * Run full project detection against the connected repository.
  * Fetches files from GitHub, runs the analyzer, and persists results to the project.
@@ -332,20 +360,24 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
   }
 
   if (!project.repositoryId) {
-    return {
+    const result = {
       isValid: false,
       runtimeType: RuntimeType.UNKNOWN,
       issues: [{ level: 'ERROR', message: 'No repository connected. Connect a repository first.' }],
     };
+    await persistDetectionResult(project._id, result);
+    return result;
   }
 
   const repo = await Repository.findById(project.repositoryId);
   if (!repo || repo.accessStatus !== 'ACTIVE') {
-    return {
+    const result = {
       isValid: false,
       runtimeType: RuntimeType.UNKNOWN,
       issues: [{ level: 'ERROR', message: 'Repository access is no longer active.' }],
     };
+    await persistDetectionResult(project._id, result);
+    return result;
   }
 
   const ref = repo.lastCommitSha ?? project.productionBranch ?? repo.defaultBranch;
@@ -355,7 +387,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
     files = await fetchProjectFilesForRepository(repo, ref);
   } catch (err) {
     logger.warn('Detection: GitHub fetch failed', { projectId, error: err.message });
-    return {
+    const result = {
       isValid: false,
       runtimeType: RuntimeType.UNKNOWN,
       issues: [
@@ -365,6 +397,8 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
         },
       ],
     };
+    await persistDetectionResult(project._id, result, repo.lastCommitSha);
+    return result;
   }
 
   const result = detectRuntime(files);
@@ -379,6 +413,12 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
         'buildConfiguration.startCommand': result.startCommand,
         'buildConfiguration.outputDirectory': result.outputDirectory,
         'buildConfiguration.applicationPort': result.applicationPort,
+        detection: {
+          status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
+          issues: safeDetectionIssues(result.issues),
+          checkedCommitSha: repo.lastCommitSha,
+          checkedAt: new Date(),
+        },
         configurationVersion: project.configurationVersion + 1,
       },
     },

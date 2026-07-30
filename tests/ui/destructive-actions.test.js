@@ -98,7 +98,8 @@ describe('destructive and risky action UX', () => {
     assert.match(files.adminServer, /data-confirm-title="Enable maintenance"/);
     assert.match(files.adminServer, /data-confirm-title="Disable maintenance"/);
     assert.match(files.adminServer, /data-confirm-title="Pause deployment queue"/);
-    assert.match(files.approvalRequests, /data-confirm-title="Reject request"/);
+    assert.match(files.approvalRequests, /value="CHANGES_REQUESTED"/);
+    assert.match(files.approvalRequests, /Required when requesting changes/);
     assert.match(files.adminDomains, /data-confirm-title="Approve domain"/);
     assert.match(files.adminDomains, /data-confirm-title="Reject domain"/);
   });

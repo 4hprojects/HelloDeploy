@@ -35,6 +35,7 @@ const baseProject = {
 const repository = {
   fullName: 'owner/sample-app',
   defaultBranch: 'main',
+  lastCommitSha: 'a'.repeat(40),
 };
 
 function renderDetection(overrides = {}) {
@@ -65,6 +66,11 @@ describe('guided detection inputs', () => {
     const html = await renderDetection({
       project: {
         runtimeType: 'REACT',
+        detection: {
+          status: 'READY',
+          checkedAt: new Date(),
+          checkedCommitSha: 'a'.repeat(40),
+        },
         buildConfiguration: {
           buildCommand: 'npm run build',
           outputDirectory: 'dist',

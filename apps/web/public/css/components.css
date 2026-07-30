@@ -1056,6 +1056,52 @@
   max-width: 36rem;
 }
 
+.approval-review__grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+
+.approval-findings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 0;
+  list-style: none;
+}
+
+.approval-finding {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-green);
+  background: color-mix(in srgb, var(--color-green) 6%, transparent);
+  font-size: var(--text-sm);
+}
+
+.approval-finding--warning {
+  border-left-color: var(--color-warning);
+  background: color-mix(in srgb, var(--color-warning) 8%, transparent);
+}
+
+.approval-finding--blocking {
+  border-left-color: var(--color-error);
+  background: color-mix(in srgb, var(--color-error) 8%, transparent);
+}
+
+.approval-note {
+  padding: var(--space-3);
+  border-left: 3px solid var(--color-warning);
+  background: var(--color-warning-bg);
+}
+
+@media (max-width: 48rem) {
+  .approval-review__grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Utility classes ─────────────────────────────────────────────── */
 .mt-4 {
   margin-top: var(--space-4);

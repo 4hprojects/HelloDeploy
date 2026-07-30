@@ -37,10 +37,10 @@ The implementation therefore changed the complete source path rather than only c
 
 HelloDeploy will support two explicit source connection modes.
 
-| Source mode               | User input                               | Authorization                 | Deployment modes                     | Initial provider support |
-| ------------------------- | ---------------------------------------- | ----------------------------- | ------------------------------------ | ------------------------ |
-| GitHub App (`GITHUB_APP`) | Authorized repository and branch chooser | GitHub App installation token | Manual, Automatic, Approval Required | GitHub                   |
-| Public Git (`PUBLIC_GIT`) | Public HTTPS repository URL and branch   | No repository credential      | Manual and Approval Required only    | GitHub                   |
+| Source mode               | User input                               | Authorization                 | Deployment modes    | Initial provider support |
+| ------------------------- | ---------------------------------------- | ----------------------------- | ------------------- | ------------------------ |
+| GitHub App (`GITHUB_APP`) | Authorized repository and branch chooser | GitHub App installation token | Manual or Automatic | GitHub                   |
+| Public Git (`PUBLIC_GIT`) | Public HTTPS repository URL and branch   | No repository credential      | Manual only         | GitHub                   |
 
 Public Git is a source-access mode, not anonymous access to HelloDeploy. The user must still sign in, own the project, pass project approval and quota checks, and use the normal deployment queue.
 
@@ -371,7 +371,7 @@ The inspect endpoint is a mutation-like network action and must use POST, CSRF p
 
 - Add credential-free exact-commit clone behavior.
 - Route build jobs by persisted source type.
-- Enforce Manual/Approval Required modes for Public Git.
+- Enforce Manual mode for Public Git.
 - Test retry, selected commit, cleanup, inaccessible-source behavior, and healthy-release continuity.
 
 ### Phase 4 — Repository UX

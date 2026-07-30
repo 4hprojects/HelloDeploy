@@ -63,7 +63,15 @@ export const DeploymentTrigger = Object.freeze({
 export const ApprovalStatus = Object.freeze({
   PENDING: 'PENDING',
   APPROVED: 'APPROVED',
+  CHANGES_REQUESTED: 'CHANGES_REQUESTED',
   REJECTED: 'REJECTED',
+});
+
+/** Project detection readiness */
+export const DetectionStatus = Object.freeze({
+  NOT_RUN: 'NOT_RUN',
+  READY: 'READY',
+  NEEDS_ATTENTION: 'NEEDS_ATTENTION',
 });
 
 /** Container runtime status */

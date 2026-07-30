@@ -42,7 +42,8 @@ describe('public repository connection UI', () => {
 
   it('removes automatic mode from consolidated settings for public sources', () => {
     assert.match(settings, /repository\?\.sourceType === 'PUBLIC_GIT'/);
-    assert.match(settings, /\['MANUAL', 'APPROVAL_REQUIRED'\]/);
+    assert.match(settings, /\['MANUAL'\]/);
+    assert.doesNotMatch(settings, /\['MANUAL', 'APPROVAL_REQUIRED'\]/);
     assert.match(settings, /Automatic mode requires a GitHub App connection/);
   });
 });

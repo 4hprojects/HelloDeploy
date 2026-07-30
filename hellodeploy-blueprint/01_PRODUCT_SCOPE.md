@@ -139,8 +139,8 @@ Hello ecosystem projects may receive higher project-specific limits without chan
 
 ### Approval Required
 
-- Admin approval is required for every deployment
-- Intended for restricted or high-risk projects
+- Reserved as a legacy compatibility value; it is not selectable for new changes
+- Per-deployment approval is deferred until a durable deployment approval queue is implemented
 
 ## Changes Requiring Review
 

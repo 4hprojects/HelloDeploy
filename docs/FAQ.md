@@ -74,7 +74,7 @@ Yes. Owners can invite members as Maintainers or Viewers. Maintainers can operat
 
 ### Why does HelloDeploy need a GitHub App?
 
-The GitHub App gives HelloDeploy scoped access to private repositories you authorize and supports signed webhooks for Automatic deployment. A public GitHub repository can instead be connected by HTTPS URL for Manual or Approval Required deployment without installing the app.
+The GitHub App gives HelloDeploy scoped access to private repositories you authorize and supports signed webhooks for Automatic deployment. A public GitHub repository can instead be connected by HTTPS URL for Manual deployment without installing the app.
 
 ### Does HelloDeploy deploy every push?
 

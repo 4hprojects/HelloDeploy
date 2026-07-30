@@ -6,6 +6,8 @@ import {
   Quota,
   Deployment,
   Domain,
+  Repository,
+  mongoose,
 } from '@hellodeploy/database';
 import {
   UserStatus,
@@ -20,6 +22,7 @@ import {
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
+import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
@@ -410,12 +413,43 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
       .sort({ createdAt: 1 })
       .skip(skip)
       .limit(limit)
-      .populate('projectId', 'name slug status')
+      .populate({
+        path: 'projectId',
+        select:
+          'name slug status ownerId repositoryId productionBranch runtimeType deploymentMode buildConfiguration configurationVersion detection',
+        populate: [
+          { path: 'ownerId', select: 'firstName lastName email' },
+          { path: 'repositoryId', select: 'fullName accessStatus lastCommitSha sourceType' },
+        ],
+      })
       .populate('requestedBy', 'firstName lastName email')
       .lean(),
     ApprovalRequest.countDocuments(query),
   ]);
-  return { requests, total, page, limit };
+  return {
+    requests: requests.map((request) => {
+      const project = request.projectId;
+      const repository = project?.repositoryId ?? null;
+      const snapshot = project
+        ? isApprovalSnapshotCurrent({ request, project, repository })
+        : {
+            isCurrent: false,
+            hasSnapshot: false,
+            readiness: { isReady: false, findings: [] },
+          };
+      return {
+        ...request,
+        snapshotState: {
+          isCurrent: snapshot.isCurrent,
+          hasSnapshot: snapshot.hasSnapshot,
+        },
+        currentFindings: snapshot.readiness.findings,
+      };
+    }),
+    total,
+    page,
+    limit,
+  };
 }
 
 export async function reviewApprovalRequest({
@@ -427,28 +461,115 @@ export async function reviewApprovalRequest({
   sourceIp,
   correlationId,
 }) {
-  if (!Object.values(ApprovalStatus).includes(decision) || decision === ApprovalStatus.PENDING) {
+  const allowed = [ApprovalStatus.APPROVED, ApprovalStatus.CHANGES_REQUESTED];
+  if (!allowed.includes(decision)) {
     return { success: false, error: 'Invalid decision.' };
   }
 
-  const request = await ApprovalRequest.findById(requestId);
-  if (!request) {
-    return { success: false, error: 'Request not found.' };
+  const normalizedNote = note?.trim() ?? '';
+  if (normalizedNote.length > 1000) {
+    return { success: false, error: 'The note must be 1000 characters or fewer.' };
   }
-  if (request.status !== ApprovalStatus.PENDING) {
-    return { success: false, error: 'This request is no longer pending.' };
-  }
-
-  request.status = decision;
-  request.reviewedBy = adminId;
-  request.reviewedAt = new Date();
-  request.adminNote = note?.trim() || null;
-  await request.save();
-
-  if (decision === ApprovalStatus.APPROVED) {
-    await Project.updateOne({ _id: request.projectId }, { $set: { status: ProjectStatus.ACTIVE } });
+  if (decision === ApprovalStatus.CHANGES_REQUESTED && !normalizedNote) {
+    return { success: false, error: 'Explain what the project owner needs to change.' };
   }
 
+  const session = await mongoose.startSession();
+  let result = { success: false, error: 'This request could not be reviewed.' };
+  let reviewedProjectId = null;
+  try {
+    await session.withTransaction(async () => {
+      const request = await ApprovalRequest.findOne({
+        _id: requestId,
+        status: ApprovalStatus.PENDING,
+      }).session(session);
+      if (!request) {
+        const exists = await ApprovalRequest.exists({ _id: requestId }).session(session);
+        result = {
+          success: false,
+          error: exists ? 'This request is no longer pending.' : 'Request not found.',
+        };
+        return;
+      }
+      reviewedProjectId = request.projectId.toString();
+
+      if (decision === ApprovalStatus.APPROVED) {
+        const project = await Project.findById(request.projectId).session(session);
+        if (!project) {
+          result = {
+            success: false,
+            error: 'The project no longer exists. Request changes to close this request.',
+          };
+          return;
+        }
+        if (project.status !== ProjectStatus.DRAFT) {
+          result = { success: false, error: 'Only draft projects can be approved.' };
+          return;
+        }
+        const repository = project.repositoryId
+          ? await Repository.findById(project.repositoryId).session(session)
+          : null;
+        const snapshot = isApprovalSnapshotCurrent({ request, project, repository });
+        if (!snapshot.hasSnapshot) {
+          result = {
+            success: false,
+            error: 'This legacy request must be returned and resubmitted before approval.',
+          };
+          return;
+        }
+        if (!snapshot.isCurrent) {
+          result = {
+            success: false,
+            error:
+              'The repository, application check, or project settings changed after submission. Request changes so the owner can check and resubmit.',
+          };
+          return;
+        }
+
+        const activated = await Project.updateOne(
+          { _id: project._id, status: ProjectStatus.DRAFT },
+          { $set: { status: ProjectStatus.ACTIVE } },
+          { session },
+        );
+        if (activated.modifiedCount !== 1) {
+          result = { success: false, error: 'The project changed while it was being reviewed.' };
+          return;
+        }
+      }
+
+      const reviewed = await ApprovalRequest.updateOne(
+        { _id: request._id, status: ApprovalStatus.PENDING },
+        {
+          $set: {
+            status: decision,
+            reviewedBy: adminId,
+            reviewedAt: new Date(),
+            adminNote: normalizedNote || null,
+          },
+        },
+        { session },
+      );
+      result =
+        reviewed.modifiedCount === 1
+          ? { success: true }
+          : { success: false, error: 'This request is no longer pending.' };
+      if (!result.success) {
+        const conflict = new Error(result.error);
+        conflict.code = 'APPROVAL_DECISION_CONFLICT';
+        throw conflict;
+      }
+    });
+  } catch (err) {
+    if (err.code !== 'APPROVAL_DECISION_CONFLICT') {
+      throw err;
+    }
+  } finally {
+    await session.endSession();
+  }
+
+  if (!result.success) {
+    return result;
+  }
   await writeAuditEvent({
     action: `admin.approval_request.${decision.toLowerCase()}`,
     outcome: AuditOutcome.SUCCESS,
@@ -458,8 +579,8 @@ export async function reviewApprovalRequest({
     targetId: requestId.toString(),
     sourceIp,
     correlationId,
-    metadata: { projectId: request.projectId.toString(), decision, note: request.adminNote },
+    metadata: { projectId: reviewedProjectId, decision },
   });
 
-  return { success: true };
+  return result;
 }

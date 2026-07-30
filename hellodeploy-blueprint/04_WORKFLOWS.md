@@ -32,7 +32,7 @@ Controls:
 1. Owner submits project for review.
 2. Validator checks repository access, supported runtime, package scripts, port rules, secret exposure indicators, repository size, and requested quotas.
 3. Admin reviews findings and application purpose.
-4. Admin approves, rejects, or returns for revision.
+4. Admin approves or requests changes with an owner-visible note.
 5. Approved project receives a configuration version and may deploy.
 
 ## Manual Deployment

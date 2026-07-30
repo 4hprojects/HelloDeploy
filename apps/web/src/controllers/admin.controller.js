@@ -374,7 +374,7 @@ export const getApprovalRequestsList = asyncHandler(async (req, res) => {
 
 export const postReviewApprovalRequest = asyncHandler(async (req, res) => {
   const { decision, note } = req.body;
-  const allowed = [ApprovalStatus.APPROVED, ApprovalStatus.REJECTED];
+  const allowed = [ApprovalStatus.APPROVED, ApprovalStatus.CHANGES_REQUESTED];
 
   if (!allowed.includes(decision)) {
     req.flash('error', 'Invalid decision.');
@@ -394,7 +394,10 @@ export const postReviewApprovalRequest = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', `Request ${decision.toLowerCase()}.`);
+    req.flash(
+      'success',
+      decision === ApprovalStatus.APPROVED ? 'Project approved.' : 'Changes requested.',
+    );
   }
 
   res.redirect('/admin/approval-requests');

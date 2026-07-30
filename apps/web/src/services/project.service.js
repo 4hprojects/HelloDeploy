@@ -8,6 +8,7 @@ import {
   DeploymentEvent,
   EnvironmentSecret,
   Domain,
+  Repository,
   mongoose,
 } from '@hellodeploy/database';
 import {
@@ -22,6 +23,7 @@ import { enqueueJob } from '@hellodeploy/queue';
 import { generateToken, hashToken } from '@hellodeploy/security';
 import { getDeploymentQueue } from '../queue/client.js';
 import { checkCanCreateProject, checkCanAddMember } from './quota.service.js';
+import { assessInitialApprovalReadiness } from './approval-readiness.service.js';
 
 function slugify(name) {
   return (
@@ -495,7 +497,11 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
 
 // ─── Approval ─────────────────────────────────────────────────────────────────
 
-export async function submitForReview({ projectId, actorId, sourceIp, correlationId }) {
+export async function getLatestApprovalRequest(projectId) {
+  return ApprovalRequest.findOne({ projectId }).sort({ createdAt: -1 }).lean();
+}
+
+export async function submitForReview({ projectId, actorId, purpose, sourceIp, correlationId }) {
   const project = await Project.findById(projectId);
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -503,6 +509,15 @@ export async function submitForReview({ projectId, actorId, sourceIp, correlatio
 
   if (project.status !== ProjectStatus.DRAFT) {
     return { success: false, error: 'Only draft projects can be submitted for review.' };
+  }
+
+  const normalizedPurpose = purpose?.trim() ?? '';
+  if (normalizedPurpose.length < 10 || normalizedPurpose.length > 500) {
+    return {
+      success: false,
+      error: 'Describe what your application does in 10 to 500 characters.',
+      field: 'purpose',
+    };
   }
 
   const existing = await ApprovalRequest.findOne({
@@ -513,11 +528,33 @@ export async function submitForReview({ projectId, actorId, sourceIp, correlatio
     return { success: false, error: 'A review request is already pending for this project.' };
   }
 
-  await ApprovalRequest.create({
-    projectId,
-    requestedBy: actorId,
-    requestType: 'INITIAL_DEPLOYMENT',
-  });
+  const repository = project.repositoryId ? await Repository.findById(project.repositoryId) : null;
+  const readiness = assessInitialApprovalReadiness({ project, repository });
+  if (!readiness.isReady) {
+    return {
+      success: false,
+      error: 'Complete the required items before submitting your project.',
+      readiness,
+    };
+  }
+
+  let request;
+  try {
+    request = await ApprovalRequest.create({
+      projectId,
+      requestedBy: actorId,
+      requestType: 'INITIAL_DEPLOYMENT',
+      purpose: normalizedPurpose,
+      snapshotConfigurationVersion: project.configurationVersion,
+      snapshotCommitSha: readiness.currentCommitSha,
+      validationFindings: readiness.findings,
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return { success: false, error: 'A review request is already pending for this project.' };
+    }
+    throw err;
+  }
 
   await writeAuditEvent({
     action: 'project.review_requested',
@@ -527,9 +564,14 @@ export async function submitForReview({ projectId, actorId, sourceIp, correlatio
     targetId: project._id.toString(),
     sourceIp,
     correlationId,
+    metadata: {
+      approvalRequestId: request._id.toString(),
+      configurationVersion: project.configurationVersion,
+      commitSha: readiness.currentCommitSha,
+    },
   });
 
-  return { success: true };
+  return { success: true, request };
 }
 
 // ─── Membership ────────────────────────────────────────────────────────────────

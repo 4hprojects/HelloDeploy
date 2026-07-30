@@ -9,6 +9,7 @@ const STATUS_MAP = {
   PENDING_ADMIN_APPROVAL:{ mod: 'pending', label: 'Pending admin approval', hint: 'Verified item is waiting for administrator review.' },
   PENDING:             { mod: 'pending',   label: 'Pending',                hint: 'Waiting for the next required action.' },
   APPROVED:            { mod: 'healthy',   label: 'Approved',               hint: 'Approved item can move to the next workflow step.' },
+  CHANGES_REQUESTED:   { mod: 'failed',    label: 'Changes requested',      hint: 'An administrator provided changes to complete before resubmitting.' },
   REJECTED:            { mod: 'failed',    label: 'Rejected',               hint: 'Rejected item needs changes before it can continue.' },
   QUEUED:              { mod: 'queued',    label: 'Queued',                 hint: 'Deployment is waiting for a worker.' },
   VALIDATING:          { mod: 'building',  label: 'Validating',             hint: 'Deployment configuration is being checked.' },

@@ -160,7 +160,7 @@
         <% if (project.deploymentMode === 'AUTOMATIC') { %>
           Pushes to the production branch trigger automatic deployment.
         <% } else if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
-          Deploys require admin approval before executing.
+          Approval Required is not available yet. Choose Manual or Automatic to continue.
         <% } else { %>
           Deploys are triggered manually only.
         <% } %>
@@ -169,7 +169,7 @@
       <form method="POST" action="/projects/<%= project.slug %>/deployment-mode">
         <%- include('../../partials/csrf-field') %>
         <div class="button-group">
-          <% (repository?.sourceType === 'PUBLIC_GIT' ? ['MANUAL', 'APPROVAL_REQUIRED'] : ['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED']).forEach(mode => { %>
+          <% (repository?.sourceType === 'PUBLIC_GIT' ? ['MANUAL'] : ['MANUAL', 'AUTOMATIC']).forEach(mode => { %>
           <button type="submit" name="deploymentMode" value="<%= mode %>"
                   class="button button--sm <%= project.deploymentMode === mode ? 'button--primary' : 'button--secondary' %>">
             <%= mode.charAt(0) + mode.slice(1).toLowerCase().replace('_', ' ') %>
@@ -178,6 +178,9 @@
         </div>
         <% if (repository?.sourceType === 'PUBLIC_GIT') { %>
           <p class="form-hint mt-2">Automatic deployment requires a GitHub App connection.</p>
+        <% } %>
+        <% if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
+          <p class="form-error mt-2" role="alert">Approval Required is not currently supported. Select Manual or Automatic deployment.</p>
         <% } %>
       </form>
       <% } %>
@@ -258,14 +261,60 @@
   </div>
 </div>
 
-<% if (membership.role === 'OWNER' && project.status === 'DRAFT') { %>
+<% if (membership.role === 'OWNER' && locals.latestApproval) { %>
+<div class="card mt-6 approval-summary">
+  <div class="card__header">
+    <h2 class="card__title">Project approval</h2>
+    <%- include('../../partials/status-badge', { status: latestApproval.status }) %>
+  </div>
+  <div class="card__body">
+    <% if (latestApproval.status === 'PENDING') { %>
+      <p>Your project is waiting for an administrator to review it. You do not need to submit it again.</p>
+    <% } else if (latestApproval.status === 'APPROVED') { %>
+      <p>Your project was approved and can now be deployed.</p>
+    <% } else if (latestApproval.status === 'CHANGES_REQUESTED' || latestApproval.status === 'REJECTED') { %>
+      <p>Update the project using the feedback below, run <strong>Check again</strong>, then resubmit it.</p>
+    <% } %>
+    <% if (latestApproval.adminNote) { %>
+      <div class="approval-note mt-4">
+        <strong>Administrator note</strong>
+        <p class="mt-1"><%= latestApproval.adminNote %></p>
+      </div>
+    <% } %>
+    <% if (latestApproval.purpose) { %>
+      <p class="text-sm text-muted mt-4"><strong>Application purpose:</strong> <%= latestApproval.purpose %></p>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<% if (membership.role === 'OWNER' && project.status === 'DRAFT' && (!latestApproval || latestApproval.status !== 'PENDING')) { %>
 <div class="card mt-6" id="submit-review">
   <div class="card__body">
-    <h2 class="card__title mb-2">Submit for Review</h2>
-    <p class="text-sm text-muted mb-4">Once your project is configured, submit it for admin review to enable deployments.</p>
-    <form method="POST" action="/projects/<%= project.slug %>/submit-review">
+    <h2 class="card__title mb-2"><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></h2>
+    <p class="text-sm text-muted mb-4">An administrator will review this summary before enabling deployments.</p>
+    <% if (approvalErrors?.form) { %><div class="alert alert--danger mb-4" role="alert"><%= approvalErrors.form %></div><% } %>
+    <% if (approvalReadiness) { %>
+    <ul class="approval-findings mb-4" aria-label="Submission readiness">
+      <% approvalReadiness.findings.forEach(item => { %>
+      <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
+        <strong><%= item.status === 'BLOCKING' ? 'Fix required' : item.status === 'WARNING' ? 'Recommendation' : 'Ready' %>: <%= item.label %></strong>
+        <span><%= item.message %></span>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+    <form method="POST" action="/projects/<%= project.slug %>/submit-review" novalidate>
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary" data-pending-label="Submitting...">Submit for Review</button>
+      <div class="form-group mb-4">
+        <label class="form-label" for="approval-purpose">What does this application do?</label>
+        <textarea id="approval-purpose" name="purpose" rows="3" maxlength="500" required
+          class="form-textarea<%= approvalErrors?.purpose ? ' form-input--error' : '' %>"
+          aria-describedby="approval-purpose-hint<%= approvalErrors?.purpose ? ' approval-purpose-error' : '' %>"><%= approvalValues?.purpose || '' %></textarea>
+        <p class="form-hint" id="approval-purpose-hint">Use one or two sentences that a reviewer can understand. Do not include passwords or other secrets.</p>
+        <% if (approvalErrors?.purpose) { %><span class="form-error" id="approval-purpose-error" role="alert"><%= approvalErrors.purpose %></span><% } %>
+      </div>
+      <button type="submit" class="button button--primary" data-pending-label="Submitting..." <%= !approvalReadiness?.isReady ? 'disabled' : '' %>><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></button>
     </form>
   </div>
 </div>

@@ -49,7 +49,7 @@ New projects start as drafts. A draft must be configured and submitted for revie
 
 1. Open the project.
 2. Go to **Repository**.
-3. For a public GitHub repository, paste its HTTPS URL, select **Check repository**, choose a verified branch, and connect it. This path does not require GitHub App installation and supports Manual or Approval Required deployment.
+3. For a public GitHub repository, paste its HTTPS URL, select **Check repository**, choose a verified branch, and connect it. This path does not require GitHub App installation and supports Manual deployment.
 4. For a private repository or Automatic deployment, select **Connect GitHub**, install or authorize the HelloDeploy GitHub App, choose an authorized repository, and choose the production branch.
 5. Save the repository connection, then run Detection before deploying.
 
@@ -111,22 +111,23 @@ Do not commit secrets to your GitHub repository.
 
 The first deployment requires administrative review.
 
-1. Complete repository connection, detection, and required configuration.
+1. Complete repository connection, a current successful app check, and required runtime configuration.
 2. Open the project overview.
-3. Select **Submit for review**.
+3. Briefly describe what the application does, then select **Submit for review**.
 4. Wait for an Admin or Super Admin decision.
 
-An Admin can approve, reject, or return the project for revision. If the project is returned for revision, fix the reported issues and submit again.
+An Admin can **Approve** or **Request changes**. Requested changes and the administrator note appear on the project overview. Fix the reported issues, run the app check again, and resubmit. Repository commits or configuration changes after submission require a fresh submission before approval.
 
 ## Deployment Modes
 
-HelloDeploy supports three deployment modes:
+HelloDeploy supports two deployment modes for new selections:
 
 - **Manual**: Default mode. GitHub pushes do not deploy automatically. An Owner or Maintainer starts deployments manually.
 - **Automatic**: Pushes to the configured production branch can trigger deployment.
-- **Approval Required**: Each deployment requires administrative approval.
 
 Only the project Owner can change deployment mode.
+
+The legacy **Approval Required** value remains readable for existing projects, but per-deployment approval is not implemented. An affected project must switch to Manual or Automatic before review or deployment.
 
 ## Deploy an Application
 

@@ -1,5 +1,11 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  ApprovalStatus,
+  DeploymentMode,
+  ProjectRole,
+  ProjectStatus,
+  AuditOutcome,
+} from '@hellodeploy/contracts';
 import { Deployment, Project, Repository } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
@@ -18,6 +24,7 @@ import {
   updateMemberRole,
   transferOwnership,
   submitForReview,
+  getLatestApprovalRequest,
 } from '../services/project.service.js';
 import {
   validateCreateProject,
@@ -29,6 +36,7 @@ import { buildSettingsSections } from '../config/project-navigation.js';
 import { getProjectDomains } from '../services/domain.service.js';
 import { resolveProjectQuota } from '../services/quota.service.js';
 import { projectReturnTarget } from '../utils/project-return-target.js';
+import { assessInitialApprovalReadiness } from '../services/approval-readiness.service.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
@@ -82,7 +90,7 @@ export const postNewProject = asyncHandler(async (req, res) => {
 
 // ─── Show project ──────────────────────────────────────────────────────────────
 
-function buildOnboardingChecklist(project, secretCount) {
+function buildOnboardingChecklist(project, secretCount, latestApproval) {
   const base = `/projects/${project.slug}`;
   const steps = [
     {
@@ -104,7 +112,9 @@ function buildOnboardingChecklist(project, secretCount) {
     {
       label: 'Submit for review',
       href: '#submit-review',
-      done: project.status !== ProjectStatus.DRAFT,
+      done:
+        project.status !== ProjectStatus.DRAFT ||
+        [ApprovalStatus.PENDING, ApprovalStatus.APPROVED].includes(latestApproval?.status),
     },
     {
       label: 'Trigger your first deploy',
@@ -123,10 +133,11 @@ async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
   const wantsOnboarding = !project.activeDeploymentId && req.membership.role === ProjectRole.OWNER;
 
-  const [repository, deployments, secretNames] = await Promise.all([
+  const [repository, deployments, secretNames, latestApproval] = await Promise.all([
     project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
     getDeployments(project._id, 5),
     wantsOnboarding ? listSecretNames(project._id) : null,
+    req.membership.role === ProjectRole.OWNER ? getLatestApprovalRequest(project._id) : null,
   ]);
 
   let newCommitAvailable = false;
@@ -139,7 +150,13 @@ async function renderProjectOverview(req, res, extras = {}) {
   }
 
   // Guided onboarding, shown until the first successful deploy.
-  const onboarding = wantsOnboarding ? buildOnboardingChecklist(project, secretNames.length) : null;
+  const onboarding = wantsOnboarding
+    ? buildOnboardingChecklist(project, secretNames.length, latestApproval)
+    : null;
+  const approvalReadiness =
+    req.membership.role === ProjectRole.OWNER
+      ? assessInitialApprovalReadiness({ project, repository })
+      : null;
 
   res.render('pages/projects/show', {
     title: project.name,
@@ -149,6 +166,10 @@ async function renderProjectOverview(req, res, extras = {}) {
     newCommitAvailable,
     deployments,
     onboarding,
+    latestApproval,
+    approvalReadiness,
+    approvalErrors: {},
+    approvalValues: { purpose: latestApproval?.purpose ?? '' },
     ...extras,
   });
 }
@@ -343,17 +364,22 @@ export const postSubmitForReview = asyncHandler(async (req, res) => {
   const result = await submitForReview({
     projectId: req.project._id,
     actorId: req.session.user.id,
+    purpose: req.body.purpose,
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
 
   if (!result.success) {
-    req.flash('error', result.error);
+    return renderProjectOverview(req, res, {
+      approvalErrors: result.field ? { [result.field]: result.error } : { form: result.error },
+      approvalValues: { purpose: req.body.purpose ?? '' },
+      approvalReadiness: result.readiness,
+    });
   } else {
     req.flash('success', 'Your project has been submitted for review.');
   }
 
-  res.redirect(`/projects/${req.project.slug}`);
+  return res.redirect(`/projects/${req.project.slug}`);
 });
 
 // ─── Members ───────────────────────────────────────────────────────────────────
@@ -479,7 +505,7 @@ export const postTransferOwnership = asyncHandler(async (req, res) => {
 export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
   const project = req.project;
   const { deploymentMode } = req.body;
-  const allowed = Object.values(DeploymentMode);
+  const allowed = [DeploymentMode.MANUAL, DeploymentMode.AUTOMATIC];
 
   if (!allowed.includes(deploymentMode)) {
     req.flash('error', 'Invalid deployment mode.');
@@ -499,7 +525,10 @@ export const postUpdateDeploymentMode = asyncHandler(async (req, res) => {
     }
   }
 
-  await Project.updateOne({ _id: project._id }, { $set: { deploymentMode } });
+  await Project.updateOne(
+    { _id: project._id },
+    { $set: { deploymentMode }, $inc: { configurationVersion: 1 } },
+  );
 
   await writeAuditEvent({
     action: 'project.deployment_mode_updated',

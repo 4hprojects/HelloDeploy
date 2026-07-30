@@ -53,11 +53,16 @@
     project.runtimeType === 'UNKNOWN' ||
     (needsDetectedBuild && !bc.buildCommand) ||
     (needsDetectedStart && !bc.startCommand);
-  const hasBeenChecked = Boolean(project.runtimeType);
   const latestDetectionResult = locals.detectionResult && detectionResult;
+  const hasBeenChecked = Boolean(project.detection?.checkedAt || latestDetectionResult);
+  const checkedCommitIsCurrent =
+    Boolean(project.detection?.checkedCommitSha) &&
+    project.detection.checkedCommitSha === repo.lastCommitSha;
   const isReady = latestDetectionResult
     ? latestDetectionResult.isValid
-    : hasBeenChecked && !hasBlockingConfigurationGap;
+    : project.detection?.status === 'READY' &&
+      checkedCommitIsCurrent &&
+      !hasBlockingConfigurationGap;
   const checkState = !hasBeenChecked
     ? { label: 'Not checked', modifier: 'pending', description: 'HelloDeploy has not checked this repository yet.' }
     : isReady

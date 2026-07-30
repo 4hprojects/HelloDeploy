@@ -272,6 +272,13 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
       $set: {
         repositoryId: repo._id,
         productionBranch,
+        runtimeType: null,
+        detection: {
+          status: 'NOT_RUN',
+          issues: [],
+          checkedCommitSha: null,
+          checkedAt: null,
+        },
         configurationVersion: project.configurationVersion + 1,
       },
     },
@@ -355,6 +362,12 @@ async function connectPublicRepository(req, res) {
         productionBranch,
         deploymentMode,
         runtimeType: null,
+        detection: {
+          status: 'NOT_RUN',
+          issues: [],
+          checkedCommitSha: null,
+          checkedAt: null,
+        },
         configurationVersion: project.configurationVersion + 1,
       },
     },
@@ -416,7 +429,20 @@ export const postDisconnectRepository = asyncHandler(async (req, res) => {
 
   await Project.updateOne(
     { _id: project._id },
-    { $set: { repositoryId: null, productionBranch: null } },
+    {
+      $set: {
+        repositoryId: null,
+        productionBranch: null,
+        runtimeType: null,
+        detection: {
+          status: 'NOT_RUN',
+          issues: [],
+          checkedCommitSha: null,
+          checkedAt: null,
+        },
+      },
+      $inc: { configurationVersion: 1 },
+    },
   );
 
   await writeAuditEvent({

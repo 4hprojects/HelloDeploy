@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import { ProjectStatus, DeploymentMode, RuntimeType } from '@hellodeploy/contracts';
+import {
+  ProjectStatus,
+  DeploymentMode,
+  RuntimeType,
+  DetectionStatus,
+} from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -27,6 +32,28 @@ const maintenanceModeSchema = new Schema(
     enabled: { type: Boolean, default: false },
     message: { type: String, default: null },
     enabledAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+const detectionIssueSchema = new Schema(
+  {
+    level: { type: String, enum: ['ERROR', 'WARNING'], required: true },
+    message: { type: String, required: true, maxlength: 500 },
+  },
+  { _id: false },
+);
+
+const detectionSchema = new Schema(
+  {
+    status: {
+      type: String,
+      enum: Object.values(DetectionStatus),
+      default: DetectionStatus.NOT_RUN,
+    },
+    issues: { type: [detectionIssueSchema], default: [] },
+    checkedCommitSha: { type: String, default: null, maxlength: 40 },
+    checkedAt: { type: Date, default: null },
   },
   { _id: false },
 );
@@ -73,6 +100,7 @@ const projectSchema = new Schema(
     deployHookTokenHash: { type: String, default: null },
     quotaOverrideId: { type: Schema.Types.ObjectId, ref: 'Quota', default: null },
     configurationVersion: { type: Number, default: 1 },
+    detection: { type: detectionSchema, default: () => ({}) },
     notificationPreference: {
       type: String,
       enum: ['ALL', 'FAILURE_ONLY', 'NONE'],
