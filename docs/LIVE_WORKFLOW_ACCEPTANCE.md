@@ -1,6 +1,6 @@
 # Live Workflow Acceptance Checklist
 
-Updated: 2026-07-14T14:01:16+08:00
+Updated: 2026-07-31T00:33:54+08:00
 
 ## Status Contract
 
@@ -24,19 +24,20 @@ Public HTTP evidence never proves authenticated behavior, host isolation, Docker
 
 ## Public Production Boundary
 
-| Check            | Expected result                                         | Status | Evidence or next action                                                                                                                                          |
-| ---------------- | ------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Public homepage  | HTTPS response through the configured public edge       | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                                                    |
-| Sign-in page     | Authentication entry point is reachable                 | Passed | `/auth/sign-in` returned `200`                                                                                                                                   |
-| Liveness         | Sanitized web-process response                          | Passed | `/health` returned `200` with service and timestamp only                                                                                                         |
-| Readiness        | Sanitized MongoDB, Redis, and queue state               | Passed | `/ready` returned `200`; all three named checks were true                                                                                                        |
-| HTTPS policy     | HSTS and CSP present                                    | Passed | Public response included HSTS and the application CSP                                                                                                            |
-| Frontend release | Deployed asset identifiers match the evaluated checkout | Passed | The production check found the JavaScript and stylesheet identifiers extracted from this checkout; this does not prove the target host topology or exact release |
-| Session cookie   | `Secure; HttpOnly; SameSite=Strict`                     | Passed | The production web-only pilot passed the value-safe public cookie check on 2026-07-14; no cookie or session value was captured                                   |
+| Check             | Expected result                                                     | Status | Evidence or next action                                                                                                             |
+| ----------------- | ------------------------------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Public homepage   | HTTPS response through the configured public edge                   | Passed | `https://hellodeploy.online/` returned `200` through Cloudflare on 2026-07-13                                                       |
+| Sign-in page      | Authentication entry point is reachable                             | Passed | `/auth/sign-in` returned `200`                                                                                                      |
+| Liveness          | Sanitized web-process response                                      | Passed | `/health` returned `200` with service and timestamp only                                                                            |
+| Readiness         | Sanitized MongoDB, Redis, and queue state                           | Passed | `/ready` returned `200`; all three named checks were true                                                                           |
+| HTTPS policy      | HSTS and CSP present                                                | Passed | Public response included HSTS and the application CSP                                                                               |
+| Frontend release  | Deployed asset identifiers match the evaluated checkout             | Failed | The 2026-07-31 production check found one candidate asset missing because the PM2 web has not been cut over to the merged candidate |
+| Session cookie    | `Secure; HttpOnly; SameSite=Strict`                                 | Passed | The production web-only pilot passed the value-safe public cookie check on 2026-07-14; no cookie or session value was captured      |
+| HelloRun fallback | Existing HelloRun remains publicly available before managed cutover | Failed | The PM2 process is stable, but the public hostname returns Cloudflare error 1033 and is absent from the active tunnel configuration |
 
 ## Local Ubuntu 26.04 Pilot Host
 
-Observed directly on the current host on 2026-07-13. Ubuntu 26.04 is a candidate platform until installation, deployment, rollback, and recovery gates pass; these observations do not promote it to supported status.
+Observed directly on the current host and refreshed on 2026-07-31. Ubuntu 26.04 is a candidate platform until installation, deployment, rollback, and recovery gates pass; these observations do not promote it to supported status.
 
 | Check                        | Expected result                                                    | Status  | Evidence or next action                                                                                                                                                                 |
 | ---------------------------- | ------------------------------------------------------------------ | ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

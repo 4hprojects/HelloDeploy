@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-14T14:01:16+08:00
+Updated: 2026-07-31T00:33:54+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                          |
-| ---------------- | ---------------------------------------------- |
-| Overall status   | Live local pilot; productionization pending    |
-| Release progress | `v0.1.5` published from reviewed PR #10        |
-| Current batch    | Priority 1 — Safe In-Place Baseline            |
-| Next action      | Prepare inactive Docker and service foundation |
-| Release state    | NO-GO for customer application hosting         |
+| Field            | Value                                                         |
+| ---------------- | ------------------------------------------------------------- |
+| Overall status   | Live dashboard pilot; P0 recovery baseline blocked            |
+| Release progress | `v0.1.5` published; candidate checkpoint merged from PR #11   |
+| Current batch    | Priority 1 — Safe In-Place Baseline                           |
+| Next action      | Restore HelloRun fallback and verify privileged backup inputs |
+| Release state    | NO-GO for customer application hosting                        |
 
-The current Ubuntu 26.04 laptop is the existing HelloDeploy pilot host, not a separate workstation controlling another server. It runs the web from reviewed `v0.1.5` under a temporary PM2/Node.js 24 pilot identity, uses local Redis, and exposes the dashboard through a Cloudflare Tunnel that connects directly to the web process. Public liveness, readiness, security headers, and the strict production session-cookie contract pass. The combined PM2 web/worker entry is stopped and the worker remains intentionally offline because the constrained Nginx helper and Docker plane are not installed. The host does not yet provide isolated HelloDeploy systemd identities, the application route directory, or wildcard application ingress. Ubuntu 26.04 remains a candidate platform until installation, deployment, rollback, and recovery evidence passes.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, and Cloudflare Tunnel are active; local and public liveness and readiness pass. Candidate commit `6d0bf82530d01bb941b6309c83a1a8bde18a4447` is clean and passes the complete Node.js 22 release gate, but the active PM2 web has not been cut over to that candidate and the public checker reports one stale frontend asset. The worker remains offline, Docker and isolated identities are absent, and the helper, managed application routes, and wildcard ingress are not installed. The independent HelloRun PM2 process is stable, but its public hostname returns Cloudflare error 1033 because the active tunnel lacks a matching rule. P0 is stopped until that fallback is restored and the off-host backup, database export, recovery-key, and root-owned rollback prerequisites pass.
 
 ## Status Legend
 
@@ -75,6 +75,8 @@ These groups order the remaining batches by dependency and identify work that ca
 PR #9 corrected the public-key-only packet check, passed Node.js 22 CI, merged at `4c27b68e7e123e19064545205e2983badda69a81`, and was published as annotated tag `v0.1.4`. The root-installed reviewed command then created the emergency artifact and its fixed checksum; remount and temporary recovery-key verification passed, and both media were closed cleanly afterward. PR #10 added the bounded terminal-only verifier and recorded the approved foundation-before-normalization sequence; it passed Node.js 22 CI, merged at `c16f33db2ca57147d266d9a0ae30cab22971030d`, and was published as annotated tag `v0.1.5`.
 
 After a later PM2 reload picked up the production-enforcing start scripts, the combined pilot entry crash-looped because the reviewed worker correctly rejected missing Nginx-helper policy. The entry was stopped after 970 restart attempts. The GitHub App slug, numeric identity, and newest downloaded private key were verified against GitHub without recording identifiers or key material; the protected key was installed with mode `0640`. A separate web-only PM2 pilot then started from the clean `v0.1.5` checkout and passed production web validation, local/public health and readiness, expected asset checks, HSTS, CSP, and `Secure; HttpOnly; SameSite=Strict` with zero restarts. This restores the dashboard and closes the cookie gate, but it is not Node.js 22 or service-identity normalization and the worker remains offline. The next authorized step is prepare-only Docker/identities/units, followed by queue control, helper validation, isolated candidate activation, and a second final baseline capture. Cross-host restoration remains blocked.
+
+**2026-07-31 P0 evidence:** PR #11 passed Node.js 22 CI and merged as clean candidate `6d0bf82530d01bb941b6309c83a1a8bde18a4447`. The same commit passed local Node.js 22 clean installation, lint, formatting, configuration validation, 839 tests, production audit, and clean-worktree checks. A fresh bounded host baseline confirmed dashboard health and the expected Docker, identity, helper, route-directory, and wildcard-ingress blockers. Read-only queue inspection found no deployment work and one valid DNS verification waiting for P2. Backup tooling syntax and 33 focused safety tests pass, but no off-host medium is mounted, the database export tool is unavailable, the recovery private key is not loaded, and root-owned rollback evidence requires privileged inspection. The HelloRun fallback also returns Cloudflare error 1033 while its PM2 process remains stable, so the P0 health stop condition is active. No queue, service, DNS, route, or traffic mutation was performed.
 
 ### Priority 1 — Production Service Foundation
 
