@@ -1,3 +1,17 @@
+<%
+  const pendingDomains = domains.filter(domain => domain.status === 'PENDING_VERIFICATION');
+  const verifiedDomains = domains.filter(domain =>
+    ['PENDING_ADMIN_APPROVAL', 'ACTIVE'].includes(domain.status));
+  const activeDomains = domains.filter(domain => domain.status === 'ACTIVE');
+  const pendingSetupDomain = verificationToken && pendingHostname
+    ? domains.find(domain => domain.hostnameNormalized === pendingHostname)
+    : null;
+  const pendingWithoutToken = pendingDomains.filter(domain =>
+    !verificationToken || domain.hostnameNormalized !== pendingHostname);
+  const dnsRecordName = pendingHostname ? `_hellodeploy-verify.${pendingHostname}` : '';
+  const dnsRecordValue = verificationToken ? `hellodeploy-verify=${verificationToken}` : '';
+%>
+
 <div class="page-header page-header--actions">
   <div>
     <h1 class="page-header__title">Custom Domains</h1>
@@ -7,149 +21,285 @@
   </div>
 </div>
 
-<% if (verificationToken && pendingHostname) { %>
-<div class="card mb-6 card--highlight">
-  <div class="card__header">
-    <h2 class="card__title">Verify Domain Ownership</h2>
-  </div>
-  <div class="card__body">
-    <p class="text-sm mb-4">
-      Add the following <strong>DNS TXT record</strong> to <strong><%= pendingHostname %></strong> using your DNS provider.
-      Once the record propagates (typically 1–30 minutes), click "Check Verification".
-    </p>
-
-    <div class="dns-instructions">
-      <div class="dns-record">
-        <div class="dns-record__row">
-          <span class="dns-record__label text-xs text-muted">Record type</span>
-          <code class="code-inline">TXT</code>
-        </div>
-        <div class="dns-record__row">
-          <span class="dns-record__label text-xs text-muted">Host / Name</span>
-          <code class="code-inline">_hellodeploy-verify.<%= pendingHostname %></code>
-        </div>
-        <div class="dns-record__row">
-          <span class="dns-record__label text-xs text-muted">Value</span>
-          <code class="code-inline">hellodeploy-verify=<%= verificationToken %></code>
-        </div>
-        <div class="dns-record__row">
-          <span class="dns-record__label text-xs text-muted">TTL</span>
-          <code class="code-inline">300</code>
-        </div>
-      </div>
+<section class="domain-guide" aria-labelledby="domain-guide-title">
+  <div class="domain-guide__header">
+    <div>
+      <h2 id="domain-guide-title">Connect your domain</h2>
+      <p>HelloDeploy confirms that you own the address before sending visitors to your app.</p>
     </div>
-
-    <p class="text-xs text-muted mt-4">
-      This token is only shown once. If you lose it, remove the domain and re-add it to generate a new token.
-    </p>
+    <% if (activeDomains.length) { %>
+    <span class="status-badge status-badge--active">Connected</span>
+    <% } else if (verifiedDomains.length) { %>
+    <span class="status-badge status-badge--pending">Admin review</span>
+    <% } else if (pendingDomains.length) { %>
+    <span class="status-badge status-badge--pending">DNS setup</span>
+    <% } else { %>
+    <span class="status-badge status-badge--stopped">Not started</span>
+    <% } %>
   </div>
-</div>
+
+  <ol class="domain-steps" aria-label="Custom domain setup progress">
+    <li class="domain-step<%= domains.length ? ' domain-step--complete' : ' domain-step--current' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (domains.length) { %>&check;<% } else { %>1<% } %></span>
+      <div>
+        <strong>Add your domain</strong>
+        <span>Enter the address visitors will use.</span>
+      </div>
+    </li>
+    <li class="domain-step<%= verifiedDomains.length ? ' domain-step--complete' : pendingDomains.length ? ' domain-step--current' : '' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (verifiedDomains.length) { %>&check;<% } else { %>2<% } %></span>
+      <div>
+        <strong>Add the DNS record</strong>
+        <span>Copy the TXT name and value to your DNS provider.</span>
+      </div>
+    </li>
+    <li class="domain-step<%= verifiedDomains.length ? ' domain-step--complete' : '' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (verifiedDomains.length) { %>&check;<% } else { %>3<% } %></span>
+      <div>
+        <strong>Check ownership</strong>
+        <span>HelloDeploy checks the TXT record, then an administrator reviews it.</span>
+      </div>
+    </li>
+    <li class="domain-step<%= activeDomains.length ? ' domain-step--complete' : verifiedDomains.length ? ' domain-step--current' : '' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (activeDomains.length) { %>&check;<% } else { %>4<% } %></span>
+      <div>
+        <strong>Domain goes live</strong>
+        <span>HelloDeploy activates routing after approval.</span>
+      </div>
+    </li>
+  </ol>
+</section>
+
+<% if (verificationToken && pendingHostname) { %>
+<section class="domain-setup-panel" id="dns-record-instructions"
+  aria-labelledby="dns-record-title" tabindex="-1">
+  <header class="domain-setup-panel__header">
+    <div>
+      <p class="domain-setup-panel__eyebrow">Your next step</p>
+      <h2 id="dns-record-title">Add this TXT record to <%= pendingHostname %></h2>
+      <p>Keep this page open until you finish. The verification value is shown only once.</p>
+    </div>
+  </header>
+
+  <div class="domain-provider-guidance">
+    <strong>Where should I edit DNS?</strong>
+    <p>Use the provider that manages your nameservers. If your nameservers are Cloudflare, edit DNS in Cloudflare even when you purchased the domain from GoDaddy.</p>
+  </div>
+
+  <ol class="domain-task-list">
+    <li>
+      <div>
+        <strong>Open your DNS provider</strong>
+        <p>Open its DNS records page and choose to add a new record.</p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Create the TXT record</strong>
+        <p>Enter these fields exactly. Some providers call Host / Name simply Name.</p>
+        <div class="dns-record" data-dns-record>
+          <div class="dns-record__row dns-record__row--plain">
+            <span class="dns-record__label">Type</span>
+            <code class="dns-record__value">TXT</code>
+          </div>
+          <div class="dns-record__row">
+            <span class="dns-record__label">Host / Name</span>
+            <code class="dns-record__value"><%= dnsRecordName %></code>
+            <button type="button" class="button button--secondary button--sm dns-copy-button"
+              data-copy-value="<%= dnsRecordName %>" data-copy-label="TXT record name">
+              <%- include('../../partials/icon', { name: 'copy' }) %>
+              <span>Copy</span>
+            </button>
+          </div>
+          <div class="dns-record__row">
+            <span class="dns-record__label">Value / Content</span>
+            <code class="dns-record__value"><%= dnsRecordValue %></code>
+            <button type="button" class="button button--secondary button--sm dns-copy-button"
+              data-copy-value="<%= dnsRecordValue %>" data-copy-label="TXT record value">
+              <%- include('../../partials/icon', { name: 'copy' }) %>
+              <span>Copy</span>
+            </button>
+          </div>
+          <div class="dns-record__row dns-record__row--plain">
+            <span class="dns-record__label">TTL</span>
+            <code class="dns-record__value">Auto or 300 seconds</code>
+          </div>
+        </div>
+        <p class="form-hint mt-2">If your provider automatically adds the domain name, avoid entering it twice. The final record must resolve at <code class="code-inline"><%= dnsRecordName %></code>.</p>
+        <p class="sr-only" role="status" aria-live="polite" data-copy-status></p>
+      </div>
+    </li>
+    <li>
+      <div>
+        <strong>Save, wait, then check DNS</strong>
+        <p>DNS changes commonly take 1-30 minutes. You can safely try the check again.</p>
+        <% if (pendingSetupDomain && membership.role === 'OWNER') { %>
+        <form method="POST"
+          action="/projects/<%= project.slug %>/domains/<%= pendingSetupDomain._id %>/verify"
+          class="mt-3">
+          <%- include('../../partials/csrf-field') %>
+          <button type="submit" class="button button--primary"
+            data-pending-label="Checking DNS...">Check DNS record</button>
+        </form>
+        <% } %>
+      </div>
+    </li>
+  </ol>
+</section>
+<% } %>
+
+<% if (pendingWithoutToken.length && membership.role === 'OWNER') { %>
+<section class="domain-recovery" aria-labelledby="domain-recovery-title">
+  <div>
+    <h2 id="domain-recovery-title">Continue DNS setup</h2>
+    <p>The secret TXT value is shown only once. If you already added it, select <strong>Check DNS record</strong>. If you did not save it, remove the domain and add it again to generate a new value.</p>
+    <p class="form-hint">Add the new record with the provider that manages your nameservers. Cloudflare nameservers mean you should edit DNS in Cloudflare, even if the domain was purchased elsewhere.</p>
+  </div>
+  <% pendingWithoutToken.forEach(domain => { %>
+  <div class="domain-recovery__domain">
+    <div>
+      <strong><%= domain.hostnameNormalized %></strong>
+      <p class="form-hint">Expected record name: <code class="code-inline">_hellodeploy-verify.<%= domain.hostnameNormalized %></code></p>
+    </div>
+    <div class="button-group button-group--sm">
+      <form method="POST"
+        action="/projects/<%= project.slug %>/domains/<%= domain._id %>/verify">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--primary button--sm"
+          data-pending-label="Checking DNS...">Check DNS record</button>
+      </form>
+      <form method="POST"
+        action="/projects/<%= project.slug %>/domains/<%= domain._id %>/remove"
+        data-confirm="Remove <%= domain.hostnameNormalized %>? Add it again afterward to generate a new one-time TXT value."
+        data-confirm-title="Restart domain setup"
+        data-confirm-accept-label="Remove Domain"
+        data-confirm-pending-label="Removing..."
+        data-confirm-variant="warning">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--secondary button--sm">Remove and restart</button>
+      </form>
+    </div>
+  </div>
+  <% }) %>
+</section>
 <% } %>
 
 <% if (membership.role === 'OWNER') { %>
-<div class="card mb-6">
-  <div class="card__header">
-    <h2 class="card__title">Add Custom Domain</h2>
-  </div>
-  <div class="card__body">
-    <form method="POST" action="/projects/<%= project.slug %>/domains">
-      <%- include('../../partials/csrf-field') %>
-      <div class="form-group form-group--floating">
-        <label for="hostname" class="form-label">Domain</label>
-        <input type="text"
-               id="hostname"
-               name="hostname"
-               class="form-input"
-               placeholder="app.yourdomain.com"
-               required
-               autocomplete="off"
-               spellcheck="false">
-        <p class="form-hint text-xs text-muted mt-1">
-          Enter a fully qualified domain name. You will need to add a DNS TXT record to verify ownership.
-          After verification, an administrator will review and activate the domain.
-        </p>
-      </div>
-      <button type="submit" class="button button--primary" data-pending-label="Adding...">Add Domain</button>
-    </form>
-  </div>
-</div>
+<section class="domain-page-section" aria-labelledby="add-domain-title">
+  <header class="domain-page-section__header">
+    <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
+    <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
+  </header>
+  <form method="POST" action="/projects/<%= project.slug %>/domains"
+    class="domain-add-form">
+    <%- include('../../partials/csrf-field') %>
+    <div class="form-group form-group--floating">
+      <label for="hostname" class="form-label">Domain</label>
+      <input type="text" id="hostname" name="hostname" class="form-input"
+        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false">
+      <p class="form-hint text-xs text-muted mt-1">Do not include <code class="code-inline">https://</code> or a page path.</p>
+    </div>
+    <button type="submit" class="button button--primary"
+      data-pending-label="Adding...">Add domain</button>
+  </form>
+</section>
 <% } %>
 
-<div class="card">
-  <div class="card__header">
-    <h2 class="card__title">Domains</h2>
-  </div>
+<section class="domain-page-section" aria-labelledby="domains-title">
+  <header class="domain-page-section__header">
+    <h2 id="domains-title">Your domains</h2>
+    <p>Follow the next action shown for each address.</p>
+  </header>
   <% if (domains.length === 0) { %>
-  <div class="card__body">
-    <div class="empty-state">
-      <p class="empty-state__title">No custom domains</p>
-      <p class="empty-state__description">Use your own hostname after the first working deployment is ready.</p>
-      <ul class="empty-state__steps">
-        <li>Add a fully qualified domain name.</li>
-        <li>Create the DNS TXT record shown after submission.</li>
-        <li>Verify ownership, then wait for administrator approval.</li>
-      </ul>
-      <% if (membership.role === 'OWNER') { %>
-      <div class="empty-state__actions">
-        <a href="#hostname" class="button button--secondary">Add Domain</a>
-      </div>
-      <% } %>
-    </div>
+  <div class="empty-state empty-state--compact">
+    <p class="empty-state__title">No custom domain yet</p>
+    <p class="empty-state__description">Add the address you want visitors to use to begin.</p>
   </div>
   <% } else { %>
-  <div class="card__body">
-    <div class="table-wrapper table-responsive table-responsive--flush">
+  <div class="table-wrapper table-responsive table-responsive--flush">
     <table class="table table--responsive">
       <thead>
         <tr>
-          <th scope="col">Hostname</th>
-          <th scope="col">Status</th>
+          <th scope="col">Domain</th>
+          <th scope="col">Progress</th>
           <th scope="col">Added</th>
           <th scope="col"><span class="sr-only">Actions</span></th>
         </tr>
       </thead>
       <tbody>
-        <% domains.forEach(d => { %>
+        <% domains.forEach(domain => { %>
         <tr>
-          <td data-label="Hostname">
-            <code class="code-inline"><%= d.hostnameNormalized %></code>
-            <% if (d.status === 'ACTIVE') { %>
-            <a href="https://<%= d.hostnameNormalized %>" class="table-link text-xs ml-2" target="_blank" rel="noopener" aria-label="Open <%= d.hostnameNormalized %> in a new tab" data-tooltip="Open this custom domain in a new tab."><%- include('../../partials/icon', { name: 'external' }) %></a>
+          <td data-label="Domain">
+            <code class="code-inline domain-hostname"><%= domain.hostnameNormalized %></code>
+            <% if (domain.status === 'ACTIVE') { %>
+            <a href="https://<%= domain.hostnameNormalized %>" class="table-link text-xs ml-2"
+              target="_blank" rel="noopener"
+              aria-label="Open <%= domain.hostnameNormalized %> in a new tab"
+              data-tooltip="Open this custom domain in a new tab."><%- include('../../partials/icon', { name: 'external' }) %></a>
             <% } %>
           </td>
-          <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
+          <td data-label="Progress">
+            <%- include('../../partials/status-badge', { status: domain.status }) %>
+            <p class="form-hint domain-progress-copy">
+              <% if (domain.status === 'PENDING_VERIFICATION') { %>
+                Add the TXT record, then check DNS.
+              <% } else if (domain.status === 'PENDING_ADMIN_APPROVAL') { %>
+                DNS verified. Waiting for administrator activation.
+              <% } else if (domain.status === 'ACTIVE') { %>
+                Connected and ready for visitors.
+              <% } else if (domain.status === 'REJECTED') { %>
+                Review the administrator feedback before trying again.
+              <% } else { %>
+                Contact an administrator if this status does not change.
+              <% } %>
+            </p>
+            <% if (domain.rejectionReason) { %>
+            <p class="form-error">Administrator note: <%= domain.rejectionReason %></p>
+            <% } %>
+          </td>
           <td class="text-muted text-sm" data-label="Added">
-            <%= new Date(d.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) %>
+            <%= new Date(domain.createdAt).toLocaleDateString('en-GB', {
+              day: 'numeric',
+              month: 'short',
+              year: 'numeric'
+            }) %>
           </td>
           <td class="text-right" data-label="Actions">
-            <div class="button-group button-group--sm">
-              <% if (d.status === 'PENDING_VERIFICATION' && membership.role === 'OWNER') { %>
-              <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/verify">
+            <% if (membership.role === 'OWNER') { %>
+            <div class="button-group button-group--sm domain-row-actions">
+              <% if (domain.status === 'PENDING_VERIFICATION') { %>
+              <% if (verificationToken && domain.hostnameNormalized === pendingHostname) { %>
+              <a href="#dns-record-instructions"
+                class="button button--secondary button--sm">View DNS record</a>
+              <% } %>
+              <form method="POST"
+                action="/projects/<%= project.slug %>/domains/<%= domain._id %>/verify">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm" data-pending-label="Checking..." data-tooltip="Check whether the required DNS TXT record has propagated.">Check Verification</button>
+                <button type="submit" class="button button--secondary button--sm"
+                  data-pending-label="Checking DNS...">Check DNS</button>
               </form>
               <% } %>
-              <% if (d.status === 'PENDING_ADMIN_APPROVAL') { %>
-              <span class="text-muted text-xs">Awaiting admin approval</span>
+              <% if (domain.status === 'PENDING_ADMIN_APPROVAL') { %>
+              <span class="text-muted text-xs">No action needed</span>
               <% } %>
-              <% if (membership.role === 'OWNER') { %>
-              <form method="POST" action="/projects/<%= project.slug %>/domains/<%= d._id %>/remove"
-                    data-confirm="Remove <%= d.hostnameNormalized %> from this project?"
-                    data-confirm-title="Remove domain"
-                    data-confirm-accept-label="Remove Domain"
-                    data-confirm-pending-label="Removing..."
-                    data-confirm-variant="danger">
+              <form method="POST"
+                action="/projects/<%= project.slug %>/domains/<%= domain._id %>/remove"
+                data-confirm="Remove <%= domain.hostnameNormalized %> from this project?"
+                data-confirm-title="Remove domain"
+                data-confirm-accept-label="Remove Domain"
+                data-confirm-pending-label="Removing..."
+                data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--danger button--sm" data-tooltip="Remove this custom domain from the project.">Remove</button>
+                <button type="submit" class="button button--danger button--sm"
+                  data-tooltip="Remove this custom domain from the project.">Remove</button>
               </form>
-              <% } %>
             </div>
+            <% } %>
           </td>
         </tr>
         <% }) %>
       </tbody>
     </table>
-    </div>
   </div>
   <% } %>
-</div>
+</section>

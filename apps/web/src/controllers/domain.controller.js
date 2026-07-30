@@ -51,7 +51,7 @@ export const postAddDomain = asyncHandler(async (req, res) => {
     'success',
     `Domain ${result.domain.hostnameNormalized} added. See the TXT record instructions below.`,
   );
-  res.redirect(`/projects/${project.slug}/domains`);
+  res.redirect(`/projects/${project.slug}/domains#dns-record-instructions`);
 });
 
 export const postVerifyDomain = asyncHandler(async (req, res) => {

@@ -89,7 +89,7 @@ describe('responsive tables', () => {
     }
 
     assert.match(projectDeployments, /data-label="Duration"/);
-    assert.match(projectDomains, /data-label="Hostname"/);
+    assert.match(projectDomains, /data-label="Domain"/);
     assert.match(projectMembers, /data-label="Member"/);
     assert.match(projectEnvironment, /data-label="Last updated"/);
     assert.match(projectIndex, /data-label="Name"/);

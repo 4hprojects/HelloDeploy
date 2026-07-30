@@ -2003,3 +2003,23 @@
 - `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 - `npm test` passed 830 tests across 173 suites with zero failures, cancellations, or skips.
 - Authenticated-style EJS fixtures were inspected at 1440px desktop and 390px mobile widths, including long repository/domain values and archived read-only behavior. No production services, queues, workers, deployments, or traffic were changed.
+
+## Guided Custom Domains
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:11:44+08:00
+
+### Implemented Behavior
+
+- Replaced the technical domain form-first page with a four-stage setup summary covering domain entry, DNS record creation, ownership checking, and administrator activation.
+- Expanded the one-time TXT screen with nameserver-based provider guidance, exact Type, Name, Value, and TTL fields, accessible copy controls, DNS timing guidance, and a direct check action. Successful domain creation now lands on this instruction panel.
+- Added a persistent recovery state for pending domains whose one-time value is no longer available. Owners can check an already-created record or remove and restart setup to receive a new value without weakening hashed token storage.
+- Added plain-language progress and next actions for pending verification, administrator review, active, rejected, Owner, and read-only states, with responsive wrapping for long hostnames and verification values.
+- Reconciled the user guide and existing UI contracts with the guided workflow.
+
+### Verification Evidence
+
+- Focused domain guidance, responsive-table, pending-form, empty-state, destructive-action, and operational-copy checks passed 33 tests across 7 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 837 tests across 174 suites with zero failures, cancellations, or skips.
+- Real EJS fixtures for the one-time TXT screen and lost-token recovery state were inspected at 1440px desktop and 390px mobile widths. Long TXT values wrapped without horizontal overflow. No DNS records, verification jobs, approval decisions, routes, workers, deployments, or production traffic were changed.

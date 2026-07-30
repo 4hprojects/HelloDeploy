@@ -249,8 +249,12 @@ Each project can request one custom domain by default.
 1. Open the project.
 2. Go to **Domains**.
 3. Add the hostname.
-4. Follow the DNS verification instructions.
-5. Request or wait for administrative approval.
+4. Keep the resulting page open and copy the one-time TXT record name and value.
+5. Add the TXT record with the provider that manages the domain's nameservers. For example, use Cloudflare when the nameservers are Cloudflare even if the domain was purchased from GoDaddy.
+6. Wait for DNS propagation, then select **Check DNS record**.
+7. After ownership is verified, wait for administrative activation.
+
+The TXT verification value is shown only once and is stored only as a hash afterward. If it is lost, first try **Check DNS record** if the value was already added. Otherwise, use **Remove and restart**, add the domain again, and copy the newly generated value.
 
 Unverified domains do not receive active routing.
 

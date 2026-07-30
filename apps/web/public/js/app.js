@@ -1081,6 +1081,44 @@
     });
   }
 
+  function initDnsCopyButtons() {
+    const buttons = [...document.querySelectorAll('[data-copy-value]')];
+    if (!buttons.length) {
+      return;
+    }
+
+    const status = document.querySelector('[data-copy-status]');
+
+    buttons.forEach((button) => {
+      const defaultLabel = button.querySelector('span')?.textContent || 'Copy';
+
+      button.addEventListener('click', async () => {
+        const value = button.dataset.copyValue;
+        const label = button.dataset.copyLabel || 'Value';
+        const buttonLabel = button.querySelector('span');
+
+        try {
+          await navigator.clipboard.writeText(value);
+          if (buttonLabel) {
+            buttonLabel.textContent = 'Copied';
+          }
+          if (status) {
+            status.textContent = `${label} copied.`;
+          }
+          window.setTimeout(() => {
+            if (buttonLabel) {
+              buttonLabel.textContent = defaultLabel;
+            }
+          }, 2000);
+        } catch {
+          if (status) {
+            status.textContent = `Could not copy ${label.toLowerCase()}. Select the text and copy it manually.`;
+          }
+        }
+      });
+    });
+  }
+
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1096,6 +1134,7 @@
     initEnvFileImport();
     initSettingsSectionNavigation();
     initSettingsEditGroups();
+    initDnsCopyButtons();
   }
 
   if (document.readyState === 'loading') {
