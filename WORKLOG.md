@@ -1964,3 +1964,22 @@
 - `npm test` passed 779 tests across 166 suites with zero failures, cancellations, or skips after updating established guided-copy and fail-closed limiter inventory contracts.
 - `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
 - PM2, Nginx, Cloudflare Tunnel, Docker, Redis, the deployment queue, and live traffic were not changed. A real Docker-backed Public Git deployment remains Blocked while the isolated worker plane is offline; customer application hosting remains **NO-GO**.
+
+## Guided Project Overview
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T22:09:35+08:00
+
+### Implemented Behavior
+
+- Replaced the project overview's technical card grid and five-step onboarding counter with a lifecycle-aware summary that derives setup, attention, review, deployment, live, and suspended states from repository access, persisted detection freshness, approval state, project status, and deployment records.
+- Added four meaningful milestones, one role-aware next action, prominent approval feedback, safe platform application links, recent deployment activity, stale-source guidance, and first-deployment failure recovery while keeping existing deployment and retry routes unchanged.
+- Consolidated read-only repository, runtime, branch, deployment mode, and notification values into a responsive details disclosure. Editable deployment and notification controls remain in Project Settings, and environment variables remain optional guidance.
+- Added responsive wrapping and focus treatment, rendered real EJS fixtures at 1440px and 390px for visual inspection, and reconciled the user guide and historical onboarding specification.
+
+### Verification Evidence
+
+- Focused lifecycle, rendered EJS, approval, settings, accessibility, empty-state, and risky-action coverage passed 48 tests across 7 suites before the final edge-case additions; the final overview-focused run passed 18 tests across 2 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 818 tests across 171 suites with zero failures, cancellations, or skips.
+- Visual fixtures confirmed readable desktop and mobile layouts for a live app with a failed update and a draft with requested changes, including long repository names, administrator notes, application URLs, and failure messages. No production services, queues, workers, deployments, or traffic were changed.

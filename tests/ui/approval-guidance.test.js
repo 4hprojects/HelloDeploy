@@ -7,6 +7,10 @@ const ownerView = await readFile(
   new URL('../../apps/web/src/views/pages/projects/show.ejs', import.meta.url),
   'utf8',
 );
+const settingsView = await readFile(
+  new URL('../../apps/web/src/views/pages/projects/settings.ejs', import.meta.url),
+  'utf8',
+);
 const adminView = await readFile(
   new URL('../../apps/web/src/views/pages/admin/approval-requests.ejs', import.meta.url),
   'utf8',
@@ -33,9 +37,9 @@ describe('initial project approval guidance', () => {
   it('collects a safe purpose and shows readiness and owner feedback', () => {
     assert.match(ownerView, /What does this application do\?/);
     assert.match(ownerView, /Do not include passwords or other secrets/);
-    assert.match(ownerView, /Submission readiness/);
+    assert.match(ownerView, /What needs attention/);
+    assert.match(ownerView, /item\.status !== 'PASS'|attentionFindings/);
     assert.match(ownerView, /Administrator note/);
-    assert.match(ownerView, /CHANGES_REQUESTED/);
     assert.match(ownerView, /Resubmit for review/);
     assert.match(projectController, /submitForReview\(\{[\s\S]*?purpose: req\.body\.purpose/);
   });
@@ -64,7 +68,8 @@ describe('initial project approval guidance', () => {
       projectController,
       /const allowed = \[DeploymentMode\.MANUAL, DeploymentMode\.AUTOMATIC\]/,
     );
-    assert.doesNotMatch(ownerView, /\['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'\]/);
-    assert.match(ownerView, /Approval Required is not currently supported/);
+    assert.doesNotMatch(settingsView, /\['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'\]/);
+    assert.match(settingsView, /Approval Required is not currently supported/);
+    assert.match(ownerView, /Approval required \(legacy\)/);
   });
 });

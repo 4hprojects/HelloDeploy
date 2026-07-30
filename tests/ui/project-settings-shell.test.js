@@ -96,10 +96,13 @@ describe('project settings shell', () => {
     });
   });
 
-  it('uses the shared registry in the sidebar and overview', () => {
+  it('uses the shared registry in the sidebar and links the overview to settings', () => {
     assert.match(sidebarView, /locals\.projectNavigation/);
-    assert.match(overviewView, /locals\.projectNavigation/);
     assert.match(overviewView, /\/projects\/<%= project\.slug %>\/settings/);
+    assert.match(overviewView, /Project details/);
+    assert.match(overviewView, /Deployment mode/);
+    assert.doesNotMatch(overviewView, /name="deploymentMode"/);
+    assert.doesNotMatch(overviewView, /name="notificationPreference"/);
   });
 
   it('keeps the settings route owner-only and renders accessible anchors', () => {

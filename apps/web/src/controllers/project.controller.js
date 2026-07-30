@@ -1,15 +1,8 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import {
-  ApprovalStatus,
-  DeploymentMode,
-  ProjectRole,
-  ProjectStatus,
-  AuditOutcome,
-} from '@hellodeploy/contracts';
+import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
 import { Deployment, Project, Repository } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
-import { listSecretNames } from '../services/env-secret.service.js';
 import {
   createProject,
   getUserProjects,
@@ -37,6 +30,11 @@ import { getProjectDomains } from '../services/domain.service.js';
 import { resolveProjectQuota } from '../services/quota.service.js';
 import { projectReturnTarget } from '../utils/project-return-target.js';
 import { assessInitialApprovalReadiness } from '../services/approval-readiness.service.js';
+import {
+  buildApplicationUrl,
+  buildProjectOverviewState,
+} from '../services/project-overview.service.js';
+import { env } from '../config/env.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
@@ -90,84 +88,42 @@ export const postNewProject = asyncHandler(async (req, res) => {
 
 // ─── Show project ──────────────────────────────────────────────────────────────
 
-function buildOnboardingChecklist(project, secretCount, latestApproval) {
-  const base = `/projects/${project.slug}`;
-  const steps = [
-    {
-      label: 'Connect a GitHub repository',
-      href: `${base}/repository`,
-      done: Boolean(project.repositoryId),
-    },
-    {
-      label: 'Detect the runtime',
-      href: `${base}/detection`,
-      done: Boolean(project.runtimeType),
-    },
-    {
-      label: 'Add environment secrets',
-      href: `${base}/environment`,
-      done: secretCount > 0,
-      optional: true,
-    },
-    {
-      label: 'Submit for review',
-      href: '#submit-review',
-      done:
-        project.status !== ProjectStatus.DRAFT ||
-        [ApprovalStatus.PENDING, ApprovalStatus.APPROVED].includes(latestApproval?.status),
-    },
-    {
-      label: 'Trigger your first deploy',
-      href: `${base}/deployments`,
-      done: Boolean(project.activeDeploymentId),
-    },
-  ];
-  return {
-    steps,
-    nextStep: steps.find((step) => !step.done) ?? null,
-    complete: steps.every((s) => s.done || s.optional),
-  };
-}
-
 async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
-  const wantsOnboarding = !project.activeDeploymentId && req.membership.role === ProjectRole.OWNER;
 
-  const [repository, deployments, secretNames, latestApproval] = await Promise.all([
+  const [repository, deployments, latestApproval, activeDeployment] = await Promise.all([
     project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
     getDeployments(project._id, 5),
-    wantsOnboarding ? listSecretNames(project._id) : null,
-    req.membership.role === ProjectRole.OWNER ? getLatestApprovalRequest(project._id) : null,
+    getLatestApprovalRequest(project._id),
+    project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
   ]);
 
-  let newCommitAvailable = false;
-  if (repository?.lastCommitSha && project.activeDeploymentId) {
-    const activeDeployment = await Deployment.findById(
-      project.activeDeploymentId,
-      'commitSha',
-    ).lean();
-    newCommitAvailable = activeDeployment?.commitSha !== repository.lastCommitSha;
-  }
-
-  // Guided onboarding, shown until the first successful deploy.
-  const onboarding = wantsOnboarding
-    ? buildOnboardingChecklist(project, secretNames.length, latestApproval)
-    : null;
-  const approvalReadiness =
-    req.membership.role === ProjectRole.OWNER
-      ? assessInitialApprovalReadiness({ project, repository })
-      : null;
+  const approvalReadiness = assessInitialApprovalReadiness({ project, repository });
+  const appUrl = buildApplicationUrl({
+    subdomain: project.platformSubdomain ?? project.slug,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
+  });
+  const overviewState = buildProjectOverviewState({
+    project,
+    repository,
+    deployments,
+    activeDeployment,
+    latestApproval,
+    approvalReadiness,
+    membershipRole: req.membership.role,
+    appUrl,
+  });
 
   res.render('pages/projects/show', {
     title: project.name,
     project,
     membership: req.membership,
     repository,
-    newCommitAvailable,
     deployments,
-    onboarding,
+    activeDeployment,
     latestApproval,
     approvalReadiness,
+    overviewState,
     approvalErrors: {},
     approvalValues: { purpose: latestApproval?.purpose ?? '' },
     ...extras,

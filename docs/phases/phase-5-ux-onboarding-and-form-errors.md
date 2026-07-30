@@ -11,7 +11,7 @@ The two HIGH UX items: (1) new projects dropped users on the overview with no gu
 
 ## Tasks (checklist)
 
-- [x] "Get your app live" checklist card on the project overview: connect repo → detect runtime → add secrets (optional) → submit for review → first deploy. Driven by `repositoryId` / `runtimeType` / secret count / `status` / `activeDeploymentId`; owner-only; hidden after the first successful deploy; done steps get a green check + strikethrough, pending steps link to the right page; a "N of 5 done" counter sits in the card header. `#submit-review` anchor added to the existing submit card.
+- [x] "Get your app live" checklist card on the project overview: connect repo → detect runtime → add secrets (optional) → submit for review → first deploy. Driven by `repositoryId` / `runtimeType` / secret count / `status` / `activeDeploymentId`; owner-only; hidden after the first successful deploy; done steps get a green check + strikethrough, pending steps link to the right page; a "N of 5 done" counter sits in the card header. `#submit-review` anchor added to the existing submit card. **Superseded 2026-07-30:** the overview now uses a lifecycle-aware four-milestone summary based on persisted detection freshness and approval/deployment state; environment variables remain optional guidance.
 - [x] Build-configuration form (detection page): re-renders with `form-errors` summary + per-field errors and sticky submitted values instead of flash-and-redirect
 - [x] Build-filters form: same treatment (includedPaths/ignoredPaths)
 - [x] Maintenance-mode enable form (overview): message-length error now renders inline under the field

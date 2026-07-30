@@ -79,8 +79,11 @@ describe('guided empty states', () => {
   });
 
   it('surfaces one primary next onboarding action', () => {
-    assert.match(projectController, /nextStep: steps\.find/);
-    assert.match(projectShow, /Next: <%= onboarding\.nextStep\.label %>/);
+    assert.match(projectController, /buildProjectOverviewState/);
+    assert.match(projectShow, /overviewState\.primaryAction/);
+    assert.match(projectShow, /project-home-summary/);
+    assert.match(projectShow, /overviewState\.milestones/);
+    assert.match(projectShow, /Steps to get the app live/);
   });
 
   it('guides optional configuration empty states without cluttering populated screens', () => {
@@ -88,8 +91,8 @@ describe('guided empty states', () => {
     assert.match(environment, /Redeploy after changing secrets/);
     assert.match(domains, /No custom domains/);
     assert.match(domains, /Verify ownership, then wait for administrator approval/);
-    assert.match(projectShow, /No repository connected/);
-    assert.match(projectShow, /No deployments yet/);
+    assert.match(projectShow, /Repository, app type, deployment preferences/);
+    assert.doesNotMatch(projectShow, /Environment variables[\s\S]*project-milestone/);
   });
 
   it('adds operational guidance for admin empty queues', () => {

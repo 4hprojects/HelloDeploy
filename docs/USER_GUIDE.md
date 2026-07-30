@@ -45,6 +45,17 @@ The slug is used for the platform subdomain. For example, a project with slug `m
 
 New projects start as drafts. A draft must be configured and submitted for review before it can deploy.
 
+## Use the Project Overview
+
+The project overview presents the most important next step at the top of the page.
+
+- During setup, it guides the Owner through connecting the source, checking the app, completing initial approval, and publishing the first deployment.
+- While approval or deployment is in progress, it links to the current review or deployment details.
+- After a healthy deployment, it shows the application address, the live release, recent deployment activity, and whether a newer source commit is available.
+- If setup or a deployment needs attention, it shows the blocking item or recommendation and the relevant action. Successful technical checks stay out of the way.
+
+Repository, branch, app type, deployment mode, and notification values are available under **Project details**. Owners make configuration changes from **Project Settings**. Maintainers can deploy and retry releases, while Viewers receive read-only status and deployment links.
+
 ## Connect a Repository
 
 1. Open the project.
@@ -61,25 +72,25 @@ After connecting a repository:
 
 1. Open the project.
 2. Go to **Detection**.
-3. Run detection.
+3. Select **Check my app**.
 4. Review the detected runtime, commands, output directory, port, and warnings.
 
 Detection checks whether the project appears deployable. Unsupported runtimes, missing scripts, invalid package metadata, risky files, or unclear configuration can block deployment until corrected.
 
 ## Override Build Configuration
 
-Detection fills in default values, but Owners can override them on the **Detection** page:
+Detection fills in recommended values, which usually do not need changes. Owners can override them under **Advanced build settings** on the **Detection** or **Project Settings** page:
 
 - **Build command** and **Start command**: Replace the auto-detected commands.
 - **Output directory**: For static builds, where the built files are produced.
 - **Application port**: The port your app listens on inside the container.
 - **Health check path**: The HTTP path HelloDeploy polls after each deploy to confirm the app is healthy. Defaults to `/`. If your app has a dedicated endpoint such as `/healthz`, set it here — a deployment is only marked healthy after this path responds successfully.
 
-Leave a field blank to fall back to the detected default. Values cannot contain line breaks.
+Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 
 ## Build Filters
 
-Build filters control which pushes trigger a build when automatic deployment is on. Configure them on the **Detection** page, one glob pattern per line:
+Build filters control which pushes trigger a build when automatic deployment is on. Configure them under **Automatic deploy rules (optional)** on the **Detection** or **Project Settings** page, one glob pattern per line:
 
 - **Included paths**: If set, only changes matching these patterns trigger a build (for example `src/**`).
 - **Ignored paths**: Changes matching these patterns never trigger a build (for example `docs/**` or `*.md`).
@@ -189,7 +200,7 @@ HelloDeploy retains three healthy rollback releases by default. Rollback still r
 
 ## Deployment Notifications
 
-By default the project Owner is emailed after every deployment, whether it succeeds or fails. Owners can change this on the project overview:
+By default the project Owner is emailed after every deployment, whether it succeeds or fails. Owners can change this in **Project Settings**:
 
 - **All**: Email on every deployment outcome.
 - **Failures only**: Email only when a deployment fails.
@@ -200,7 +211,7 @@ By default the project Owner is emailed after every deployment, whether it succe
 Owners can temporarily show visitors a maintenance page instead of the running app:
 
 1. Open the project overview.
-2. In the **Maintenance Mode** card, optionally enter a custom message.
+2. Expand **Maintenance mode** and optionally enter a custom message.
 3. Select **Enable Maintenance**.
 
 Visitors receive a 503 maintenance page. The running container is not stopped, so disabling maintenance instantly restores traffic — no redeploy needed.

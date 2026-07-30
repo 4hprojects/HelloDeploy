@@ -1,393 +1,284 @@
+<%
+  const runtimeLabels = {
+    STATIC: 'Static website',
+    REACT: 'React app',
+    VUE: 'Vue app',
+    NEXTJS: 'Next.js app',
+    EXPRESS: 'Express app',
+    NODEJS: 'Node.js app',
+    UNKNOWN: 'Not recognized',
+  };
+  const deploymentModeLabels = {
+    MANUAL: 'Manual',
+    AUTOMATIC: 'Automatic',
+    APPROVAL_REQUIRED: 'Approval required (legacy)',
+  };
+  const notificationLabels = {
+    ALL: 'All deployment outcomes',
+    FAILURE_ONLY: 'Failures only',
+    NONE: 'None',
+  };
+  const deploymentStatusCopy = {
+    QUEUED: 'Waiting to start',
+    VALIDATING: 'Checking setup',
+    BUILDING: 'Building app',
+    DEPLOYING: 'Publishing',
+    HEALTHY: 'Live',
+    FAILED: 'Failed',
+    CANCELLED: 'Cancelled',
+    ROLLED_BACK: 'Replaced',
+  };
+%>
+
 <div class="page-header page-header--actions">
   <div>
-    <h1 class="page-header__title">
-      <%= project.name %>
-      <%- include('../../partials/status-badge', { status: project.status }) %>
-    </h1>
+    <h1 class="page-header__title"><%= project.name %></h1>
     <p class="page-header__subtitle text-muted text-sm"><%= project.slug %></p>
   </div>
   <% if (membership.role === 'OWNER') { %>
-  <div class="button-group">
-    <a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a>
-  </div>
+  <a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a>
   <% } %>
 </div>
 
-<% if (locals.onboarding && !onboarding.complete) { %>
-<div class="card mb-6">
-  <div class="card__header">
-    <span class="card__title">Get your app live</span>
-    <span class="text-sm text-muted">
-      <%= onboarding.steps.filter((s) => s.done).length %> of <%= onboarding.steps.length %> done
-    </span>
-  </div>
-  <div class="card__body">
-    <ol class="onboarding-list">
-      <% onboarding.steps.forEach((step) => { %>
-      <li class="onboarding-list__step<%= step.done ? ' onboarding-list__step--done' : '' %>">
-        <span class="onboarding-list__icon" aria-hidden="true">
-          <%- include('../../partials/icon', { name: step.done ? 'check' : 'circle' }) %>
-        </span>
-        <% if (step.done) { %>
-        <span><%= step.label %> <span class="sr-only">(done)</span></span>
-        <% } else { %>
-        <a href="<%= step.href %>" class="table-link"><%= step.label %></a>
-        <% } %>
-        <% if (step.optional && !step.done) { %>
-        <span class="text-sm text-muted">optional</span>
-        <% } %>
-      </li>
-      <% }) %>
-    </ol>
-    <% if (onboarding.nextStep) { %>
-    <div class="form-actions mt-4">
-      <a href="<%= onboarding.nextStep.href %>" class="button button--primary button--sm">
-        Next: <%= onboarding.nextStep.label %>
+<section class="project-home-summary project-home-summary--<%= overviewState.tone %><%= overviewState.appLive ? ' project-home-summary--single' : '' %>"
+  aria-labelledby="project-home-title" data-overview-phase="<%= overviewState.phase %>">
+  <div class="project-home-summary__content">
+    <p class="project-home-summary__eyebrow"><%= overviewState.eyebrow %></p>
+    <h2 class="project-home-summary__title" id="project-home-title"><%= overviewState.title %></h2>
+    <p class="project-home-summary__description"><%= overviewState.description %></p>
+
+    <% if (overviewState.appUrl) { %>
+    <a class="project-home-url" href="<%= overviewState.appUrl %>" target="_blank" rel="noopener noreferrer">
+      <span class="project-home-url__label">Application address</span>
+      <span class="project-home-url__value"><%= overviewState.appUrl.replace(/^https:\/\//, '') %></span>
+    </a>
+    <% } %>
+
+    <% if (overviewState.primaryAction) { %>
+    <div class="project-home-summary__action">
+      <% if (overviewState.primaryAction.method === 'POST') { %>
+      <form method="POST" action="<%= overviewState.primaryAction.href %>">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--primary"
+          <% if (overviewState.primaryAction.pendingLabel) { %>data-pending-label="<%= overviewState.primaryAction.pendingLabel %>"<% } %>>
+          <%= overviewState.primaryAction.label %>
+        </button>
+      </form>
+      <% } else { %>
+      <a href="<%= overviewState.primaryAction.href %>" class="button button--primary"
+        <% if (overviewState.primaryAction.external) { %>target="_blank" rel="noopener noreferrer"<% } %>>
+        <%= overviewState.primaryAction.label %>
       </a>
+      <% } %>
     </div>
     <% } %>
   </div>
-</div>
+
+  <% if (overviewState.showMilestones !== false && !overviewState.appLive) { %>
+  <ol class="project-milestones" aria-label="Steps to get the app live">
+    <% overviewState.milestones.forEach((milestone, index) => { %>
+    <li class="project-milestone<%= milestone.done ? ' project-milestone--done' : '' %>">
+      <span class="project-milestone__number" aria-hidden="true">
+        <%= milestone.done ? '✓' : index + 1 %>
+      </span>
+      <% if (milestone.href) { %>
+      <a href="<%= milestone.href %>"<% if (milestone.done) { %> aria-label="<%= milestone.label %>, complete"<% } %>>
+        <%= milestone.label %>
+      </a>
+      <% } else { %>
+      <span><%= milestone.label %></span>
+      <% } %>
+    </li>
+    <% }) %>
+  </ol>
+  <% } %>
+</section>
+
+<% if (overviewState.attentionFindings.length > 0 && ['SETUP', 'NEEDS_ATTENTION'].includes(overviewState.phase)) { %>
+<section class="project-home-section" aria-labelledby="attention-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="attention-title">What needs attention</h2>
+      <p class="text-sm text-muted">Only items that need action or may improve reliability are shown.</p>
+    </div>
+  </div>
+  <ul class="approval-findings">
+    <% overviewState.attentionFindings.forEach(item => { %>
+    <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
+      <strong><%= item.status === 'BLOCKING' ? 'Fix required' : 'Recommendation' %>: <%= item.label %></strong>
+      <span><%= item.message %></span>
+    </li>
+    <% }) %>
+  </ul>
+</section>
 <% } %>
 
-<div class="project-detail-grid">
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Quick Links</span>
+<% if (membership.role === 'OWNER' && latestApproval) { %>
+<section class="project-home-section" id="approval-feedback" aria-labelledby="approval-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="approval-title">Project review</h2>
+      <p class="text-sm text-muted">Initial approval enables this project to deploy.</p>
     </div>
-    <div class="card__body">
-      <nav class="quick-links">
-        <% (locals.projectNavigation || []).filter((item) => item.key !== 'overview').forEach((item) => { %>
-          <a href="<%= item.href %>" class="table-link text-sm"><%= item.label %></a>
-        <% }) %>
-      </nav>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Project Info</span>
-    </div>
-    <div class="card__body">
-      <dl class="detail-list">
-        <dt>Status</dt>
-        <dd><%- include('../../partials/status-badge', { status: project.status }) %></dd>
-
-        <dt>Slug</dt>
-        <dd><code class="code-inline"><%= project.slug %></code></dd>
-
-        <dt>Your role</dt>
-        <dd><span class="role-pill"><%= membership.role %></span></dd>
-
-        <dt>Runtime</dt>
-        <dd>
-          <% if (project.runtimeType) { %>
-            <%- include('../../partials/status-badge', { status: project.runtimeType }) %>
-          <% } else { %>
-            <a href="/projects/<%= project.slug %>/detection" class="table-link text-sm">Run detection</a>
-          <% } %>
-        </dd>
-
-        <dt>Deployment mode</dt>
-        <dd><%= project.deploymentMode %></dd>
-
-        <dt>Created</dt>
-        <dd><%= new Date(project.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %></dd>
-      </dl>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Repository</span>
-      <% if (membership.role === 'OWNER') { %>
-        <a href="/projects/<%= project.slug %>/repository" class="button button--ghost button--sm">Manage</a>
-      <% } %>
-    </div>
-    <div class="card__body">
-      <% if (locals.repository && repository) { %>
-        <dl class="detail-list">
-          <dt>Repository</dt>
-          <dd><code class="code-inline"><%= repository.fullName %></code></dd>
-
-          <dt>Branch</dt>
-          <dd><code class="code-inline"><%= project.productionBranch %></code></dd>
-
-          <dt>Latest commit</dt>
-          <dd>
-            <% if (repository.lastCommitSha) { %>
-              <code class="code-inline"><%= repository.lastCommitSha.slice(0, 7) %></code>
-              <% if (repository.lastCommitMessage) { %>
-                <span class="text-muted text-sm"><%= repository.lastCommitMessage %></span>
-              <% } %>
-            <% } else { %>
-              <span class="text-muted text-sm">No commits yet</span>
-            <% } %>
-          </dd>
-
-          <% if (locals.newCommitAvailable && newCommitAvailable) { %>
-          <dt>New commit</dt>
-          <dd>
-            <span class="status-badge status-badge--queued">New commit available</span>
-          </dd>
-          <% } %>
-        </dl>
-      <% } else { %>
-        <div class="empty-state empty-state--compact">
-          <p class="empty-state__title">No repository connected</p>
-          <p class="empty-state__description">Connect source code before detection or deployment.</p>
-          <ul class="empty-state__steps">
-            <li>Install or update GitHub App access.</li>
-            <li>Select a repository and production branch.</li>
-            <li>Run detection after the repository is connected.</li>
-          </ul>
-          <% if (membership.role === 'OWNER') { %>
-          <div class="empty-state__actions">
-            <a href="/projects/<%= project.slug %>/repository" class="button button--secondary button--sm">Connect Repository</a>
-          </div>
-          <% } %>
-        </div>
-      <% } %>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Deployment mode</span>
-    </div>
-    <div class="card__body">
-      <p class="text-sm text-muted mb-4">
-        <% if (project.deploymentMode === 'AUTOMATIC') { %>
-          Pushes to the production branch trigger automatic deployment.
-        <% } else if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
-          Approval Required is not available yet. Choose Manual or Automatic to continue.
-        <% } else { %>
-          Deploys are triggered manually only.
-        <% } %>
-      </p>
-      <% if (membership.role === 'OWNER') { %>
-      <form method="POST" action="/projects/<%= project.slug %>/deployment-mode">
-        <%- include('../../partials/csrf-field') %>
-        <div class="button-group">
-          <% (repository?.sourceType === 'PUBLIC_GIT' ? ['MANUAL'] : ['MANUAL', 'AUTOMATIC']).forEach(mode => { %>
-          <button type="submit" name="deploymentMode" value="<%= mode %>"
-                  class="button button--sm <%= project.deploymentMode === mode ? 'button--primary' : 'button--secondary' %>">
-            <%= mode.charAt(0) + mode.slice(1).toLowerCase().replace('_', ' ') %>
-          </button>
-          <% }) %>
-        </div>
-        <% if (repository?.sourceType === 'PUBLIC_GIT') { %>
-          <p class="form-hint mt-2">Automatic deployment requires a GitHub App connection.</p>
-        <% } %>
-        <% if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
-          <p class="form-error mt-2" role="alert">Approval Required is not currently supported. Select Manual or Automatic deployment.</p>
-        <% } %>
-      </form>
-      <% } %>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Notifications</span>
-    </div>
-    <div class="card__body">
-      <p class="text-sm text-muted mb-4">
-        <% if (project.notificationPreference === 'FAILURE_ONLY') { %>
-          You'll only be emailed when a deployment fails.
-        <% } else if (project.notificationPreference === 'NONE') { %>
-          Deployment email notifications are turned off for this project.
-        <% } else { %>
-          You'll be emailed on every deployment outcome.
-        <% } %>
-      </p>
-      <% if (membership.role === 'OWNER') { %>
-      <form method="POST" action="/projects/<%= project.slug %>/notification-preference">
-        <%- include('../../partials/csrf-field') %>
-        <div class="button-group">
-          <% ['ALL', 'FAILURE_ONLY', 'NONE'].forEach(pref => { %>
-          <button type="submit" name="notificationPreference" value="<%= pref %>"
-                  class="button button--sm <%= (project.notificationPreference || 'ALL') === pref ? 'button--primary' : 'button--secondary' %>">
-            <%= pref === 'ALL' ? 'All' : pref === 'FAILURE_ONLY' ? 'Failures only' : 'None' %>
-          </button>
-          <% }) %>
-        </div>
-      </form>
-      <% } %>
-    </div>
-  </div>
-
-  <div class="card">
-    <div class="card__header">
-      <span class="card__title">Deployments</span>
-      <a href="/projects/<%= project.slug %>/deployments" class="button button--ghost button--sm">View all</a>
-    </div>
-    <div class="card__body">
-      <% if (locals.deployments && deployments.length > 0) { %>
-        <div class="table-wrapper table-responsive table-responsive--flush">
-        <table class="table table--responsive">
-          <thead>
-            <tr><th scope="col">#</th><th scope="col">Status</th><th scope="col">Commit</th><th scope="col">Started</th></tr>
-          </thead>
-          <tbody>
-            <% deployments.slice(0, 5).forEach(d => { %>
-            <tr>
-              <td class="text-muted text-sm" data-label="#"><%= d.sequenceNumber %></td>
-              <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
-              <td data-label="Commit"><code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code></td>
-              <td class="text-muted text-sm" data-label="Started"><%= d.startedAt ? new Date(d.startedAt).toLocaleDateString('en-GB') : '—' %></td>
-            </tr>
-            <% }) %>
-          </tbody>
-        </table>
-        </div>
-      <% } else { %>
-        <div class="empty-state empty-state--compact">
-          <p class="empty-state__title">No deployments yet</p>
-          <p class="empty-state__description">Prepare the project, then deploy the latest commit.</p>
-          <ul class="empty-state__steps">
-            <li>Connect a repository.</li>
-            <li>Run detection and add required secrets.</li>
-            <li>Deploy from the deployments page.</li>
-          </ul>
-          <% if (membership.role === 'OWNER' || membership.role === 'MAINTAINER') { %>
-          <div class="empty-state__actions">
-            <a href="/projects/<%= project.slug %>/deployments" class="button button--secondary button--sm">Open Deployments</a>
-          </div>
-          <% } %>
-        </div>
-      <% } %>
-    </div>
-  </div>
-</div>
-
-<% if (membership.role === 'OWNER' && locals.latestApproval) { %>
-<div class="card mt-6 approval-summary">
-  <div class="card__header">
-    <h2 class="card__title">Project approval</h2>
     <%- include('../../partials/status-badge', { status: latestApproval.status }) %>
   </div>
-  <div class="card__body">
-    <% if (latestApproval.status === 'PENDING') { %>
-      <p>Your project is waiting for an administrator to review it. You do not need to submit it again.</p>
-    <% } else if (latestApproval.status === 'APPROVED') { %>
-      <p>Your project was approved and can now be deployed.</p>
-    <% } else if (latestApproval.status === 'CHANGES_REQUESTED' || latestApproval.status === 'REJECTED') { %>
-      <p>Update the project using the feedback below, run <strong>Check again</strong>, then resubmit it.</p>
-    <% } %>
-    <% if (latestApproval.adminNote) { %>
-      <div class="approval-note mt-4">
-        <strong>Administrator note</strong>
-        <p class="mt-1"><%= latestApproval.adminNote %></p>
-      </div>
-    <% } %>
-    <% if (latestApproval.purpose) { %>
-      <p class="text-sm text-muted mt-4"><strong>Application purpose:</strong> <%= latestApproval.purpose %></p>
-    <% } %>
+  <% if (latestApproval.adminNote) { %>
+  <div class="approval-note">
+    <strong>Administrator note</strong>
+    <p class="mt-1"><%= latestApproval.adminNote %></p>
   </div>
-</div>
+  <% } %>
+  <% if (latestApproval.purpose) { %>
+  <p class="text-sm mt-4"><strong>Application purpose:</strong> <%= latestApproval.purpose %></p>
+  <% } %>
+</section>
 <% } %>
 
-<% if (membership.role === 'OWNER' && project.status === 'DRAFT' && (!latestApproval || latestApproval.status !== 'PENDING')) { %>
-<div class="card mt-6" id="submit-review">
-  <div class="card__body">
-    <h2 class="card__title mb-2"><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></h2>
-    <p class="text-sm text-muted mb-4">An administrator will review this summary before enabling deployments.</p>
-    <% if (approvalErrors?.form) { %><div class="alert alert--danger mb-4" role="alert"><%= approvalErrors.form %></div><% } %>
-    <% if (approvalReadiness) { %>
-    <ul class="approval-findings mb-4" aria-label="Submission readiness">
-      <% approvalReadiness.findings.forEach(item => { %>
-      <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
-        <strong><%= item.status === 'BLOCKING' ? 'Fix required' : item.status === 'WARNING' ? 'Recommendation' : 'Ready' %>: <%= item.label %></strong>
-        <span><%= item.message %></span>
-      </li>
-      <% }) %>
-    </ul>
-    <% } %>
-    <form method="POST" action="/projects/<%= project.slug %>/submit-review" novalidate>
-      <%- include('../../partials/csrf-field') %>
-      <div class="form-group mb-4">
-        <label class="form-label" for="approval-purpose">What does this application do?</label>
-        <textarea id="approval-purpose" name="purpose" rows="3" maxlength="500" required
-          class="form-textarea<%= approvalErrors?.purpose ? ' form-input--error' : '' %>"
-          aria-describedby="approval-purpose-hint<%= approvalErrors?.purpose ? ' approval-purpose-error' : '' %>"><%= approvalValues?.purpose || '' %></textarea>
-        <p class="form-hint" id="approval-purpose-hint">Use one or two sentences that a reviewer can understand. Do not include passwords or other secrets.</p>
-        <% if (approvalErrors?.purpose) { %><span class="form-error" id="approval-purpose-error" role="alert"><%= approvalErrors.purpose %></span><% } %>
-      </div>
-      <button type="submit" class="button button--primary" data-pending-label="Submitting..." <%= !approvalReadiness?.isReady ? 'disabled' : '' %>><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></button>
-    </form>
+<% if (overviewState.canSubmit) { %>
+<section class="project-home-section" id="submit-review" aria-labelledby="submit-review-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="submit-review-title"><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></h2>
+      <p class="text-sm text-muted">Give the administrator a short, nontechnical description of the app.</p>
+    </div>
   </div>
-</div>
+  <% if (approvalErrors?.form) { %><div class="alert alert--danger mb-4" role="alert"><%= approvalErrors.form %></div><% } %>
+  <form method="POST" action="/projects/<%= project.slug %>/submit-review" class="project-purpose-form" novalidate>
+    <%- include('../../partials/csrf-field') %>
+    <div class="form-group">
+      <label class="form-label" for="approval-purpose">What does this application do?</label>
+      <textarea id="approval-purpose" name="purpose" rows="3" maxlength="500" required
+        class="form-textarea<%= approvalErrors?.purpose ? ' form-input--error' : '' %>"
+        aria-describedby="approval-purpose-hint<%= approvalErrors?.purpose ? ' approval-purpose-error' : '' %>"><%= approvalValues?.purpose || '' %></textarea>
+      <p class="form-hint" id="approval-purpose-hint">Use one or two sentences. Do not include passwords or other secrets.</p>
+      <% if (approvalErrors?.purpose) { %><span class="form-error" id="approval-purpose-error" role="alert"><%= approvalErrors.purpose %></span><% } %>
+    </div>
+    <button type="submit" class="button button--primary" data-pending-label="Submitting...">
+      <%= latestApproval ? 'Resubmit for review' : 'Submit for review' %>
+    </button>
+  </form>
+</section>
 <% } %>
+
+<% if (deployments.length > 0) { %>
+<section class="project-home-section" aria-labelledby="recent-activity-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="recent-activity-title">Recent activity</h2>
+      <p class="text-sm text-muted">The latest attempts to publish this app.</p>
+    </div>
+    <a href="/projects/<%= project.slug %>/deployments" class="button button--ghost button--sm">View all</a>
+  </div>
+  <ol class="project-activity-list">
+    <% deployments.slice(0, 3).forEach(deployment => { %>
+    <li class="project-activity">
+      <div class="project-activity__main">
+        <span class="project-activity__title">Deployment #<%= deployment.sequenceNumber %></span>
+        <span class="project-activity__status"><%= deploymentStatusCopy[deployment.status] || deployment.status %></span>
+        <% if (deployment.failureSummary) { %>
+        <p class="project-activity__message"><%= deployment.failureSummary %></p>
+        <% } else if (deployment.commitMessage) { %>
+        <p class="project-activity__message"><%= deployment.commitMessage %></p>
+        <% } %>
+      </div>
+      <div class="project-activity__meta">
+        <span class="text-sm text-muted">
+          <%= deployment.startedAt ? new Date(deployment.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Not started' %>
+        </span>
+        <a href="/projects/<%= project.slug %>/deployments/<%= deployment._id %>" class="button button--ghost button--sm">
+          View details
+        </a>
+      </div>
+    </li>
+    <% }) %>
+  </ol>
+</section>
+<% } %>
+
+<details class="project-details-disclosure">
+  <summary>
+    <span>
+      <strong>Project details</strong>
+      <span class="text-sm text-muted">Repository, app type, deployment preferences, and optional configuration</span>
+    </span>
+    <span class="project-details-disclosure__toggle" aria-hidden="true">Show</span>
+  </summary>
+  <div class="project-details-disclosure__body">
+    <dl class="project-details-grid">
+      <div><dt>Project status</dt><dd><%- include('../../partials/status-badge', { status: project.status }) %></dd></div>
+      <div><dt>Your role</dt><dd><span class="role-pill"><%= membership.role %></span></dd></div>
+      <div><dt>Repository</dt><dd><%= repository?.fullName || 'Not connected' %></dd></div>
+      <div><dt>Production branch</dt><dd><%= project.productionBranch || 'Not selected' %></dd></div>
+      <div><dt>App type</dt><dd><%= runtimeLabels[project.runtimeType] || 'Not checked' %></dd></div>
+      <div><dt>Deployment mode</dt><dd><%= deploymentModeLabels[project.deploymentMode] || project.deploymentMode %></dd></div>
+      <div><dt>Deployment email</dt><dd><%= notificationLabels[project.notificationPreference || 'ALL'] %></dd></div>
+      <div><dt>Latest source version</dt><dd><%= repository?.lastCommitSha ? repository.lastCommitSha.slice(0, 7) : 'Unavailable' %></dd></div>
+    </dl>
+    <div class="project-details-actions">
+      <a href="/projects/<%= project.slug %>/detection" class="button button--secondary button--sm">App setup</a>
+      <% if (membership.role === 'OWNER') { %>
+      <a href="/projects/<%= project.slug %>/environment" class="button button--secondary button--sm">Environment variables</a>
+      <a href="/projects/<%= project.slug %>/settings" class="button button--secondary button--sm">Project settings</a>
+      <% } %>
+    </div>
+  </div>
+</details>
 
 <% if (membership.role === 'OWNER' && project.status !== 'ARCHIVED') { %>
-<div class="card mt-6">
-  <div class="card__header">
-    <h2 class="card__title">Maintenance Mode</h2>
-    <span class="badge <%= project.maintenanceMode?.enabled ? 'badge--warning' : 'badge--success' %>">
+<details class="project-details-disclosure mt-6">
+  <summary>
+    <span>
+      <strong>Maintenance mode</strong>
+      <span class="text-sm text-muted"><%= project.maintenanceMode?.enabled ? 'Visitors currently see the maintenance page.' : 'Temporarily replace the app with a maintenance page.' %></span>
+    </span>
+    <span class="status-badge status-badge--<%= project.maintenanceMode?.enabled ? 'pending' : 'healthy' %>">
       <%= project.maintenanceMode?.enabled ? 'Enabled' : 'Disabled' %>
     </span>
-  </div>
-  <div class="card__body">
+  </summary>
+  <div class="project-details-disclosure__body">
     <% if (project.maintenanceMode?.enabled) { %>
-    <p class="text-sm mb-4">
-      Visitors to this project's URL see a maintenance page instead of the app. The running
-      container is not stopped — disabling maintenance instantly restores traffic.
-    </p>
-    <% if (project.maintenanceMode.message) { %>
-    <p class="text-muted text-sm mb-4"><%= project.maintenanceMode.message %></p>
-    <% } %>
+    <% if (project.maintenanceMode.message) { %><p class="text-sm mb-4"><%= project.maintenanceMode.message %></p><% } %>
     <form method="POST" action="/projects/<%= project.slug %>/maintenance/disable"
-          data-confirm="Disable maintenance mode and resume traffic to this project?"
-          data-confirm-title="Disable maintenance"
-          data-confirm-accept-label="Disable Maintenance"
-          data-confirm-pending-label="Disabling..."
-          data-confirm-variant="success">
+      data-confirm="Disable maintenance mode and resume traffic to this project?"
+      data-confirm-title="Disable maintenance" data-confirm-accept-label="Disable Maintenance"
+      data-confirm-pending-label="Disabling..." data-confirm-variant="success">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--success">Disable Maintenance</button>
+      <button type="submit" class="button button--success">Disable maintenance</button>
     </form>
     <% } else { %>
     <form method="POST" action="/projects/<%= project.slug %>/maintenance/enable"
-          data-confirm="Enable maintenance mode? Visitors will see a maintenance page instead of the app."
-          data-confirm-title="Enable maintenance"
-          data-confirm-accept-label="Enable Maintenance"
-          data-confirm-pending-label="Enabling..."
-          data-confirm-variant="warning">
+      data-confirm="Enable maintenance mode? Visitors will see a maintenance page instead of the app."
+      data-confirm-title="Enable maintenance" data-confirm-accept-label="Enable Maintenance"
+      data-confirm-pending-label="Enabling..." data-confirm-variant="warning">
       <%- include('../../partials/csrf-field') %>
-      <div class="form-field form-field--floating mb-4">
-        <label class="form-label" for="maintenance-message">Custom message (optional)</label>
+      <div class="form-group mb-4">
+        <label class="form-label" for="maintenance-message">Message shown to visitors <span class="text-muted">(optional)</span></label>
         <input id="maintenance-message" name="message"
-               class="form-input<%= locals.maintenanceError ? ' form-input--error' : '' %>"
-               value="<%= locals.maintenanceMessageValue || '' %>"
-               maxlength="200"
-               placeholder=" "
-               <% if (locals.maintenanceError) { %>aria-describedby="maintenance-message-error"<% } %>>
-        <% if (locals.maintenanceError) { %>
-        <span id="maintenance-message-error" class="form-error" role="alert"><%= maintenanceError %></span>
-        <% } %>
+          class="form-input<%= locals.maintenanceError ? ' form-input--error' : '' %>"
+          value="<%= locals.maintenanceMessageValue || '' %>" maxlength="200"
+          <% if (locals.maintenanceError) { %>aria-describedby="maintenance-message-error"<% } %>>
+        <% if (locals.maintenanceError) { %><span id="maintenance-message-error" class="form-error" role="alert"><%= maintenanceError %></span><% } %>
       </div>
-      <button type="submit" class="button button--warning">Enable Maintenance</button>
+      <button type="submit" class="button button--warning">Enable maintenance</button>
     </form>
     <% } %>
   </div>
-</div>
+</details>
 <% } %>
 
 <% if (membership.role === 'OWNER' && project.status !== 'ARCHIVED') { %>
 <div class="card card--danger mt-6">
   <div class="card__body">
-    <h2 class="card__title mb-2">Danger Zone</h2>
+    <h2 class="card__title mb-2">Danger zone</h2>
     <div class="danger-action">
       <div>
         <strong>Archive this project</strong>
-        <p class="text-sm text-muted">The application will be stopped and the project will be read-only.</p>
+        <p class="text-sm text-muted">The application will be stopped and the project will become read-only.</p>
       </div>
       <form method="POST" action="/projects/<%= project.slug %>/archive"
-            data-confirm="Archive <%= project.name %>? The application will be stopped and the project will become read-only."
-            data-confirm-title="Archive project"
-            data-confirm-accept-label="Archive Project"
-            data-confirm-pending-label="Archiving..."
-            data-confirm-variant="danger">
+        data-confirm="Archive <%= project.name %>? The application will be stopped and the project will become read-only."
+        data-confirm-title="Archive project" data-confirm-accept-label="Archive Project"
+        data-confirm-pending-label="Archiving..." data-confirm-variant="danger">
         <%- include('../../partials/csrf-field') %>
         <button type="submit" class="button button--danger button--sm">Archive</button>
       </form>
