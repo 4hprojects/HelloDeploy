@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
-import { renderFile } from 'ejs';
+import ejs from 'ejs';
 import {
   ApprovalStatus,
   DeploymentMode,
@@ -10,6 +10,8 @@ import {
   ProjectRole,
   ProjectStatus,
 } from '@hellodeploy/contracts';
+
+const { renderFile } = ejs;
 
 const overviewPath = fileURLToPath(
   new URL('../../apps/web/src/views/pages/projects/show.ejs', import.meta.url),

@@ -1,0 +1,498 @@
+# HelloDeploy and HelloRun Production Plan
+
+Updated: 2026-07-31
+
+## Primary Goal
+
+Complete HelloDeploy's real production deployment workflow and use that workflow to
+successfully host HelloRun.
+
+HelloRun must be checked, approved, built, deployed, health-checked, routed, updated,
+and rolled back by HelloDeploy. Its existing independent PM2 process is a temporary
+fallback, not evidence that HelloDeploy can host applications.
+
+> **Current safety rule:** Do not start a HelloRun or customer deployment while the
+> production worker is unavailable. A deployment may be recorded and queued, but no
+> worker can build or activate it. DNS verification jobs must also remain paused or be
+> deliberately requeued only after the worker and routing plane are ready.
+
+## Success Criteria
+
+This goal is complete only when all of the following are directly demonstrated:
+
+- The HelloDeploy web service, worker, Docker execution plane, constrained Nginx
+  helper, Redis queues, and wildcard application ingress are operational under their
+  intended production identities.
+- `hellorun-e783` has a current successful application check, current approval
+  snapshot, approved project state, and healthy deployment produced by HelloDeploy.
+- HelloRun serves HTTPS traffic through its platform address at
+  `hellorun-e783.apps.hellodeploy.online` and its custom address at
+  `hellorun.online`.
+- A safe HelloRun update succeeds, an intentionally broken candidate leaves the
+  healthy release serving traffic, and retained-image rollback is proven.
+- A second supported project completes the same workflow without a manual server
+  deployment.
+- Backup restoration, upgrade rollback, interruption handling, monitoring, and the
+  final production release gate have direct evidence.
+
+Customer application hosting remains **NO-GO** until every priority and release gate
+in this document is complete.
+
+## Document Ownership
+
+This plan owns the goal-specific execution order for completing HelloDeploy and
+hosting HelloRun. It does not replace the repository's established status and
+evidence documents:
+
+- The [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) remains the
+  authoritative source for production-readiness status, blockers, and completion
+  gates.
+- The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) remains the
+  source for release requirements and the final GO/NO-GO rule.
+- The [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md) remains the
+  authoritative record of direct live results.
+- The [Worklog](../WORKLOG.md) remains the detailed historical evidence record.
+- The [Operations Runbooks](OPERATIONS_RUNBOOKS.md) remain authoritative for
+  approved operator procedures.
+
+When this plan and an authoritative source disagree, stop and reconcile the
+authoritative source before continuing.
+
+## Status Contract
+
+Use the batch tracker's statuses for priorities:
+
+- `Not Started`: execution has not begun.
+- `In Progress`: safe implementation or verification is active.
+- `Blocked`: an external dependency, privileged action, or prior gate is missing.
+- `In Review`: implementation is complete and final verification is pending.
+- `Complete`: every checklist item, evidence requirement, and completion gate passes.
+
+Statuses in this plan summarize the goal sequence. Readiness status changes must also
+be recorded in the batch tracker.
+
+## Priority Overview
+
+| Priority | Outcome                                        | Initial status | Required before                |
+| -------- | ---------------------------------------------- | -------------- | ------------------------------ |
+| P0       | Recoverable current pilot                      | In Progress    | Any host mutation              |
+| P1       | Isolated production service foundation         | Blocked        | Worker or routing activation   |
+| P2       | Operational worker, queues, and public routing | Blocked        | Real application deployment    |
+| P3       | Proven secure deployment engine                | Not Started    | HelloRun production deployment |
+| P4       | HelloRun hosted by HelloDeploy                 | Not Started    | Other customer projects        |
+| P5       | Repeatable owner workflow                      | Not Started    | Customer-hosting GO            |
+| P6       | Recovery evidence and formal production GO     | Not Started    | General availability           |
+
+Priorities run in order. Work from a later priority may reduce local risk, but it
+cannot satisfy or bypass an earlier live gate.
+
+## P0 - Protect the Existing Pilot
+
+**Status:** In Progress
+
+**Dependencies:** Current host access, reviewed release identity, backup media, and
+recovery-key access.
+
+**Tracker mapping:** Priority 1 Safe In-Place Baseline; Batches 1 and 5; Roadmap
+Phases 0, 1, and 5.
+
+### Actions
+
+- [ ] Select a reviewed immutable HelloDeploy commit from a clean checkout.
+- [ ] Capture a current value-safe host baseline covering platform, release,
+      prerequisites, services, identities, routing, health, and blockers.
+- [ ] Create an encrypted off-host backup of MongoDB, protected configuration,
+      GitHub App material, Nginx, Cloudflare Tunnel configuration, managed routes,
+      and required application state.
+- [ ] Verify the archive inventory, checksums, database export, recovery key, and
+      non-restoring backup verifier.
+- [ ] Record the exact rollback path for the PM2 dashboard, independent HelloRun
+      process, Nginx, tunnel configuration, repository release, and queue state.
+- [ ] Inventory deployment and DNS jobs created while the worker was offline.
+- [ ] Identify stale deployment jobs for cancellation and valid DNS checks for
+      deliberate requeue after P2.
+- [ ] Run the supported local quality and configuration gates against the selected
+      release.
+
+### Stop Conditions
+
+- Current dashboard or HelloRun health fails.
+- The checkout is dirty, mutable, or does not match the intended release.
+- Backup integrity, database evidence, recovery-key access, or rollback preparation
+  fails.
+- The queue contains work whose ownership or intended outcome cannot be established.
+
+### Required Evidence
+
+- Sanitized baseline report and immutable full commit.
+- Encrypted backup verification and database-export result.
+- Root-controlled rollback instructions and approved rollback destination.
+- Sanitized queue inventory with a recorded decision for each stale job class.
+- Local configuration, security, installer, Nginx, worker, lint, formatting, and test
+  results.
+
+### Completion Gate
+
+The current dashboard and HelloRun remain healthy, the target release is
+reproducible, the backup is recoverable, and every planned P1 host change has a
+verified rollback.
+
+## P1 - Install the Production Service Foundation
+
+**Status:** Blocked by P0 and privileged host authorization
+
+**Dependencies:** P0 Complete; approved Ubuntu 26.04 candidate-host acknowledgements;
+privileged access.
+
+**Tracker mapping:** Production Service Foundation; Batches 2, 3, and 5; Roadmap
+Phases 2, 3, and 5.
+
+### Actions
+
+- [ ] Install Docker using the reviewed candidate-host procedure.
+- [ ] Run the inactive prepare-only installer path before enabling services or
+      changing ingress.
+- [ ] Create separate `hellodeploy-web`, `hellodeploy-worker`, and Nginx-helper
+      identities and systemd units.
+- [ ] Install the reviewed configuration and GitHub App key with minimum required
+      ownership and permissions without regenerating existing secrets.
+- [ ] Configure build workspace storage, Docker networking, loopback-only published
+      ports, application port allocation, and resource limits.
+- [ ] Grant Docker access only to the worker identity.
+- [ ] Prove the web identity cannot access Docker, the route helper, worker-only
+      configuration, or deployment workspaces.
+- [ ] Validate MongoDB, Redis, Docker, configuration, capacity, readiness, and
+      graceful shutdown while the new units remain inactive.
+
+### Stop Conditions
+
+- The installer repairs unexpected permissions, changes ingress, regenerates
+  secrets, or enables a service during prepare-only execution.
+- The web identity receives Docker or helper access.
+- A protected file is readable by an unintended identity.
+- Docker, MongoDB, Redis, configuration validation, or candidate-port checks fail.
+- The existing PM2 dashboard or HelloRun fallback becomes unavailable.
+
+### Required Evidence
+
+- Installed identity, group, unit, file, directory, and socket metadata without
+  protected values.
+- Explicit web-denial and worker-allow results for Docker and the helper boundary.
+- Docker and production-configuration diagnostics.
+- Candidate service startup and shutdown results without traffic cutover.
+
+### Completion Gate
+
+The isolated production units and protected files pass all permission and
+configuration checks while the existing PM2 services continue serving traffic.
+
+## P2 - Activate Worker, Queues, and Public Routing
+
+**Status:** Blocked by P1
+
+**Dependencies:** P1 Complete; Cloudflare access; authoritative DNS access; working
+Nginx configuration.
+
+**Tracker mapping:** Routing and Production Cutover; Batches 2, 3, and 5; Roadmap
+Phases 2, 3, and 5.
+
+### Actions
+
+- [ ] Pause deployment and domain queues before starting the production worker.
+- [ ] Cancel stale deployment jobs so old clicks cannot trigger unexpected builds.
+- [ ] Keep valid DNS jobs paused until application routing is ready.
+- [ ] Install and start the constrained Nginx helper and managed route directory.
+- [ ] Validate route creation, replacement, removal, candidate rejection, Nginx
+      reload failure, and prior-route restoration.
+- [ ] Add `*.apps.hellodeploy.online` to authoritative DNS and Cloudflare Tunnel
+      ingress while retaining the dashboard routes.
+- [ ] Start candidate web and worker services under their intended identities.
+- [ ] Verify web readiness, protected worker readiness, Nginx syntax, secure session
+      cookies, wildcard DNS, wildcard HTTPS, and test application routing.
+- [ ] Cut dashboard traffic from PM2 to the isolated web service only after candidate
+      checks pass.
+- [ ] Resume queues gradually, deliberately requeue valid DNS checks, and observe
+      failures, latency, Docker capacity, and route changes.
+
+### Stop Conditions
+
+- Queue state is unknown, a stale job starts unexpectedly, or pause/drain behavior
+  fails.
+- Nginx validation or rollback fails.
+- Wildcard DNS or Cloudflare ingress displaces the dashboard.
+- The web identity can reach privileged deployment controls.
+- Candidate readiness, secure-cookie behavior, or rollback verification fails.
+
+### Required Evidence
+
+- Queue pause, inventory, cancellation, controlled resume, and job-processing results.
+- Nginx helper permissions and route transaction results.
+- Sanitized DNS, HTTPS, tunnel, dashboard, web-readiness, and worker-readiness
+  results.
+- Successful restoration of the former PM2/tunnel path during a controlled rollback
+  check.
+
+### Completion Gate
+
+A controlled test container is reachable through the wildcard application domain,
+the isolated worker processes jobs, the dashboard remains healthy, and the previous
+traffic path can be restored.
+
+## P3 - Validate the Real Deployment Engine
+
+**Status:** Not Started
+
+**Dependencies:** P2 Complete; controlled sample repositories; production routing.
+
+**Tracker mapping:** Batch 6 Real Deployment Validation; Roadmap Phase 6.
+
+### Actions
+
+- [ ] Deploy Static, React, Vue, Express, generic Node.js, and supported Next.js
+      fixtures through the real worker.
+- [ ] Verify exact-commit checkout, safe generated Dockerfiles, build logs, health
+      checks, activation, application URLs, notifications, retention, and cleanup.
+- [ ] Confirm containers run non-root, enforce CPU and memory limits, and publish
+      host ports only on loopback.
+- [ ] Confirm environment secrets do not appear in build output, deployment logs,
+      image history, process arguments, or errors.
+- [ ] Exercise symlink escapes, oversized contexts, dangerous configuration, command
+      injection attempts, and hostile startup behavior.
+- [ ] Exercise failed builds, failed health checks, cancellation, retry, concurrent
+      port allocation, Docker interruption, and worker restart.
+- [ ] Confirm a failed candidate never replaces a healthy release.
+- [ ] Confirm retained-image rollback restores the intended release and route.
+
+### Stop Conditions
+
+- Secret exposure, unsafe container privilege, non-loopback publication, missing
+  limits, path escape, or command injection succeeds.
+- A failed candidate displaces a healthy release.
+- Cleanup leaves unsafe workspaces, images, containers, ports, or routes.
+- An unresolved critical or high-severity defect is found.
+
+### Required Evidence
+
+- Sanitized build, container, health, routing, cleanup, and rollback results for every
+  supported runtime.
+- Container identity, binding, and resource-limit inspection.
+- Failure and interruption outcomes with correlation IDs but no secrets.
+- Focused and full repository verification after any fixes.
+
+### Completion Gate
+
+Every supported runtime serves through production routing, security boundaries hold,
+failure cleanup is complete, and rollback restores service.
+
+## P4 - Host HelloRun Through HelloDeploy
+
+**Status:** Not Started
+
+**Dependencies:** P3 Complete; current HelloRun repository access; administrator and
+Owner workflow access; authoritative DNS and Cloudflare access.
+
+**Tracker mapping:** Batch 7 Pilot and Recovery Drills; Roadmap Phase 7.
+
+### Actions
+
+- [ ] Request changes on the legacy `hellorun-e783` approval request with a clear
+      resubmission note.
+- [ ] Confirm the start command, application port, working-page path, production
+      branch, and current repository commit.
+- [ ] Run **Check again** and confirm detection is Ready for the current commit.
+- [ ] Resubmit with a short application purpose so the request contains a current
+      review snapshot.
+- [ ] Approve the current snapshot transactionally and confirm the project becomes
+      Active.
+- [ ] Start one manual deployment and follow queued, validating, building, deploying,
+      health-checking, and healthy states.
+- [ ] Verify deployment logs, notifications, resource limits, and
+      `hellorun-e783.apps.hellodeploy.online`.
+- [ ] Deploy a safe update and confirm the new healthy release replaces the prior
+      release.
+- [ ] Deploy an intentionally broken candidate and confirm the healthy release stays
+      live.
+- [ ] Roll back using the retained healthy image and confirm routing is restored.
+- [ ] Complete the custom-domain cutover checklist below.
+
+### Stop Conditions
+
+- Detection or approval does not match the current commit or configuration.
+- The deployment becomes stuck, loses logs, fails health checks unexpectedly, or
+  cannot be cancelled safely.
+- The platform application URL is unhealthy or bypasses the managed route.
+- A failed update displaces the healthy release.
+- The custom-domain change would remove the existing HelloRun fallback before the
+  managed release is proven.
+
+### Required Evidence
+
+- Current detection commit, approval snapshot version, and sanitized approval result.
+- Deployment stages, logs, health, route, notification, update, failure, and rollback
+  results.
+- Platform and custom-domain HTTPS results without internal addresses.
+- Recorded fallback and final cutover decisions.
+
+### Completion Gate
+
+HelloRun is built and operated by HelloDeploy, both public addresses are healthy, an
+update and rollback pass, and the independent PM2 deployment is no longer required
+for normal service.
+
+## HelloRun Cutover Checklist
+
+- [ ] Keep the existing PM2 HelloRun process and its current traffic path unchanged.
+- [ ] Deploy `hellorun-e783` through HelloDeploy and verify the managed container
+      directly through the platform application address.
+- [ ] Observe the managed release long enough to confirm stable health, logs,
+      resources, and notifications.
+- [ ] Confirm the active nameservers for `hellorun.online`; edit DNS only at the
+      authoritative provider.
+- [ ] Publish the exact HelloDeploy TXT verification record without replacing
+      unrelated DNS records.
+- [ ] Run **Check DNS record**, wait for verified ownership, and obtain administrator
+      domain approval.
+- [ ] Add the custom hostname to Cloudflare Tunnel ingress and the managed Nginx route.
+- [ ] Verify HTTPS, expected content, health, redirects, and application behavior at
+      `hellorun.online`.
+- [ ] Test the documented route back to the independent PM2 service.
+- [ ] Observe the managed custom domain before removing the old route or process.
+- [ ] Remove the independent service only after rollback ownership and monitoring are
+      confirmed.
+
+## P5 - Prove the Workflow for Other Projects
+
+**Status:** Not Started
+
+**Dependencies:** P4 Complete; a second noncritical supported repository; test users
+for each role.
+
+**Tracker mapping:** Batch 7 Pilot and Recovery Drills; Roadmap Phase 7.
+
+### Actions
+
+- [ ] Complete a new project lifecycle as an Owner: create, connect repository,
+      check app, configure, submit purpose, receive approval, deploy, view logs, and
+      open the app.
+- [ ] Verify Manual and Automatic deployment modes, GitHub webhooks, build filters,
+      selected commits, notifications, environment secrets, maintenance mode,
+      custom domains, archive, and deletion.
+- [ ] Keep the unsupported legacy `Approval Required` mode unavailable for new
+      selections.
+- [ ] Verify Owner, Maintainer, Viewer, Admin, and Super Admin reads and mutations,
+      including rejection of unauthorized direct requests.
+- [ ] Exercise duplicate submissions, stale detection, changed commits, requested
+      changes, disconnected repositories, unavailable queues, failed deployments,
+      retry, and recovery states.
+- [ ] Complete authenticated desktop, 390px mobile, keyboard, screen-reader, focus,
+      error-association, and long-content checks.
+- [ ] Fix discovered defects narrowly and rerun the affected gate and full quality
+      checks.
+
+### Stop Conditions
+
+- A normal project requires undocumented manual server work.
+- Authorization, secret handling, accessibility, or recovery behavior fails.
+- Automatic deployment can bypass approval or readiness requirements.
+- A critical or high-severity defect remains unresolved.
+
+### Required Evidence
+
+- End-to-end lifecycle results for the second project.
+- Role and direct-request authorization results.
+- Webhook, automatic deployment, secrets, domain, maintenance, and notification
+  results.
+- Desktop, mobile, keyboard, and screen-reader evidence.
+
+### Completion Gate
+
+A second supported project reaches a healthy public release without manual server
+deployment, and normal users can complete their permitted workflows safely.
+
+## P6 - Recovery and Formal Production GO
+
+**Status:** Not Started
+
+**Dependencies:** P5 Complete; monitoring ownership; controlled maintenance window;
+second clean restore host.
+
+**Tracker mapping:** Recovery and Ubuntu 26 Graduation; Batches 7 and 8; Roadmap
+Phases 7 and 8.
+
+### Actions
+
+- [ ] Configure actionable monitoring for web and worker readiness, queue depth,
+      failed jobs, disk, memory, Docker capacity, certificates, and public ingress.
+- [ ] Define log retention, alert thresholds, incident ownership, escalation, and
+      response expectations.
+- [ ] Drill MongoDB, Redis, Docker, worker, Nginx, Cloudflare Tunnel, low-disk, and
+      high-memory interruptions.
+- [ ] Perform one successful immutable platform upgrade.
+- [ ] Perform one intentionally failed upgrade and restore the prior release,
+      dependencies, units, ingress, routes, readiness, and queue state.
+- [ ] Create a final encrypted off-host backup after normalization.
+- [ ] Restore the backup on a second clean host and serve a representative deployed
+      project.
+- [ ] Record achieved recovery point and recovery time objectives.
+- [ ] Promote Ubuntu 26.04 from candidate status only after its installation,
+      deployment, rollback, interruption, and restore evidence passes.
+- [ ] Reconcile the tracker, roadmap, live checklist, runbooks, and worklog.
+- [ ] Tag the verified immutable release and record the formal GO or NO-GO decision.
+
+### Stop Conditions
+
+- Monitoring cannot detect a release-blocking dependency failure.
+- Upgrade rollback or second-host restoration fails.
+- Queue state, routing state, or active release identity is unknown after recovery.
+- A critical or high-severity issue remains unresolved.
+
+### Required Evidence
+
+- Monitoring and alert-delivery results.
+- Sanitized interruption, upgrade, rollback, backup, and second-host restore records.
+- Recorded recovery objectives and actual results.
+- Clean release commit, quality gates, acceptance reconciliation, and formal decision.
+
+### Completion Gate
+
+All release gates have direct evidence, recovery works on a second host, operational
+ownership is defined, no unresolved critical or high-severity defect remains, and the
+authoritative tracker records production **GO**.
+
+## Decision Log
+
+Record product or operational decisions that affect execution order, risk, or the
+definition of success. Do not record credentials, private identifiers, internal
+addresses, or secret values.
+
+| Date       | Decision                                           | Reason                                                        | Owner         |
+| ---------- | -------------------------------------------------- | ------------------------------------------------------------- | ------------- |
+| 2026-07-31 | Use the current Ubuntu 26.04 laptop as target host | Continue the prepared in-place productionization path         | Project Owner |
+| 2026-07-31 | Use HelloRun as the controlled production pilot    | Prove the real workflow before accepting other hosted apps    | Project Owner |
+| 2026-07-31 | Retain the independent PM2 HelloRun fallback       | Preserve availability until managed URLs and rollback pass    | Operator      |
+| 2026-07-31 | Require P0-P6 before customer-hosting GO           | UI readiness alone does not prove safe application deployment | Operator      |
+
+## Execution Evidence
+
+Add one row after each meaningful execution or verification step. Keep results
+sanitized and link detailed evidence to the worklog or authoritative checklist.
+
+| Date | Priority | Commit or release | Command or check | Sanitized result | Blocker or next action | Evidence link |
+| ---- | -------- | ----------------- | ---------------- | ---------------- | ---------------------- | ------------- |
+| -    | -        | -                 | -                | -                | Start with P0          | -             |
+
+## Required Verification
+
+At each priority:
+
+1. Run the relevant focused security, installer, Nginx, worker, deployment, approval,
+   domain, authorization, UI, or recovery checks.
+2. Run `npm run config:check` when configuration or environment behavior is involved.
+3. Run `npm run lint`, `npm run format:check`, and `npm test`.
+4. Review the final diff and worktree for unrelated changes.
+5. Record direct live evidence in the acceptance checklist, status changes in the
+   batch tracker, and detailed evidence in the worklog.
+
+Mocks and local substitutes may validate implementation but cannot mark Docker,
+Nginx, Cloudflare, authenticated workflow, supported-host, rollback, or restore gates
+Passed.

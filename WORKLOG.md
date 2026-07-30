@@ -2058,3 +2058,40 @@
 - `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 - `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
 - Confirmed the live script contains the decision-preservation implementation; no approval decisions, production services, queues, workers, deployments, or traffic were changed.
+
+## HelloDeploy and HelloRun Production Plan
+
+- Status: Documentation and local verification Passed
+- Updated: 2026-07-31T00:10:26+08:00
+
+### Implemented Behavior
+
+- Added the goal-specific P0-P6 execution plan for completing HelloDeploy's real deployment workflow and hosting HelloRun through it.
+- Defined success criteria, dependencies, actions, stop conditions, evidence requirements, completion gates, the HelloRun cutover checklist, and decision and evidence records.
+- Linked the plan from the documentation index and authoritative batch tracker without changing status ownership or production-readiness state.
+
+### Verification Evidence
+
+- Prettier passed for every changed documentation file.
+- Validated 50 relative documentation links and the ordered P0-P6 heading structure.
+- `git diff --check` passed, and a credential-pattern scan found no sensitive values.
+- No deployment jobs, DNS checks, approval decisions, host services, routes, workers, deployments, or production traffic were changed.
+
+## P0 Production Dependency Audit Repair
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-31T00:25:59+08:00
+
+### Implemented Behavior
+
+- Updated EJS to its current supported major release, removing the vulnerable Jake, filelist, minimatch, and brace-expansion production chain.
+- Updated compatible lockfile resolutions for body-parser and Mongoose advisories without changing their declared major versions.
+- Adjusted real EJS render tests to use the package's supported default ESM export while preserving Express rendering behavior.
+
+### Verification Evidence
+
+- Focused real-template, approval, and input-validation coverage passed 35 tests across 5 suites.
+- `npm run config:check`, `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero production vulnerabilities.
+- No host services, queues, DNS records, routes, deployments, or production traffic were changed.

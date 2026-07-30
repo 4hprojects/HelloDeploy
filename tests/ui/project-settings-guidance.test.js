@@ -2,10 +2,12 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { describe, it } from 'node:test';
-import { renderFile } from 'ejs';
+import ejs from 'ejs';
 import { DeploymentMode, DetectionStatus, ProjectStatus } from '@hellodeploy/contracts';
 import { buildSettingsSections } from '../../apps/web/src/config/project-navigation.js';
 import { buildProjectSettingsView } from '../../apps/web/src/services/project-settings-view.service.js';
+
+const { renderFile } = ejs;
 
 const settingsPath = fileURLToPath(
   new URL('../../apps/web/src/views/pages/projects/settings.ejs', import.meta.url),
