@@ -69,7 +69,7 @@ describe('initial project approval guidance', () => {
       /const allowed = \[DeploymentMode\.MANUAL, DeploymentMode\.AUTOMATIC\]/,
     );
     assert.doesNotMatch(settingsView, /\['MANUAL', 'AUTOMATIC', 'APPROVAL_REQUIRED'\]/);
-    assert.match(settingsView, /Approval Required is not currently supported/);
+    assert.match(settingsView, /Approval Required is no longer supported/);
     assert.match(ownerView, /Approval required \(legacy\)/);
   });
 });

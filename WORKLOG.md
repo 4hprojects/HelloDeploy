@@ -1983,3 +1983,23 @@
 - `npm run lint`, `npm run format:check`, and `git diff --check` passed.
 - `npm test` passed 818 tests across 171 suites with zero failures, cancellations, or skips.
 - Visual fixtures confirmed readable desktop and mobile layouts for a live app with a failed update and a draft with requested changes, including long repository names, administrator notes, application URLs, and failure messages. No production services, queues, workers, deployments, or traffic were changed.
+
+## Repair and Simplify Project Settings
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T22:45:27+08:00
+
+### Implemented Behavior
+
+- Repaired the authenticated Settings render by replacing the undefined build-value helper with render-safe values that preserve submitted and stored build configuration.
+- Added an internal Settings view model for friendly runtime, deployment, notification, detection-freshness, domain, hook, maintenance, build, and deploy-rule summaries.
+- Reworked the seven stable Settings sections into read-first, unframed bands with advanced disclosures for technical controls. Repository, detection, domains, deploy hooks, and maintenance now link to their dedicated workflows.
+- Made archived Settings read-only except for permanent deletion and added a shared server-side guard across project mutation routes. Danger Zone failures now honor the validated Settings return target.
+- Added real EJS render coverage for normal, validation-error, long-value, public-source, legacy-mode, and archived fixtures, plus focused archived-route and Settings-shell coverage.
+
+### Verification Evidence
+
+- Focused Settings, detection, approval, public-source, archived-project, and destructive-action checks passed 35 tests across 5 suites; the final stale-assertion regression run passed 16 tests across 3 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 830 tests across 173 suites with zero failures, cancellations, or skips.
+- Authenticated-style EJS fixtures were inspected at 1440px desktop and 390px mobile widths, including long repository/domain values and archived read-only behavior. No production services, queues, workers, deployments, or traffic were changed.

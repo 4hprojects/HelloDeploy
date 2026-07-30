@@ -120,6 +120,29 @@ describe('project settings shell', () => {
     assert.match(settingsView, /data-settings-section/);
   });
 
+  it('guards archived project mutations while retaining permanent deletion', () => {
+    assert.match(routes, /import \{ requireEditableProject \}/);
+    for (const route of [
+      'update',
+      'archive',
+      'deployment-mode',
+      'notification-preference',
+      'build-configuration',
+      'build-filters',
+    ]) {
+      assert.match(
+        routes,
+        new RegExp(
+          `['"]/:slug/${route}['"][\\s\\S]{0,160}ownerOnly,[\\s\\S]{0,80}requireEditableProject`,
+        ),
+      );
+    }
+    assert.match(
+      routes,
+      /router\.post\('\/:slug\/delete', requireAuth, ownerOnly, postDeleteProject\)/,
+    );
+  });
+
   it('provides sticky desktop and in-flow mobile section navigation', () => {
     assert.match(componentsCss, /\.project-settings-layout/);
     assert.match(componentsCss, /\.settings-section-nav[\s\S]*position: sticky/);
@@ -144,17 +167,20 @@ describe('project settings shell', () => {
       '/build-configuration',
       '/build-filters',
       '/deployment-mode',
-      '/deploy-hook/generate',
-      '/deploy-hook/revoke',
-      '/domains',
       '/notification-preference',
-      '/maintenance/enable',
-      '/maintenance/disable',
       '/archive',
       '/delete',
     ].forEach((suffix) => {
       assert.match(settingsView, new RegExp(`project\\.slug %>${suffix}`));
     });
+    ['/repository', '/detection', '/domains', '/deploy-hook', '#maintenance-mode'].forEach(
+      (suffix) => {
+        assert.match(settingsView, new RegExp(`project\\.slug %>${suffix}`));
+      },
+    );
+    assert.doesNotMatch(settingsView, /project\\.slug %>\/domains"[^>]*method="POST"/);
+    assert.doesNotMatch(settingsView, /project\\.slug %>\/deploy-hook\/generate/);
+    assert.doesNotMatch(settingsView, /project\\.slug %>\/maintenance\/enable/);
     assert.match(projectController, /getProjectDomains\(req\.project\._id\)/);
     assert.match(
       projectController,
@@ -211,5 +237,13 @@ describe('project settings shell', () => {
     assert.match(settingsView, /locals\.settingsValues\?\.name/);
     assert.match(settingsView, /locals\.bcErrors/);
     assert.match(settingsView, /locals\.bfErrors/);
+  });
+
+  it('returns danger-zone errors to Settings instead of the legacy editor', () => {
+    assert.match(settingsView, /settings#danger-zone/);
+    assert.match(
+      projectController,
+      /confirmSlug !== project\.slug[\s\S]*projectReturnTarget\(req, `\/projects\/\$\{project\.slug\}\/edit`\)/,
+    );
   });
 });

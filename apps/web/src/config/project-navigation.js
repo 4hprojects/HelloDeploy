@@ -44,13 +44,13 @@ const PROJECT_NAVIGATION = Object.freeze([
 
 export const SETTINGS_SECTIONS = Object.freeze([
   { key: 'general', label: 'General', currentPath: '/edit' },
-  { key: 'source-build', label: 'Source & Build', currentPath: '/detection' },
+  { key: 'source-build', label: 'App Setup', currentPath: '/detection' },
   { key: 'deployment', label: 'Deployment', currentPath: '/deploy-hook' },
   { key: 'custom-domains', label: 'Custom Domains', currentPath: '/domains' },
   { key: 'notifications', label: 'Notifications', currentPath: '' },
   {
     key: 'health-maintenance',
-    label: 'Health & Maintenance',
+    label: 'Availability',
     currentPath: '/detection',
   },
   { key: 'danger-zone', label: 'Danger Zone', currentPath: '/edit' },

@@ -34,6 +34,7 @@ import {
   buildApplicationUrl,
   buildProjectOverviewState,
 } from '../services/project-overview.service.js';
+import { buildProjectSettingsView } from '../services/project-settings-view.service.js';
 import { env } from '../config/env.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
@@ -160,6 +161,12 @@ export async function renderProjectSettings(req, res, extras = {}) {
     domains,
     quota,
     hasDeployHook: Boolean(deployHookTokenHash),
+    settingsState: buildProjectSettingsView({
+      project: projectForView,
+      repository,
+      domainCount: domains.length,
+      hasDeployHook: Boolean(deployHookTokenHash),
+    }),
     activeSettingsEdit: null,
     settingsErrors: {},
     settingsValues: {},
@@ -232,7 +239,7 @@ export const postArchiveProject = asyncHandler(async (req, res) => {
 
   if (!result.success) {
     req.flash('error', result.error);
-    return res.redirect(`/projects/${req.project.slug}`);
+    return res.redirect(projectReturnTarget(req, `/projects/${req.project.slug}`));
   }
 
   req.flash('success', `Project "${req.project.name}" has been archived.`);
@@ -247,7 +254,7 @@ export const postDeleteProject = asyncHandler(async (req, res) => {
 
   if (confirmSlug !== project.slug) {
     req.flash('error', 'Type the project slug exactly to confirm deletion.');
-    return res.redirect(`/projects/${project.slug}/edit`);
+    return res.redirect(projectReturnTarget(req, `/projects/${project.slug}/edit`));
   }
 
   const result = await deleteProject({
@@ -259,7 +266,7 @@ export const postDeleteProject = asyncHandler(async (req, res) => {
 
   if (!result.success) {
     req.flash('error', result.error);
-    return res.redirect(`/projects/${project.slug}/edit`);
+    return res.redirect(projectReturnTarget(req, `/projects/${project.slug}/edit`));
   }
 
   req.flash('success', `Project "${project.name}" has been permanently deleted.`);

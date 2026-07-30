@@ -56,6 +56,15 @@ The project overview presents the most important next step at the top of the pag
 
 Repository, branch, app type, deployment mode, and notification values are available under **Project details**. Owners make configuration changes from **Project Settings**. Maintainers can deploy and retry releases, while Viewers receive read-only status and deployment links.
 
+## Use Project Settings
+
+Project Settings is available to the project Owner. It keeps the common choices easy to find while placing technical options inside advanced sections.
+
+- Edit the project name, choose Manual or Automatic deployments, and set the deployment email preference directly in Settings.
+- Use **Advanced build settings**, **Automatic deploy rules (optional)**, and **Working-page check** only when the detected recommendation does not fit the app.
+- Follow the links from Settings to manage the repository, check the app, configure domains, manage a deploy hook, or control maintenance mode in their dedicated workflows.
+- Archived projects are read-only. Their Settings page retains only the permanent deletion action in **Danger Zone**.
+
 ## Connect a Repository
 
 1. Open the project.
@@ -218,9 +227,9 @@ Visitors receive a 503 maintenance page. The running container is not stopped, s
 
 ## Archive or Delete a Project
 
-Two options in the danger zones, with very different consequences:
+Two options in Project Settings under **Danger Zone**, with very different consequences:
 
-- **Archive** (project overview): Stops the application and makes the project read-only. Reversible by an Admin.
+- **Archive**: Stops the application and makes the project read-only. Reversible by an Admin.
 - **Delete** (project settings): Permanently stops the application and deletes all deployments, domains, environment variables, and membership records. You must type the project slug to confirm. **This cannot be undone.**
 
 ## Members and Permissions

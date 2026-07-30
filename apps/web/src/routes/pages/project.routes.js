@@ -65,6 +65,7 @@ import {
   sseDeploymentLogs,
 } from '../../controllers/deployment.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
+import { requireEditableProject } from '../../middleware/require-editable-project.js';
 
 const router = Router();
 
@@ -85,19 +86,61 @@ router.post('/', requireAuth, postNewProject);
 router.get('/:slug', requireAuth, anyRole, getProject);
 router.get('/:slug/edit', requireAuth, ownerOnly, getEditProject);
 router.get('/:slug/settings', requireAuth, ownerOnly, getProjectSettings);
-router.post('/:slug/update', requireAuth, ownerOnly, postEditProject);
-router.post('/:slug/archive', requireAuth, ownerOnly, postArchiveProject);
+router.post('/:slug/update', requireAuth, ownerOnly, requireEditableProject, postEditProject);
+router.post('/:slug/archive', requireAuth, ownerOnly, requireEditableProject, postArchiveProject);
 router.post('/:slug/delete', requireAuth, ownerOnly, postDeleteProject);
-router.post('/:slug/maintenance/enable', requireAuth, ownerOnly, postEnableMaintenance);
-router.post('/:slug/maintenance/disable', requireAuth, ownerOnly, postDisableMaintenance);
-router.post('/:slug/submit-review', requireAuth, ownerOnly, postSubmitForReview);
+router.post(
+  '/:slug/maintenance/enable',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postEnableMaintenance,
+);
+router.post(
+  '/:slug/maintenance/disable',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postDisableMaintenance,
+);
+router.post(
+  '/:slug/submit-review',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSubmitForReview,
+);
 
 // Members
 router.get('/:slug/members', requireAuth, ownerOnly, getProjectMembersPage);
-router.post('/:slug/members/invite', requireAuth, ownerOnly, postInviteMember);
-router.post('/:slug/members/:userId/remove', requireAuth, ownerOnly, postRemoveMember);
-router.post('/:slug/members/:userId/role', requireAuth, ownerOnly, postUpdateMemberRole);
-router.post('/:slug/transfer-ownership', requireAuth, ownerOnly, postTransferOwnership);
+router.post(
+  '/:slug/members/invite',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postInviteMember,
+);
+router.post(
+  '/:slug/members/:userId/remove',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postRemoveMember,
+);
+router.post(
+  '/:slug/members/:userId/role',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postUpdateMemberRole,
+);
+router.post(
+  '/:slug/transfer-ownership',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postTransferOwnership,
+);
 
 // Repository
 router.get('/:slug/repository', requireAuth, ownerOnly, getRepository);
@@ -105,33 +148,77 @@ router.post(
   '/:slug/repository/inspect',
   requireAuth,
   ownerOnly,
+  requireEditableProject,
   repositoryInspectLimiter,
   postInspectPublicRepository,
 );
-router.post('/:slug/repository', requireAuth, ownerOnly, postConnectRepository);
-router.post('/:slug/repository/disconnect', requireAuth, ownerOnly, postDisconnectRepository);
+router.post(
+  '/:slug/repository',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postConnectRepository,
+);
+router.post(
+  '/:slug/repository/disconnect',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postDisconnectRepository,
+);
 
 // Deployment mode
-router.post('/:slug/deployment-mode', requireAuth, ownerOnly, postUpdateDeploymentMode);
+router.post(
+  '/:slug/deployment-mode',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postUpdateDeploymentMode,
+);
 
 // Notification preference
 router.post(
   '/:slug/notification-preference',
   requireAuth,
   ownerOnly,
+  requireEditableProject,
   postUpdateNotificationPreference,
 );
 
 // Deploy hook
 router.get('/:slug/deploy-hook', requireAuth, ownerOnly, getDeployHookSettings);
-router.post('/:slug/deploy-hook/generate', requireAuth, ownerOnly, postGenerateDeployHook);
-router.post('/:slug/deploy-hook/revoke', requireAuth, ownerOnly, postRevokeDeployHook);
+router.post(
+  '/:slug/deploy-hook/generate',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postGenerateDeployHook,
+);
+router.post(
+  '/:slug/deploy-hook/revoke',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postRevokeDeployHook,
+);
 
 // Detection
 router.get('/:slug/detection', requireAuth, anyRole, getDetection);
-router.post('/:slug/detection', requireAuth, ownerOnly, postRunDetection);
-router.post('/:slug/build-configuration', requireAuth, ownerOnly, postUpdateBuildConfiguration);
-router.post('/:slug/build-filters', requireAuth, ownerOnly, postUpdateBuildFilters);
+router.post('/:slug/detection', requireAuth, ownerOnly, requireEditableProject, postRunDetection);
+router.post(
+  '/:slug/build-configuration',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postUpdateBuildConfiguration,
+);
+router.post(
+  '/:slug/build-filters',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postUpdateBuildFilters,
+);
 
 // Deployments
 router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);
@@ -160,16 +247,52 @@ router.post(
 
 // Environment secrets
 router.get('/:slug/environment', requireAuth, ownerOnly, getEnvironment);
-router.post('/:slug/environment', requireAuth, ownerOnly, postSetSecret);
-router.post('/:slug/environment/import', requireAuth, ownerOnly, postImportEnvFile);
-router.post('/:slug/environment/bulk-update', requireAuth, ownerOnly, postBulkUpdateSecrets);
-router.post('/:slug/environment/:name/reveal', requireAuth, ownerOnly, postRevealSecret);
-router.post('/:slug/environment/:name/delete', requireAuth, ownerOnly, postDeleteSecret);
+router.post('/:slug/environment', requireAuth, ownerOnly, requireEditableProject, postSetSecret);
+router.post(
+  '/:slug/environment/import',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postImportEnvFile,
+);
+router.post(
+  '/:slug/environment/bulk-update',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postBulkUpdateSecrets,
+);
+router.post(
+  '/:slug/environment/:name/reveal',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postRevealSecret,
+);
+router.post(
+  '/:slug/environment/:name/delete',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postDeleteSecret,
+);
 
 // Custom domains
 router.get('/:slug/domains', requireAuth, anyRole, getDomains);
-router.post('/:slug/domains', requireAuth, ownerOnly, postAddDomain);
-router.post('/:slug/domains/:domainId/verify', requireAuth, ownerOnly, postVerifyDomain);
-router.post('/:slug/domains/:domainId/remove', requireAuth, ownerOnly, postRemoveDomain);
+router.post('/:slug/domains', requireAuth, ownerOnly, requireEditableProject, postAddDomain);
+router.post(
+  '/:slug/domains/:domainId/verify',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postVerifyDomain,
+);
+router.post(
+  '/:slug/domains/:domainId/remove',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postRemoveDomain,
+);
 
 export default router;

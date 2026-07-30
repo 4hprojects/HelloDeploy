@@ -44,6 +44,6 @@ describe('public repository connection UI', () => {
     assert.match(settings, /repository\?\.sourceType === 'PUBLIC_GIT'/);
     assert.match(settings, /\['MANUAL'\]/);
     assert.doesNotMatch(settings, /\['MANUAL', 'APPROVAL_REQUIRED'\]/);
-    assert.match(settings, /Automatic mode requires a GitHub App connection/);
+    assert.match(settings, /Automatic deployments require a GitHub App connection/);
   });
 });

@@ -1865,6 +1865,10 @@
   gap: var(--space-3);
 }
 
+.settings-sections {
+  gap: 0;
+}
+
 .settings-section-nav__link {
   color: var(--color-text-muted);
   text-decoration: none;
@@ -1880,6 +1884,47 @@
 
 .settings-section {
   scroll-margin-top: calc(var(--header-height) + var(--space-4));
+  padding-bottom: var(--space-8);
+  margin-bottom: var(--space-8);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-read-only-alert {
+  display: block;
+}
+
+.settings-read-only-alert strong {
+  margin-right: var(--space-1);
+}
+
+.settings-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-4);
+}
+
+.settings-section__header h2 {
+  margin: 0;
+  font-size: var(--text-lg);
+}
+
+.settings-section__header p {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+.settings-section__body {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.settings-section--danger {
+  padding: var(--space-6);
+  border: 1px solid var(--color-error-border, #fca5a5);
+  border-radius: var(--radius-lg);
 }
 
 .settings-group-list {
@@ -1956,6 +2001,101 @@
   overflow-wrap: anywhere;
 }
 
+.settings-value-start {
+  justify-self: start;
+}
+
+.settings-code-value {
+  max-width: 100%;
+  justify-self: start;
+  overflow-wrap: anywhere;
+}
+
+.settings-long-value {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-summary-list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.settings-summary-list li {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.settings-summary-list li > span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.settings-advanced-disclosure {
+  border-top: 1px solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.settings-advanced-disclosure > summary {
+  display: flex;
+  min-height: 4.25rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-3) 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.settings-advanced-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-advanced-disclosure > summary:focus-visible {
+  outline: 3px solid var(--color-blue);
+  outline-offset: 3px;
+}
+
+.settings-advanced-disclosure > summary > span:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: var(--space-1);
+  overflow-wrap: anywhere;
+}
+
+.settings-advanced-disclosure > summary > span:first-child > span {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-normal);
+}
+
+.settings-advanced-disclosure__toggle {
+  flex-shrink: 0;
+  color: var(--color-blue);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+
+.settings-advanced-disclosure[open] .settings-advanced-disclosure__toggle {
+  font-size: 0;
+}
+
+.settings-advanced-disclosure[open] .settings-advanced-disclosure__toggle::after {
+  content: 'Hide';
+  font-size: var(--text-sm);
+}
+
+.settings-advanced-disclosure__body {
+  padding: var(--space-4) 0 var(--space-5);
+}
+
 [data-settings-edit-form][hidden],
 [data-settings-display][hidden] {
   display: none;
@@ -1977,6 +2117,15 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .settings-section__header {
+    flex-direction: column;
+  }
+
+  .settings-section__header .button-group,
+  .settings-section__header .button {
+    align-self: flex-start;
+  }
+
   .settings-field-row,
   .settings-form-grid {
     grid-template-columns: 1fr;
@@ -1985,6 +2134,26 @@
   .settings-field-row__control {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .settings-summary-list li {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 30rem) {
+  .settings-display-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .settings-display-row .button {
+    align-self: flex-start;
+  }
+
+  .settings-section--danger {
+    padding: var(--space-4);
   }
 }
 
