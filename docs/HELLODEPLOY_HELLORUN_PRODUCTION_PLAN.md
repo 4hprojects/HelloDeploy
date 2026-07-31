@@ -73,10 +73,10 @@ be recorded in the batch tracker.
 
 ## Priority Overview
 
-| Priority | Outcome                                        | Initial status | Required before                |
+| Priority | Outcome                                        | Current status | Required before                |
 | -------- | ---------------------------------------------- | -------------- | ------------------------------ |
-| P0       | Recoverable current pilot                      | In Progress    | Any host mutation              |
-| P1       | Isolated production service foundation         | Blocked        | Worker or routing activation   |
+| P0       | Recoverable current pilot                      | Complete       | Any host mutation              |
+| P1       | Isolated production service foundation         | In Progress    | Worker or routing activation   |
 | P2       | Operational worker, queues, and public routing | Blocked        | Real application deployment    |
 | P3       | Proven secure deployment engine                | Not Started    | HelloRun production deployment |
 | P4       | HelloRun hosted by HelloDeploy                 | Not Started    | Other customer projects        |
@@ -88,7 +88,7 @@ cannot satisfy or bypass an earlier live gate.
 
 ## P0 - Protect the Existing Pilot
 
-**Status:** In Progress
+**Status:** Complete
 
 **Dependencies:** Current host access, reviewed release identity, backup media, and
 recovery-key access.
@@ -97,8 +97,10 @@ recovery-key access.
 Phases 0, 1, and 5.
 
 **Execution update:** The clean merged candidate
-`6d0bf82530d01bb941b6309c83a1a8bde18a4447` passes the complete Node.js 22 release
-gate. A manual PM2 dashboard restart cleared the stale frontend release and the
+`2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` incorporates the reviewed fallback
+recovery evidence; its parent release passed the complete Node.js 22 release gate,
+and PR #13 passed Node.js 22 CI. A manual PM2 dashboard restart cleared the stale
+frontend release and the
 complete public production check now passes. The original dedicated `hellorun`
 tunnel was healthy but belonged to a different Cloudflare account from the
 `hellorun.online` zone. A separate root-protected connector was created in the
@@ -106,9 +108,7 @@ correct account without replacing either existing tunnel service. Its published
 application route and proxied root DNS record now send `hellorun.online` to the
 existing PM2 fallback through `http://localhost:80`. Authoritative DNS, repeated
 HTTPS 200 responses, HSTS, local-origin health, the complete dashboard production
-check, and zero connector restarts passed. Backup execution remains blocked until
-approved off-host media, database export tooling, recovery-key access, and
-root-owned rollback instructions are available.
+check, and zero connector restarts passed.
 
 The installed Cloudflare management credential is scoped to `hellodeploy.online`,
 not the separately managed `hellorun.online` zone. A route command therefore created
@@ -118,17 +118,28 @@ zone API. The intended domain remained unchanged; its repair requires a
 `hellorun.online` zone-scoped dashboard or API action. That action was subsequently
 completed through a separate remotely managed tunnel in the correct account.
 
+The final P0 capture used the approved LUKS2 off-host medium, MongoDB Database Tools
+`100.17.0` verified against MongoDB's signing key, a non-restoring database export,
+root-owned rollback instructions, and supplemental current HelloRun routing state.
+The encrypted artifact passed its outer checksum after a lock/remount cycle, the
+separately held recovery export passed its checksum and secret-key import, and the
+repository verifier decrypted the artifact and passed its bounded inventory and
+every internal checksum. Both media were safely unmounted and physically removed.
+The recovery USB has consistent key files but pre-existing FAT metadata differences;
+keep it read-only and do not repair the sole private-key copy until a second verified
+copy exists.
+
 ### Actions
 
 - [x] Select a reviewed immutable HelloDeploy commit from a clean checkout.
 - [x] Capture a current value-safe host baseline covering platform, release,
       prerequisites, services, identities, routing, health, and blockers.
-- [ ] Create an encrypted off-host backup of MongoDB, protected configuration,
+- [x] Create an encrypted off-host backup of MongoDB, protected configuration,
       GitHub App material, Nginx, Cloudflare Tunnel configuration, managed routes,
       and required application state.
-- [ ] Verify the archive inventory, checksums, database export, recovery key, and
+- [x] Verify the archive inventory, checksums, database export, recovery key, and
       non-restoring backup verifier.
-- [ ] Record the exact rollback path for the PM2 dashboard, independent HelloRun
+- [x] Record the exact rollback path for the PM2 dashboard, independent HelloRun
       process, Nginx, tunnel configuration, repository release, and queue state.
 - [x] Inventory deployment and DNS jobs created while the worker was offline.
 - [x] Identify stale deployment jobs for cancellation and valid DNS checks for
@@ -159,9 +170,12 @@ The current dashboard and HelloRun remain healthy, the target release is
 reproducible, the backup is recoverable, and every planned P1 host change has a
 verified rollback.
 
+**Gate result:** Passed on 2026-07-31. This is same-host retrieval proof, not the P6
+second-host restoration gate.
+
 ## P1 - Install the Production Service Foundation
 
-**Status:** Blocked by P0 and privileged host authorization
+**Status:** In Progress
 
 **Dependencies:** P0 Complete; approved Ubuntu 26.04 candidate-host acknowledgements;
 privileged access.
@@ -506,6 +520,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check  | HelloRun public fallback failed; backup inputs incomplete           | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
 | 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Dashboard and dedicated tunnel restart  | Dashboard check passed; live tunnel still returned error 1033       | Repair and validate the hostname DNS tunnel route       | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
 | 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route | Authoritative DNS and repeated HTTPS 200 checks passed              | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval         | Database, artifact, recovery key, and rollback checks passed        | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
 
 ## Required Verification
 
