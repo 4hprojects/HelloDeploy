@@ -46,6 +46,8 @@ describe('Ubuntu systemd privilege separation', () => {
       '/etc/nginx/hellodeploy.d',
       '/run/hellodeploy',
       '/run/nginx.pid',
+      '/var/log/nginx/error.log',
+      '/var/log/nginx/access.log',
     ]);
     assert.doesNotMatch(helper, /ListenStream|0\.0\.0\.0/);
     assert.match(helperServer, /createServer\(\{ allowHalfOpen: true \}/);

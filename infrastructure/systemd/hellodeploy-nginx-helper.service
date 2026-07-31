@@ -19,7 +19,7 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectHome=true
 ProtectSystem=strict
-ReadWritePaths=/etc/nginx/hellodeploy.d /run/hellodeploy /run/nginx.pid
+ReadWritePaths=/etc/nginx/hellodeploy.d /run/hellodeploy /run/nginx.pid /var/log/nginx/error.log /var/log/nginx/access.log
 
 [Install]
 WantedBy=multi-user.target

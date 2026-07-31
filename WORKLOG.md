@@ -2369,3 +2369,34 @@
 - Lint, formatting, configuration validation, and diff checks passed.
 - The complete suite passed 848 tests across 175 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Helper Log Sandbox Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:46:30+08:00
+
+### Live Finding
+
+- The exact Nginx PID-file permission took effect and validation advanced beyond its
+  previous failure.
+- This Nginx build also opens its configured error log during `nginx -t`; strict
+  filesystem protection rejected that write before any probe route was created.
+- The host configuration contains exactly one error log and one access log under the
+  standard Nginx log directory.
+- Automatic rollback again left the helper inactive and disabled, the include, probe,
+  and socket absent, the worker inactive, and the queue paused.
+
+### Repair
+
+- The helper unit adds only the two configured root-owned Nginx log files to its
+  existing exact-path write allowlist.
+- Strict filesystem protection remains active; no directory-wide write permission is
+  added for `/var/log` or `/var/log/nginx`.
+- Regression coverage requires both exact log paths.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
