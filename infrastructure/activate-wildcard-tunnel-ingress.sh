@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# Add local wildcard ingress to every connector for the dashboard tunnel.
+set -euo pipefail
+
+EXPECTED_COMMIT="${HELLODEPLOY_EXPECTED_RELEASE_COMMIT:-}"
+HD_HOME="/opt/hellodeploy"
+WILDCARD_HOSTNAME="*.apps.hellodeploy.online"
+PROBE_HOSTNAME="zz-hd-p2-wildcard.apps.hellodeploy.online"
+CONFIGS=(/etc/cloudflared/config.yml /etc/cloudflared/hellodeploy.yml)
+SERVICES=(cloudflared.service cloudflared-hellodeploy.service)
+BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
+BACKUP_DIR=""
+CHANGED=false
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+if [[ $EUID -ne 0 ]]; then
+  fail "Run wildcard tunnel activation as root."
+fi
+if [[ ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
+  fail "HELLODEPLOY_EXPECTED_RELEASE_COMMIT must be a full commit."
+fi
+if [[ "$(git -C "$HD_HOME" rev-parse --verify HEAD^{commit} 2>/dev/null || true)" != "$EXPECTED_COMMIT" ]] ||
+  [[ -n "$(git -C "$HD_HOME" status --porcelain 2>/dev/null || true)" ]]; then
+  fail "Installed release is missing, dirty, or does not match the expected commit."
+fi
+if systemctl is-active --quiet hellodeploy-worker; then
+  fail "Deployment worker must remain inactive during wildcard ingress activation."
+fi
+if ! systemctl is-active --quiet hellodeploy-nginx-helper; then
+  fail "Nginx helper must be active before wildcard ingress activation."
+fi
+
+run_as_worker() {
+  (
+    cd "$HD_HOME"
+    runuser -u hellodeploy-worker -- \
+      env NODE_ENV=production \
+      /usr/bin/node scripts/verify-nginx-helper-live.js --check-queue-only
+  )
+}
+
+verify_public_fallbacks() {
+  for _ in $(seq 1 8); do
+    curl -fsS --max-time 15 https://hellodeploy.online/health >/dev/null || return 1
+  done
+  curl -fsS --max-time 15 https://hellorun.online/ >/dev/null
+}
+
+rollback() {
+  local status=$?
+  if ((status == 0)); then
+    return
+  fi
+
+  printf 'Wildcard tunnel activation failed; restoring both connector configs.\n' >&2
+  if [[ "$CHANGED" == true && -n "$BACKUP_DIR" ]]; then
+    for config in "${CONFIGS[@]}"; do
+      install -m 0644 -o root -g root "$BACKUP_DIR/$(basename "$config")" "$config"
+    done
+    for service in "${SERVICES[@]}"; do
+      systemctl restart "$service" >/dev/null 2>&1 || true
+    done
+    if ! verify_public_fallbacks; then
+      printf 'CRITICAL: tunnel rollback verification failed; keep the queue paused.\n' >&2
+    fi
+  fi
+}
+trap rollback EXIT
+
+run_as_worker
+
+for index in "${!CONFIGS[@]}"; do
+  config="${CONFIGS[$index]}"
+  service="${SERVICES[$index]}"
+  [[ -f "$config" && ! -L "$config" ]] || fail "Required tunnel config is missing or unsafe."
+  [[ "$(stat -c '%U:%G:%a' "$config")" == "root:root:644" ]] ||
+    fail "Tunnel config metadata differs from the reviewed baseline."
+  systemctl is-active --quiet "$service" || fail "Required tunnel connector is inactive."
+  cloudflared tunnel --config "$config" ingress validate >/dev/null
+  if grep -Fq "$WILDCARD_HOSTNAME" "$config"; then
+    fail "Wildcard ingress already exists; refusing an ambiguous retry."
+  fi
+  [[ "$(grep -Ec '^[[:space:]]*-[[:space:]]*service:[[:space:]]*http_status:404[[:space:]]*$' "$config")" == 1 ]] ||
+    fail "Tunnel config must contain exactly one final HTTP 404 catch-all."
+done
+
+primary_tunnel=$(awk -F: '$1 == "tunnel" {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${CONFIGS[0]}")
+secondary_tunnel=$(awk -F: '$1 == "tunnel" {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${CONFIGS[1]}")
+[[ -n "$primary_tunnel" && "$primary_tunnel" == "$secondary_tunnel" ]] ||
+  fail "Dashboard connectors do not reference the same tunnel."
+unset primary_tunnel secondary_tunnel
+
+install -d -m 0700 -o root -g root "$BACKUP_ROOT"
+BACKUP_DIR=$(mktemp -d "$BACKUP_ROOT/p2-wildcard.XXXXXX")
+chmod 0700 "$BACKUP_DIR"
+
+for config in "${CONFIGS[@]}"; do
+  install -m 0600 -o root -g root "$config" "$BACKUP_DIR/$(basename "$config")"
+  candidate="$BACKUP_DIR/$(basename "$config").candidate"
+  awk -v hostname="$WILDCARD_HOSTNAME" '
+    /^[[:space:]]*-[[:space:]]*service:[[:space:]]*http_status:404[[:space:]]*$/ && !inserted {
+      print "  - hostname: " hostname
+      print "    service: http://localhost:80"
+      inserted = 1
+    }
+    { print }
+    END { if (!inserted) exit 42 }
+  ' "$config" >"$candidate"
+  chmod 0600 "$candidate"
+  cloudflared tunnel --config "$candidate" ingress validate >/dev/null
+done
+
+for config in "${CONFIGS[@]}"; do
+  install -m 0644 -o root -g root "$BACKUP_DIR/$(basename "$config").candidate" "$config"
+done
+CHANGED=true
+
+for service in "${SERVICES[@]}"; do
+  systemctl restart "$service"
+  systemctl is-active --quiet "$service"
+done
+
+for config in "${CONFIGS[@]}"; do
+  cloudflared tunnel --config "$config" ingress validate >/dev/null
+  cloudflared tunnel --config "$config" ingress rule "https://$PROBE_HOSTNAME/" |
+    grep -Fq "$WILDCARD_HOSTNAME"
+done
+
+verify_public_fallbacks
+run_as_worker
+
+trap - EXIT
+printf 'wildcard_local_ingress=passed\n'
+printf 'dashboard_connectors=active\n'
+printf 'public_fallbacks=passed\n'
+printf 'worker_state=inactive\n'
+printf 'queue_state=paused\n'
+printf 'wildcard_dns_state=unchanged-absent\n'
+printf 'tunnel_ingress_backup=created\n'

@@ -2430,3 +2430,39 @@
   passed.
 - The complete suite passed 848 tests across 175 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Routing Foundation Completion
+
+- Status: Passed; local wildcard ingress next
+- Updated: 2026-07-31T23:58:00+08:00
+
+### Live Evidence
+
+- The immutable installation and inactive preparation checks passed.
+- The constrained helper remained active and enabled after the live verifier completed.
+- Through the worker identity, route creation, replacement, invalid-candidate rejection
+  with prior-route restoration, and removal all passed.
+- The managed include remains installed. No probe file, transaction file, socket
+  residue, or loopback listener remains from the test.
+- The production worker remains inactive and disabled, and the combined queue remains
+  paused.
+- The complete public dashboard check and independent HelloRun fallback passed after
+  activation.
+
+### Next Gate
+
+- Added a fail-closed local wildcard-ingress activation command for both active
+  connectors on the shared dashboard tunnel.
+- It validates immutable release, helper, worker, queue, config metadata, shared
+  tunnel identity, candidate ingress, connector restart, rule matching, and existing
+  public fallbacks.
+- Failure restores both root-owned configs, restarts both connectors, rechecks the
+  public fallbacks, and never creates DNS or resumes the queue.
+
+### Verification
+
+- Focused routing, wildcard-ingress, and live-documentation coverage passed 12 tests
+  before the final multi-connector public-check hardening.
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 852 tests across 176 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
