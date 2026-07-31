@@ -65,4 +65,11 @@ describe('Ubuntu support policy', () => {
     assert.match(installer, /HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED:-false/);
     assert.match(installer, /does not establish supported status/);
   });
+
+  it('installs and verifies the exact production Node.js major', () => {
+    assert.match(installer, /NODE_MAJOR=22/);
+    assert.match(installer, /NODE_CURRENT_MAJOR" != "\$NODE_MAJOR/);
+    assert.match(installer, /apt-get install -y --allow-downgrades nodejs/);
+    assert.match(installer, /NODE_INSTALLED_MAJOR" != "\$NODE_MAJOR/);
+  });
 });

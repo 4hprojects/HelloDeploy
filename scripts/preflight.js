@@ -13,6 +13,7 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, statfsSync } from 'node:fs';
 import os from 'node:os';
+import { classifyProductionNodeVersion, PRODUCTION_NODE_MAJOR } from './lib/node-support.js';
 import { classifyUbuntuRelease } from './lib/ubuntu-support.js';
 
 const ARGS = process.argv.slice(2);
@@ -25,7 +26,6 @@ if (UNKNOWN_ARGS.length > 0) {
   process.exit(2);
 }
 
-const MIN_NODE_MAJOR = 22;
 const MIN_NPM_MAJOR = 10;
 const MIN_DISK_BYTES = 10 * 1024 ** 3; // 10 GB free
 const MIN_RAM_BYTES = 2 * 1024 ** 3; // 2 GB total
@@ -64,11 +64,9 @@ check('OS: supported Ubuntu or explicitly acknowledged candidate', () => {
   });
 });
 
-check(`Node.js >= ${MIN_NODE_MAJOR}`, () => {
-  const major = parseInt(process.versions.node.split('.')[0], 10);
-  const ok = major >= MIN_NODE_MAJOR;
-  return { ok, detail: `Found Node.js ${process.versions.node}` };
-});
+check(`Node.js ${PRODUCTION_NODE_MAJOR}`, () =>
+  classifyProductionNodeVersion(process.versions.node),
+);
 
 check(`npm >= ${MIN_NPM_MAJOR}`, () => {
   const r = run('npm', ['--version']);

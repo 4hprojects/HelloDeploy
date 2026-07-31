@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { spawnSync } from 'node:child_process';
+import {
+  classifyProductionNodeVersion,
+  PRODUCTION_NODE_MAJOR,
+} from '../../scripts/lib/node-support.js';
 
 const SCRIPT = new URL('../../scripts/preflight.js', import.meta.url).pathname;
 
@@ -33,12 +37,28 @@ describe('preflight — JSON output', () => {
     }
   });
 
-  it('Node.js version check passes (we are running a compatible version)', () => {
+  it('reports the production Node.js major', () => {
     const r = spawnSync(process.execPath, [SCRIPT, '--json'], { encoding: 'utf8', timeout: 15000 });
     const { checks } = JSON.parse(r.stdout);
     const nodeCheck = checks.find((c) => c.label.includes('Node.js'));
     assert.ok(nodeCheck, 'Node.js check not found');
-    assert.ok(nodeCheck.ok, `Node.js check failed: ${nodeCheck.detail}`);
+    assert.equal(nodeCheck.label, `Node.js ${PRODUCTION_NODE_MAJOR}`);
+    assert.equal(
+      nodeCheck.ok,
+      process.versions.node.split('.')[0] === String(PRODUCTION_NODE_MAJOR),
+    );
+  });
+
+  it('accepts Node.js 22 and rejects other production majors', () => {
+    assert.deepEqual(classifyProductionNodeVersion('22.18.0'), {
+      ok: true,
+      detail: 'Found supported Node.js 22.18.0',
+    });
+    for (const version of ['20.19.0', '24.17.0', 'invalid']) {
+      const result = classifyProductionNodeVersion(version);
+      assert.equal(result.ok, false);
+      assert.match(result.detail, /production requires major 22/);
+    }
   });
 
   it('requires npm 10 or newer', () => {
