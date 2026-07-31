@@ -98,10 +98,25 @@ Phases 0, 1, and 5.
 
 **Execution update:** The clean merged candidate
 `6d0bf82530d01bb941b6309c83a1a8bde18a4447` passes the complete Node.js 22 release
-gate. The dashboard is healthy, but the HelloRun fallback is publicly unavailable
-with Cloudflare error 1033 because its hostname is absent from the active tunnel.
-Backup execution is also blocked until approved off-host media, database export
-tooling, recovery-key access, and root-owned rollback instructions are available.
+gate. A manual PM2 dashboard restart cleared the stale frontend release and the
+complete public production check now passes. The original dedicated `hellorun`
+tunnel was healthy but belonged to a different Cloudflare account from the
+`hellorun.online` zone. A separate root-protected connector was created in the
+correct account without replacing either existing tunnel service. Its published
+application route and proxied root DNS record now send `hellorun.online` to the
+existing PM2 fallback through `http://localhost:80`. Authoritative DNS, repeated
+HTTPS 200 responses, HSTS, local-origin health, the complete dashboard production
+check, and zero connector restarts passed. Backup execution remains blocked until
+approved off-host media, database export tooling, recovery-key access, and
+root-owned rollback instructions are available.
+
+The installed Cloudflare management credential is scoped to `hellodeploy.online`,
+not the separately managed `hellorun.online` zone. A route command therefore created
+an unintended hostname in the wrong zone instead of changing the target domain. That
+record was immediately removed and its absence confirmed through the authoritative
+zone API. The intended domain remained unchanged; its repair requires a
+`hellorun.online` zone-scoped dashboard or API action. That action was subsequently
+completed through a separate remotely managed tunnel in the correct account.
 
 ### Actions
 
@@ -484,11 +499,13 @@ addresses, or secret values.
 Add one row after each meaningful execution or verification step. Keep results
 sanitized and link detailed evidence to the worklog or authoritative checklist.
 
-| Date       | Priority | Commit or release                          | Command or check                       | Sanitized result                                                    | Blocker or next action                                  | Evidence link                                    |
-| ---------- | -------- | ------------------------------------------ | -------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Node.js 22 release gate                | 839 tests and production audit passed                               | Capture host and backup evidence                        | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Value-safe host and queue inventory    | Dashboard ready; no deployments queued; one valid DNS check waiting | Keep DNS job waiting until P2                           | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check | HelloRun public fallback failed; backup inputs incomplete           | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
+| Date       | Priority | Commit or release                          | Command or check                        | Sanitized result                                                    | Blocker or next action                                  | Evidence link                                    |
+| ---------- | -------- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Node.js 22 release gate                 | 839 tests and production audit passed                               | Capture host and backup evidence                        | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Value-safe host and queue inventory     | Dashboard ready; no deployments queued; one valid DNS check waiting | Keep DNS job waiting until P2                           | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check  | HelloRun public fallback failed; backup inputs incomplete           | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
+| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Dashboard and dedicated tunnel restart  | Dashboard check passed; live tunnel still returned error 1033       | Repair and validate the hostname DNS tunnel route       | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
+| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route | Authoritative DNS and repeated HTTPS 200 checks passed              | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 
