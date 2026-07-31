@@ -103,7 +103,7 @@ for config in "${CONFIGS[@]}"; do
   candidate="$BACKUP_DIR/$(basename "$config").candidate"
   awk -v hostname="$WILDCARD_HOSTNAME" '
     /^[[:space:]]*-[[:space:]]*service:[[:space:]]*http_status:404[[:space:]]*$/ && !inserted {
-      print "  - hostname: " hostname
+      print "  - hostname: \"" hostname "\""
       print "    service: http://localhost:80"
       inserted = 1
     }
