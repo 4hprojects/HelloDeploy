@@ -57,6 +57,40 @@ Rollback from a failed pre-cutover candidate by stopping only the new HelloDeplo
 
 Record the following values outside the repository before rehearsal: the pilot's full commit, exact existing startup mechanism, encrypted artifact location, active dashboard Nginx file, active tunnel file, and whether the queue was already paused. Stop only the candidate `hellodeploy-*` units; never terminate the repository-run pilot until the candidate passes. If a cutover-stage check fails, restore the encrypted backup on an isolated staging path, install the recorded Nginx and tunnel files with their prior ownership/modes, run `nginx -t`, reload Nginx, restart the tunnel only if its file changed, restore the recorded full Git commit and locked dependencies, start the recorded pilot command, and require both local and public health before resuming the queue. Keep the queue paused if any rollback verification fails.
 
+## P2 Routing Foundation
+
+Do not start the production worker or process queued deployments while the routing
+foundation is unavailable. First pause and drain the deployment queue with
+`scripts/queue-maintenance.js`, record its prior state in a private file outside the
+repository, and inventory waiting jobs without recording job payloads or private
+identifiers. Cancel stale deployment work deliberately; keep valid domain-verification
+work paused until application routing is ready.
+
+After the reviewed P2 release is installed at `/opt/hellodeploy`, confirm that the
+worker and helper are inactive and that the queue remains paused. Then activate the
+managed-route include and constrained helper:
+
+```sh
+sudo env \
+  HELLODEPLOY_EXPECTED_RELEASE_COMMIT=<reviewed-full-commit> \
+  bash /opt/hellodeploy/infrastructure/activate-routing-foundation.sh
+```
+
+The command fails closed unless the installed checkout is clean and matches the full
+commit, the worker is inactive, the helper is inactive and disabled, the queue is
+paused, and the fixed loopback probe is unused. It installs only the reviewed
+`/etc/nginx/hellodeploy.d/*.conf` include, starts only the helper, and proves route
+creation, replacement, invalid-candidate rejection with prior-route restoration, and
+removal through the worker identity.
+
+Success leaves the helper active and enabled, the worker inactive, the queue paused,
+and no probe route or listener. Failure removes partial probe state, disables the
+helper if activation began, removes an include created by the command, validates and
+reloads Nginx, and leaves the queue paused. Treat a rollback-validation failure as a
+stop condition: do not start the worker or resume the queue. Wildcard DNS, tunnel
+ingress, candidate web/worker startup, dashboard cutover, and controlled queue resume
+are separate later P2 gates.
+
 ## Ordered Production Workflow
 
 Run these stages in order and record each in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md):

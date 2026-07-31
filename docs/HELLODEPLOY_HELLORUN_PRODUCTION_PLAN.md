@@ -261,9 +261,9 @@ Phases 2, 3, and 5.
 
 ### Actions
 
-- [ ] Pause deployment and domain queues before starting the production worker.
-- [ ] Cancel stale deployment jobs so old clicks cannot trigger unexpected builds.
-- [ ] Keep valid DNS jobs paused until application routing is ready.
+- [x] Pause deployment and domain queues before starting the production worker.
+- [x] Cancel stale deployment jobs so old clicks cannot trigger unexpected builds.
+- [x] Keep valid DNS jobs paused until application routing is ready.
 - [ ] Install and start the constrained Nginx helper and managed route directory.
 - [ ] Validate route creation, replacement, removal, candidate rejection, Nginx
       reload failure, and prior-route restoration.
@@ -300,6 +300,13 @@ Phases 2, 3, and 5.
 A controlled test container is reachable through the wildcard application domain,
 the isolated worker processes jobs, the dashboard remains healthy, and the previous
 traffic path can be restored.
+
+**Current evidence:** On 2026-07-31 the production worker remained inactive while the
+combined deployment/domain queue was paused and drained. Sanitized inventory found no
+deployment jobs to cancel and one valid pending DNS-verification job, which remains
+paused. Its stored references, pending state, default verification mode, and TXT-proof
+presence are internally consistent. The job will not be processed until the routing
+and controlled-resume gates pass.
 
 ## P3 - Validate the Real Deployment Engine
 
