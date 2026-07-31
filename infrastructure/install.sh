@@ -259,11 +259,16 @@ ENV_FILE="$HD_HOME/.env"
 
 if [[ -n "$CONFIG_SOURCE" ]]; then
   if [[ -f "$ENV_FILE" ]]; then
-    error "Installed configuration already exists; refusing to replace it from HELLODEPLOY_CONFIG_SOURCE."
-    exit 1
+    if cmp -s "$CONFIG_SOURCE" "$ENV_FILE"; then
+      info "Installed configuration exactly matches the reviewed source; preserving it."
+    else
+      error "Installed configuration differs from HELLODEPLOY_CONFIG_SOURCE; refusing to replace it."
+      exit 1
+    fi
+  else
+    install -m 0640 -o root -g "$HD_CONFIG_GROUP" "$CONFIG_SOURCE" "$ENV_FILE"
+    info "Installed reviewed configuration without generating or modifying secrets."
   fi
-  install -m 0640 -o root -g "$HD_CONFIG_GROUP" "$CONFIG_SOURCE" "$ENV_FILE"
-  info "Installed reviewed configuration without generating or modifying secrets."
 elif [[ -f "$ENV_FILE" ]]; then
   warn ".env already exists — skipping secret generation."
 else

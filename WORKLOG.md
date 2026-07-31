@@ -2202,3 +2202,28 @@
 - `bash -n infrastructure/install.sh`, lint, formatting, configuration validation, and `git diff --check` passed.
 - The complete suite passed: 841 tests across 174 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P1 Partial Preparation Retry Guard
+
+- Status: Local implementation passed; inactive host preparation partially complete
+- Updated: 2026-07-31T22:39:07+08:00
+
+### Host Findings
+
+- The first installer attempt stopped at `apt-get update` because the Ubuntu installation-media source remained enabled without mounted release media. No Docker, identity, checkout, unit, queue, ingress, or traffic change occurred.
+- After that obsolete source was disabled, the reviewed procedure installed Docker `29.7.0`, system Node.js `22.22.1`, isolated web and worker identities, and protected preparation state.
+- The dedicated HelloDeploy web, worker, and helper units remained inactive and disabled. Docker had no containers or images, the helper socket remained absent, candidate port `3100` remained free, and both public sites stayed healthy.
+- A repeat run reached configuration and stopped because an installed `.env` already existed. This was safe but prevented recovery from a partial preparation even when the reviewed source was unchanged.
+
+### Repair
+
+- Preparation now compares the installed configuration to `HELLODEPLOY_CONFIG_SOURCE` without printing either file.
+- A byte-for-byte match is preserved and preparation continues. Any difference remains a blocking error and is never overwritten.
+- The self-hosted guide documents this exact-match retry behavior.
+
+### Verification
+
+- Focused preparation, verifier, and Ubuntu installer tests passed: 16 tests.
+- Shell syntax, lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 842 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
