@@ -264,7 +264,7 @@ Phases 2, 3, and 5.
 - [x] Pause deployment and domain queues before starting the production worker.
 - [x] Cancel stale deployment jobs so old clicks cannot trigger unexpected builds.
 - [x] Keep valid DNS jobs paused until application routing is ready.
-- [ ] Install and start the constrained Nginx helper and managed route directory.
+- [x] Install and start the constrained Nginx helper and managed route directory.
 - [ ] Validate route creation, replacement, removal, candidate rejection, Nginx
       reload failure, and prior-route restoration.
 - [ ] Add `*.apps.hellodeploy.online` to authoritative DNS and Cloudflare Tunnel
@@ -306,7 +306,11 @@ combined deployment/domain queue was paused and drained. Sanitized inventory fou
 deployment jobs to cancel and one valid pending DNS-verification job, which remains
 paused. Its stored references, pending state, default verification mode, and TXT-proof
 presence are internally consistent. The job will not be processed until the routing
-and controlled-resume gates pass.
+and controlled-resume gates pass. The constrained helper is now active and enabled;
+live worker-identity checks passed route creation, replacement, invalid-candidate
+rejection with prior-route restoration, and removal. No probe file or listener
+remains, both public pilot applications pass, and the worker and queue remain
+inactive/paused.
 
 ## P3 - Validate the Real Deployment Engine
 
