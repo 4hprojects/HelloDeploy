@@ -35,6 +35,9 @@ describe('P2 routing foundation activation', () => {
     assert.match(liveVerifier, /route_replacement=passed/);
     assert.match(liveVerifier, /invalid_candidate_restore=passed/);
     assert.match(liveVerifier, /route_removal=passed/);
+    assert.match(liveVerifier, /attempt < 50/);
+    assert.match(liveVerifier, /setTimeout\(resolve, 100\)/);
+    assert.match(liveVerifier, /did not converge to the expected status/);
   });
 
   it('rolls back the probe, helper, and include while leaving the queue paused', () => {
