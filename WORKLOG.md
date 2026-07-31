@@ -2271,3 +2271,41 @@
 
 - P1 completion criteria pass. The production foundation is installed but remains disabled and stopped.
 - P2 begins with queue pause and sanitized inventory. No worker, queued deployment, DNS job, ingress, or customer traffic may activate before that control step.
+
+## P2 Queue Control and Routing Foundation
+
+- Status: Queue control Passed; routing activation under review
+- Updated: 2026-07-31T23:23:36+08:00
+
+### Queue Evidence
+
+- The production worker remained inactive while the combined deployment/domain queue
+  was paused and drained. The private prior-state record remains outside the
+  repository with mode `0600`.
+- Sanitized inventory found no waiting, active, delayed, failed, or completed
+  deployment jobs. No stale deployment job required cancellation.
+- One valid domain-verification job remains paused. Its stored project/domain
+  references match, the domain remains pending verification, the default TXT-proof
+  mode is configured, and the proof is present.
+
+### Routing Implementation
+
+- Added a fail-closed root activation command that requires an immutable clean
+  installed release, inactive worker and helper, paused queue, unused fixed probe,
+  and valid Nginx before installing the reviewed managed-route include.
+- Added a live verifier that uses the worker identity and constrained helper socket to
+  prove route creation, replacement, invalid-candidate rejection with restoration,
+  and removal on a loopback-only test server.
+- Partial activation rolls back the probe, helper, and newly created include, validates
+  and reloads Nginx, and never resumes the queue.
+
+### Verification
+
+- Shell and JavaScript syntax checks passed.
+- Focused routing-foundation and helper-client coverage passed 7 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities, and the focused
+  credential-pattern scan found no sensitive values.
+- No worker, queued job, DNS record, tunnel route, project deployment, dashboard
+  traffic, or customer traffic was activated.

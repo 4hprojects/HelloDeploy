@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T23:05:06+08:00
+Updated: 2026-07-31T23:23:36+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -11,10 +11,10 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Overall status   | P1 isolated foundation complete; P2 routing in progress |
 | Release progress | `v0.1.5` published; P1 candidate merged from PR #17     |
 | Current batch    | Priority 2 — Routing and Production Cutover             |
-| Next action      | Pause and inventory queues before worker activation     |
+| Next action      | Review and activate the constrained routing foundation  |
 | Release state    | NO-GO for customer application hosting                  |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, all three Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, managed-route storage, and disabled systemd units are installed from candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`. The inactive verifier passed release, configuration, permission, Docker allow/deny, Nginx, port, and unit-state checks. A real helper/web lifecycle test passed MongoDB, Redis, queue readiness, socket ownership, route preservation, and clean systemd shutdown while the worker stayed inactive. P1 is Complete. P2 begins with queue pause and inventory; wildcard ingress and customer deployments remain unavailable and customer hosting remains NO-GO.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, all three Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, managed-route storage, and disabled systemd units are installed from candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`. The inactive verifier passed release, configuration, permission, Docker allow/deny, Nginx, port, and unit-state checks. A real helper/web lifecycle test passed MongoDB, Redis, queue readiness, socket ownership, route preservation, and clean systemd shutdown while the worker stayed inactive. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained routing-foundation activation is under review. Wildcard ingress and customer deployments remain unavailable and customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -132,6 +132,16 @@ Complete; all worker and queue activation remains deferred to P2.
 - Add `*.apps.hellodeploy.online` to the existing tunnel while retaining the dashboard routes.
 - Validate candidate Nginx, dashboard readiness, wildcard routing, route activation/replacement/removal, and rollback before switching traffic.
 - Run the web service in production mode and require `Secure; HttpOnly; SameSite=Strict` after cutover.
+
+**2026-07-31 queue-control evidence:** The production worker remained inactive while
+the deployment queue was paused and drained. Sanitized inventory found zero waiting,
+active, delayed, failed, or completed deployment jobs and one paused
+domain-verification job. Its project and domain references match, the domain is still
+pending verification, the default TXT-proof mode is configured, and the proof is
+present. No stale deployment job required cancellation. The valid DNS job remains
+paused for deliberate requeue only after application routing is ready. A fail-closed
+routing-foundation command and live verifier are under review; they do not activate
+the worker or resume the queue.
 
 ### Priority 3 — Application and Product Validation
 
