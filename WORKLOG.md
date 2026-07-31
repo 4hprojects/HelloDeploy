@@ -2400,3 +2400,33 @@
 - Lint, formatting, configuration validation, and diff checks passed.
 - The complete suite passed 848 tests across 175 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Reload Convergence Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:50:53+08:00
+
+### Live Finding
+
+- The helper successfully created the loopback route, validated Nginx, and reloaded it.
+- It then successfully replaced the route, validated Nginx again, and reloaded again.
+- The verifier made its replacement request immediately and received the old worker's
+  `204` response before Nginx's graceful reload converged to the new `202` response.
+- Final cleanup successfully removed and reloaded the probe route. Automatic rollback
+  left the helper inactive and disabled, no include, probe, socket, or listener, the
+  worker inactive, and the queue paused.
+
+### Repair
+
+- Route HTTP assertions now retry connection failures and prior statuses for a bounded
+  five-second convergence window after Nginx reload.
+- Failure remains generic and value-safe after the deadline.
+- Regression coverage requires the bounded retry count, delay, and terminal failure.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- JavaScript syntax, lint, formatting, configuration validation, and diff checks
+  passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.

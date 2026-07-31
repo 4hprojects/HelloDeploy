@@ -47,13 +47,21 @@ async function assertQueuePaused() {
 }
 
 async function requestProbe(expectedStatus) {
-  const response = await fetch(`http://127.0.0.1:${PROBE_PORT}/`, {
-    headers: { connection: 'close' },
-    signal: AbortSignal.timeout(2_000),
-  });
-  if (response.status !== expectedStatus) {
-    throw new Error('Nginx routing probe returned an unexpected status.');
+  for (let attempt = 0; attempt < 50; attempt += 1) {
+    try {
+      const response = await fetch(`http://127.0.0.1:${PROBE_PORT}/`, {
+        headers: { connection: 'close' },
+        signal: AbortSignal.timeout(500),
+      });
+      if (response.status === expectedStatus) {
+        return;
+      }
+    } catch {
+      // Nginx can briefly close the listener while workers converge after reload.
+    }
+    await new Promise((resolve) => setTimeout(resolve, 100));
   }
+  throw new Error('Nginx routing probe did not converge to the expected status.');
 }
 
 async function assertProbeUnavailable() {
