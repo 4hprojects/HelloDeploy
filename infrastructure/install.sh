@@ -120,12 +120,21 @@ section "System packages"
 apt-get update -qq
 
 # Node.js 22 via NodeSource
-if ! command -v node &>/dev/null || [[ $(node -e 'process.stdout.write(process.versions.node.split(".")[0])') -lt $NODE_MAJOR ]]; then
+NODE_CURRENT_MAJOR=""
+if command -v node &>/dev/null; then
+  NODE_CURRENT_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
+fi
+if [[ "$NODE_CURRENT_MAJOR" != "$NODE_MAJOR" ]]; then
   info "Installing Node.js $NODE_MAJOR…"
   curl -fsSL "https://deb.nodesource.com/setup_${NODE_MAJOR}.x" | bash -
-  apt-get install -y nodejs
+  apt-get install -y --allow-downgrades nodejs
 else
   info "Node.js $(node --version) already installed."
+fi
+NODE_INSTALLED_MAJOR=$(node -e 'process.stdout.write(process.versions.node.split(".")[0])')
+if [[ "$NODE_INSTALLED_MAJOR" != "$NODE_MAJOR" ]]; then
+  error "Node.js $NODE_MAJOR is required, but Node.js $(node --version) is installed."
+  exit 1
 fi
 
 NPM_VERSION=$(npm --version 2>/dev/null || true)

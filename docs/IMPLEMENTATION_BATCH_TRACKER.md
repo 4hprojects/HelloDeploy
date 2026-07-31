@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T22:11:18+08:00
+Updated: 2026-07-31T22:21:46+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -86,6 +86,14 @@ After a later PM2 reload picked up the production-enforcing start scripts, the c
 - Stop on unsafe group membership, regenerated secrets, permission repair, service failure, or loss of the current dashboard.
 
 **Local preparation evidence:** The installer now has a fail-closed `HELLODEPLOY_PREPARE_ONLY=true` path for the pilot. Ubuntu 26.04 requires distinct candidate, off-host-backup, and rollback-baseline acknowledgements. Preparation requires a root-owned private reviewed configuration outside the checkout, copies it unchanged, and refuses existing active/enabled HelloDeploy units. It does not generate secrets, run setup, add the global Nginx include, configure platform ingress, or enable/start services. Before returning, a read-only verifier checks the expected full commit, clean checkout, identities, protected files, Docker allow/deny boundary, inactive/disabled units, absent helper socket, free candidate port, existing Nginx syntax, and both production configurations. Focused installer and workflow tests pass; P0 now authorizes prepare-only execution after Docker installation.
+
+Pre-mutation P1 inspection found the pilot host on Node.js 24 while the production
+contract requires Node.js 22. The preflight minimum check and installer preservation
+logic would have allowed the unsupported major to reach the isolated services. The
+runtime guard now accepts exactly major 22, the installer explicitly allows the
+required package downgrade and verifies the resulting major, and focused installer
+tests plus the 841-test local gate pass. Host preparation remains pending the reviewed
+merge of this correction.
 
 ### Priority 2 — Routing and Production Cutover
 

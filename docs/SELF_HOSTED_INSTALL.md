@@ -8,7 +8,9 @@ Ubuntu 26.04 is a candidate platform because the live pilot currently runs on it
 
 Preflight and installation remain fail-closed for candidate releases. After the protected baseline and rollback plan pass, acknowledge Ubuntu 26.04 explicitly with `node scripts/preflight.js --allow-candidate-os` and `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` for the installer. This acknowledgment permits validation; it does not promote the OS to supported status.
 
-Production installations require Node.js 22 and npm 10 or newer. The installer provisions Node.js 22 when needed, and preflight rejects unsupported major versions before making host changes.
+Production installations require Node.js 22 and npm 10 or newer. The installer
+provisions or returns the host to Node.js 22 when needed, verifies the installed
+major, and preflight rejects other Node.js majors before activation.
 
 License: MIT. See [`LICENSE`](../LICENSE).
 

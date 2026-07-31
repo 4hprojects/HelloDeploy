@@ -2182,3 +2182,23 @@
 
 - P0 completion criteria pass. This proves same-host encrypted retrieval and rollback preparation, not the P6 second-host restoration gate.
 - P1 may begin with Docker installation and prepare-only isolated service foundation. The worker, queues, wildcard ingress, and customer deployments remain unchanged and customer hosting remains NO-GO.
+
+## P1 Exact Node.js Runtime Guard
+
+- Status: Local implementation passed; host unchanged
+- Updated: 2026-07-31T22:21:46+08:00
+
+### Finding and Repair
+
+- The pilot host runs Node.js 24, while the reviewed production contract and Node.js 22 CI require exact major 22.
+- Preflight previously accepted any major at or above 22, and the installer replaced only older majors. That combination would have allowed the unsupported host runtime into the isolated systemd foundation.
+- A shared production-runtime classifier now accepts major 22 and rejects older or newer majors.
+- The installer now invokes the reviewed Node.js 22 source whenever the current major differs, permits the intentional package downgrade, and fails closed unless the installed major is 22.
+- The live host, PM2 processes, ingress, Docker state, queues, and traffic were not changed.
+
+### Verification
+
+- Focused installer, preflight, preparation, verifier, and privilege tests passed: 28 tests.
+- `bash -n infrastructure/install.sh`, lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 841 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.

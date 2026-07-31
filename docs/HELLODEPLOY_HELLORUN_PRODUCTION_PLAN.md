@@ -183,6 +183,13 @@ privileged access.
 **Tracker mapping:** Production Service Foundation; Batches 2, 3, and 5; Roadmap
 Phases 2, 3, and 5.
 
+**Execution update:** Pre-mutation inspection found the pilot running Node.js 24 even
+though the production contract requires Node.js 22. Preflight accepted every major
+at or above 22, and the installer would preserve 24. The candidate procedure now
+requires exactly major 22, deliberately permits the package downgrade needed on the
+pilot, and verifies the installed major before continuing. This correction must
+merge before the prepare-only installer runs; the live host remains unchanged.
+
 ### Actions
 
 - [ ] Install Docker using the reviewed candidate-host procedure.
@@ -521,6 +528,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Dashboard and dedicated tunnel restart  | Dashboard check passed; live tunnel still returned error 1033       | Repair and validate the hostname DNS tunnel route       | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
 | 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route | Authoritative DNS and repeated HTTPS 200 checks passed              | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
 | 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval         | Database, artifact, recovery key, and rollback checks passed        | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
+| 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                | Local gate passed; host mutation not started                        | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 
