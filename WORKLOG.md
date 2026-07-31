@@ -2155,3 +2155,30 @@
 - The complete HelloDeploy public production check passed, including release assets, HSTS, CSP, session cookie, sign-in, health, and readiness.
 - All three Cloudflare connector services remained active. The new connector registered four edge connections and reported zero restarts.
 - The fallback health stop condition is cleared. Off-host backup media, database export tooling, recovery-key access, and root-owned rollback evidence still block P0 and P1.
+
+## P0 Encrypted Capture and Completion
+
+- Status: Passed; P0 Complete
+- Updated: 2026-07-31T22:11:18+08:00
+
+### Protected Capture
+
+- Candidate `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` remained clean while the dashboard and independent HelloRun fallback returned public success.
+- MongoDB Database Tools `100.17.0` passed the official signing-fingerprint, detached-signature, and archive-path checks before installation under a root-owned trusted path.
+- The current MongoDB export was written directly to the LUKS2 off-host medium. `mongorestore --dryRun` and its private checksum passed without restoring data or exposing the database address.
+- Root-owned rollback instructions recorded the immutable release, PM2 startup mechanisms, Nginx and tunnel files, current HelloRun connector state, queue baseline, and ordered recovery checks.
+- The encrypted pilot artifact included the protected environment, database export, dashboard routing state, supplemental current HelloRun Nginx/tunnel/token/unit state, release identity, and rollback instructions.
+
+### Retrieval Verification
+
+- The artifact's outer checksum passed before storage cycling and again after the backup volume was unmounted, locked, unlocked, and remounted.
+- The separate recovery medium passed its recorded checksum. Exactly one protected secret export parsed and imported into an isolated root keyring.
+- The recovery key decrypted the artifact. The repository verifier passed the fixed member allowlist, database/data consistency, release identity, and every internal checksum without restoring state.
+- The temporary keyring and its GPG agent were removed. An interrupted first prompt retained no keyring, core file, or crash report.
+- The recovery USB has pre-existing FAT boot-copy, dirty-bit, and free-space metadata differences. Its recovery files remain checksum-consistent and importable; the sole private-key copy was not repaired. Keep this media read-only until a second verified copy exists.
+- Both media were safely unmounted, the encrypted volume was locked, and both devices were physically removed. The clean repository, complete HelloDeploy production check, public HelloRun response, PM2 processes, and all Cloudflare connector services remained healthy.
+
+### Gate Result
+
+- P0 completion criteria pass. This proves same-host encrypted retrieval and rollback preparation, not the P6 second-host restoration gate.
+- P1 may begin with Docker installation and prepare-only isolated service foundation. The worker, queues, wildcard ingress, and customer deployments remain unchanged and customer hosting remains NO-GO.
