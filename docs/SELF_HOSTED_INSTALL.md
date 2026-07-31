@@ -78,6 +78,10 @@ sudo env \
 
 Preparation installs prerequisites, identities, protected directories, the immutable checkout, dependencies, reviewed configuration, and service units. It refuses active or enabled HelloDeploy units and does not generate secrets, run the setup wizard, add the global Nginx include, configure platform ingress, enable services, start services, or run cutover verification. It runs only `verify-prepared-installation.sh`, a read-only check of release identity, permissions, Docker isolation, unit inactivity, candidate-port availability, existing Nginx syntax, and production configuration. Activation remains a separate operator workflow after the prepared foundation is inspected.
 
+If preparation is interrupted after installing the reviewed configuration, rerunning
+the same command preserves that file only when it exactly matches
+`HELLODEPLOY_CONFIG_SOURCE`. A different installed file remains a blocking error.
+
 ## Clean Install Steps
 
 1. Start from a clean supported Ubuntu 22.04 or 24.04 server. Ubuntu 26.04 remains a candidate and requires the separate graduation evidence above.

@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T22:21:46+08:00
+Updated: 2026-07-31T22:39:07+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -94,6 +94,17 @@ runtime guard now accepts exactly major 22, the installer explicitly allows the
 required package downgrade and verifies the resulting major, and focused installer
 tests plus the 841-test local gate pass. Host preparation remains pending the reviewed
 merge of this correction.
+
+The first P1 host attempt stopped before mutation because an enabled installation-media
+APT source had no release metadata. Disabling that obsolete source allowed Docker
+29.7.0, system Node.js 22.22.1, isolated users and groups, and protected preparation
+state to install. All HelloDeploy units remained disabled, Docker contained no
+applications, queues were not processed, and the dashboard and HelloRun fallback
+stayed healthy. A safe retry then stopped because the installer rejected the
+already-installed configuration even though it came from the same reviewed source.
+The retry guard now continues only on a byte-identical source and refuses any
+difference. The complete local gate passes with 842 tests; the corrected inactive
+preparation remains pending its reviewed merge.
 
 ### Priority 2 — Routing and Production Cutover
 

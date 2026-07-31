@@ -188,7 +188,14 @@ though the production contract requires Node.js 22. Preflight accepted every maj
 at or above 22, and the installer would preserve 24. The candidate procedure now
 requires exactly major 22, deliberately permits the package downgrade needed on the
 pilot, and verifies the installed major before continuing. This correction must
-merge before the prepare-only installer runs; the live host remains unchanged.
+merge before the prepare-only installer runs. The first host attempt then stopped on
+an obsolete installation-media APT source before mutation. After disabling that
+source, preparation installed Docker, the system Node.js 22 runtime, isolated
+identities, and protected state while leaving all HelloDeploy units disabled. A retry
+exposed that an identical already-installed reviewed configuration blocked safe
+continuation after a partial run. The installer now preserves only a byte-for-byte
+match and still rejects any changed file. This correction must merge before the
+inactive preparation resumes.
 
 ### Actions
 
@@ -529,6 +536,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route | Authoritative DNS and repeated HTTPS 200 checks passed              | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
 | 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval         | Database, artifact, recovery key, and rollback checks passed        | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
 | 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                | Local gate passed; host mutation not started                        | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `d8f0c0acb65bfead9dd753dcb5ee34b4d46c06a2` | Partial-install retry guard             | Local gate passed; inactive host foundation partially prepared      | Merge guard, then complete inactive preparation         | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 

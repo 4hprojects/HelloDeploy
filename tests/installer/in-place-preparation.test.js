@@ -36,6 +36,12 @@ describe('in-place pilot installation preparation', () => {
     );
   });
 
+  it('reuses only an exact reviewed configuration after a partial preparation', () => {
+    assert.match(installer, /cmp -s "\$CONFIG_SOURCE" "\$ENV_FILE"/);
+    assert.match(installer, /exactly matches the reviewed source; preserving it/);
+    assert.match(installer, /differs from HELLODEPLOY_CONFIG_SOURCE; refusing to replace it/);
+  });
+
   it('leaves ingress and all HelloDeploy services untouched in preparation mode', () => {
     assert.match(installer, /refuses to replace an active or enabled HelloDeploy service/);
     assert.match(installer, /systemctl is-enabled --quiet/);
