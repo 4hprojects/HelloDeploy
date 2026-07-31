@@ -43,9 +43,12 @@ if ss -H -ltn 'sport = :18080' 2>/dev/null | grep -q .; then
 fi
 
 run_as_worker() {
-  runuser -u hellodeploy-worker -- \
-    env NODE_ENV=production \
-    /usr/bin/node "$HD_HOME/scripts/verify-nginx-helper-live.js" "$@"
+  (
+    cd "$HD_HOME"
+    runuser -u hellodeploy-worker -- \
+      env NODE_ENV=production \
+      /usr/bin/node scripts/verify-nginx-helper-live.js "$@"
+  )
 }
 
 rollback() {

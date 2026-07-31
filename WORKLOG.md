@@ -2309,3 +2309,34 @@
   credential-pattern scan found no sensitive values.
 - No worker, queued job, DNS record, tunnel route, project deployment, dashboard
   traffic, or customer traffic was activated.
+
+## P2 Routing Verifier Environment Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:34:13+08:00
+
+### Live Finding
+
+- The immutable P2 release installed successfully and passed every inactive
+  preparation check.
+- Routing activation failed before changing Nginx or starting the helper because the
+  worker-identity verifier inherited the operator checkout as its working directory.
+  `dotenv` therefore did not load the protected installed environment and production
+  configuration rejected the missing master key.
+- Automatic rollback left the helper inactive and disabled, the managed include and
+  probe absent, the worker inactive, and the queue paused.
+
+### Repair
+
+- The activation command now changes to the immutable installed release before
+  invoking the verifier as the worker identity. This matches the systemd service
+  working directory and loads `/opt/hellodeploy/.env` without exposing any value.
+- Focused regression coverage requires the installed working directory and relative
+  verifier entry point.
+
+### Verification
+
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- Focused routing-foundation and helper-client coverage passed 7 tests.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
