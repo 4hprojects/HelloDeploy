@@ -2466,3 +2466,30 @@
 - Bash syntax, lint, formatting, configuration validation, and diff checks passed.
 - The complete suite passed 852 tests across 176 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Wildcard Ingress YAML Repair
+
+- Status: Repair in verification; live retry pending
+- Updated: 2026-08-01T00:15:00+08:00
+
+### Live Finding
+
+- The refreshed immutable release and routing-foundation verification passed.
+- Wildcard candidate validation rejected the generated YAML because an unquoted value
+  beginning with `*` is interpreted as a YAML alias.
+- Automatic rollback restored both connector configurations. The helper remains active
+  and enabled, the worker remains inactive, the queue remains paused, and the public
+  dashboard and independent HelloRun fallback both return successfully.
+
+### Repair
+
+- Quote the generated wildcard hostname so it is a YAML string rather than an alias.
+- Regression coverage requires the generator to emit the quoted hostname before a
+  second live activation attempt.
+
+### Verification
+
+- Focused routing and wildcard-ingress coverage passed 8 tests.
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 852 tests across 176 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
