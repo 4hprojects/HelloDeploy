@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { createGracefulShutdown } from '../../apps/web/src/lifecycle.js';
+import {
+  createGracefulShutdown,
+  createShutdownSignalHandler,
+} from '../../apps/web/src/lifecycle.js';
 import { checkWebReadiness } from '../../apps/web/src/services/readiness.service.js';
 
 describe('web readiness', () => {
@@ -83,5 +86,39 @@ describe('web graceful shutdown', () => {
     const result = await shutdown('SIGTERM');
     assert.equal(result.ok, false);
     assert.equal(forced, true);
+  });
+
+  it('exits cleanly only after graceful shutdown succeeds', async () => {
+    const calls = [];
+    const handleSignal = createShutdownSignalHandler({
+      shutdown: async (signal) => {
+        calls.push(`shutdown:${signal}`);
+        return { ok: true };
+      },
+      exitProcess: (code) => calls.push(`exit:${code}`),
+    });
+
+    handleSignal('SIGTERM');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(calls, ['shutdown:SIGTERM', 'exit:0']);
+  });
+
+  it('exits unsuccessfully when graceful shutdown fails or rejects', async () => {
+    const exitCodes = [];
+    const failedResult = createShutdownSignalHandler({
+      shutdown: async () => ({ ok: false }),
+      exitProcess: (code) => exitCodes.push(code),
+    });
+    const rejected = createShutdownSignalHandler({
+      shutdown: async () => Promise.reject(new Error('shutdown failed')),
+      exitProcess: (code) => exitCodes.push(code),
+    });
+
+    failedResult('SIGTERM');
+    rejected('SIGINT');
+    await new Promise((resolve) => setImmediate(resolve));
+
+    assert.deepEqual(exitCodes, [1, 1]);
   });
 });

@@ -2227,3 +2227,28 @@
 - Shell syntax, lint, formatting, configuration validation, and `git diff --check` passed.
 - The complete suite passed: 842 tests across 174 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P1 Candidate Web Shutdown Repair
+
+- Status: Local implementation passed; real-host retest pending
+- Updated: 2026-07-31T22:48:13+08:00
+
+### Live Lifecycle Finding
+
+- The reviewed inactive preparation passed every verifier row at merge `42daf64cb2ebe726a106022ddf07db814c63c215`.
+- A controlled start left the worker inactive, created the protected helper socket, and passed the candidate web `/health` and `/ready` checks against MongoDB, Redis, and the queue.
+- The cleanup trap stopped the helper, preserved the managed-route inventory, and removed the candidate listener. The PM2 dashboard and independent HelloRun fallback remained publicly healthy.
+- The web journal recorded graceful cleanup completion in under one second, but the process remained alive. Systemd reached its 30-second stop deadline, sent `SIGKILL`, and retained `Result=timeout`.
+
+### Repair
+
+- The web signal boundary now waits for the existing bounded graceful-shutdown result and then explicitly exits.
+- Successful cleanup exits zero. A failed result, thrown shutdown, or expired internal deadline exits nonzero.
+- Unit coverage verifies exit ordering and both unsuccessful paths without terminating the test process.
+
+### Verification
+
+- Focused web/worker lifecycle and systemd privilege tests passed: 14 tests.
+- Lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 844 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.

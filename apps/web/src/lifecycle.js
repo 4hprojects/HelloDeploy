@@ -57,3 +57,17 @@ export function createGracefulShutdown({
     return shutdownPromise;
   };
 }
+
+export function createShutdownSignalHandler({
+  shutdown,
+  exitProcess = (code) => process.exit(code),
+}) {
+  return function handleShutdownSignal(signal) {
+    void Promise.resolve()
+      .then(() => shutdown(signal))
+      .then(
+        (result) => exitProcess(result.ok ? 0 : 1),
+        () => exitProcess(1),
+      );
+  };
+}
