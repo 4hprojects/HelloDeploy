@@ -2340,3 +2340,32 @@
 - Focused routing-foundation and helper-client coverage passed 7 tests.
 - The complete suite passed 848 tests across 175 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Helper PID Sandbox Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:39:36+08:00
+
+### Live Finding
+
+- The corrected verifier loaded the installed production environment and confirmed the
+  queue pause before helper activation.
+- The helper started under its intended identity, but this Nginx build opens
+  `/run/nginx.pid` during `nginx -t`. `ProtectSystem=strict` made that file read-only,
+  so validation stopped before any probe route was created.
+- Automatic rollback disabled and stopped the helper, removed the new managed include,
+  left no probe or socket, kept the worker inactive, and kept the queue paused.
+
+### Repair
+
+- The helper unit now grants write access to the exact root-owned Nginx PID file in
+  addition to its managed route and private runtime directories.
+- The sandbox remains strict and does not grant general write access to `/run`.
+- Regression coverage requires the exact three-path allowlist.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.

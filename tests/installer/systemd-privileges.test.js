@@ -42,6 +42,11 @@ describe('Ubuntu systemd privilege separation', () => {
     assert.match(helper, /^Group=hellodeploy-nginx$/m);
     assert.match(helper, /^RuntimeDirectory=hellodeploy$/m);
     assert.match(helper, /^ProtectSystem=strict$/m);
+    assert.deepEqual(helper.match(/^ReadWritePaths=(.+)$/m)?.[1].split(' '), [
+      '/etc/nginx/hellodeploy.d',
+      '/run/hellodeploy',
+      '/run/nginx.pid',
+    ]);
     assert.doesNotMatch(helper, /ListenStream|0\.0\.0\.0/);
     assert.match(helperServer, /createServer\(\{ allowHalfOpen: true \}/);
     assert.match(helperServer, /chmod\(socketPath, 0o660\)/);
