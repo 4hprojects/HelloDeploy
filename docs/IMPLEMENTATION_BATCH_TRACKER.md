@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T22:48:13+08:00
+Updated: 2026-07-31T23:05:06+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                    |
-| ---------------- | -------------------------------------------------------- |
-| Overall status   | P0 recovery baseline complete; P1 foundation in progress |
-| Release progress | `v0.1.5` published; P0 candidate merged from PR #13      |
-| Current batch    | Priority 1 — Production Service Foundation               |
-| Next action      | Install Docker and prepare isolated inactive services    |
-| Release state    | NO-GO for customer application hosting                   |
+| Field            | Value                                                   |
+| ---------------- | ------------------------------------------------------- |
+| Overall status   | P1 isolated foundation complete; P2 routing in progress |
+| Release progress | `v0.1.5` published; P1 candidate merged from PR #17     |
+| Current batch    | Priority 2 — Routing and Production Cutover             |
+| Next action      | Pause and inventory queues before worker activation     |
+| Release state    | NO-GO for customer application hosting                  |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, and all three Cloudflare connectors are active; the complete public production check and the independent HelloRun fallback pass. Candidate `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` is clean and incorporates the reviewed fallback evidence. The final encrypted P0 artifact contains the verified MongoDB export, protected platform state, current supplemental HelloRun routing state, and root-controlled rollback instructions. It passed its outer checksum after a lock/remount cycle, recovery-key import and decryption from separate media, bounded archive inventory, and every internal checksum before both media were removed. The worker remains offline, Docker and isolated identities are absent, and the helper, managed application routes, and wildcard ingress are not installed. P0 is Complete and P1 foundation work may begin; customer hosting remains NO-GO.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, all three Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, managed-route storage, and disabled systemd units are installed from candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`. The inactive verifier passed release, configuration, permission, Docker allow/deny, Nginx, port, and unit-state checks. A real helper/web lifecycle test passed MongoDB, Redis, queue readiness, socket ownership, route preservation, and clean systemd shutdown while the worker stayed inactive. P1 is Complete. P2 begins with queue pause and inventory; wildcard ingress and customer deployments remain unavailable and customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -45,8 +45,8 @@ These groups order the remaining batches by dependency and identify work that ca
 | -------- | ---------------------------------------- | ----------- | --------------------------------------- | ------------------------------------------------------------ |
 | 0        | Documentation and Release Reconciliation | Complete    | Green PR #5 merged                      | Repository and PR describe the observed local pilot          |
 | 1        | Safe In-Place Baseline                   | Complete    | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
-| 1        | Production Service Foundation            | In Progress | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
-| 2        | Routing and Production Cutover           | Blocked     | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
+| 1        | Production Service Foundation            | Complete    | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
+| 2        | Routing and Production Cutover           | In Progress | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
 | 3        | Application and Product Validation       | Not Started | Production routing                      | Runtime, role, secret, and accessibility QA passes           |
 | 4        | Recovery and Ubuntu 26 Graduation        | Not Started | Validated application plane             | Upgrade, rollback, restore, and OS-support evidence passes   |
 | 5        | Final GO/NO-GO Decision                  | Not Started | Priorities 0–4                          | Every release gate has direct evidence                       |
@@ -116,6 +116,15 @@ systemd killed it at `TimeoutStopSec=30` and retained a failed result. The signa
 handler now exits explicitly with zero after successful cleanup and nonzero after a
 failed or rejected shutdown. The 844-test local gate passes; P1 remains In Progress
 until this repair merges and the real start/stop test exits cleanly.
+
+**2026-07-31 P1 completion evidence:** PR #17 passed Node.js 22 CI and merged as
+candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`. The exact inactive preparation
+passed, then the corrected helper/web lifecycle reached healthy and ready state,
+confirmed the protected helper socket, preserved managed routes, and kept the worker
+inactive. Shutdown completed with `Result=success`, status zero, no restart, no
+listener or helper socket left behind, and no 30-second systemd timeout. The complete
+public dashboard check and independent HelloRun fallback passed afterward. P1 is
+Complete; all worker and queue activation remains deferred to P2.
 
 ### Priority 2 — Routing and Production Cutover
 

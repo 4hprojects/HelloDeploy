@@ -76,8 +76,8 @@ be recorded in the batch tracker.
 | Priority | Outcome                                        | Current status | Required before                |
 | -------- | ---------------------------------------------- | -------------- | ------------------------------ |
 | P0       | Recoverable current pilot                      | Complete       | Any host mutation              |
-| P1       | Isolated production service foundation         | In Progress    | Worker or routing activation   |
-| P2       | Operational worker, queues, and public routing | Blocked        | Real application deployment    |
+| P1       | Isolated production service foundation         | Complete       | Worker or routing activation   |
+| P2       | Operational worker, queues, and public routing | In Progress    | Real application deployment    |
 | P3       | Proven secure deployment engine                | Not Started    | HelloRun production deployment |
 | P4       | HelloRun hosted by HelloDeploy                 | Not Started    | Other customer projects        |
 | P5       | Repeatable owner workflow                      | Not Started    | Customer-hosting GO            |
@@ -175,7 +175,7 @@ second-host restoration gate.
 
 ## P1 - Install the Production Service Foundation
 
-**Status:** In Progress
+**Status:** Complete
 
 **Dependencies:** P0 Complete; approved Ubuntu 26.04 candidate-host acknowledgements;
 privileged access.
@@ -201,22 +201,27 @@ left routes and the worker unchanged, but systemd had to kill the web process af
 its 30-second stop deadline even though application cleanup logged completion. The
 signal path now exits explicitly after cleanup, using zero only for successful
 shutdown. This correction must pass a real start/stop retest before P1 completes.
+Merge `704cb75a02d76a36a88d155a37052df4464bf1a2` then passed that
+real retest: health and readiness succeeded, the helper socket had the intended
+ownership, routes and the worker remained unchanged, and systemd recorded a clean
+zero-status shutdown in about one second. The PM2 dashboard and HelloRun fallback
+remained healthy throughout.
 
 ### Actions
 
-- [ ] Install Docker using the reviewed candidate-host procedure.
-- [ ] Run the inactive prepare-only installer path before enabling services or
+- [x] Install Docker using the reviewed candidate-host procedure.
+- [x] Run the inactive prepare-only installer path before enabling services or
       changing ingress.
-- [ ] Create separate `hellodeploy-web`, `hellodeploy-worker`, and Nginx-helper
+- [x] Create separate `hellodeploy-web`, `hellodeploy-worker`, and Nginx-helper
       identities and systemd units.
-- [ ] Install the reviewed configuration and GitHub App key with minimum required
+- [x] Install the reviewed configuration and GitHub App key with minimum required
       ownership and permissions without regenerating existing secrets.
-- [ ] Configure build workspace storage, Docker networking, loopback-only published
+- [x] Configure build workspace storage, Docker networking, loopback-only published
       ports, application port allocation, and resource limits.
-- [ ] Grant Docker access only to the worker identity.
-- [ ] Prove the web identity cannot access Docker, the route helper, worker-only
+- [x] Grant Docker access only to the worker identity.
+- [x] Prove the web identity cannot access Docker, the route helper, worker-only
       configuration, or deployment workspaces.
-- [ ] Validate MongoDB, Redis, Docker, configuration, capacity, readiness, and
+- [x] Validate MongoDB, Redis, Docker, configuration, capacity, readiness, and
       graceful shutdown while the new units remain inactive.
 
 ### Stop Conditions
@@ -241,9 +246,12 @@ shutdown. This correction must pass a real start/stop retest before P1 completes
 The isolated production units and protected files pass all permission and
 configuration checks while the existing PM2 services continue serving traffic.
 
+**Gate result:** Passed on 2026-07-31. The services remain disabled and stopped;
+worker activation and queue processing belong to P2.
+
 ## P2 - Activate Worker, Queues, and Public Routing
 
-**Status:** Blocked by P1
+**Status:** In Progress
 
 **Dependencies:** P1 Complete; Cloudflare access; authoritative DNS access; working
 Nginx configuration.
@@ -543,6 +551,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                | Local gate passed; host mutation not started                        | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
 | 2026-07-31 | P1       | `d8f0c0acb65bfead9dd753dcb5ee34b4d46c06a2` | Partial-install retry guard             | Local gate passed; inactive host foundation partially prepared      | Merge guard, then complete inactive preparation         | [Worklog](../WORKLOG.md)                         |
 | 2026-07-31 | P1       | `42daf64cb2ebe726a106022ddf07db814c63c215` | Candidate lifecycle test                | Start/readiness passed; systemd stop timed out                      | Merge shutdown repair and repeat real lifecycle test    | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `704cb75a02d76a36a88d155a37052df4464bf1a2` | Corrected lifecycle retest              | Inactive verifier and clean real start/stop passed                  | Begin paused P2 queue inventory and routing activation  | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 

@@ -2252,3 +2252,22 @@
 - Lint, formatting, configuration validation, and `git diff --check` passed.
 - The complete suite passed: 844 tests across 174 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P1 Isolated Foundation Completion
+
+- Status: Passed; P1 Complete
+- Updated: 2026-07-31T23:05:06+08:00
+
+### Real-Host Retest
+
+- PR #17 passed Node.js 22 CI and merged as candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`.
+- The prepare-only installer preserved the exact reviewed configuration and passed every immutable release, identity, permission, Docker isolation, unit, socket, port, Nginx, and production-configuration check.
+- The controlled candidate lifecycle reached healthy and ready state with MongoDB, Redis, and queue checks passing. The helper socket was mode `0660` and owned by the intended root/helper group.
+- The worker remained inactive and managed routes were byte-state unchanged.
+- The corrected web process completed graceful cleanup and exited normally. Systemd recorded inactive, `Result=success`, status zero, and no restart without reaching its stop timeout.
+- The helper socket and candidate listener were removed. The complete public dashboard check, PM2 processes, and independent HelloRun fallback remained healthy.
+
+### Gate Result
+
+- P1 completion criteria pass. The production foundation is installed but remains disabled and stopped.
+- P2 begins with queue pause and sanitized inventory. No worker, queued deployment, DNS job, ingress, or customer traffic may activate before that control step.
