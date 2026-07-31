@@ -195,7 +195,12 @@ identities, and protected state while leaving all HelloDeploy units disabled. A 
 exposed that an identical already-installed reviewed configuration blocked safe
 continuation after a partial run. The installer now preserves only a byte-for-byte
 match and still rejects any changed file. This correction must merge before the
-inactive preparation resumes.
+inactive preparation resumes. The corrected preparation then passed every inactive
+verifier check. A controlled helper/web start passed local health and readiness and
+left routes and the worker unchanged, but systemd had to kill the web process after
+its 30-second stop deadline even though application cleanup logged completion. The
+signal path now exits explicitly after cleanup, using zero only for successful
+shutdown. This correction must pass a real start/stop retest before P1 completes.
 
 ### Actions
 
@@ -537,6 +542,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval         | Database, artifact, recovery key, and rollback checks passed        | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
 | 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                | Local gate passed; host mutation not started                        | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
 | 2026-07-31 | P1       | `d8f0c0acb65bfead9dd753dcb5ee34b4d46c06a2` | Partial-install retry guard             | Local gate passed; inactive host foundation partially prepared      | Merge guard, then complete inactive preparation         | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `42daf64cb2ebe726a106022ddf07db814c63c215` | Candidate lifecycle test                | Start/readiness passed; systemd stop timed out                      | Merge shutdown repair and repeat real lifecycle test    | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 

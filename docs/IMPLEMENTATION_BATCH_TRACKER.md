@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T22:39:07+08:00
+Updated: 2026-07-31T22:48:13+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -105,6 +105,17 @@ already-installed configuration even though it came from the same reviewed sourc
 The retry guard now continues only on a byte-identical source and refuses any
 difference. The complete local gate passes with 842 tests; the corrected inactive
 preparation remains pending its reviewed merge.
+
+PR #16 passed Node.js 22 CI and merged the exact-match retry correction. Preparation
+then passed release, identity, permission, Docker allow/deny, inactive-unit, socket,
+port, Nginx, and production-configuration checks. A controlled start proved the
+isolated helper socket plus web health and dependency readiness without changing
+managed routes or starting the worker. Shutdown exposed a remaining real-host defect:
+the web logged completed HTTP, Redis, and MongoDB cleanup, but did not terminate, so
+systemd killed it at `TimeoutStopSec=30` and retained a failed result. The signal
+handler now exits explicitly with zero after successful cleanup and nonzero after a
+failed or rejected shutdown. The 844-test local gate passes; P1 remains In Progress
+until this repair merges and the real start/stop test exits cleanly.
 
 ### Priority 2 — Routing and Production Cutover
 

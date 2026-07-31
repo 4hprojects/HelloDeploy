@@ -3,7 +3,7 @@ import { connectDatabase, disconnectDatabase, AuditEvent } from '@hellodeploy/da
 import { configureAuditService, logger } from '@hellodeploy/observability';
 import { createApp } from './app.js';
 import { closeDeploymentQueue, getRedisConnection } from './queue/client.js';
-import { createGracefulShutdown } from './lifecycle.js';
+import { createGracefulShutdown, createShutdownSignalHandler } from './lifecycle.js';
 
 async function start() {
   logger.info('[web] Connecting to MongoDB…');
@@ -31,8 +31,9 @@ async function start() {
     closeDatabase: disconnectDatabase,
     logger,
   });
-  process.once('SIGTERM', () => void shutdown('SIGTERM'));
-  process.once('SIGINT', () => void shutdown('SIGINT'));
+  const handleShutdownSignal = createShutdownSignalHandler({ shutdown });
+  process.once('SIGTERM', () => handleShutdownSignal('SIGTERM'));
+  process.once('SIGINT', () => handleShutdownSignal('SIGINT'));
 }
 
 await start();
