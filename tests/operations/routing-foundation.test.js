@@ -16,6 +16,8 @@ describe('P2 routing foundation activation', () => {
     assert.match(activation, /HELLODEPLOY_EXPECTED_RELEASE_COMMIT/);
     assert.match(activation, /status --porcelain/);
     assert.match(activation, /is-active --quiet hellodeploy-worker/);
+    assert.match(activation, /cd "\$HD_HOME"/);
+    assert.match(activation, /\/usr\/bin\/node scripts\/verify-nginx-helper-live\.js/);
     assert.match(activation, /run_as_worker --check-queue-only/);
     assert.match(liveVerifier, /await queue\.isPaused\(\)/);
   });
