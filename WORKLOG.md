@@ -2115,3 +2115,43 @@
 - The PM2 dashboard has not been cut over to the merged candidate, so the public checker reports one expected frontend asset missing.
 - No approved off-host medium is mounted, `mongodump` is unavailable, the recovery private key is not loaded, and root-owned rollback evidence cannot be inspected without privileged access.
 - No service, queue, DNS, Cloudflare, route, deployment, or traffic mutation was performed. P0 remains In Progress and P1 remains blocked.
+
+## P0 Dashboard Recovery and HelloRun Tunnel Diagnosis
+
+- Status: In Progress; DNS tunnel-route repair requires authorization
+- Updated: 2026-07-31T08:30:35+08:00
+
+### Verified State
+
+- The operator manually restarted the PM2 `hellodeploy` process. The complete public production check then passed, including the frontend release, homepage, sign-in, health, readiness, HSTS, CSP, and session-cookie checks.
+- The operator restarted the dedicated `cloudflared-hellorun` service. The service remained active and registered four current Cloudflare edge connections.
+- `hellorun.online` continued to return Cloudflare error 1033 after the restart while the independent PM2 HelloRun process remained stable.
+- Read-only tunnel inspection confirmed that the running connector belongs to the expected named tunnel. The remaining failure is isolated to the hostname's Cloudflare DNS tunnel route.
+
+### Stop State
+
+- A controlled DNS route repair must capture the prior route, target the active named tunnel, validate both HelloRun and the dashboard, and retain the captured prior value as rollback evidence.
+- The installed Cloudflare credential is scoped to `hellodeploy.online`. A CLI route attempt therefore created `hellorun.online.hellodeploy.online` instead of changing the intended hostname. The unintended record was immediately deleted, and an authoritative API read confirmed that it is absent. Cached public answers may remain until their previous TTL expires.
+- The `hellorun.online` hostname and both original applications remained unchanged. Repair requires a dashboard or API action authorized for that separate Cloudflare zone.
+- Off-host backup media, database export tooling, recovery-key access, and root-owned rollback inputs remain unavailable. P0 remains In Progress and P1 remains blocked.
+
+## P0 HelloRun Fallback Recovery
+
+- Status: Public fallback Passed; backup gate remains blocked
+- Updated: 2026-07-31T09:07:29+08:00
+
+### Implemented State
+
+- Confirmed through a value-safe Cloudflare API query that `hellorun.online` is not visible to the account that owns the original local tunnel. Cloudflare Tunnel DNS targets cannot proxy records from a different account.
+- Created a remotely managed tunnel in the account containing `hellorun.online`. Its token is stored only in a root-owned `0600` file and is not present in the systemd command line, repository, logs, or evidence.
+- Added and enabled a separate hardened `cloudflared-hellorun-zone` systemd unit. The existing HelloDeploy and original HelloRun tunnel services were not replaced or stopped.
+- Published `hellorun.online` to the existing `http://localhost:80` fallback and added the proxied root CNAME for the new same-account tunnel.
+
+### Verification Evidence
+
+- Both authoritative nameservers returned the proxied root address.
+- `https://hellorun.online/` returned HTTPS 200 with HSTS in four consecutive checks; the response body was nonempty.
+- The local fallback origin remained reachable, and the independent PM2 HelloRun process was not restarted or replaced.
+- The complete HelloDeploy public production check passed, including release assets, HSTS, CSP, session cookie, sign-in, health, and readiness.
+- All three Cloudflare connector services remained active. The new connector registered four edge connections and reported zero restarts.
+- The fallback health stop condition is cleared. Off-host backup media, database export tooling, recovery-key access, and root-owned rollback evidence still block P0 and P1.
