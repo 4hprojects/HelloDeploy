@@ -34,8 +34,17 @@ describe('P2 wildcard tunnel ingress activation', () => {
     assert.doesNotMatch(activation, /hellodeploy-worker.*(?:start|restart)/);
   });
 
+  it('waits for connector convergence and reports a safe failure stage', () => {
+    assert.match(activation, /wait_for_url/);
+    assert.match(activation, /seq 1 30/);
+    assert.match(activation, /sleep 2/);
+    assert.match(activation, /CURRENT_STAGE="connector-restart"/);
+    assert.match(activation, /CURRENT_STAGE="public-convergence"/);
+    assert.match(activation, /failed during %s/);
+  });
+
   it('restores both configs and keeps the queue paused on failure', () => {
-    assert.match(activation, /Wildcard tunnel activation failed; restoring/);
+    assert.match(activation, /Wildcard tunnel activation failed during %s; restoring/);
     assert.match(activation, /CRITICAL: tunnel rollback verification failed/);
     assert.match(activation, /keep the queue paused/);
     assert.doesNotMatch(activation, /queue-maintenance\.js resume/);

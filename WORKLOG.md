@@ -2469,7 +2469,7 @@
 
 ## P2 Wildcard Ingress YAML Repair
 
-- Status: Repair in verification; live retry pending
+- Status: Repair passed candidate validation; post-restart retry rolled back
 - Updated: 2026-08-01T00:15:00+08:00
 
 ### Live Finding
@@ -2492,4 +2492,35 @@
 - Focused routing and wildcard-ingress coverage passed 8 tests.
 - Bash syntax, lint, formatting, configuration validation, and diff checks passed.
 - The complete suite passed 852 tests across 176 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P2 Wildcard Connector Convergence Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-08-02T00:00:00+08:00
+
+### Live Finding
+
+- The refreshed immutable release and routing-foundation verification passed again.
+- The wildcard activation confirmed the paused queue but did not reach its terminal
+  success output. Both connector configurations were restored without the wildcard.
+- Post-attempt checks found the helper and both dashboard connectors active, the worker
+  inactive, wildcard DNS absent, and the dashboard and independent HelloRun fallback
+  returning successfully.
+- Reproducing candidate generation without host mutation passed Cloudflare validation
+  and selected the wildcard rule in both configurations. This narrows the remaining
+  failure to the post-candidate activation path.
+
+### Repair
+
+- Wait for the dashboard and HelloRun public fallbacks to converge for a bounded
+  60-second window after connector restart.
+- Keep the additional dashboard requests after convergence and identify the current
+  value-safe activation stage in rollback output.
+
+### Verification
+
+- Focused routing and wildcard-ingress coverage passed 9 tests.
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 853 tests across 176 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.

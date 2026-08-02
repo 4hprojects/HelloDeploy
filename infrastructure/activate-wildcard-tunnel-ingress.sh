@@ -11,6 +11,7 @@ SERVICES=(cloudflared.service cloudflared-hellodeploy.service)
 BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
 BACKUP_DIR=""
 CHANGED=false
+CURRENT_STAGE="preflight"
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -43,11 +44,23 @@ run_as_worker() {
   )
 }
 
+wait_for_url() {
+  local url=$1
+  for _ in $(seq 1 30); do
+    if curl -fsS --max-time 15 "$url" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+  return 1
+}
+
 verify_public_fallbacks() {
-  for _ in $(seq 1 8); do
+  wait_for_url https://hellodeploy.online/health || return 1
+  wait_for_url https://hellorun.online/ || return 1
+  for _ in $(seq 1 7); do
     curl -fsS --max-time 15 https://hellodeploy.online/health >/dev/null || return 1
   done
-  curl -fsS --max-time 15 https://hellorun.online/ >/dev/null
 }
 
 rollback() {
@@ -56,7 +69,8 @@ rollback() {
     return
   fi
 
-  printf 'Wildcard tunnel activation failed; restoring both connector configs.\n' >&2
+  printf 'Wildcard tunnel activation failed during %s; restoring both connector configs.\n' \
+    "$CURRENT_STAGE" >&2
   if [[ "$CHANGED" == true && -n "$BACKUP_DIR" ]]; then
     for config in "${CONFIGS[@]}"; do
       install -m 0644 -o root -g root "$BACKUP_DIR/$(basename "$config")" "$config"
@@ -94,10 +108,12 @@ secondary_tunnel=$(awk -F: '$1 == "tunnel" {gsub(/[[:space:]]/, "", $2); print $
   fail "Dashboard connectors do not reference the same tunnel."
 unset primary_tunnel secondary_tunnel
 
+CURRENT_STAGE="backup"
 install -d -m 0700 -o root -g root "$BACKUP_ROOT"
 BACKUP_DIR=$(mktemp -d "$BACKUP_ROOT/p2-wildcard.XXXXXX")
 chmod 0700 "$BACKUP_DIR"
 
+CURRENT_STAGE="candidate-validation"
 for config in "${CONFIGS[@]}"; do
   install -m 0600 -o root -g root "$config" "$BACKUP_DIR/$(basename "$config")"
   candidate="$BACKUP_DIR/$(basename "$config").candidate"
@@ -114,23 +130,28 @@ for config in "${CONFIGS[@]}"; do
   cloudflared tunnel --config "$candidate" ingress validate >/dev/null
 done
 
+CURRENT_STAGE="config-install"
 for config in "${CONFIGS[@]}"; do
   install -m 0644 -o root -g root "$BACKUP_DIR/$(basename "$config").candidate" "$config"
 done
 CHANGED=true
 
+CURRENT_STAGE="connector-restart"
 for service in "${SERVICES[@]}"; do
   systemctl restart "$service"
   systemctl is-active --quiet "$service"
 done
 
+CURRENT_STAGE="rule-verification"
 for config in "${CONFIGS[@]}"; do
   cloudflared tunnel --config "$config" ingress validate >/dev/null
   cloudflared tunnel --config "$config" ingress rule "https://$PROBE_HOSTNAME/" |
     grep -Fq "$WILDCARD_HOSTNAME"
 done
 
+CURRENT_STAGE="public-convergence"
 verify_public_fallbacks
+CURRENT_STAGE="queue-recheck"
 run_as_worker
 
 trap - EXIT
