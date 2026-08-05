@@ -2524,3 +2524,42 @@
 - Bash syntax, lint, formatting, configuration validation, and diff checks passed.
 - The complete suite passed 853 tests across 176 suites with no failures or skips.
 - The production dependency audit reported zero vulnerabilities.
+
+## P2 Wildcard Local Ingress Activation
+
+- Status: Passed; wildcard DNS and candidate service startup next
+- Updated: 2026-08-05T15:04:36+08:00
+
+### Live Evidence
+
+- The installed release at `/opt/hellodeploy` was confirmed clean and behind the
+  reviewed convergence-wait fix (`50c54e7`); it was fetched and checked out to the
+  reviewed candidate `e642d0769faca1d8fcb264fe0ee105c5aced4811` before activation,
+  changing no dependency or lockfile content and requiring no service restart.
+- Immediately before activation, the worker was confirmed inactive, the helper
+  confirmed active, and both public fallbacks (`hellodeploy.online`, `hellorun.online`)
+  confirmed healthy.
+- The live activation command passed every stage: the pre- and post-activation
+  queue-pause checks under the worker identity, wildcard candidate generation and
+  Cloudflare validation, both connector configuration installs, both connector
+  restarts, wildcard rule verification on both configurations, and the bounded public
+  convergence wait for both fallbacks.
+- Final state: local wildcard ingress passed, both dashboard connectors active, both
+  public fallbacks passed, the worker remained inactive, the queue remained paused,
+  wildcard DNS remains unchanged and absent (this command adds only local Cloudflare
+  Tunnel ingress rules, not the DNS record), and a pre-activation configuration backup
+  was created.
+
+### Next Gate
+
+- Add the `*.apps.hellodeploy.online` DNS record at the authoritative provider and the
+  corresponding Cloudflare Tunnel ingress record, then start candidate web and worker
+  services under their intended identities and verify readiness, secure cookies,
+  wildcard HTTPS, and test application routing before any dashboard traffic cutover.
+
+### Verification
+
+- Live command output confirmed by the operator: `queue_pause_check=passed` (twice),
+  `wildcard_local_ingress=passed`, `dashboard_connectors=active`,
+  `public_fallbacks=passed`, `worker_state=inactive`, `queue_state=paused`,
+  `wildcard_dns_state=unchanged-absent`, `tunnel_ingress_backup=created`.

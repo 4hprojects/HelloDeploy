@@ -1,6 +1,6 @@
 # HelloDeploy and HelloRun Production Plan
 
-Updated: 2026-08-02
+Updated: 2026-08-05
 
 ## Primary Goal
 
@@ -325,6 +325,19 @@ Cloudflare accepts the quoted rule in both configurations, narrowing the defect 
 post-restart convergence wait. A bounded 60-second convergence wait for both public
 fallbacks was added. Wildcard DNS is still absent and a live retry is pending.
 
+**2026-08-05 wildcard-ingress activation evidence:** The installed release at
+`/opt/hellodeploy` was updated to the corrected candidate
+`e642d0769faca1d8fcb264fe0ee105c5aced4811`, requiring no dependency change or service
+restart. With the worker inactive, the helper active, and both public fallbacks
+healthy, the live retry passed every stage: queue pause checks, wildcard candidate
+generation and Cloudflare validation, both connector config installs and restarts,
+wildcard rule verification on both configurations, and the bounded public convergence
+wait. Both dashboard connectors stayed active, both public fallbacks passed, the
+worker stayed inactive, the queue stayed paused, and a pre-activation configuration
+backup was created. This command adds only local Cloudflare Tunnel ingress rules;
+wildcard DNS remains unchanged and absent, and starting candidate web/worker services
+is the next action.
+
 ## P3 - Validate the Real Deployment Engine
 
 **Status:** Not Started
@@ -578,6 +591,7 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-07-31 | P1       | `704cb75a02d76a36a88d155a37052df4464bf1a2` | Corrected lifecycle retest               | Inactive verifier and clean real start/stop passed                                      | Begin paused P2 queue inventory and routing activation  | [Worklog](../WORKLOG.md)                         |
 | 2026-08-01 | P2       | (local repair)                             | Live wildcard-ingress activation attempt | Candidate validation rejected unquoted wildcard YAML; rollback restored both connectors | Quote generated hostname, retry live activation         | [Worklog](../WORKLOG.md)                         |
 | 2026-08-02 | P2       | (local repair)                             | Live wildcard-ingress activation retry   | Candidate validation and restart passed; terminal success not reached before rollback   | Add bounded 60s convergence wait, retry live activation | [Worklog](../WORKLOG.md)                         |
+| 2026-08-05 | P2       | `e642d0769faca1d8fcb264fe0ee105c5aced4811` | Live wildcard-ingress activation retry   | Local wildcard ingress, connectors, and public fallbacks all passed                     | Add wildcard DNS; start candidate web/worker services   | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 
