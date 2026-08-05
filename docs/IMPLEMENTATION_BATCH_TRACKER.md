@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-07-31T23:58:00+08:00
+Updated: 2026-08-02T00:00:00+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                   |
-| ---------------- | ------------------------------------------------------- |
-| Overall status   | P1 isolated foundation complete; P2 routing in progress |
-| Release progress | `v0.1.5` published; P1 candidate merged from PR #17     |
-| Current batch    | Priority 2 — Routing and Production Cutover             |
-| Next action      | Activate and validate local wildcard tunnel ingress     |
-| Release state    | NO-GO for customer application hosting                  |
+| Field            | Value                                                                                    |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| Overall status   | P1 isolated foundation complete; P2 routing in progress                                  |
+| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                      |
+| Current batch    | Priority 2 — Routing and Production Cutover                                              |
+| Next action      | Retry live wildcard tunnel ingress activation after the connector-convergence timing fix |
+| Release state    | NO-GO for customer application hosting                                                   |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. The worker remains inactive. Local wildcard tunnel ingress is the next gate; wildcard DNS and customer deployments remain unavailable and customer hosting remains NO-GO.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. The worker remains inactive. Two local wildcard tunnel ingress activation attempts have run: the first found and fixed a YAML quoting defect in the generated wildcard rule, and the second confirmed candidate generation and Cloudflare validation but did not reach terminal success after connector restart, so a bounded 60-second convergence wait was added and a live retry is pending. Wildcard DNS and customer deployments remain unavailable and customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -151,6 +151,19 @@ invalid-candidate rejection with prior-route restoration, and removal. The helpe
 remains active and enabled; the managed include is present; no probe file or listener
 remains; the dashboard and HelloRun fallback pass publicly; and the worker and queue
 remain inactive/paused. Wildcard DNS is still absent.
+
+**2026-08-01/08-02 wildcard-ingress evidence:** The first live wildcard-ingress attempt
+validated the immutable release and routing foundation, then failed candidate
+validation because the generated Cloudflare Tunnel YAML left the wildcard hostname
+unquoted, which YAML parses as an alias. Automatic rollback restored both connector
+configurations; the helper stayed active and enabled, the worker stayed inactive, and
+the dashboard and independent HelloRun fallback stayed healthy throughout. The
+hostname generator now quotes the wildcard value. A second attempt passed candidate
+validation and connector restart but did not reach its terminal success check before
+rollback; reproducing candidate generation without host mutation separately confirmed
+Cloudflare accepts the quoted rule in both configurations, narrowing the defect to the
+post-restart convergence wait. A bounded 60-second convergence wait for both public
+fallbacks was added. Wildcard DNS is still absent and a live retry is pending.
 
 ### Priority 3 — Application and Product Validation
 

@@ -1,6 +1,6 @@
 # HelloDeploy and HelloRun Production Plan
 
-Updated: 2026-07-31
+Updated: 2026-08-02
 
 ## Primary Goal
 
@@ -312,6 +312,19 @@ rejection with prior-route restoration, and removal. No probe file or listener
 remains, both public pilot applications pass, and the worker and queue remain
 inactive/paused.
 
+**2026-08-01/08-02 wildcard-ingress evidence:** The first live wildcard-ingress attempt
+validated the immutable release and routing foundation, then failed candidate
+validation because the generated Cloudflare Tunnel YAML left the wildcard hostname
+unquoted, which YAML parses as an alias. Automatic rollback restored both connector
+configurations; the helper stayed active and enabled, the worker stayed inactive, and
+the dashboard and independent HelloRun fallback stayed healthy throughout. The
+hostname generator now quotes the wildcard value. A second attempt passed candidate
+validation and connector restart but did not reach its terminal success check before
+rollback; reproducing candidate generation without host mutation separately confirmed
+Cloudflare accepts the quoted rule in both configurations, narrowing the defect to the
+post-restart convergence wait. A bounded 60-second convergence wait for both public
+fallbacks was added. Wildcard DNS is still absent and a live retry is pending.
+
 ## P3 - Validate the Real Deployment Engine
 
 **Status:** Not Started
@@ -551,18 +564,20 @@ addresses, or secret values.
 Add one row after each meaningful execution or verification step. Keep results
 sanitized and link detailed evidence to the worklog or authoritative checklist.
 
-| Date       | Priority | Commit or release                          | Command or check                        | Sanitized result                                                    | Blocker or next action                                  | Evidence link                                    |
-| ---------- | -------- | ------------------------------------------ | --------------------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Node.js 22 release gate                 | 839 tests and production audit passed                               | Capture host and backup evidence                        | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Value-safe host and queue inventory     | Dashboard ready; no deployments queued; one valid DNS check waiting | Keep DNS job waiting until P2                           | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
-| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check  | HelloRun public fallback failed; backup inputs incomplete           | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
-| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Dashboard and dedicated tunnel restart  | Dashboard check passed; live tunnel still returned error 1033       | Repair and validate the hostname DNS tunnel route       | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
-| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route | Authoritative DNS and repeated HTTPS 200 checks passed              | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval         | Database, artifact, recovery key, and rollback checks passed        | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
-| 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                | Local gate passed; host mutation not started                        | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P1       | `d8f0c0acb65bfead9dd753dcb5ee34b4d46c06a2` | Partial-install retry guard             | Local gate passed; inactive host foundation partially prepared      | Merge guard, then complete inactive preparation         | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P1       | `42daf64cb2ebe726a106022ddf07db814c63c215` | Candidate lifecycle test                | Start/readiness passed; systemd stop timed out                      | Merge shutdown repair and repeat real lifecycle test    | [Worklog](../WORKLOG.md)                         |
-| 2026-07-31 | P1       | `704cb75a02d76a36a88d155a37052df4464bf1a2` | Corrected lifecycle retest              | Inactive verifier and clean real start/stop passed                  | Begin paused P2 queue inventory and routing activation  | [Worklog](../WORKLOG.md)                         |
+| Date       | Priority | Commit or release                          | Command or check                         | Sanitized result                                                                        | Blocker or next action                                  | Evidence link                                    |
+| ---------- | -------- | ------------------------------------------ | ---------------------------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Node.js 22 release gate                  | 839 tests and production audit passed                                                   | Capture host and backup evidence                        | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Value-safe host and queue inventory      | Dashboard ready; no deployments queued; one valid DNS check waiting                     | Keep DNS job waiting until P2                           | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
+| 2026-07-31 | P0       | `6d0bf82530d01bb941b6309c83a1a8bde18a4447` | Fallback and backup prerequisite check   | HelloRun public fallback failed; backup inputs incomplete                               | Restore fallback, then authorize privileged backup gate | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
+| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Dashboard and dedicated tunnel restart   | Dashboard check passed; live tunnel still returned error 1033                           | Repair and validate the hostname DNS tunnel route       | [Live checklist](LIVE_WORKFLOW_ACCEPTANCE.md)    |
+| 2026-07-31 | P0       | `ef5534d59f393febf9f55eca4d49f4192865cecd` | Correct-account HelloRun fallback route  | Authoritative DNS and repeated HTTPS 200 checks passed                                  | Complete backup and rollback prerequisites              | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P0       | `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` | Encrypted capture and retrieval          | Database, artifact, recovery key, and rollback checks passed                            | Begin isolated P1 foundation preparation                | [Batch tracker](IMPLEMENTATION_BATCH_TRACKER.md) |
+| 2026-07-31 | P1       | `49eec517acbf5f4c0e309e4600f88d615fa81f5c` | Production Node.js guard                 | Local gate passed; host mutation not started                                            | Merge guard, then run inactive preparation              | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `d8f0c0acb65bfead9dd753dcb5ee34b4d46c06a2` | Partial-install retry guard              | Local gate passed; inactive host foundation partially prepared                          | Merge guard, then complete inactive preparation         | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `42daf64cb2ebe726a106022ddf07db814c63c215` | Candidate lifecycle test                 | Start/readiness passed; systemd stop timed out                                          | Merge shutdown repair and repeat real lifecycle test    | [Worklog](../WORKLOG.md)                         |
+| 2026-07-31 | P1       | `704cb75a02d76a36a88d155a37052df4464bf1a2` | Corrected lifecycle retest               | Inactive verifier and clean real start/stop passed                                      | Begin paused P2 queue inventory and routing activation  | [Worklog](../WORKLOG.md)                         |
+| 2026-08-01 | P2       | (local repair)                             | Live wildcard-ingress activation attempt | Candidate validation rejected unquoted wildcard YAML; rollback restored both connectors | Quote generated hostname, retry live activation         | [Worklog](../WORKLOG.md)                         |
+| 2026-08-02 | P2       | (local repair)                             | Live wildcard-ingress activation retry   | Candidate validation and restart passed; terminal success not reached before rollback   | Add bounded 60s convergence wait, retry live activation | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 
