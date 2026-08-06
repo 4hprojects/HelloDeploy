@@ -12,6 +12,7 @@ export function createGracefulShutdown({
   closeDatabase,
   logger,
   timeoutMs = WEB_SHUTDOWN_TIMEOUT_MS,
+  drainPendingWork = async () => {},
 }) {
   let shutdownPromise = null;
 
@@ -34,6 +35,7 @@ export function createGracefulShutdown({
         await Promise.race([
           (async () => {
             await closeHttpServer(server);
+            await drainPendingWork();
             await Promise.allSettled([closeQueue(), closeDatabase()]).then((results) => {
               const failure = results.find((result) => result.status === 'rejected');
               if (failure) {

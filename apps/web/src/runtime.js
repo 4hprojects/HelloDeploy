@@ -29,6 +29,7 @@ async function start() {
     server,
     closeQueue: closeDeploymentQueue,
     closeDatabase: disconnectDatabase,
+    drainPendingWork: app.locals.drainSessionWrites,
     logger,
   });
   const handleShutdownSignal = createShutdownSignalHandler({ shutdown });

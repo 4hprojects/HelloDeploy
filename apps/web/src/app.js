@@ -110,7 +110,9 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   //    without a browser session, so it must skip session/CSRF middleware.
   app.use('/api/deploy-hooks', deployHookRoutes);
 
-  app.use(createSessionMiddleware());
+  const sessionMiddleware = createSessionMiddleware();
+  app.locals.drainSessionWrites = sessionMiddleware.drainPendingWrites;
+  app.use(sessionMiddleware);
   app.use(csrfMiddleware);
   app.use(localsMiddleware);
   app.use(maintenanceModeMiddleware);
