@@ -19,7 +19,7 @@ describe('P2 wildcard tunnel ingress activation', () => {
   it('updates both same-tunnel connector configs with one wildcard rule', () => {
     assert.match(activation, /\/etc\/cloudflared\/config\.yml/);
     assert.match(activation, /\/etc\/cloudflared\/hellodeploy\.yml/);
-    assert.match(activation, /\*\.apps\.hellodeploy\.online/);
+    assert.match(activation, /\*\.hellodeploy\.online/);
     assert.match(activation, /Dashboard connectors do not reference the same tunnel/);
     assert.ok(activation.includes('print "  - hostname: \\"" hostname "\\""'));
     assert.match(activation, /service: http:\/\/localhost:80/);

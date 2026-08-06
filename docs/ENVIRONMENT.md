@@ -35,7 +35,7 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | ------------------------------ | ----------- | --------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
 | `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility |
 | `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`      |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.apps.hellodeploy.online`            | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                     |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.hellodeploy.online`                 | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                     |
 | `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation       |
 | `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                            |
 | `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                         |

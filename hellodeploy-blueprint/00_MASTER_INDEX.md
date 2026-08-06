@@ -102,7 +102,7 @@ HelloDeploy does not own in V1:
 
 ## Definition of MVP Success
 
-The MVP is complete when a verified user can connect an approved GitHub repository, manually deploy a supported application, receive a working `*.apps.hellodeploy.online` URL, inspect logs, redeploy, and roll back while the Super Admin can enforce quotas and suspend the application.
+The MVP is complete when a verified user can connect an approved GitHub repository, manually deploy a supported application, receive a working `*.hellodeploy.online` URL, inspect logs, redeploy, and roll back while the Super Admin can enforce quotas and suspend the application.
 
 ## Working Rules
 

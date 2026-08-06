@@ -1,5 +1,10 @@
 # P9-P12 Maintenance Summary
 
+**Historical snapshot — superseded by [Worklog](../WORKLOG.md).** Retained for
+historical record as the P9-P12 implementation handoff notes; current status and
+evidence are recorded in the Worklog and
+[Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+
 Updated: 2026-07-01T18:39:27+08:00
 
 This summary records the completed P9-P12 implementation work for future maintenance, audits, and handoffs. Operational validations that require target-host service control are tracked separately below.

@@ -77,7 +77,7 @@ describe('self-hosted checklist', () => {
     assert.match(envExample, /Configure both keys or leave both empty/);
     assert.match(envExample, /GITHUB_APP_PRIVATE_KEY_PATH=\n/);
     assert.match(envExample, /REDIS_URL=rediss:\/\//);
-    assert.match(envExample, /DEPLOYMENT_DOMAIN=apps\.hellodeploy\.online/);
+    assert.match(envExample, /DEPLOYMENT_DOMAIN=hellodeploy\.online/);
     assert.match(environmentDocs, /partial configuration fails validation/);
     assert.match(
       environmentDocs,

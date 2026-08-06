@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
-# Add local wildcard ingress to every connector for the dashboard tunnel.
+# Remove a previously activated wildcard ingress rule from every connector for the
+# dashboard tunnel. Mirrors activate-wildcard-tunnel-ingress.sh's fail-closed
+# backup/validate/restart/verify/rollback shape, inverted.
 set -euo pipefail
 
 EXPECTED_COMMIT="${HELLODEPLOY_EXPECTED_RELEASE_COMMIT:-}"
 HD_HOME="/opt/hellodeploy"
-WILDCARD_HOSTNAME="*.hellodeploy.online"
-PROBE_HOSTNAME="zz-hd-p2-wildcard.hellodeploy.online"
+OLD_WILDCARD_HOSTNAME="*.apps.hellodeploy.online"
 CONFIGS=(/etc/cloudflared/config.yml /etc/cloudflared/hellodeploy.yml)
 SERVICES=(cloudflared.service cloudflared-hellodeploy.service)
 BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
@@ -19,7 +20,7 @@ fail() {
 }
 
 if [[ $EUID -ne 0 ]]; then
-  fail "Run wildcard tunnel activation as root."
+  fail "Run wildcard tunnel deactivation as root."
 fi
 if [[ ! "$EXPECTED_COMMIT" =~ ^[0-9a-f]{40}$ ]]; then
   fail "HELLODEPLOY_EXPECTED_RELEASE_COMMIT must be a full commit."
@@ -29,10 +30,10 @@ if [[ "$(git -C "$HD_HOME" rev-parse --verify HEAD^{commit} 2>/dev/null || true)
   fail "Installed release is missing, dirty, or does not match the expected commit."
 fi
 if systemctl is-active --quiet hellodeploy-worker; then
-  fail "Deployment worker must remain inactive during wildcard ingress activation."
+  fail "Deployment worker must remain inactive during wildcard ingress deactivation."
 fi
 if ! systemctl is-active --quiet hellodeploy-nginx-helper; then
-  fail "Nginx helper must be active before wildcard ingress activation."
+  fail "Nginx helper must be active before wildcard ingress deactivation."
 fi
 
 run_as_worker() {
@@ -69,7 +70,7 @@ rollback() {
     return
   fi
 
-  printf 'Wildcard tunnel activation failed during %s; restoring both connector configs.\n' \
+  printf 'Wildcard tunnel deactivation failed during %s; restoring both connector configs.\n' \
     "$CURRENT_STAGE" >&2
   if [[ "$CHANGED" == true && -n "$BACKUP_DIR" ]]; then
     for config in "${CONFIGS[@]}"; do
@@ -95,11 +96,9 @@ for index in "${!CONFIGS[@]}"; do
     fail "Tunnel config metadata differs from the reviewed baseline."
   systemctl is-active --quiet "$service" || fail "Required tunnel connector is inactive."
   cloudflared tunnel --config "$config" ingress validate >/dev/null
-  if grep -Fq "$WILDCARD_HOSTNAME" "$config"; then
-    fail "Wildcard ingress already exists; refusing an ambiguous retry."
+  if ! grep -Fq "$OLD_WILDCARD_HOSTNAME" "$config"; then
+    fail "Wildcard ingress is already absent; refusing an ambiguous retry."
   fi
-  [[ "$(grep -Ec '^[[:space:]]*-[[:space:]]*service:[[:space:]]*http_status:404[[:space:]]*$' "$config")" == 1 ]] ||
-    fail "Tunnel config must contain exactly one final HTTP 404 catch-all."
 done
 
 primary_tunnel=$(awk -F: '$1 == "tunnel" {gsub(/[[:space:]]/, "", $2); print $2; exit}' "${CONFIGS[0]}")
@@ -110,21 +109,24 @@ unset primary_tunnel secondary_tunnel
 
 CURRENT_STAGE="backup"
 install -d -m 0700 -o root -g root "$BACKUP_ROOT"
-BACKUP_DIR=$(mktemp -d "$BACKUP_ROOT/p2-wildcard.XXXXXX")
+BACKUP_DIR=$(mktemp -d "$BACKUP_ROOT/p2-wildcard-deactivate.XXXXXX")
 chmod 0700 "$BACKUP_DIR"
 
 CURRENT_STAGE="candidate-validation"
 for config in "${CONFIGS[@]}"; do
   install -m 0600 -o root -g root "$config" "$BACKUP_DIR/$(basename "$config")"
   candidate="$BACKUP_DIR/$(basename "$config").candidate"
-  awk -v hostname="$WILDCARD_HOSTNAME" '
-    /^[[:space:]]*-[[:space:]]*service:[[:space:]]*http_status:404[[:space:]]*$/ && !inserted {
-      print "  - hostname: \"" hostname "\""
-      print "    service: http://localhost:80"
-      inserted = 1
+  awk -v hostname="$OLD_WILDCARD_HOSTNAME" '
+    $0 == "  - hostname: \"" hostname "\"" && !removed {
+      if ((getline nextline) <= 0 || nextline != "    service: http://localhost:80") {
+        print "wildcard entry has an unexpected shape" > "/dev/stderr"
+        exit 43
+      }
+      removed = 1
+      next
     }
     { print }
-    END { if (!inserted) exit 42 }
+    END { if (!removed) exit 42 }
   ' "$config" >"$candidate"
   chmod 0600 "$candidate"
   cloudflared tunnel --config "$candidate" ingress validate >/dev/null
@@ -145,8 +147,9 @@ done
 CURRENT_STAGE="rule-verification"
 for config in "${CONFIGS[@]}"; do
   cloudflared tunnel --config "$config" ingress validate >/dev/null
-  cloudflared tunnel --config "$config" ingress rule "https://$PROBE_HOSTNAME/" |
-    grep -Fq "$WILDCARD_HOSTNAME"
+  if grep -Fq "$OLD_WILDCARD_HOSTNAME" "$config"; then
+    fail "Old wildcard ingress rule is still present after removal."
+  fi
 done
 
 CURRENT_STAGE="public-convergence"
@@ -155,10 +158,9 @@ CURRENT_STAGE="queue-recheck"
 run_as_worker
 
 trap - EXIT
-printf 'wildcard_local_ingress=passed\n'
+printf 'wildcard_local_ingress=removed\n'
 printf 'dashboard_connectors=active\n'
 printf 'public_fallbacks=passed\n'
 printf 'worker_state=inactive\n'
 printf 'queue_state=paused\n'
-printf 'wildcard_dns_state=unchanged-absent\n'
 printf 'tunnel_ingress_backup=created\n'

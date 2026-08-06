@@ -95,7 +95,7 @@ config.PLATFORM_DOMAIN = domain;
 const deploymentDomain = await ask(
   rl,
   'Deployment domain (wildcard app base)',
-  existing.DEPLOYMENT_DOMAIN || `apps.${domain}`,
+  existing.DEPLOYMENT_DOMAIN || domain,
 );
 config.DEPLOYMENT_DOMAIN = deploymentDomain;
 config.PLATFORM_SUBDOMAIN_SUFFIX = await ask(

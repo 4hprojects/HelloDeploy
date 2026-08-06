@@ -6,7 +6,7 @@ const { isReservedSubdomain, isValidSubdomainLabel } =
 
 describe('isReservedSubdomain', () => {
   it('blocks platform-critical names', () => {
-    for (const name of ['www', 'api', 'admin', 'app', 'hellodeploy', 'dashboard']) {
+    for (const name of ['www', 'api', 'admin', 'app', 'apps', 'hellodeploy', 'dashboard']) {
       assert.equal(isReservedSubdomain(name), true, `expected "${name}" to be reserved`);
     }
   });

@@ -74,7 +74,7 @@ The single-host model does not mean a single privileged process. OS identities a
 ## Domain Model
 
 - `hellodeploy.online` is the HelloDeploy dashboard, authentication, API, webhook, and deploy-hook host.
-- `<project-slug>.apps.hellodeploy.online` is the default hostname for a hosted project.
+- `<project-slug>.hellodeploy.online` is the default hostname for a hosted project.
 - An approved custom domain routes to exactly one project.
 - Nginx routes only to loopback-published container ports.
 - Cloudflare provides public TLS and forwards the original HTTPS protocol through the trusted ingress path.

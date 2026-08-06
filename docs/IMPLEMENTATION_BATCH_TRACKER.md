@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-08-05T15:04:36+08:00
+Updated: 2026-08-06T12:57:27+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                    |
-| ---------------- | ---------------------------------------------------------------------------------------- |
-| Overall status   | P1 isolated foundation complete; P2 routing in progress                                  |
-| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                      |
-| Current batch    | Priority 2 — Routing and Production Cutover                                              |
-| Next action      | Add wildcard DNS and start candidate web/worker services under their intended identities |
-| Release state    | NO-GO for customer application hosting                                                   |
+| Field            | Value                                                                                        |
+| ---------------- | -------------------------------------------------------------------------------------------- |
+| Overall status   | P1 isolated foundation complete; P2 routing in progress                                      |
+| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                          |
+| Current batch    | Priority 2 — Routing and Production Cutover                                                  |
+| Next action      | Add wildcard DNS/Cloudflare ingress, then cut dashboard traffic to the candidate web service |
+| Release state    | NO-GO for customer application hosting                                                       |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. The worker remains inactive. Local wildcard tunnel ingress activation has now passed live: after two earlier attempts surfaced and fixed a YAML quoting defect and a connector-convergence timing gap, the retry against the corrected release passed every stage, leaving both dashboard connectors active and both public fallbacks healthy. This adds only local Cloudflare Tunnel ingress rules; wildcard DNS is still unchanged and absent. Wildcard DNS and customer deployments remain unavailable and customer hosting remains NO-GO.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. Local wildcard tunnel ingress activation has passed live: after two earlier attempts surfaced and fixed a YAML quoting defect and a connector-convergence timing gap, the retry against the corrected release passed every stage, leaving both dashboard connectors active and both public fallbacks healthy. This adds only local Cloudflare Tunnel ingress rules; wildcard DNS is still unchanged and absent. Candidate web/worker service activation has also passed live: after a first attempt surfaced a session-write/shutdown-ordering race (fixed — graceful shutdown now waits for pending session-store writes before closing the database), the retry started both `hellodeploy-web` and `hellodeploy-worker` under their intended identities and passed web health/readiness, secure session cookies, worker readiness, Nginx syntax, and a queue-pause recheck. Both services are active as transient candidates (not enabled, no boot persistence), with the queue still paused and no dashboard traffic cut over. Wildcard DNS and customer deployments remain unavailable and customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -26,16 +26,16 @@ The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dash
 
 ## Batch Summary
 
-| Batch | Name                                | Status      | Roadmap coverage |
-| ----- | ----------------------------------- | ----------- | ---------------- |
-| 1     | Green Quality Baseline              | Complete    | Phases 0–1       |
-| 2     | Nginx Privilege Isolation           | Blocked     | Phase 2          |
-| 3     | Production Configuration            | Blocked     | Phase 3          |
-| 4     | Health and Graceful Shutdown        | In Review   | Phase 4          |
-| 5     | Installer and Operational Lifecycle | In Progress | Phase 5          |
-| 6     | Real Deployment Validation          | Not Started | Phase 6          |
-| 7     | Pilot and Recovery Drills           | Not Started | Phase 7          |
-| 8     | Final Release Decision              | Not Started | Phase 8          |
+| Batch | Name                                | Status                               | Roadmap coverage |
+| ----- | ----------------------------------- | ------------------------------------ | ---------------- |
+| 1     | Green Quality Baseline              | Complete                             | Phases 0–1       |
+| 2     | Nginx Privilege Isolation           | Complete                             | Phase 2          |
+| 3     | Production Configuration            | Blocked (external revalidation only) | Phase 3          |
+| 4     | Health and Graceful Shutdown        | In Review                            | Phase 4          |
+| 5     | Installer and Operational Lifecycle | In Progress                          | Phase 5          |
+| 6     | Real Deployment Validation          | Not Started                          | Phase 6          |
+| 7     | Pilot and Recovery Drills           | Not Started                          | Phase 7          |
+| 8     | Final Release Decision              | Not Started                          | Phase 8          |
 
 ## Remaining Execution Groups
 
@@ -129,7 +129,7 @@ Complete; all worker and queue activation remains deferred to P2.
 ### Priority 2 — Routing and Production Cutover
 
 - Correct the inactive Nginx dashboard upstream and install the constrained project route directory and helper path.
-- Add `*.apps.hellodeploy.online` to the existing tunnel while retaining the dashboard routes.
+- Add `*.hellodeploy.online` to the existing tunnel while retaining the dashboard routes.
 - Validate candidate Nginx, dashboard readiness, wildcard routing, route activation/replacement/removal, and rollback before switching traffic.
 - Run the web service in production mode and require `Secure; HttpOnly; SameSite=Strict` after cutover.
 
@@ -178,6 +178,22 @@ inactive, the queue remained paused, and a pre-activation configuration backup w
 created. Wildcard DNS remains unchanged and absent; this command adds only local
 Cloudflare Tunnel ingress rules. The next gate adds the authoritative DNS record and
 starts candidate web/worker services under their intended identities.
+
+**2026-08-06 candidate service activation evidence:** A first live attempt
+(`infrastructure/activate-candidate-services.sh`) failed at the session-cookie check:
+an unauthenticated `GET /` didn't complete within 5 seconds. `journalctl` traced this
+to a session-store write still pending when the script's rollback stopped the
+candidate services, racing the web app's shutdown, which closed the MongoDB
+connection before that write finished and surfaced as an unhandled
+`MongoExpiredSessionError`. Rollback itself worked correctly; the live PM2 dashboard
+and HelloRun fallback were never touched. Both root causes were fixed: graceful
+shutdown now waits for pending session-store writes before closing the database, and
+the script's session-cookie timeout widened from 5s to 20s to tolerate a legitimate
+cold first write. The retry against the corrected release passed every stage —
+`hellodeploy-web` and `hellodeploy-worker` started under their intended identities,
+web health/readiness, the secure session cookie, worker readiness, Nginx syntax, and
+a queue-pause recheck. Both services are active as transient candidates (not
+enabled), the queue remains paused, and no dashboard traffic has been cut over.
 
 ### Priority 3 — Application and Product Validation
 
@@ -241,22 +257,22 @@ git status --short
 
 ## Batch 2 — Nginx Privilege Isolation
 
-**Status:** Blocked
+**Status:** Complete
 **Started:** 2026-07-12T05:49:00+08:00
-**Completed:** —
+**Completed:** 2026-07-31T23:58:00+08:00
 **Objective:** Complete safe route activation while keeping the web process isolated from Docker and Nginx control.
 **Dependencies:** Batch 1; the current Ubuntu 26.04 candidate host with systemd and Nginx.
-**Blockers:** Privileged in-place validation requires a verified backup, rollback plan, Docker installation, and explicit authorization.
+**Blockers:** None.
 
 ### Tasks
 
 - [x] Make route creation, replacement, and removal atomic.
 - [x] Validate candidate configuration before activation and preserve the last healthy route on validation or reload failure.
-- [ ] Restrict `.env` and GitHub private-key access to only the services that require them.
+- [x] Restrict `.env` and GitHub private-key access to only the services that require them.
 - [x] Update lifecycle tooling and documentation for the separate web, worker, and route-helper identities.
 - [x] Automate ownership and permission checks in post-install diagnostics.
-- [ ] Prove the web service cannot access Docker or the privileged route helper.
-- [ ] Validate route creation, replacement, removal, rollback, and reload on the current candidate host without disrupting the dashboard.
+- [x] Prove the web service cannot access Docker or the privileged route helper.
+- [x] Validate route creation, replacement, removal, rollback, and reload on the current candidate host without disrupting the dashboard.
 
 ### Verification
 
@@ -265,7 +281,7 @@ git status --short
 - Record target-host users, groups, socket permissions, route file ownership, `nginx -t`, activation, and rollback results without secrets.
 
 **Completion gate:** The worker activates routes through the constrained helper, the web process has no Docker or Nginx-control access, and invalid configuration leaves the last healthy route active.
-**Evidence:** Route transactions now require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Separate web, worker, and helper identities plus automated metadata checks are implemented in source. The inspected pilot does not yet have those identities, units, helper paths, or Docker. Focused tests pass; in-place activation, live reload, rollback, and denial-of-privilege proof remain required.
+**Evidence:** Route transactions require a successful backup before removal and restore the prior route on candidate-validation or reload failure. Separate web, worker, and helper identities plus automated metadata checks are implemented and installed on the pilot host (see Priority 1 "Production Service Foundation" evidence above): prepared-installation verification passed the Docker allow/deny boundary (worker allowed, web denied) and `.env`/GitHub-key permission checks. Live in-place activation followed in P2 "Routing Foundation Completion" (2026-07-31): route creation, replacement, invalid-candidate rejection with restoration, and removal all passed through the worker identity with no probe residue, the helper active and enabled, and the dashboard undisturbed throughout.
 
 ## Batch 3 — Production Configuration
 
@@ -274,7 +290,7 @@ git status --short
 **Completed:** —
 **Objective:** Make valid production configuration start reliably and invalid configuration fail early with safe diagnostics.
 **Dependencies:** Batches 1–2 and the intended production GitHub App and routing details.
-**Blockers:** The public web and readiness endpoints are running, but the session-cookie result indicates the deployed web runtime or proxy path is not satisfying the production cookie contract. Production start and lifecycle validation now require production mode locally; redeployment plus external revalidation and host-side service-identity evidence remain required.
+**Blockers:** Host-side service-identity evidence is now recorded (2026-08-06): `hellodeploy-web` and `hellodeploy-worker` started live under their intended identities and passed health, readiness, and the strict session-cookie contract over loopback. External revalidation (`npm run production:check` against a real public HTTPS domain) still requires the wildcard DNS record, which remains absent.
 
 ### Tasks
 
@@ -282,7 +298,7 @@ git status --short
 - [x] Select and document the production routing mode.
 - [x] Align `.env.example`, environment documentation, setup output, and runtime validation.
 - [x] Clearly distinguish blocking configuration from optional integrations.
-- [ ] Confirm web and worker startup under their intended service identities.
+- [x] Confirm web and worker startup under their intended service identities.
 - [x] Confirm invalid secrets, ports, routing settings, unreadable keys, and partial integrations fail before accepting work.
 - [x] Confirm diagnostics expose configuration names and statuses but never values.
 
@@ -293,7 +309,7 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. The configured GitHub App identity and protected key passed an authenticated app-identity request, and the web-only pilot passes production configuration. The public checker now passes the strict session-cookie contract. The worker still fails closed until the constrained Nginx helper is installed, while production-unit startup, ingress cutover, and service-identity evidence remain blockers.
+**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. The configured GitHub App identity and protected key passed an authenticated app-identity request, and the web-only pilot passes production configuration. The public checker now passes the strict session-cookie contract. `hellodeploy-web` and `hellodeploy-worker` started live under their intended service identities on 2026-08-06 and passed health, readiness, and the session-cookie contract over loopback; ingress cutover and external HTTPS revalidation (blocked on wildcard DNS) remain.
 
 ## Batch 4 — Health and Graceful Shutdown
 
