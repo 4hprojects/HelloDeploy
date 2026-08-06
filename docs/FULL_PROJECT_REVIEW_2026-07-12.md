@@ -1,5 +1,9 @@
 # HelloDeploy Full Project Review
 
+**Historical snapshot — superseded by
+[Project Status Review](PROJECT_STATUS_REVIEW.md).** Retained for historical record
+as a dated point-in-time assessment; it is not current status.
+
 **Review date:** 2026-07-12
 **Reviewed revision:** `0f8f8f3` (`main`)
 **Release assessment:** **NO-GO for production; strong application baseline, incomplete operational proof**

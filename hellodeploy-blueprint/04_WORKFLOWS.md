@@ -24,7 +24,7 @@ Controls:
 5. System retrieves normalized public metadata without credentials or obtains short-lived authorized metadata through the GitHub App, then resolves the latest exact commit.
 6. Framework detector proposes configuration.
 7. User supplies required settings and secret names/values.
-8. System reserves `project-slug.apps.hellodeploy.online`.
+8. System reserves `project-slug.hellodeploy.online`.
 9. Project remains a draft until approval is requested.
 
 ## Initial Approval

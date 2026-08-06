@@ -2563,3 +2563,94 @@
   `wildcard_local_ingress=passed`, `dashboard_connectors=active`,
   `public_fallbacks=passed`, `worker_state=inactive`, `queue_state=paused`,
   `wildcard_dns_state=unchanged-absent`, `tunnel_ingress_backup=created`.
+
+## P2 Candidate Web/Worker Service Activation
+
+- Status: Passed; wildcard DNS and dashboard traffic cutover next
+- Updated: 2026-08-06T12:57:27+08:00
+
+### Live Evidence
+
+- A first live attempt (`infrastructure/activate-candidate-services.sh` against
+  commit `e314dd1`) failed at the `session-cookie` stage: an unauthenticated `GET /`
+  never completed within the script's 5-second check. `journalctl -u hellodeploy-web`
+  traced the cause to a session-store write (`connect-mongo`, triggered by CSRF
+  middleware) still pending when the script's rollback sent SIGTERM; the web app's
+  graceful shutdown closed the MongoDB connection without waiting for that write,
+  producing an unhandled `MongoExpiredSessionError` and a forced `process.exit(1)`.
+  Rollback itself worked correctly throughout — both candidate services stopped
+  cleanly and the live PM2 dashboard and HelloRun fallback were never touched.
+- Root cause was two separate issues, both fixed: `apps/web/src/lifecycle.js`'s
+  graceful shutdown now waits for pending session-store writes
+  (`apps/web/src/middleware/session.js`'s new pending-write tracker) before closing
+  the database, mirroring the worker's existing correct `worker.close()`-before-
+  `closeDependencies()` ordering; and the activation script's session-cookie check
+  widened from a one-shot 5-second timeout to 20 seconds to tolerate a legitimate
+  cold first write.
+- The retry against the corrected release (`dbb6fdd`) passed every stage: queue-pause
+  checks, both candidate services started under their intended identities, web health
+  and readiness, the secure session cookie (`Secure`, `HttpOnly`, `SameSite=Strict`)
+  over loopback with a simulated `X-Forwarded-Proto: https`, worker readiness via
+  BullMQ worker count, a queue-pause recheck, and Nginx syntax. `hellodeploy-web` and
+  `hellodeploy-worker` are now active (not enabled — still transient candidates, no
+  boot persistence) with the queue still paused and no dashboard traffic cut over.
+
+### Next Gate
+
+- Add the `*.apps.hellodeploy.online` DNS record at the authoritative provider and
+  the corresponding Cloudflare Tunnel ingress record (manual operator action), verify
+  wildcard HTTPS and test application routing, then cut dashboard traffic from PM2 to
+  the isolated `hellodeploy-web` service and resume the queue gradually.
+
+### Verification
+
+- Live command output confirmed by the operator: `queue_pause_check=passed` (twice),
+  `web_state=active-candidate`, `worker_state=active-candidate`,
+  `web_health=passed`, `web_ready=passed`, `session_cookie=passed`,
+  `worker_ready=passed`, `queue_state=paused`, `nginx_syntax=passed`,
+  `traffic_cutover=not-performed`.
+
+## P2 Wildcard Domain Restructure: apps.hellodeploy.online → hellodeploy.online
+
+- Status: Code and docs changed; live migration pending
+- Updated: 2026-08-06T22:52:58+08:00
+
+### Finding
+
+Attempting to verify the wildcard DNS record added after the successful local
+ingress activation, the hostname consistently failed its TLS handshake at
+Cloudflare's edge across a bounded 5-minute retry window (20 attempts, 15s apart,
+zero variation) — never a DNS failure, always a handshake failure, meaning the
+record itself resolved correctly but no certificate covered it. Inspecting the
+correct Cloudflare account's SSL/TLS → Edge Certificates page (a wrong-account
+detour first had to be resolved — the zone was registered under a different
+Cloudflare login than the one initially checked) confirmed the root cause: the
+account's free Universal SSL certificate covers only `hellodeploy.online` and
+`*.hellodeploy.online` (first-level wildcard). `*.apps.hellodeploy.online` is a
+second-level wildcard, which this plan does not cover. No free "Total TLS" toggle
+was available on this account/plan — only paid Advanced Certificate Manager or a
+Business-plan custom-certificate upload were offered, both declined.
+
+### Decision
+
+Drop the `apps.` segment: hosted-project URLs move from
+`<slug>.apps.hellodeploy.online` to `<slug>.hellodeploy.online`, which the existing
+free certificate already covers. Confirmed safe: Nginx route generation
+(`apps/worker/src/nginx/template.js`, `route-manager.js`) is domain-agnostic,
+interpolating whatever `DEPLOYMENT_DOMAIN` holds — no application logic changes,
+only config defaults, two infra scripts, tests, and docs/blueprint references.
+Added `'apps'` to the reserved-subdomain list so a project can no longer claim that
+now-retired prefix as its own slug. Added
+`infrastructure/deactivate-wildcard-tunnel-ingress.sh`, mirroring the activation
+script's fail-closed backup/validate/restart/verify/rollback shape in reverse, to
+cleanly remove the old `*.apps.hellodeploy.online` ingress rule from both connector
+configs before the new pattern is activated — the activation script itself fails
+closed if a wildcard entry already exists, by design.
+
+### Next Gate
+
+Live migration on the pilot host: stop the candidate `hellodeploy-web`/
+`hellodeploy-worker` services (the activation script requires the worker inactive),
+update the protected `.env` domain settings, deactivate the old wildcard rule,
+activate the new `*.hellodeploy.online` rule, add its DNS record, restart the
+candidate services, and verify wildcard HTTPS now resolves publicly.

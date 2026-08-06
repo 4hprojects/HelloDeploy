@@ -1,5 +1,10 @@
 # HelloDeploy Hardening and Pilot Report
 
+**Historical snapshot — superseded by
+[Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md).** Retained for
+historical record as early-July local measurements and pilot checklist; not current
+status.
+
 ## Measurement Snapshot
 
 Collected with:

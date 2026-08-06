@@ -43,7 +43,7 @@ const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 const platformDomainRaw = optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`);
-const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.apps.hellodeploy.online');
+const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.hellodeploy.online');
 const deploymentDomainRaw = optional(
   'DEPLOYMENT_DOMAIN',
   platformSubdomainSuffix.startsWith('.')

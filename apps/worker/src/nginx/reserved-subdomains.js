@@ -9,6 +9,7 @@ const RESERVED = new Set([
   'api',
   'admin',
   'app',
+  'apps',
   'dashboard',
   'console',
   'panel',

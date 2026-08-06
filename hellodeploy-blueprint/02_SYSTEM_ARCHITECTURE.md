@@ -8,7 +8,7 @@ Browser
   v
 Cloudflare -> Cloudflare Tunnel -> Nginx on the HelloDeploy host
                                   |-- hellodeploy.online -> Web/API
-                                  |-- app.apps.hellodeploy.online -> User container
+                                  |-- app.hellodeploy.online -> User container
                                   `-- custom-domain.example -> User container
 
 Web/API -> MongoDB Atlas
@@ -217,7 +217,7 @@ If any step fails, preserve the previous active route.
 HelloDeploy can run locally using a LAN address without `hellodeploy.online`. Public hosting requires a resolvable domain or tunnel hostname. Production will use:
 
 - `hellodeploy.online` for the platform
-- `*.apps.hellodeploy.online` for hosted projects
+- `*.hellodeploy.online` for hosted projects
 - Approved custom domains mapped to specific projects
 
 ## Current Server Coexistence
