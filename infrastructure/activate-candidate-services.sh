@@ -137,7 +137,11 @@ if [[ "$RESPONSE_BODY" != *'"status":"ready"'* ||
 fi
 
 CURRENT_STAGE="session-cookie"
-COOKIE_HEADERS=$(curl -sS --max-time 5 -D - -o /dev/null \
+# The first request into a fresh sessions collection can take longer than a warm
+# request (index creation, connection-pool warm-up), bounded by connectDatabase's
+# own serverSelectionTimeoutMS/socketTimeoutMS — 20s gives that room without
+# masking a genuine hang.
+COOKIE_HEADERS=$(curl -sS --max-time 20 -D - -o /dev/null \
   -H "X-Forwarded-Proto: https" "http://127.0.0.1:$PORT/")
 COOKIE_LINE=$(printf '%s' "$COOKIE_HEADERS" |
   grep -i '^set-cookie:.*hellodeploy\.sid=' | head -n 1 || true)

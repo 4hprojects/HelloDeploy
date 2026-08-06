@@ -68,6 +68,25 @@ describe('web graceful shutdown', () => {
     assert.deepEqual(new Set(calls.slice(1)), new Set(['queue', 'database']));
   });
 
+  it('waits for pending request-scoped work before closing shared clients', async () => {
+    const calls = [];
+    const shutdown = createGracefulShutdown({
+      server: { close: (callback) => callback() },
+      closeQueue: async () => calls.push('queue'),
+      closeDatabase: async () => calls.push('database'),
+      drainPendingWork: async () => {
+        await new Promise((resolve) => setImmediate(resolve));
+        calls.push('drain');
+      },
+      logger: { info() {}, error() {} },
+    });
+
+    await shutdown('SIGTERM');
+
+    assert.equal(calls[0], 'drain');
+    assert.deepEqual(new Set(calls.slice(1)), new Set(['queue', 'database']));
+  });
+
   it('forces connections closed when the shutdown deadline expires', async () => {
     let forced = false;
     const shutdown = createGracefulShutdown({

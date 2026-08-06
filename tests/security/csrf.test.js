@@ -18,7 +18,7 @@ describe('production session cookie', () => {
 
   it('trusts the ingress proxy before installing production sessions', () => {
     const trustProxy = appSource.indexOf("app.set('trust proxy', 1)");
-    const sessionMiddleware = appSource.indexOf('app.use(createSessionMiddleware())');
+    const sessionMiddleware = appSource.indexOf('app.use(sessionMiddleware)');
     assert.ok(trustProxy > 0 && trustProxy < sessionMiddleware);
   });
 });
