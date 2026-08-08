@@ -1,6 +1,6 @@
 # HelloDeploy and HelloRun Production Plan
 
-Updated: 2026-08-06
+Updated: 2026-08-08
 
 ## Primary Goal
 
@@ -267,7 +267,7 @@ Phases 2, 3, and 5.
 - [x] Install and start the constrained Nginx helper and managed route directory.
 - [ ] Validate route creation, replacement, removal, candidate rejection, Nginx
       reload failure, and prior-route restoration.
-- [ ] Add `*.hellodeploy.online` to authoritative DNS and Cloudflare Tunnel
+- [x] Add `*.hellodeploy.online` to authoritative DNS and Cloudflare Tunnel
       ingress while retaining the dashboard routes.
 - [x] Start candidate web and worker services under their intended identities.
 - [ ] Verify web readiness, protected worker readiness, Nginx syntax, secure session
@@ -353,6 +353,25 @@ web health/readiness, the secure session cookie, worker readiness, Nginx syntax,
 a queue-pause recheck. Both services are active as transient candidates (not
 enabled, no boot persistence), the queue remains paused, and no dashboard traffic has
 been cut over. Adding the wildcard DNS record is the next action.
+
+**2026-08-08 wildcard domain restructure evidence:** Verifying the wildcard DNS
+record found it consistently failed its TLS handshake — the account's free
+Cloudflare certificate covers only `hellodeploy.online` and `*.hellodeploy.online`,
+not the second-level `*.apps.hellodeploy.online` this platform used. Restructured
+to `*.hellodeploy.online`; Nginx routing is domain-agnostic, so this was config
+defaults, two infra scripts, tests, and docs, not application logic. The live
+migration passed: the old wildcard rule was cleanly removed, the new one activated,
+and its DNS record added. A first candidate-services retry failed at
+`worker-ready`, traced to a stale systemd `ReadWritePaths` bind-mount on the Nginx
+helper breaking daily after log rotation (fixed, unrelated to the domain change);
+the retry after that passed web readiness, worker readiness, the secure session
+cookie, and Nginx syntax. A public wildcard HTTPS probe now returns a real
+TLS-terminated response, confirming the certificate gap is resolved — real
+application routing under the wildcard is still unverified pending P3. Separately,
+the repository-run PM2 pilot was found crash-looping from a mismatched
+`DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` pairing in its `.env` (from the same
+migration's manual edit); corrected and self-healed. Dashboard traffic cutover and
+queue resume are the next actions.
 
 ## P3 - Validate the Real Deployment Engine
 
@@ -610,6 +629,8 @@ sanitized and link detailed evidence to the worklog or authoritative checklist.
 | 2026-08-05 | P2       | `e642d0769faca1d8fcb264fe0ee105c5aced4811` | Live wildcard-ingress activation retry    | Local wildcard ingress, connectors, and public fallbacks all passed                     | Add wildcard DNS; start candidate web/worker services    | [Worklog](../WORKLOG.md)                         |
 | 2026-08-06 | P2       | `e314dd164266cfd172175b1c08e4b257dcbd1ef6` | Live candidate service activation attempt | Session-cookie check timed out; session-store write raced graceful shutdown             | Wait for pending writes before closing the database      | [Worklog](../WORKLOG.md)                         |
 | 2026-08-06 | P2       | `dbb6fdd1d10fe33610f38a2cbb03c65be46878ac` | Live candidate service activation retry   | Web/worker started under intended identities; health, readiness, cookie all passed      | Add wildcard DNS; cut dashboard traffic to candidate web | [Worklog](../WORKLOG.md)                         |
+| 2026-08-08 | P2       | `068e5c6acaa9761566e1a33921429175fbe8ade1` | Wildcard domain migration + deactivate    | Old wildcard rule removed, new `*.hellodeploy.online` rule activated, DNS added         | Retry candidate services; verify wildcard HTTPS           | [Worklog](../WORKLOG.md)                         |
+| 2026-08-08 | P2       | `b0d0198123619624795c122e9a8e9d0e18eec098` | Candidate services retry + nginx-helper fix | Worker-ready passed after fixing a stale ReadWritePaths bind-mount; wildcard HTTPS confirmed publicly | Cut dashboard traffic to candidate web; resume queue      | [Worklog](../WORKLOG.md)                         |
 
 ## Required Verification
 
