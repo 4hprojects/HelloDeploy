@@ -17,7 +17,7 @@ const upgradeScript = await readFile(
 
 describe('platform Nginx ingress', () => {
   it('proxies the configured platform host to the local web process', () => {
-    assert.match(template, /server_name \{\{PLATFORM_DOMAIN\}\};/);
+    assert.match(template, /server_name \{\{PLATFORM_DOMAIN\}\} www\.\{\{PLATFORM_DOMAIN\}\};/);
     assert.match(template, /proxy_pass http:\/\/127\.0\.0\.1:\{\{PORT\}\};/);
   });
 

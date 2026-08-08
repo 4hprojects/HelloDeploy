@@ -6,7 +6,7 @@
 
 server {
     listen 80;
-    server_name {{PLATFORM_DOMAIN}};
+    server_name {{PLATFORM_DOMAIN}} www.{{PLATFORM_DOMAIN}};
 
     client_max_body_size 10m;
     client_body_timeout 30s;
