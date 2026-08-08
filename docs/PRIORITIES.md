@@ -11,14 +11,15 @@ priorities shift; don't copy evidence into it.
 
 ## Track A — P2 production-cutover completion (blocking)
 
-1. **Add the wildcard DNS record** for `*.hellodeploy.online` at Cloudflare —
-   manual operator action, not something the app or any script automates. The only
-   remaining blocker before wildcard HTTPS/test-routing verification and cutover.
-2. Cut dashboard traffic from PM2 to the isolated `hellodeploy-web` service — only
-   after step 1 exists and wildcard HTTPS/test routing are verified. No script exists
-   for this yet; needs the same fail-closed treatment as the other P2 gates.
-3. Resume the deployment/domain queue gradually and watch for failures, latency,
+1. Cut dashboard traffic from PM2 to the isolated `hellodeploy-web` service — the
+   wildcard domain (`*.hellodeploy.online`), its DNS record, and HTTPS are all now
+   confirmed working publicly. No script exists for this yet; needs the same
+   fail-closed treatment as the other P2 gates.
+2. Resume the deployment/domain queue gradually and watch for failures, latency,
    Docker capacity, and route changes.
+3. Verify real application routing under the wildcard once a project can be
+   deployed (P3) — today's probe only confirmed TLS/DNS work, not that a real
+   managed project route resolves correctly.
 
 Once these three land, P2 is complete and P3 (real deployment engine validation) is
 the next unblocked body of work — see `docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md`
@@ -118,3 +119,11 @@ code since the original analysis. Ordered by the effort/impact grouping already 
 - `docs/LIVE_WORKFLOW_ACCEPTANCE.md` and `docs/DEPLOYMENT_READINESS_ROADMAP.md`'s
   stale rows (previously flagged here as "known doc debt") are fixed as part of this
   same documentation pass.
+- The wildcard domain was restructured from `*.apps.hellodeploy.online` to
+  `*.hellodeploy.online` (2026-08-08) after discovering the account's free Cloudflare
+  certificate doesn't cover second-level wildcards. The live migration passed and a
+  public wildcard HTTPS probe now returns a real TLS-terminated response. Two
+  unrelated live issues were found and fixed along the way: a stale systemd
+  `ReadWritePaths` bind-mount on the Nginx helper that broke daily after log
+  rotation, and a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` mismatch that had
+  the repository-run PM2 pilot crash-looping.

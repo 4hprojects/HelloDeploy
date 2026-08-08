@@ -2612,8 +2612,9 @@
 
 ## P2 Wildcard Domain Restructure: apps.hellodeploy.online → hellodeploy.online
 
-- Status: Code and docs changed; live migration pending
-- Updated: 2026-08-06T22:52:58+08:00
+- Status: Passed — wildcard HTTPS verified publicly; dashboard traffic cutover and
+  queue resume remain
+- Updated: 2026-08-08T20:12:45+08:00
 
 ### Finding
 
@@ -2647,10 +2648,53 @@ cleanly remove the old `*.apps.hellodeploy.online` ingress rule from both connec
 configs before the new pattern is activated — the activation script itself fails
 closed if a wildcard entry already exists, by design.
 
-### Next Gate
+### Live Migration Evidence (2026-08-08)
 
-Live migration on the pilot host: stop the candidate `hellodeploy-web`/
-`hellodeploy-worker` services (the activation script requires the worker inactive),
-update the protected `.env` domain settings, deactivate the old wildcard rule,
-activate the new `*.hellodeploy.online` rule, add its DNS record, restart the
-candidate services, and verify wildcard HTTPS now resolves publicly.
+The candidate services were stopped, the protected `.env` domain settings updated,
+and the live sequence run against the merged migration commit: the deactivate
+script removed the old `*.apps.hellodeploy.online` rule from both connector configs
+cleanly (`wildcard_local_ingress=removed`, both public fallbacks passed throughout);
+the activate script then added the new `*.hellodeploy.online` rule
+(`wildcard_local_ingress=passed`); `cloudflared tunnel route dns` added the DNS
+record.
+
+The first candidate-services retry failed at the `worker-ready` stage. Reproducing
+the worker's startup directly (bypassing its sanitized fatal-error logging)
+surfaced the real cause, unrelated to the domain migration: `nginx -t`, run by the
+privileged Nginx helper, failed with "Read-only file system" opening
+`/var/log/nginx/error.log`. `hellodeploy-nginx-helper.service`'s `ReadWritePaths`
+pinned individual log files rather than their containing directory; `ProtectSystem
+=strict`'s bind-mount is tied to the inode present at service start, and daily
+logrotate replaces that inode. A second occurrence the next day hit `access.log`
+instead (it rotates reliably on real traffic; `error.log`'s rotation is skipped by
+`notifempty` since it's usually empty), confirming this was a recurring daily
+break, not a one-off. Fixed by pointing `ReadWritePaths` at `/var/log/nginx` (the
+directory survives rotation; no new privilege, the helper already runs as root).
+After installing the corrected unit, reloading systemd, and restarting the helper,
+the retry passed every stage: `worker_ready=passed`, `web_health=passed`,
+`web_ready=passed`, `session_cookie=passed`, `nginx_syntax=passed`,
+`queue_state=paused`, `traffic_cutover=not-performed`.
+
+A public wildcard HTTPS probe against `*.hellodeploy.online` then returned a real
+TLS-terminated response (`HTTP 302` to `/login`, Cloudflare-served) — confirming the
+free Universal SSL certificate now covers the wildcard, resolving the original SSL
+gap this whole restructure was undertaken to fix.
+
+**Separately discovered and fixed**, unrelated to this migration's own code: the
+repository-run PM2 pilot (`hellodeploy` process under PM2, serving
+`hellodeploy.online`'s actual live traffic from this checkout via
+`--env-file-if-exists=../../.env`) was crash-looping (600+ restarts) with both its
+web and worker failing startup config validation. Reproducing directly surfaced
+`Error: PLATFORM_SUBDOMAIN_SUFFIX must equal a dot followed by DEPLOYMENT_DOMAIN.`
+— the repository-root `.env` (edited earlier for this same migration) had the two
+values out of sync. The operator corrected it; the PM2 process self-healed on its
+next respawn (uptime stable afterward, restart count stopped climbing) without a
+manual restart. Public checks after: `hellodeploy.online/health` `200`,
+`hellorun.online` `200`, wildcard probe `302`.
+
+### Remaining Gate
+
+Dashboard traffic cutover from PM2 to the isolated `hellodeploy-web` service, and
+gradual queue resume, are the only P2 items left — both still deliberately not
+performed. Verifying real project routing under the wildcard (as opposed to the
+unmatched-subdomain fallback observed here) is part of that same remaining work.
