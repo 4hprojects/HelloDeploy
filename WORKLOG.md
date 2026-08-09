@@ -2698,3 +2698,67 @@ Dashboard traffic cutover from PM2 to the isolated `hellodeploy-web` service, an
 gradual queue resume, are the only P2 items left — both still deliberately not
 performed. Verifying real project routing under the wildcard (as opposed to the
 unmatched-subdomain fallback observed here) is part of that same remaining work.
+
+## P2 Dashboard Traffic Cutover
+
+- Status: Cutover passed and live; queue resume and a clean revert proof remain
+- Updated: 2026-08-09T19:40:04+08:00
+
+### Design
+
+No script existed for this gate before now. `activate-dashboard-cutover.sh` and
+`revert-dashboard-cutover.sh` were added, mirroring the established fail-closed
+backup/validate/restart/verify/rollback pattern. Two things were found live that
+neither doc anticipated: Cloudflare Tunnel routed `hellodeploy.online`/
+`www.hellodeploy.online` directly to the PM2 port, bypassing Nginx entirely, so
+cutover requires editing tunnel ingress as well as Nginx; and a stale legacy vhost
+(`/etc/nginx/sites-enabled/hellodeploy`, proxying to a dead port) was already
+enabled and would conflict with the real platform vhost. The existing
+`configure-platform-ingress.sh` renderer was reused rather than reimplemented; its
+template had a real gap (`www` was never covered) fixed alongside.
+
+### Live Evidence — Cutover
+
+`activate-dashboard-cutover.sh` passed every stage on the first attempt: candidate
+health/readiness/worker-readiness re-verified, the legacy vhost disabled, the
+platform vhost installed, both connector configs' `hellodeploy.online`/
+`www.hellodeploy.online` service lines retargeted from the PM2 port to Nginx,
+public health/readiness/session-cookie confirmed, and Nginx's access log confirmed
+the request actually traversed the new path. PM2 was never stopped throughout.
+
+### Live Evidence — Revert Attempt and a Real Bug Found
+
+Exercising `revert-dashboard-cutover.sh` deliberately (to satisfy the P2 Required
+Evidence line proving restoration works) surfaced a real bug: its own
+`fallback-verification` stage failed because `hellorun.online`'s PM2 process was
+crash-looping on an `EADDRINUSE :::3000` port conflict — a pre-existing issue
+entirely unrelated to this work (confirmed: nothing in this session's scripts
+touches port 3000, HelloRun's `.env`, or its PM2 process). That unrelated failure
+triggered the script's own rollback, which restored the cloudflared tunnel config
+back to pointing at Nginx but never re-synced Nginx's own vhost — already switched
+to the legacy vhost by the `nginx-vhost-revert` stage that had already run. The
+tunnel then pointed at Nginx while Nginx pointed at a dead legacy port, producing a
+real, brief `hellodeploy.online` outage broader than the revert itself should have
+caused. Manually fixed live (`rm` the legacy vhost, re-run
+`configure-platform-ingress.sh`) to restore the dashboard immediately, then fixed
+the actual bug: rollback now re-installs the platform vhost whenever the Nginx side
+had already been reverted, and its own critical-failure check now depends only on
+`hellodeploy.online`, not `hellorun.online` — a dependency this script does not own
+and should never be blamed for.
+
+### Current State
+
+`hellodeploy.online`/`www.hellodeploy.online`: `200`, served via the isolated
+`hellodeploy-web` through Nginx (cutover is live). `hellorun.online`: `502`, down
+for the unrelated PM2/port-3000 conflict described above — not caused by, and not
+fixed by, anything in this session. `hellodeploy-web`/`hellodeploy-worker`/
+`hellodeploy-nginx-helper` all active. Queue remains paused; not yet resumed.
+
+### Remaining Gate
+
+A full, clean exercise of `revert-dashboard-cutover.sh` reaching its own success
+path is still blocked on `hellorun.online`'s unrelated recovery, since its
+`fallback-verification` stage depends on that fallback being reachable. The bug fix
+above at least guarantees a failure there is now safe (no compounding outage)
+rather than proof the full path works end-to-end. Queue resume
+(`scripts/resume-deployment-queue.js`) has not been attempted.

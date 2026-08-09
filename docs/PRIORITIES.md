@@ -11,19 +11,31 @@ priorities shift; don't copy evidence into it.
 
 ## Track A — P2 production-cutover completion (blocking)
 
-1. Cut dashboard traffic from PM2 to the isolated `hellodeploy-web` service — the
-   wildcard domain (`*.hellodeploy.online`), its DNS record, and HTTPS are all now
-   confirmed working publicly. No script exists for this yet; needs the same
-   fail-closed treatment as the other P2 gates.
-2. Resume the deployment/domain queue gradually and watch for failures, latency,
-   Docker capacity, and route changes.
+1. Resume the deployment/domain queue gradually and watch for failures, latency,
+   Docker capacity, and route changes. `scripts/resume-deployment-queue.js` exists;
+   not yet run.
+2. Exercise `infrastructure/revert-dashboard-cutover.sh` to a clean success —
+   currently blocked on HelloRun's own unrelated recovery (see below), since its
+   `fallback-verification` stage depends on HelloRun being reachable. A first
+   attempt found and fixed a real rollback-consistency bug; the fix is merged but
+   hasn't been proven end-to-end yet.
 3. Verify real application routing under the wildcard once a project can be
    deployed (P3) — today's probe only confirmed TLS/DNS work, not that a real
    managed project route resolves correctly.
 
-Once these three land, P2 is complete and P3 (real deployment engine validation) is
-the next unblocked body of work — see `docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md`
-for its full action list.
+Dashboard traffic cutover itself is **done** — `hellodeploy.online`/
+`www.hellodeploy.online` serve live via the isolated `hellodeploy-web` through
+Nginx, PM2 never stopped. Once the three items above land, P2 is complete and P3
+(real deployment engine validation) is the next unblocked body of work — see
+`docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md` for its full action list.
+
+## Urgent, but outside this project's scope
+
+`hellorun.online` is currently returning `502` — its own PM2 process (a separate
+project on this shared host) is crash-looping on `EADDRINUSE :::3000`; something
+else already holds port 3000. Confirmed unrelated to anything in this repo or
+session — no HelloDeploy script touches port 3000, HelloRun's `.env`, or its PM2
+process. Needs attention directly in that project, not here.
 
 ## Track B — Code quality & security backlog (not blocking Track A, can run in parallel)
 
@@ -127,3 +139,8 @@ code since the original analysis. Ordered by the effort/impact grouping already 
   `ReadWritePaths` bind-mount on the Nginx helper that broke daily after log
   rotation, and a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` mismatch that had
   the repository-run PM2 pilot crash-looping.
+- Dashboard traffic cutover passed live (2026-08-09) — `hellodeploy.online`/
+  `www.hellodeploy.online` now serve via the isolated `hellodeploy-web` through
+  Nginx. Exercising the revert path surfaced and fixed a real rollback-consistency
+  bug after an unrelated HelloRun failure triggered it and briefly took the
+  dashboard down as a side effect; now fully restored.
