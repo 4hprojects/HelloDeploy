@@ -1,20 +1,20 @@
 # Implementation Batch Tracker
 
-Updated: 2026-08-08T20:12:45+08:00
+Updated: 2026-08-09T19:40:04+08:00
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                              |
-| ---------------- | ---------------------------------------------------------------------------------- |
-| Overall status   | P1 isolated foundation complete; P2 routing in progress                            |
-| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                |
-| Current batch    | Priority 2 — Routing and Production Cutover                                        |
-| Next action      | Cut dashboard traffic from PM2 to the candidate web service, then resume the queue |
-| Release state    | NO-GO for customer application hosting                                             |
+| Field            | Value                                                                                                            |
+| ---------------- | ---------------------------------------------------------------------------------------------------------------- |
+| Overall status   | P1 isolated foundation complete; P2 routing in progress                                                          |
+| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                                              |
+| Current batch    | Priority 2 — Routing and Production Cutover                                                                      |
+| Next action      | Resume the deployment queue; separately, HelloRun (unrelated PM2 process) needs its own port-3000 conflict fixed |
+| Release state    | NO-GO for customer application hosting                                                                           |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. Local wildcard tunnel ingress activation has passed live: after two earlier attempts surfaced and fixed a YAML quoting defect and a connector-convergence timing gap, the retry against the corrected release passed every stage, leaving both dashboard connectors active and both public fallbacks healthy. This adds only local Cloudflare Tunnel ingress rules; wildcard DNS is still unchanged and absent. Candidate web/worker service activation has also passed live: after a first attempt surfaced a session-write/shutdown-ordering race (fixed — graceful shutdown now waits for pending session-store writes before closing the database), the retry started both `hellodeploy-web` and `hellodeploy-worker` under their intended identities and passed web health/readiness, secure session cookies, worker readiness, Nginx syntax, and a queue-pause recheck. Both services are active as transient candidates (not enabled, no boot persistence), with the queue still paused and no dashboard traffic cut over. The wildcard domain was subsequently restructured from `*.apps.hellodeploy.online` to `*.hellodeploy.online` after discovering the account's free Cloudflare SSL certificate doesn't cover second-level wildcards; the live migration passed, and a public wildcard HTTPS probe now returns a real TLS-terminated response, confirming the certificate gap is resolved. Two unrelated live issues were found and fixed along the way: a stale systemd `ReadWritePaths` bind-mount on the Nginx helper that broke daily after log rotation, and a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` mismatch in the repository-run PM2 pilot's `.env` that had it crash-looping. Dashboard traffic cutover and queue resume are the only remaining P2 gates; customer deployments remain unavailable and customer hosting remains NO-GO.
+The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. Local wildcard tunnel ingress activation has passed live: after two earlier attempts surfaced and fixed a YAML quoting defect and a connector-convergence timing gap, the retry against the corrected release passed every stage, leaving both dashboard connectors active and both public fallbacks healthy. This adds only local Cloudflare Tunnel ingress rules; wildcard DNS is still unchanged and absent. Candidate web/worker service activation has also passed live: after a first attempt surfaced a session-write/shutdown-ordering race (fixed — graceful shutdown now waits for pending session-store writes before closing the database), the retry started both `hellodeploy-web` and `hellodeploy-worker` under their intended identities and passed web health/readiness, secure session cookies, worker readiness, Nginx syntax, and a queue-pause recheck. Both services are active as transient candidates (not enabled, no boot persistence), with the queue still paused and no dashboard traffic cut over. The wildcard domain was subsequently restructured from `*.apps.hellodeploy.online` to `*.hellodeploy.online` after discovering the account's free Cloudflare SSL certificate doesn't cover second-level wildcards; the live migration passed, and a public wildcard HTTPS probe now returns a real TLS-terminated response, confirming the certificate gap is resolved. Two unrelated live issues were found and fixed along the way: a stale systemd `ReadWritePaths` bind-mount on the Nginx helper that broke daily after log rotation, and a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` mismatch in the repository-run PM2 pilot's `.env` that had it crash-looping. Dashboard traffic cutover has since passed live: `activate-dashboard-cutover.sh` and `revert-dashboard-cutover.sh` were built, and cutover itself passed cleanly on the first attempt — `hellodeploy.online`/`www.hellodeploy.online` now serve via the isolated `hellodeploy-web` through Nginx, confirmed publicly, with PM2 never stopped. Deliberately exercising revert (to satisfy the P2 "restore the former path" evidence requirement) surfaced a real bug in the revert script's own rollback (fixed) after an unrelated failure — HelloRun's separate PM2 process crash-looping on a port conflict — triggered it; the dashboard was briefly down as a result and is now fully restored. Queue resume and a clean revert-proof (blocked on HelloRun's unrelated recovery) are the only remaining P2 gates; customer deployments remain unavailable and customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -211,6 +211,27 @@ confirming the certificate gap is resolved. Separately, the repository-run PM2
 pilot was found crash-looping from a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX`
 mismatch in its `.env` (from the same migration's manual edit); corrected and
 self-healed. Dashboard traffic cutover and queue resume remain.
+
+**2026-08-09 dashboard traffic cutover evidence:** No script existed for this gate
+before now; `activate-dashboard-cutover.sh` and `revert-dashboard-cutover.sh` were
+built, fail-closed, mirroring the established pattern. Two things were found live
+that neither doc anticipated: Cloudflare Tunnel routed `hellodeploy.online`/
+`www.hellodeploy.online` directly to the PM2 port, bypassing Nginx entirely, so
+cutover required editing tunnel ingress as well as Nginx; and a stale legacy vhost
+was already enabled and would have conflicted with the real platform vhost.
+`activate-dashboard-cutover.sh` passed every stage on the first attempt —
+`hellodeploy.online`/`www.hellodeploy.online` now serve via the isolated
+`hellodeploy-web` through Nginx, confirmed publicly including proof via the Nginx
+access log that traffic actually moved. PM2 was never stopped. Deliberately
+exercising `revert-dashboard-cutover.sh` (to satisfy the "restore the former path"
+evidence requirement) surfaced a real bug: an unrelated failure — HelloRun's
+separate PM2 process crash-looping on a pre-existing port-3000 conflict — triggered
+its rollback, which restored the tunnel config but left Nginx's vhost out of sync,
+producing a real, brief `hellodeploy.online` outage. Fixed live immediately, then
+fixed the underlying bug (rollback now re-syncs Nginx whenever it was already
+reverted; its critical-failure check now depends only on `hellodeploy.online`, not
+the unrelated HelloRun dependency). A full clean revert exercise remains blocked on
+HelloRun's own unrelated recovery. Queue resume has not been attempted.
 
 ### Priority 3 — Application and Product Validation
 
