@@ -49,7 +49,25 @@ describe('P2 dashboard traffic cutover revert', () => {
       revert,
       /Dashboard cutover revert failed during %s; restoring the isolated-service path/,
     );
-    assert.match(revert, /CRITICAL: revert rollback verification failed; keep the queue paused/);
+    assert.match(revert, /CRITICAL: dashboard rollback verification failed; keep the queue paused/);
     assert.match(revert, /traffic_cutover=reverted/);
+  });
+
+  it('re-syncs Nginx to the platform vhost on rollback if the legacy vhost was already restored', () => {
+    const nginxRevertedSet = revert.indexOf('NGINX_REVERTED=true');
+    const nginxVhostRevertStage = revert.indexOf('CURRENT_STAGE="nginx-vhost-revert"');
+    assert.ok(nginxRevertedSet > nginxVhostRevertStage);
+
+    const rollbackFn = revert.slice(
+      revert.indexOf('rollback() {'),
+      revert.indexOf('trap rollback EXIT'),
+    );
+    assert.match(rollbackFn, /if \[\[ "\$NGINX_REVERTED" == true \]\]; then/);
+    assert.match(rollbackFn, /rm -f "\$LEGACY_VHOST_LINK"/);
+    assert.match(rollbackFn, /configure-platform-ingress\.sh" "\$HD_HOME\/\.env"/);
+    // Rollback's own critical check must only depend on hellodeploy.online -- HelloRun
+    // can be unhealthy for reasons entirely outside this script's control, and that
+    // must never be reported as this rollback having failed.
+    assert.doesNotMatch(rollbackFn, /hellorun\.online/);
   });
 });

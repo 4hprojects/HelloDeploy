@@ -15,6 +15,7 @@ PLATFORM_VHOST="/etc/nginx/conf.d/hellodeploy-platform.conf"
 BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
 BACKUP_DIR=""
 CHANGED=false
+NGINX_REVERTED=false
 CURRENT_STAGE="preflight"
 
 fail() {
@@ -82,8 +83,21 @@ rollback() {
     done
   fi
 
-  if ! verify_public_fallbacks; then
-    printf 'CRITICAL: revert rollback verification failed; keep the queue paused.\n' >&2
+  # The restored tunnel config (above) points hellodeploy.online back at Nginx --
+  # the isolated-service state -- regardless of which stage failed. If the Nginx
+  # side had already been switched to the legacy vhost, it must be switched back
+  # to the platform vhost so the two stay consistent; leaving Nginx on the legacy
+  # vhost while the tunnel points at Nginx would serve the dead legacy backend.
+  if [[ "$NGINX_REVERTED" == true ]]; then
+    rm -f "$LEGACY_VHOST_LINK"
+    bash "$HD_HOME/infrastructure/nginx/configure-platform-ingress.sh" "$HD_HOME/.env" >/dev/null 2>&1 || true
+  fi
+
+  # Only hellodeploy.online is this script's own responsibility to restore; HelloRun
+  # can be unhealthy for reasons entirely outside this script's control (its own
+  # backend process), and that must not be reported as this rollback having failed.
+  if ! wait_for_url https://hellodeploy.online/health; then
+    printf 'CRITICAL: dashboard rollback verification failed; keep the queue paused.\n' >&2
   fi
 }
 trap rollback EXIT
@@ -136,6 +150,7 @@ done
 CURRENT_STAGE="nginx-vhost-revert"
 rm -f "$PLATFORM_VHOST"
 ln -s "$LEGACY_VHOST_TARGET" "$LEGACY_VHOST_LINK"
+NGINX_REVERTED=true
 if nginx -t >/dev/null 2>&1; then
   systemctl reload nginx
 else
