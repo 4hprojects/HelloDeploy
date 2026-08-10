@@ -11,9 +11,9 @@ priorities shift; don't copy evidence into it.
 
 ## Track A — P2 production-cutover completion (blocking)
 
-1. Resume the deployment/domain queue gradually and watch for failures, latency,
-   Docker capacity, and route changes. `scripts/resume-deployment-queue.js` exists;
-   not yet run.
+1. Deliberately requeue the one paused domain-verification job and observe —
+   per the plan's own "deliberately requeue... and observe" framing, a manual,
+   watched step, not something to automate.
 2. Exercise `infrastructure/revert-dashboard-cutover.sh` to a clean success —
    currently blocked on HelloRun's own unrelated recovery (see below), since its
    `fallback-verification` stage depends on HelloRun being reachable. A first
@@ -23,9 +23,10 @@ priorities shift; don't copy evidence into it.
    deployed (P3) — today's probe only confirmed TLS/DNS work, not that a real
    managed project route resolves correctly.
 
-Dashboard traffic cutover itself is **done** — `hellodeploy.online`/
+Dashboard traffic cutover and queue resume are **done** — `hellodeploy.online`/
 `www.hellodeploy.online` serve live via the isolated `hellodeploy-web` through
-Nginx, PM2 never stopped. Once the three items above land, P2 is complete and P3
+Nginx (PM2 never stopped), and the deployment queue is resumed
+(`queue_state=resumed`). Once the three items above land, P2 is complete and P3
 (real deployment engine validation) is the next unblocked body of work — see
 `docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md` for its full action list.
 

@@ -2760,5 +2760,14 @@ A full, clean exercise of `revert-dashboard-cutover.sh` reaching its own success
 path is still blocked on `hellorun.online`'s unrelated recovery, since its
 `fallback-verification` stage depends on that fallback being reachable. The bug fix
 above at least guarantees a failure there is now safe (no compounding outage)
-rather than proof the full path works end-to-end. Queue resume
-(`scripts/resume-deployment-queue.js`) has not been attempted.
+rather than proof the full path works end-to-end.
+
+### Queue Resume (2026-08-10)
+
+`scripts/resume-deployment-queue.js` run under the `hellodeploy-worker` identity
+against the live queue: `queue_state=resumed`. `hellodeploy.online` confirmed
+healthy (`200`) immediately after, both candidate services still active. The one
+previously-paused domain-verification job has not yet been deliberately requeued
+and observed — per the plan's own "deliberately requeue... and observe" framing,
+that remains a separate, manual, watched step rather than something this pass
+performed automatically.
