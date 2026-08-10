@@ -1,6 +1,6 @@
 # HelloDeploy and HelloRun Production Plan
 
-Updated: 2026-08-09
+Updated: 2026-08-10
 
 ## Primary Goal
 
@@ -389,8 +389,14 @@ HelloRun's separate PM2 process crash-looping on a pre-existing port-3000
 conflict — triggered its rollback, which restored the tunnel config but left
 Nginx's vhost out of sync, producing a real, brief `hellodeploy.online` outage.
 Fixed live immediately, then fixed the underlying bug in the rollback logic. A full
-clean revert exercise remains blocked on HelloRun's own unrelated recovery. Queue
-resume is the next action.
+clean revert exercise remains blocked on HelloRun's own unrelated recovery.
+
+**2026-08-10 queue resume evidence:** `scripts/resume-deployment-queue.js` run
+live under the `hellodeploy-worker` identity: `queue_state=resumed`, dashboard
+confirmed healthy immediately after. The one previously-paused domain-verification
+job has not yet been deliberately requeued and observed, per this plan's own
+"deliberately requeue... and observe" framing — that remains a separate, manual,
+watched step.
 
 ## P3 - Validate the Real Deployment Engine
 
