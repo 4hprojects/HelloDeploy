@@ -1,6 +1,6 @@
 # HelloDeploy Autonomous Work Loop
 
-Updated: 2026-07-14T14:01:16+08:00
+Updated: 2026-08-14
 
 This document defines how Codex continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
 
@@ -15,7 +15,7 @@ Use the following precedence when deciding what to do:
 5. Applicable blueprints, phase specifications, and operational documentation.
 6. The behavior demonstrated by the implementation and tests.
 
-The batch tracker owns status. The roadmap owns release requirements. `WORKLOG.md` owns detailed historical evidence. `FULL_IMPLEMENTATION_OVERVIEW.md` provides the human-readable phase map. This document owns the execution protocol and must not duplicate detailed status.
+The batch tracker owns status. The roadmap owns release requirements. `WORKLOG.md` owns detailed historical evidence. `archive/FULL_IMPLEMENTATION_OVERVIEW.md` is a historical phase-map snapshot, superseded by the batch tracker. This document owns the execution protocol and must not duplicate detailed status.
 
 When documentation and implementation disagree, investigate the difference. Update stale documentation when it is in scope; never silently choose the more convenient interpretation.
 
@@ -92,6 +92,7 @@ Before stopping, record the blocker, evidence already collected, and the exact i
 
 ## Current Handoff
 
-As of 2026-08-10, P1 is complete on the Ubuntu 26.04 pilot. The encrypted P0 capture passed same-host retrieval, and the isolated foundation provides Docker, system Node.js 22, protected configuration, isolated identities, and managed-route storage. P2 has paused and drained the combined deployment/domain queue; no deployment jobs were present and one valid DNS-verification job remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal passed without probe residue. Candidate service activation passed live under intended identities. The wildcard domain was restructured from `*.apps.hellodeploy.online` to `*.hellodeploy.online` after discovering the account's free Cloudflare certificate doesn't cover second-level wildcards; a public wildcard HTTPS probe now returns a real TLS-terminated response, confirming that gap is resolved. Dashboard traffic cutover has since passed live: `hellodeploy.online`/`www.hellodeploy.online` now serve via the isolated `hellodeploy-web` through Nginx, confirmed publicly, with PM2 never stopped. Deliberately exercising the revert script surfaced a real bug in its own rollback (fixed) after an unrelated failure — HelloRun, a separate PM2 process on this host, crash-looping on a pre-existing port-3000 conflict — triggered it and briefly took the dashboard down as a side effect; now fully restored. A full clean revert exercise remains blocked on HelloRun's own unrelated recovery. The queue has since been resumed live (`queue_state=resumed`, dashboard confirmed healthy immediately after). The immediate next steps are deliberately requeuing the one paused domain-verification job and, separately, exercising a clean revert once HelloRun recovers; HelloRun's port conflict itself is a separate, unrelated fix outside this project's scope. The release remains **NO-GO for customer application hosting** until routing, real deployments, rollback, authenticated QA, and cross-host restoration pass directly.
-
-Refresh this short handoff only when the overall execution boundary changes. Keep detailed task state and command evidence in the tracker and worklog.
+Current handoff status lives in [`IMPLEMENTATION_BATCH_TRACKER.md`](IMPLEMENTATION_BATCH_TRACKER.md)'s
+"Current Status" section — that narrative was kept in sync with this one by
+hand, which is exactly the drift risk this pointer avoids. Do not duplicate
+the handoff narrative here again; update the tracker instead.

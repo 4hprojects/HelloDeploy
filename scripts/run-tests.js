@@ -15,6 +15,7 @@ function findTests(directory) {
 }
 
 const watch = process.argv.includes('--watch');
+const coverage = process.argv.includes('--coverage');
 const testFiles = findTests('tests');
 
 if (testFiles.length === 0) {
@@ -24,7 +25,12 @@ if (testFiles.length === 0) {
 
 const result = spawnSync(
   process.execPath,
-  ['--test', ...(watch ? ['--watch'] : []), ...testFiles],
+  [
+    '--test',
+    ...(watch ? ['--watch'] : []),
+    ...(coverage ? ['--experimental-test-coverage'] : []),
+    ...testFiles,
+  ],
   {
     stdio: 'inherit',
     env: { ...process.env, NODE_ENV: 'test' },

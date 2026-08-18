@@ -12,7 +12,7 @@ Close the WORKLOG.md verification checkboxes that are verifiable in this environ
 ## Tasks (checklist)
 
 - [x] Deployment-options evidence gathered live (see Verification) — WORKLOG line checked off
-- [x] `docs/RELEASE_SMOKE_TEST.md` — copy-paste checklist validating the non-root images (static + Node + rollback) on a docker-capable host
+- [x] `docs/RELEASE_SMOKE_TEST.md` — copy-paste checklist validating the non-root images (static + Node + rollback) on a docker-capable host (2026-08-14: folded into `docs/OPERATIONS_RUNBOOKS.md`'s "Release Smoke Test" section as a standard release-checklist step; this path no longer exists standalone)
 - [x] WORKLOG.md updated with evidence and pointers
 - [ ] **Resend provider delivery — needs one manual command** (see Notes); everything up to the provider boundary is already test-covered
 

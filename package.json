@@ -8,6 +8,7 @@
     "packages/*"
   ],
   "scripts": {
+    "prepare": "git config core.hooksPath .githooks || true",
     "dev": "concurrently --names \"web,worker\" --prefix-colors \"cyan,yellow\" \"npm run dev -w @hellodeploy/web\" \"npm run dev -w @hellodeploy/worker\"",
     "start": "concurrently --names \"web,worker\" \"npm run start -w @hellodeploy/web\" \"npm run start -w @hellodeploy/worker\"",
     "lint": "eslint .",
@@ -18,7 +19,8 @@
     "host:baseline": "node scripts/capture-host-baseline.js",
     "production:check": "node scripts/check-public-production.js",
     "test": "node scripts/run-tests.js",
-    "test:watch": "node scripts/run-tests.js --watch"
+    "test:watch": "node scripts/run-tests.js --watch",
+    "test:coverage": "node scripts/run-tests.js --coverage"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",

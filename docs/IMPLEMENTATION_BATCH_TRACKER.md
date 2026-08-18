@@ -1,20 +1,39 @@
 # Implementation Batch Tracker
 
-Updated: 2026-08-10T16:29:20+08:00
+Updated: 2026-08-18
 
-This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloRun pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
+This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P1 isolated foundation complete; P2 routing in progress                                                                         |
-| Release progress | `v0.1.5` published; P1 candidate merged from PR #17                                                                             |
-| Current batch    | Priority 2 — Routing and Production Cutover                                                                                     |
-| Next action      | Deliberately requeue the paused domain-verification job and observe; exercise a clean revert once HelloRun (unrelated) recovers |
-| Release state    | NO-GO for customer application hosting                                                                                          |
+| Field            | Value                                                                                                                                                        |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                                                  |
+| Release progress | `v0.1.5` published; unreleased multi-area work is being reconciled on `stabilize/hellouniversity-release`                                                    |
+| Current batch    | Release reconciliation before the next production retry                                                                                                      |
+| Next action      | Finish clean candidate gates and review, merge the immutable SHA, then normalize production with the supported upgrade path before one HelloUniversity retry |
+| Release state    | NO-GO for customer application hosting                                                                                                                       |
 
-The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dashboard, Redis, Nginx, dashboard Cloudflare connectors, and the independent HelloRun fallback remain healthy. Docker, system Node.js 22, protected configuration, isolated service identities, and managed-route storage are installed. P1 is Complete. For P2, the deployment queue is paused and drained; sanitized inspection found no deployment work and one valid domain-verification job, which remains paused. The constrained helper is active and enabled, and live route creation, replacement, invalid-candidate restoration, and removal pass with no probe residue. Local wildcard tunnel ingress activation has passed live: after two earlier attempts surfaced and fixed a YAML quoting defect and a connector-convergence timing gap, the retry against the corrected release passed every stage, leaving both dashboard connectors active and both public fallbacks healthy. This adds only local Cloudflare Tunnel ingress rules; wildcard DNS is still unchanged and absent. Candidate web/worker service activation has also passed live: after a first attempt surfaced a session-write/shutdown-ordering race (fixed — graceful shutdown now waits for pending session-store writes before closing the database), the retry started both `hellodeploy-web` and `hellodeploy-worker` under their intended identities and passed web health/readiness, secure session cookies, worker readiness, Nginx syntax, and a queue-pause recheck. Both services are active as transient candidates (not enabled, no boot persistence), with the queue still paused and no dashboard traffic cut over. The wildcard domain was subsequently restructured from `*.apps.hellodeploy.online` to `*.hellodeploy.online` after discovering the account's free Cloudflare SSL certificate doesn't cover second-level wildcards; the live migration passed, and a public wildcard HTTPS probe now returns a real TLS-terminated response, confirming the certificate gap is resolved. Two unrelated live issues were found and fixed along the way: a stale systemd `ReadWritePaths` bind-mount on the Nginx helper that broke daily after log rotation, and a `DEPLOYMENT_DOMAIN`/`PLATFORM_SUBDOMAIN_SUFFIX` mismatch in the repository-run PM2 pilot's `.env` that had it crash-looping. Dashboard traffic cutover has since passed live: `activate-dashboard-cutover.sh` and `revert-dashboard-cutover.sh` were built, and cutover itself passed cleanly on the first attempt — `hellodeploy.online`/`www.hellodeploy.online` now serve via the isolated `hellodeploy-web` through Nginx, confirmed publicly, with PM2 never stopped. Deliberately exercising revert (to satisfy the P2 "restore the former path" evidence requirement) surfaced a real bug in the revert script's own rollback (fixed) after an unrelated failure — HelloRun's separate PM2 process crash-looping on a port conflict — triggered it; the dashboard was briefly down as a result and is now fully restored. The queue has since been resumed live (`queue_state=resumed`, dashboard confirmed healthy immediately after). Deliberately requeuing the one paused domain-verification job and a clean revert-proof (blocked on HelloRun's unrelated recovery) are the only remaining P2 gates; customer deployments remain unavailable and customer hosting remains NO-GO.
+**Historical snapshot through 2026-08-10 (superseded by the corrections below):**
+The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
+Docker, Redis, Nginx, dashboard ingress, and wildcard TLS foundation were activated;
+dashboard cutover and queue resume passed. The first dashboard-revert attempt exposed
+a rollback bug and did not satisfy the clean revert proof. Detailed step evidence is
+retained in the priority sections and worklog.
+
+**2026-08-14 correction:** a live status check found the "one paused domain-verification job" above was itself stale — it actually completed 2026-08-10 as an unlogged side effect of the queue-resume run; the domain is now in `PENDING_ADMIN_APPROVAL`. `hellorun.online`'s port-3000 crash-loop (the revert-script blocker) is also resolved — it now returns `200`. The only two P2 items left are exercising the revert script (unblocked, not yet run) and verifying real routing once a project deploys (P3, depends on the next major body of work). See `docs/PRIORITIES.md` Track A and `docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md` for full evidence. Customer deployments remain unavailable and customer hosting remains NO-GO.
+
+**2026-08-18 pilot/release correction:** HelloUniversity (`hellouniversity-4e6a`)
+is now the named P4 pilot; HelloRun stays operational as an independent service but
+is no longer a release gate. Repository connection, Express detection, 39 environment
+variable names, review submission, and approval were completed. Five real deployment
+attempts failed during clone and never reached build or activation. The public
+platform hostname still serves the unmatched-host Nginx fallback, not
+HelloUniversity. The tarball clone and bounded retry changes were copied manually to
+the live worker while diagnosing those failures; that intervention is deployment
+drift, not a release. No further pilot retry is permitted until the current worktree
+is reviewed, committed, merged, installed by immutable full SHA, and verified clean.
+P3/P4 are therefore In Progress, while customer hosting remains NO-GO.
 
 ## Status Legend
 
@@ -33,8 +52,8 @@ The current Ubuntu 26.04 laptop remains the HelloDeploy pilot host. The PM2 dash
 | 3     | Production Configuration            | Blocked (external revalidation only) | Phase 3          |
 | 4     | Health and Graceful Shutdown        | In Review                            | Phase 4          |
 | 5     | Installer and Operational Lifecycle | In Progress                          | Phase 5          |
-| 6     | Real Deployment Validation          | Not Started                          | Phase 6          |
-| 7     | Pilot and Recovery Drills           | Not Started                          | Phase 7          |
+| 6     | Real Deployment Validation          | In Progress                          | Phase 6          |
+| 7     | Pilot and Recovery Drills           | In Progress                          | Phase 7          |
 | 8     | Final Release Decision              | Not Started                          | Phase 8          |
 
 ## Remaining Execution Groups
@@ -46,8 +65,8 @@ These groups order the remaining batches by dependency and identify work that ca
 | 0        | Documentation and Release Reconciliation | Complete    | Green PR #5 merged                      | Repository and PR describe the observed local pilot          |
 | 1        | Safe In-Place Baseline                   | Complete    | Priority 0 and privileged authorization | Verified backup, inventory, immutable ref, and rollback path |
 | 1        | Production Service Foundation            | Complete    | Safe baseline and privileged access     | Docker and isolated services work on Ubuntu 26.04            |
-| 2        | Routing and Production Cutover           | In Progress | Service foundation                      | Nginx and wildcard ingress cut over without dashboard loss   |
-| 3        | Application and Product Validation       | Not Started | Production routing                      | Runtime, role, secret, and accessibility QA passes           |
+| 2        | Routing and Production Cutover           | In Progress | Service foundation                      | Complete dashboard revert proof and first managed route      |
+| 3        | Application and Product Validation       | In Progress | Reviewed immutable candidate            | Runtime, role, secret, and accessibility QA passes           |
 | 4        | Recovery and Ubuntu 26 Graduation        | Not Started | Validated application plane             | Upgrade, rollback, restore, and OS-support evidence passes   |
 | 5        | Final GO/NO-GO Decision                  | Not Started | Priorities 0–4                          | Every release gate has direct evidence                       |
 
@@ -328,7 +347,9 @@ git status --short
 **Completed:** —
 **Objective:** Make valid production configuration start reliably and invalid configuration fail early with safe diagnostics.
 **Dependencies:** Batches 1–2 and the intended production GitHub App and routing details.
-**Blockers:** Host-side service-identity evidence is now recorded (2026-08-06): `hellodeploy-web` and `hellodeploy-worker` started live under their intended identities and passed health, readiness, and the strict session-cookie contract over loopback. External revalidation (`npm run production:check` against a real public HTTPS domain) still requires the wildcard DNS record, which remains absent.
+**Blockers:** Runtime validation passes and wildcard DNS/TLS exists, but production
+still points at the shared `hellotasks` database. Batch completion requires the
+planned maintenance-window migration to `hellodeploy_db` and post-cutover validation.
 
 ### Tasks
 
@@ -347,7 +368,11 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Both services start with valid production configuration, all invalid cases fail safely before listening or processing jobs, and configuration sources agree.
-**Evidence:** `PLATFORM_DOMAIN` identifies the HelloDeploy dashboard and `DEPLOYMENT_DOMAIN` identifies the application wildcard in source. Shared queue clients prefer `REDIS_URL`, require `rediss://` for remote production Redis, retain loopback compatibility, and log only bounded modes/error classifications. Supported start/install/upgrade paths require production mode. The configured GitHub App identity and protected key passed an authenticated app-identity request, and the web-only pilot passes production configuration. The public checker now passes the strict session-cookie contract. `hellodeploy-web` and `hellodeploy-worker` started live under their intended service identities on 2026-08-06 and passed health, readiness, and the session-cookie contract over loopback; ingress cutover and external HTTPS revalidation (blocked on wildcard DNS) remain.
+**Evidence:** `PLATFORM_DOMAIN` identifies the dashboard and `DEPLOYMENT_DOMAIN`
+identifies the application wildcard. Queue clients and production diagnostics retain
+value-safe validation. Both isolated services, public dashboard checks, wildcard
+DNS/TLS, and the strict session-cookie contract passed. The newly hardened database
+migration is dry-run by default and locally tested; no live database cutover has run.
 
 ## Batch 4 — Health and Graceful Shutdown
 
@@ -408,12 +433,12 @@ git status --short
 
 ## Batch 6 — Real Deployment Validation
 
-**Status:** Not Started
-**Started:** —
+**Status:** In Progress
+**Started:** 2026-08-14
 **Completed:** —
 **Objective:** Validate the real Docker-backed deployment pipeline and its security and failure behavior.
 **Dependencies:** Batches 1–5 and a staging host with a reachable Docker daemon and production routing path.
-**Blockers:** Requires Docker-enabled target-host access.
+**Blockers:** The current multi-area worktree must become a reviewed immutable release and the manually patched production checkout must be normalized before another live attempt.
 
 ### Tasks
 
@@ -433,16 +458,16 @@ git status --short
 - Run the full Batch 1 quality gate.
 
 **Completion gate:** Every supported runtime serves through production routing, containers are constrained, failure paths leak no secrets or unsafe state, and rollback meets the documented objective.
-**Evidence:** Not recorded.
+**Evidence:** HelloUniversity repository connection, Express detection, configuration-name upload, submission, and approval passed. Five production attempts failed at clone and never reached build, activation, or route creation. The platform hostname serves the safe fallback. Tarball and retry corrections are locally tested but their manual live copies are drift, not release evidence.
 
 ## Batch 7 — Pilot and Recovery Drills
 
-**Status:** Not Started
-**Started:** —
+**Status:** In Progress
+**Started:** 2026-08-14
 **Completed:** —
 **Objective:** Validate realistic product use and operational recovery with a noncritical repository.
 **Dependencies:** Batches 1–6, a noncritical GitHub repository, staging ingress, and a second restore host.
-**Blockers:** Requires external GitHub, DNS/TLS, notification, ingress, and host access.
+**Blockers:** First healthy HelloUniversity platform deployment, the remaining supported-runtime proof, external DNS/monitoring access, and an independent Ubuntu 24.04 restore host.
 
 ### Tasks
 

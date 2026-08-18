@@ -1,13 +1,13 @@
 # Project Status Review
 
-Updated: 2026-08-06
+Updated: 2026-08-18
 
 This is a synthesized snapshot — architecture, test/code-quality posture, whether the
 project is still heading toward its original goal, and an estimated completion
 percentage. It is not a live-updating source of truth: for current execution status
 see [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md), for the
-HelloRun-hosting goal see
-[HelloDeploy and HelloRun Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md),
+HelloUniversity-hosting goal see
+[HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md),
 for what to work on next see [Priorities](PRIORITIES.md), and for detailed evidence
 see [Worklog](../WORKLOG.md). Refresh this review at major milestones (a phase or
 priority completing), not on every small change.
@@ -37,10 +37,11 @@ architecture doc's description.
 
 ## 2. Test Coverage Characterization
 
-118 test files under `tests/`, run via a custom `node:test` wrapper
-(`scripts/run-tests.js`, no Jest/Mocha). Breadth by directory: security 16, ui 23,
-operations 15, deployment 13, installer 12, projects 7, worker 8, nginx 5, admin 4,
-domain 3, auth 3, github 3, repository 2, config 1, detection 1.
+137 test files under `tests/` (up from 118 as of 2026-08-06), run via a custom
+`node:test` wrapper (`scripts/run-tests.js`, no Jest/Mocha). Breadth by directory:
+ui 23, operations 19, security 18, deployment 14, installer 12, admin 12, worker 10,
+projects 7, nginx 5, github 4, auth 4, domain 3, repository 2, detection 1, config 1,
+plus 2 top-level files (`contracts.test.js`, `api.test.js`).
 
 Two caveats worth knowing before trusting this number as "coverage":
 
@@ -69,12 +70,12 @@ Two caveats worth knowing before trusting this number as "coverage":
   issue: `mongoose` 8.24→9.9, `bullmq` 5.79→6.0, `connect-mongo` 5.1→6.0, `ioredis`
   5.11→6.0, `resend` 4.8→6.18, `eslint` 9.39→10.8, `argon2` 0.41→0.45, `dotenv`
   16→17.
-- **A doc/reality mismatch worth flagging directly**: `CLAUDE.md` and the
-  architecture docs describe the stack as "Express 5," but the installed,
-  actually-running version is **Express 4.22** (`apps/web/package.json` pins
-  `^4.21.2`). Either the Express 5 migration was planned but never done, or the docs
-  describe aspirational state. Worth a deliberate decision (migrate, or correct the
-  docs) rather than leaving the mismatch standing.
+- **Doc/reality mismatch, resolved 2026-08-14**: `CLAUDE.md` described the
+  stack as "Express 5," but the installed, actually-running version is
+  **Express 4.22** (`apps/web/package.json` pins `^4.21.2`). Corrected
+  `CLAUDE.md` to say Express 4 — the actual dependency was not touched;
+  migrating to Express 5 for real remains a separate, un-scheduled
+  decision if ever wanted.
 
 ## 4. Direction / Goal Alignment Check
 
@@ -86,15 +87,18 @@ doc, to answer "are we still building what we set out to build":
   Foundation): Complete.** Isolated service identities, Docker, protected
   configuration, and systemd units all match the blueprint's single-host V1
   topology exactly — no scope drift here.
-- **P2 (Activate Worker, Queues, and Public Routing): In Progress**, and every gate
-  passed so far (routing foundation, wildcard tunnel ingress, candidate web/worker
-  service activation, all proven live on the actual pilot host) matches the
-  blueprint's deployment-lifecycle description — nothing has been substituted or
-  skipped, just sequenced.
-- **P3-P6 (real deployment validation, HelloRun cutover, multi-project proof,
-  formal GO): Not Started**, but their scope as written in the production plan is a
-  direct, unmodified translation of the blueprint's phases 6-8 (real deployment,
-  pilot, and recovery drills) and testing/acceptance criteria.
+- **P2 (Activate Worker, Queues, and Public Routing): Nearly complete.** Wildcard
+  DNS/TLS, dashboard traffic cutover, and queue resume have all since passed live —
+  `hellodeploy.online`/`www.hellodeploy.online` serve via the isolated
+  `hellodeploy-web` through Nginx, and `queue_state=resumed`. Two items remain:
+  exercising `revert-dashboard-cutover.sh` to a clean success (its stated blocker
+  cleared 2026-08-13; the script itself still hasn't been run), and verifying real
+  application routing under the wildcard once a project can actually be deployed
+  (depends on P3). See `docs/PRIORITIES.md` Track A.
+- **P3-P4 (real deployment validation and HelloUniversity cutover): In Progress.**
+  The real project was connected, detected, configured, submitted, and approved.
+  Five clone-stage deployments failed; build, activation, and managed routing remain
+  unproven. P5-P6 (multi-project proof and formal recovery/GO) remain Not Started.
 
 **Conclusion: yes, still aligned.** Nothing in the blueprint has been abandoned,
 descoped, or quietly replaced. The project is intentionally infra-first — proving the
@@ -107,29 +111,34 @@ No coverage tool or velocity data exists to derive a precise number (see §2), s
 is a structural estimate from the project's own tracked checklists, shown by axis
 rather than as one number pretending to be more precise than it is:
 
-| Axis                                                                     | Completion   | Basis                                                                                                                                                                                                                                                           |
-| ------------------------------------------------------------------------ | ------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Core infrastructure (Batches 1-2: quality baseline, privilege isolation) | 100%         | Both Complete                                                                                                                                                                                                                                                   |
-| P0-P1 (protect pilot, service foundation)                                | 100%         | Both Complete                                                                                                                                                                                                                                                   |
-| P2 (routing and production cutover)                                      | ~60-70%      | 3 of 10 P2 checklist items remain fully open (DNS record, dashboard cutover, queue resume); 2 more are functionally proven but left unchecked pending one narrow unverified sub-clause each (Nginx-reload-failure restoration; wildcard DNS/HTTPS/test-routing) |
-| P3-P6 (real deployment, HelloRun cutover, multi-project, formal GO)      | 0%           | Not Started — no work begun on any of the four                                                                                                                                                                                                                  |
-| Full HelloRun production plan (P0-P6), raw checklist                     | 21/74 = ~28% | Direct count across `docs/HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md`; understates true progress since it weights P3-P6's many unstarted items equally against P0-P1's finished ones                                                                               |
-| `IMPROVEMENTS.md` Round 2 quality/security backlog                       | 6/21 = ~29%  | 6 items fixed (W1, W3, W4, W5, W7, W9); 15 open across phases 12-18                                                                                                                                                                                             |
+| Axis                                                                     | Completion              | Basis                                                                                                                                                                                                              |
+| ------------------------------------------------------------------------ | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Core infrastructure (Batches 1-2: quality baseline, privilege isolation) | 100%                    | Both Complete                                                                                                                                                                                                      |
+| P0-P1 (protect pilot, service foundation)                                | 100%                    | Both Complete                                                                                                                                                                                                      |
+| P2 (routing and production cutover)                                      | ~85-90%                 | DNS/TLS, dashboard cutover, and queue resume all now passed live (2026-08-08/09/10); 2 items remain — exercise the revert script to a clean success, and verify real routing once a project deploys                |
+| P3-P4 (real deployment and HelloUniversity cutover)                      | In Progress             | Repository/detection/configuration/approval passed; five clone attempts failed before build, activation, or route creation                                                                                         |
+| P5-P6 (multi-project workflow, recovery, formal GO)                      | 0%                      | Not Started                                                                                                                                                                                                        |
+| Full HelloUniversity production plan (P0-P6), raw checklist              | Not recounted this pass | Recount only after the immutable release and first healthy platform deployment; failed attempts and manual live patches do not satisfy checklist rows                                                              |
+| `IMPROVEMENTS.md` Round 2 quality/security backlog                       | 26/28 = ~93%            | Resolved 2026-08-13 in a dedicated Track B pass (`docs/PRIORITIES.md`, `WORKLOG.md`) — only E2 (bare-clone caching, deliberately deferred) and U5 (partially — the broader webhook-failure-signal gap) remain open |
 
-**Blended headline estimate: roughly 35-40% toward a formal production GO for
-hosting HelloRun through HelloDeploy.** The platform's foundation (host isolation,
-Docker, routing, candidate services) is fully proven; what's left is concentrated in
-finishing P2's last three gates (all currently unblocked except for one manual
-operator action — the wildcard DNS record) and then P3-P6, which is the larger
-remaining body of work: real multi-runtime deployment validation, the actual
-HelloRun cutover, multi-project/RBAC proof, and recovery drills, none of which has
-started. The open code-quality/security backlog (15 items) runs in parallel and
-isn't blocking P2-P6, but does block the eventual formal release decision (Batch 8).
+**Blended headline estimate: meaningfully higher than the 2026-08-06 35-40%
+figure, driven almost entirely by P2's near-completion and the quality/security
+backlog dropping from 15 open items to 2.** The platform's foundation (host
+isolation, Docker, routing, candidate services) is fully proven, P2 is down to two
+concrete, unblocked items, and code quality/security is essentially clean. What's
+left is now overwhelmingly concentrated in P3-P6 — the larger remaining body of
+work: completing the first HelloUniversity deployment, real multi-runtime validation,
+the custom-domain cutover, multi-project/RBAC proof, and recovery drills. Only the
+first pilot's pre-deployment workflow has started. A
+precise new blended number isn't given here deliberately — the raw P0-P6 checklist
+count needs recalculating (see table above) before a number would mean anything
+more than the qualitative picture already states.
 
 ## 6. What This Means for Priorities
 
-See [Priorities](PRIORITIES.md) for the actionable list. In short: one manual step
-(wildcard DNS) unblocks the rest of P2; P3-P6 is the next major body of work after
-that; the 15-item quality/security backlog can proceed independently and in
-parallel, was analyzed 2026-07-06, and should be spot-checked for continued
-relevance before implementation starts on any item.
+See [Priorities](PRIORITIES.md) for the actionable list. In short: P2 is down to
+two concrete items (revert-script exercise, real-routing verification); P3/P4 has
+started but has not passed clone — completing it and P5/P6 is the dominant gap
+between where the project is and a formal production GO; the quality/security
+backlog is essentially clean (26/28 resolved 2026-08-13) and no longer a material
+blocker in parallel.

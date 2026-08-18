@@ -2,6 +2,12 @@
 
 Updated: 2026-07-13
 
+> **Archived 2026-08-14.** All 4 delivery phases below shipped 2026-07-13 —
+> this is now a closed delivery record, not a live spec. Its "Deferred
+> Capabilities" section is superseded by the fuller evaluation in
+> [`PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md`](../PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md),
+> which remains the canonical, active doc for that topic.
+
 ## Purpose
 
 This specification defines a consolidated project-settings experience for HelloDeploy. It is informed by sanitized observations from seven reference screenshots of a commercial deployment dashboard, but it does not reproduce those screenshots, identifiers, account details, domains, or product-specific wording.

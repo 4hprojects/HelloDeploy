@@ -1,0 +1,21 @@
+name: Uptime Check
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  check:
+    name: Check /ready
+    runs-on: ubuntu-latest
+    steps:
+      - name: Curl production readiness endpoint
+        run: |
+          status=$(curl -s -o /tmp/ready-response.json -w "%{http_code}" --max-time 15 https://hellodeploy.online/ready || echo "000")
+          echo "HTTP status: $status"
+          cat /tmp/ready-response.json 2>/dev/null || true
+          if [ "$status" != "200" ]; then
+            echo "::error::hellodeploy.online/ready returned $status (expected 200)"
+            exit 1
+          fi

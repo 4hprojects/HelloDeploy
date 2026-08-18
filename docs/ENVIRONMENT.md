@@ -22,12 +22,13 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 
 ## Security
 
-| Variable                 | Used by     | Required (prod) | Default (dev)   | Purpose                                                                                                         |
-| ------------------------ | ----------- | --------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
-| `SESSION_SECRET`         | web         | **yes**         | dev placeholder | Session cookie signing secret                                                                                   |
-| `HELLODEPLOY_MASTER_KEY` | web, worker | **yes**         | dev placeholder | Base64-encoded 32-byte master key encrypting environment secrets (`scripts/generate-secrets.js` can create one) |
-| `TURNSTILE_SITE_KEY`     | web         | no              | —               | Cloudflare Turnstile site key (bot protection on auth forms); Turnstile disabled when unset                     |
-| `TURNSTILE_SECRET_KEY`   | web         | no              | —               | Cloudflare Turnstile server secret                                                                              |
+| Variable                      | Used by     | Required (prod) | Default (dev)   | Purpose                                                                                                         |
+| ----------------------------- | ----------- | --------------- | --------------- | --------------------------------------------------------------------------------------------------------------- |
+| `SESSION_SECRET`              | web         | **yes**         | dev placeholder | Session cookie signing secret                                                                                   |
+| `HELLODEPLOY_MASTER_KEY`      | web, worker | **yes**         | dev placeholder | Base64-encoded 32-byte master key encrypting environment secrets (`scripts/generate-secrets.js` can create one) |
+| `HELLODEPLOY_MASTER_KEY_NEXT` | web, worker | no              | —               | Distinct base64-encoded 32-byte key set only during rotation; startup validates it before secret access         |
+| `TURNSTILE_SITE_KEY`          | web         | no              | —               | Cloudflare Turnstile site key (bot protection on auth forms); Turnstile disabled when unset                     |
+| `TURNSTILE_SECRET_KEY`        | web         | no              | —               | Cloudflare Turnstile server secret                                                                              |
 
 ## Platform / routing
 
