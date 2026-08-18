@@ -70,6 +70,10 @@ if ! awk '
     allowed["payload/tunnel-credentials"]=1
     allowed["payload/release-commit.txt"]=1
     allowed["payload/rollback-instructions"]=1
+    allowed["payload/repository-status"]=1
+    allowed["payload/repository-worktree.patch"]=1
+    allowed["payload/repository-index.patch"]=1
+    allowed["payload/repository-files.tar.gz"]=1
     allowed["payload/database-export.archive.gz"]=1
     allowed["payload/CHECKSUMS.sha256"]=1
     allowed["payload/manifest.json"]=1
@@ -109,6 +113,10 @@ fi
       allowed["tunnel-credentials"]=1
       allowed["release-commit.txt"]=1
       allowed["rollback-instructions"]=1
+      allowed["repository-status"]=1
+      allowed["repository-worktree.patch"]=1
+      allowed["repository-index.patch"]=1
+      allowed["repository-files.tar.gz"]=1
       allowed["database-export.archive.gz"]=1
       allowed["manifest.json"]=1
       allowed["hellodeploy-data.tar.gz"]=1
@@ -137,7 +145,7 @@ fi
 )
 
 MANIFEST="$VERIFY_DIR/payload/manifest.json"
-if ! grep -Eq '^  "formatVersion": 1,$' "$MANIFEST" ||
+if ! grep -Eq '^  "formatVersion": (1|2),$' "$MANIFEST" ||
   ! grep -Eq '^  "kind": "hellodeploy-pilot-pre-cutover",$' "$MANIFEST" ||
   ! grep -Eq '^  "commitSha": "[0-9a-f]{40}",$' "$MANIFEST" ||
   ! grep -Eq '^  "databaseMode": "(verified-external-snapshot|verified-mongodump-export)",$' "$MANIFEST" ||
@@ -146,11 +154,51 @@ if ! grep -Eq '^  "formatVersion": 1,$' "$MANIFEST" ||
   exit 1
 fi
 
+FORMAT_VERSION=$(sed -n 's/^  "formatVersion": \([12]\),$/\1/p' "$MANIFEST")
+REPOSITORY_STATE="clean"
+if [[ "$FORMAT_VERSION" == 2 ]]; then
+  REPOSITORY_STATE=$(sed -n 's/^  "repositoryState": "\(clean\|dirty-captured\)",$/\1/p' "$MANIFEST")
+  if [[ -z "$REPOSITORY_STATE" ]]; then
+    error "Pilot backup manifest is invalid."
+    exit 1
+  fi
+fi
+
 MANIFEST_COMMIT=$(sed -n 's/^  "commitSha": "\([0-9a-f]\{40\}\)",$/\1/p' "$MANIFEST")
 RECORDED_COMMIT=$(tr -d '\r\n' < "$VERIFY_DIR/payload/release-commit.txt")
 if [[ "$RECORDED_COMMIT" != "$MANIFEST_COMMIT" ]]; then
   error "Pilot backup release identity is inconsistent."
   exit 1
+fi
+
+REPOSITORY_EVIDENCE=(
+  repository-status
+  repository-worktree.patch
+  repository-index.patch
+  repository-files.tar.gz
+)
+if [[ "$REPOSITORY_STATE" == "dirty-captured" ]]; then
+  for evidence_file in "${REPOSITORY_EVIDENCE[@]}"; do
+    [[ -f "$VERIFY_DIR/payload/$evidence_file" ]] || {
+      error "Pilot backup repository-state inventory is inconsistent."
+      exit 1
+    }
+  done
+  if [[ ! -s "$VERIFY_DIR/payload/repository-status" ]]; then
+    error "Pilot backup repository-state inventory is inconsistent."
+    exit 1
+  fi
+  if ! tar -tzf "$VERIFY_DIR/payload/repository-files.tar.gz" >/dev/null 2>&1; then
+    error "Pilot backup repository-state archive is invalid."
+    exit 1
+  fi
+else
+  for evidence_file in "${REPOSITORY_EVIDENCE[@]}"; do
+    [[ ! -e "$VERIFY_DIR/payload/$evidence_file" ]] || {
+      error "Pilot backup repository-state inventory is inconsistent."
+      exit 1
+    }
+  done
 fi
 if grep -q '^  "dataIncluded": true$' "$MANIFEST"; then
   [[ -f "$VERIFY_DIR/payload/hellodeploy-data.tar.gz" ]] || {

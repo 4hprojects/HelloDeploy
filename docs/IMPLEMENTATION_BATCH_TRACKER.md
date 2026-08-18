@@ -6,13 +6,13 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 
 ## Current Status
 
-| Field            | Value                                                                                                                                   |
-| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                             |
-| Release progress | `v0.1.5` published; PR #37 is green at `abb2fe90fab1be49a7e74e4cd09d6a1e47df2b39` and awaiting merge                                    |
-| Current batch    | Final release-candidate evidence and merge before production normalization                                                              |
-| Next action      | Merge PR #37, use the resulting full merge SHA as the immutable candidate, then normalize production through the supported upgrade path |
-| Release state    | NO-GO for customer application hosting                                                                                                  |
+| Field            | Value                                                                                                                                                       |
+| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                                                 |
+| Release progress | PR #37 merged; immutable production candidate is `8bfdf399501578a7c008834dbc76453016ab95e6`; no final production tag exists                                 |
+| Current batch    | Phase 2 protected backup, drift reconciliation, dashboard-revert proof, and immutable production normalization                                              |
+| Next action      | Declare the maintenance window and provide an interactive sudo session; capture the dirty live state before reconciling it, then run the supported workflow |
+| Release state    | NO-GO for customer application hosting                                                                                                                      |
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
@@ -47,6 +47,18 @@ has not been mutated: a read-only baseline confirms the isolated services and PM
 fallback are active and the public readiness/fallback checks return 200. Privileged
 drift, backup, Nginx, queue, revert, and upgrade checks remain pending the declared
 maintenance window.
+
+**2026-08-18 merge and Phase 2 preflight update:** PR #37 merged through a merge
+commit after CI, CodeQL analysis, and the zero-alert CodeQL security gate passed on
+its final head. The resulting immutable candidate is
+`8bfdf399501578a7c008834dbc76453016ab95e6`; it is intentionally untagged. Read-only
+host inspection confirms that production mutations require interactive sudo. It also
+found an ordering constraint: the live checkout is documented as dirty from the
+manual clone/build fix, while the pilot backup and dashboard revert/reactivation
+scripts refuse dirty checkouts. The maintenance workflow must first capture the exact
+dirty checkout in protected encrypted evidence, inspect and archive its drift, and
+restore only explained files before the clean-checkout revert/reactivation proof can
+run. No production state changed during this preflight.
 
 ## Status Legend
 

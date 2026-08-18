@@ -33,6 +33,17 @@ sudo bash infrastructure/backup-pilot.sh \
   --external-database-snapshot-confirmed
 ```
 
+The normal backup path rejects a dirty checkout. During an explicitly approved
+production-reconciliation window, when known manual drift must be preserved before it
+can be removed, add `--capture-dirty-checkout`. That opt-in mode records the
+Git-visible NUL-delimited status, binary index and worktree patches, and changed or
+untracked file objects inside the encrypted artifact. It does not print filenames or
+patch content. The verifier requires all drift members to agree with the manifest;
+do not restore the changed-file archive directly over a checkout. Inspect it only in
+an isolated protected location.
+The version-2 manifest records whether drift was captured; the verifier remains able
+to validate earlier version-1 clean artifacts.
+
 For Atlas Free or another database without managed snapshots, replace the final option with the protected export path:
 
 ```sh

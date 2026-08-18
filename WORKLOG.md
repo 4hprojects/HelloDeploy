@@ -1841,8 +1841,8 @@ browser session, which this session doesn't hold. See
 
 ## HelloUniversity Release Reconciliation
 
-- Status: PR #37 candidate gates passed; merge pending
-- Updated: 2026-08-18T22:52:00+08:00
+- Status: Phase 1 merged; Phase 2 privileged maintenance pending
+- Updated: 2026-08-18T23:05:47+08:00
 
 ### Scope and findings
 
@@ -1899,6 +1899,12 @@ browser session, which this session doesn't hold. See
   remains directly covered. `REDIS_PORT=1 npm run test:coverage` passed 979 tests
   across 205 suites with no Redis dependency; final GitHub CI then passed in 60
   seconds at full head `abb2fe90fab1be49a7e74e4cd09d6a1e47df2b39`.
+- The evidence-only final head
+  `a2ed8df4d700f7c70970746dfe984cee85041b9f` passed CI in 59 seconds, CodeQL
+  analysis, and the zero-alert CodeQL security gate. PR #37 was marked ready and
+  merged with a merge commit, preserving the four review cohorts. The resulting
+  immutable production candidate is
+  `8bfdf399501578a7c008834dbc76453016ab95e6`; no production tag was created.
 
 ### Phase 2 read-only baseline
 
@@ -1915,12 +1921,41 @@ browser session, which this session doesn't hold. See
   change, service restart, or upgrade ran. Those actions require the merged immutable
   SHA, a declared maintenance window, and an operator-provided interactive sudo
   session.
+- The read-only script audit found that `backup-pilot.sh`,
+  `revert-dashboard-cutover.sh`, `activate-dashboard-cutover.sh`, and `upgrade.sh`
+  all reject a dirty production checkout. Because the documented live clone/build
+  copies are deliberate drift, the requested sequence cannot safely run the revert
+  proof before drift capture and reconciliation. The maintenance window must capture
+  the exact dirty checkout in protected encrypted evidence first, inspect and archive
+  the drift without logging content, restore only files proven to be the explained
+  manual copies, and only then execute the clean-checkout revert/reactivation proof
+  and immutable upgrade.
+
+### Phase 2 dirty-state backup prerequisite
+
+- Added an opt-in `--capture-dirty-checkout` mode to the encrypted pilot backup.
+  The default remains fail-closed for dirty repositories. The reconciliation mode
+  stores Git-visible NUL-delimited status, binary index/worktree patches, and the
+  modified or untracked file objects inside protected plaintext staging and the
+  encrypted artifact without printing paths or contents.
+- Backup manifest version 2 records `clean` or `dirty-captured` repository state.
+  The verifier requires the drift inventory and a nonempty status only for the dirty
+  state, rejects unexpected drift members for clean state, validates the nested file
+  archive, and remains compatible with version-1 clean artifacts.
+- Shell syntax passed. The focused backup and live-workflow suites passed 12 tests;
+  the complete installer/operations group passed 182 tests across 36 suites. Final
+  configuration validation, all 980 tests across 205 suites, lint, formatting,
+  production dependency audit with zero vulnerabilities, and `git diff --check`
+  passed. Target-host backup creation and retrieval verification remain unrun because
+  they require the declared maintenance window, protected operator-selected paths and
+  recovery key, and interactive sudo.
 
 ### Next gate
 
-Merge green PR #37 and record its resulting full merge commit as the immutable
-candidate. Then, during the declared maintenance window, capture and verify protected
-backup evidence, pause/drain the queue, complete the dashboard-revert proof, archive
-and remove explained production drift, and run `infrastructure/upgrade.sh` with that
-full SHA. Production normalization, deployment retry, database migration, DNS cutover,
-and recovery remain unexecuted until their declared operational preconditions pass.
+During the declared maintenance window, use an operator-provided interactive sudo
+session to capture and verify protected backup evidence for the exact dirty live
+state, pause/drain the queue, archive and remove only explained production drift,
+complete the dashboard-revert/reactivation proof, and run
+`infrastructure/upgrade.sh --ref 8bfdf399501578a7c008834dbc76453016ab95e6`.
+Production normalization, deployment retry, database migration, DNS cutover, and
+recovery remain unexecuted until their declared operational preconditions pass.

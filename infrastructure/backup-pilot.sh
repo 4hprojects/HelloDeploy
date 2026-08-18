@@ -15,6 +15,7 @@ DATA_DIR=""
 ROLLBACK_INSTRUCTIONS=""
 DATABASE_SNAPSHOT_CONFIRMED=false
 DATABASE_EXPORT=""
+CAPTURE_DIRTY_CHECKOUT=false
 
 error() { printf '[error] %s\n' "$*" >&2; }
 info() { printf '[info] %s\n' "$*"; }
@@ -42,6 +43,7 @@ Usage: sudo bash infrastructure/backup-pilot.sh \
   --rollback-instructions /root/private/pilot-rollback.txt \
   (--external-database-snapshot-confirmed | \
    --database-export /protected/path/mongodb.archive.gz) \
+  [--capture-dirty-checkout] \
   [--tunnel-config /etc/cloudflared/hellodeploy.yml] \
   [--data-dir /path/to/existing/hellodeploy-data]
 
@@ -49,6 +51,11 @@ The output location must be outside the source repository. This command creates
 an encrypted artifact; store it on the approved off-host medium, retrieve it,
 and verify it before changing the pilot. Verification on this host proves
 artifact integrity, not cross-host restore readiness.
+
+By default, a dirty repository is rejected. --capture-dirty-checkout is an
+explicit production-reconciliation mode: it stores the Git-visible status,
+binary index/worktree patches, and changed or untracked file objects only
+inside the encrypted artifact. It never prints their paths or contents.
 EOF
 }
 
@@ -63,6 +70,7 @@ while [[ $# -gt 0 ]]; do
     --rollback-instructions) ROLLBACK_INSTRUCTIONS="${2:-}"; shift 2 ;;
     --external-database-snapshot-confirmed) DATABASE_SNAPSHOT_CONFIRMED=true; shift ;;
     --database-export) DATABASE_EXPORT="${2:-}"; shift 2 ;;
+    --capture-dirty-checkout) CAPTURE_DIRTY_CHECKOUT=true; shift ;;
     --help|-h) usage; exit 0 ;;
     *) error "Unknown or incomplete argument."; usage >&2; exit 2 ;;
   esac
@@ -197,9 +205,13 @@ if [[ -e "$OUTPUT_FILE" ]]; then
   error "Refusing to overwrite an existing backup artifact."
   exit 1
 fi
-if [[ -n "$(git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" status --porcelain --untracked-files=normal)" ]]; then
-  error "The pilot repository is not clean; record or preserve its exact state first."
-  exit 1
+REPOSITORY_STATE="clean"
+if [[ -n "$(git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" status --porcelain --untracked-files=all)" ]]; then
+  if [[ "$CAPTURE_DIRTY_CHECKOUT" != true ]]; then
+    error "The pilot repository is not clean; use --capture-dirty-checkout only for protected production reconciliation."
+    exit 1
+  fi
+  REPOSITORY_STATE="dirty-captured"
 fi
 
 COMMIT_SHA=$(git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" rev-parse --verify HEAD^{commit})
@@ -254,6 +266,40 @@ install -m 0600 "$TUNNEL_CONFIG" "$STAGING_DIR/payload/tunnel.yml"
 install -m 0600 "$TUNNEL_CREDENTIAL" "$STAGING_DIR/payload/tunnel-credentials"
 install -m 0600 "$ROLLBACK_INSTRUCTIONS" "$STAGING_DIR/payload/rollback-instructions"
 
+if [[ "$REPOSITORY_STATE" == "dirty-captured" ]]; then
+  # These files may contain production source changes and filenames. Keep every
+  # byte in mode-0700 plaintext staging and the final encrypted artifact; never
+  # echo their contents or paths to command output.
+  git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" \
+    status --porcelain=v1 -z --untracked-files=all >"$STAGING_DIR/payload/repository-status"
+  git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" \
+    diff --binary --full-index --no-ext-diff >"$STAGING_DIR/payload/repository-worktree.patch"
+  git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" \
+    diff --cached --binary --full-index --no-ext-diff >"$STAGING_DIR/payload/repository-index.patch"
+
+  CHANGED_PATHS="$STAGING_DIR/changed-paths"
+  EXISTING_PATHS="$STAGING_DIR/existing-paths"
+  {
+    git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" diff --name-only -z HEAD
+    git -c safe.directory="$REPO_DIR" -C "$REPO_DIR" ls-files --others --exclude-standard -z
+  } | LC_ALL=C sort -zu >"$CHANGED_PATHS"
+  : >"$EXISTING_PATHS"
+  while IFS= read -r -d '' repository_path; do
+    if [[ -e "$REPO_DIR/$repository_path" || -L "$REPO_DIR/$repository_path" ]]; then
+      if [[ ! -f "$REPO_DIR/$repository_path" && ! -L "$REPO_DIR/$repository_path" ]]; then
+        error "Dirty checkout contains an unsupported changed file type."
+        exit 1
+      fi
+      printf '%s\0' "$repository_path" >>"$EXISTING_PATHS"
+    fi
+  done <"$CHANGED_PATHS"
+  tar --create --gzip \
+    --file="$STAGING_DIR/payload/repository-files.tar.gz" \
+    --null --verbatim-files-from --no-recursion \
+    --directory="$REPO_DIR" --files-from="$EXISTING_PATHS"
+  rm -f "$CHANGED_PATHS" "$EXISTING_PATHS"
+fi
+
 if [[ -n "$DATABASE_EXPORT" ]]; then
   install -m 0600 "$DATABASE_EXPORT" "$STAGING_DIR/payload/database-export.archive.gz"
 fi
@@ -273,10 +319,11 @@ DATA_INCLUDED=false
 [[ -n "$DATA_DIR" ]] && DATA_INCLUDED=true
 cat > "$STAGING_DIR/payload/manifest.json" <<EOF
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "kind": "hellodeploy-pilot-pre-cutover",
   "createdAt": "$CREATED_AT",
   "commitSha": "$COMMIT_SHA",
+  "repositoryState": "$REPOSITORY_STATE",
   "databaseMode": "$DATABASE_MODE",
   "dataIncluded": $DATA_INCLUDED
 }
