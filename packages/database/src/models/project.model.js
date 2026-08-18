@@ -36,6 +36,15 @@ const maintenanceModeSchema = new Schema(
   { _id: false },
 );
 
+const reviewFlagSchema = new Schema(
+  {
+    active: { type: Boolean, default: false },
+    reason: { type: String, default: null, maxlength: 200 },
+    flaggedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const detectionIssueSchema = new Schema(
   {
     level: { type: String, enum: ['ERROR', 'WARNING'], required: true },
@@ -107,7 +116,10 @@ const projectSchema = new Schema(
       default: 'ALL',
     },
     maintenanceMode: { type: maintenanceModeSchema, default: () => ({}) },
+    reviewFlag: { type: reviewFlagSchema, default: () => ({}) },
     archivedAt: { type: Date, default: null },
+    suspendedAt: { type: Date, default: null },
+    suspensionReason: { type: String, default: null, maxlength: 500 },
   },
   {
     timestamps: true,
@@ -117,7 +129,13 @@ const projectSchema = new Schema(
 
 projectSchema.index({ ownerId: 1 });
 projectSchema.index({ status: 1 });
-projectSchema.index({ platformSubdomain: 1 }, { unique: true, sparse: true });
+projectSchema.index(
+  { platformSubdomain: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { platformSubdomain: { $type: 'string' } },
+  },
+);
 projectSchema.index({ activeDeploymentId: 1 }, { sparse: true });
 
 export const Project = mongoose.models.Project ?? mongoose.model('Project', projectSchema);

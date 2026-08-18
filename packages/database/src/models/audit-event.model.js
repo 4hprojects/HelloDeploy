@@ -55,6 +55,15 @@ const auditEventSchema = new Schema(
     metadata: {
       type: Schema.Types.Mixed,
       default: null,
+      validate: {
+        validator(value) {
+          if (value === null || value === undefined) {
+            return true;
+          }
+          return JSON.stringify(value).length <= 10_000;
+        },
+        message: 'metadata must not exceed 10,000 serialized characters.',
+      },
     },
   },
   {
