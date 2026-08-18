@@ -6,18 +6,10 @@ import {
   assertProductionSecrets,
   parseHostnameEnv,
   parseIntegerEnv,
+  required,
+  optional,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
-
-const required = (name) => {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-};
-
-const optional = (name, defaultValue) => process.env[name] ?? defaultValue;
 
 const nodeEnv = optional('NODE_ENV', 'development');
 const production = nodeEnv === 'production';
@@ -42,6 +34,7 @@ const sessionSecret = production
 const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const nextMasterKey = optional('HELLODEPLOY_MASTER_KEY_NEXT', '');
 const platformDomainRaw = optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`);
 const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.hellodeploy.online');
 const deploymentDomainRaw = optional(
@@ -61,7 +54,7 @@ if (production) {
   if (platformSubdomainSuffix !== `.${deploymentDomain}`) {
     throw new Error('PLATFORM_SUBDOMAIN_SUFFIX must equal a dot followed by DEPLOYMENT_DOMAIN.');
   }
-  assertProductionSecrets({ sessionSecret, masterKey });
+  assertProductionSecrets({ sessionSecret, masterKey, nextMasterKey });
   assertPairedEnvironment(
     'TURNSTILE_SITE_KEY',
     process.env.TURNSTILE_SITE_KEY,
@@ -113,6 +106,7 @@ export const env = {
   // Master encryption key for environment secrets (base64-encoded 32 bytes).
   // Required in production; a dev-only placeholder is used in development.
   HELLODEPLOY_MASTER_KEY: masterKey,
+  HELLODEPLOY_MASTER_KEY_NEXT: nextMasterKey,
 
   // Redis — required for deployment queue
   REDIS_URL: redisUrl,

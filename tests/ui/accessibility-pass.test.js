@@ -30,7 +30,7 @@ const files = {
     'utf8',
   ),
   report: await readFile(
-    new URL('../../docs/UI_UX_ACCESSIBILITY_PASS.md', import.meta.url),
+    new URL('../../docs/UI_UX_IMPROVEMENT_BACKLOG.md', import.meta.url),
     'utf8',
   ),
 };
@@ -70,9 +70,9 @@ describe('focused accessibility pass', () => {
   });
 
   it('records the accessibility pass and residual risk', () => {
-    assert.match(files.report, /# UI\/UX Accessibility Pass/);
+    assert.match(files.report, /focused accessibility pass completed/);
     assert.match(files.report, /Header controls\s+\| Fixed/);
     assert.match(files.report, /Confirmation modal\s+\| Verified/);
-    assert.match(files.report, /Residual Risk/);
+    assert.match(files.report, /Residual risk/);
   });
 });

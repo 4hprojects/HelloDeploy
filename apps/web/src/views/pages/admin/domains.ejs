@@ -44,6 +44,12 @@
             <% if (d.verifiedAt) { %>
               <%= new Date(d.verifiedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
             <% } else { %> — <% } %>
+            <% const liveTxt = liveTxtRecordsById.get(d._id.toString()); %>
+            <% if (liveTxt) { %>
+              <span class="text-xs d-block">Live TXT: <code class="code-inline"><%= liveTxt.join(', ') %></code></span>
+            <% } else { %>
+              <span class="text-xs d-block">Live TXT: no record found now</span>
+            <% } %>
           </td>
           <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">

@@ -1,6 +1,13 @@
 # Deployment Readiness Roadmap
 
-Updated: 2026-08-06T12:57:27+08:00
+Updated: 2026-08-06T12:57:27+08:00 (Current Readiness Summary table
+spot-corrected 2026-08-14 where directly evidenced — the per-phase checklists
+below were not re-verified)
+
+For current live release-gate status, see
+[HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
+and [Priorities](PRIORITIES.md) Track A — both are more current than the
+phase checklists in this file.
 
 ## Purpose
 
@@ -10,15 +17,15 @@ Work through the phases in order. Phase 0 through Phase 3 contain release-blocki
 
 ## Current Readiness Summary
 
-| Area                     | Status            | Summary                                                                                                                                                                                                                                                                                                    |
-| ------------------------ | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Application architecture | Reconciled        | The single-host V1 boundary merged in PR #5; the current Ubuntu 26.04 laptop is the live pilot and hardening target.                                                                                                                                                                                       |
-| Security controls        | Strong foundation | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                                                                                                                                                                                                        |
-| Automated checks         | Green baseline    | CI passes Node.js 22; lint, formatting, configuration validation, 864 local tests, and production audit (0 vulnerabilities) pass.                                                                                                                                                                          |
-| Production configuration | Needs validation  | Isolated `hellodeploy-web`/`hellodeploy-worker` started live (2026-08-06) under production configuration and passed the strict `Secure; HttpOnly; SameSite=Strict` session-cookie contract over loopback; external revalidation against a real public HTTPS domain still requires the wildcard DNS record. |
-| Nginx routing            | Blocking          | The constrained Nginx helper and wildcard Cloudflare Tunnel ingress are both active and passed live (2026-07-31, 2026-08-05); the dashboard tunnel itself still bypasses Nginx pending the traffic-cutover gate.                                                                                           |
-| Deployment validation    | Blocking          | Docker 29.7.0 is installed and active (worker-only access proven); dashboard/candidate-service availability is confirmed, but no real application-runtime deployment (P3) has been proven yet.                                                                                                             |
-| Operations               | Needs validation  | Encrypted pilot capture/verification tooling exists; actual off-host backup, rollback, interruption, and restore remain.                                                                                                                                                                                   |
+| Area                     | Status                                                     | Summary                                                                                                                                                                                                                                                                                               |
+| ------------------------ | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Application architecture | Reconciled                                                 | The single-host V1 boundary merged in PR #5; the current Ubuntu 26.04 laptop is the live pilot and hardening target.                                                                                                                                                                                  |
+| Security controls        | Strong foundation                                          | CSRF, CSP, authorization, encryption, redaction, webhook validation, and rate limiting are covered.                                                                                                                                                                                                   |
+| Automated checks         | Green baseline                                             | CI passes Node.js 22; lint, formatting, configuration validation, 864 local tests, and production audit (0 vulnerabilities) pass.                                                                                                                                                                     |
+| Production configuration | Passed                                                     | **Corrected 2026-08-14** — the wildcard DNS/TLS gap this row flagged closed 2026-08-08; a public wildcard HTTPS probe returns a real TLS-terminated response, and dashboard traffic cutover (2026-08-09) revalidated the production config against the real public domain.                            |
+| Nginx routing            | Passed for the dashboard; blocking for real project routes | **Corrected 2026-08-14** — dashboard traffic cutover passed live 2026-08-09; `hellodeploy.online`/`www.hellodeploy.online` now serve via Nginx, not the tunnel bypass this row described. Routing an actual managed project through the wildcard is still unverified — that's P3, tracked separately. |
+| Deployment validation    | Blocking                                                   | Docker 29.7.0 is installed and active (worker-only access proven); dashboard/candidate-service availability is confirmed, but no real application-runtime deployment (P3) has been proven yet.                                                                                                        |
+| Operations               | Needs validation                                           | Encrypted pilot capture/verification tooling exists; actual off-host backup, rollback, interruption, and restore remain.                                                                                                                                                                              |
 
 ## Phase 0 — Establish a Reproducible Release Baseline
 

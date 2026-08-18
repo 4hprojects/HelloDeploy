@@ -76,6 +76,27 @@ describe('deployment notifications', () => {
     assert.match(email.text, /failed \(commit 1111111\)/);
   });
 
+  it('leads a failed deployment email with plain-language copy, not the raw failure code', () => {
+    const email = buildDeploymentNotificationEmail(
+      {
+        projectName: 'App',
+        projectSlug: 'app',
+        sequenceNumber: 14,
+        status: 'FAILED',
+        commitSha: '2222222234567890abcdef1234567890abcdef12',
+        failureCode: 'BUILD_FAILED',
+        failureSummary: 'npm ERR! missing script: build',
+        platformDomain: 'deploy.example.test',
+      },
+      { email: 'owner@example.test', name: 'Owner' },
+    );
+
+    assert.match(email.html, /Your app failed to build\./);
+    assert.match(email.text, /Your app failed to build\./);
+    // Raw code/summary still present, but only as a secondary "technical details" line.
+    assert.match(email.html, /Technical details.*BUILD_FAILED/s);
+  });
+
   it('is invoked after activation and rollback without blocking worker completion', () => {
     // Both jobs wire the notifier into the shared pipeline, which calls it
     // fire-and-forget on terminal statuses.

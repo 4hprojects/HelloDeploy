@@ -37,6 +37,22 @@ describe('redactLogLine — secret pattern redaction', () => {
     assert.ok(!result.includes('ghs_abc123'), 'Token in URL userinfo must be redacted');
   });
 
+  it('redacts a standalone JWT', () => {
+    const jwt =
+      'eyJhbGciOiJSUzI1NiJ9.eyJpc3MiOiIxMjM0NSJ9.sflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+    const result = redactLogLine(`Authenticated with token ${jwt}`);
+    assert.ok(!result.includes(jwt), 'JWT must be redacted');
+  });
+
+  it('redacts a PEM private key block', () => {
+    // Split across concatenation so this fixture doesn't read as a literal key header.
+    const begin = '-----BEGIN' + ' RSA PRIVATE KEY-----';
+    const end = '-----END' + ' RSA PRIVATE KEY-----';
+    const pem = `${begin}\nMIIBOgIBAAJBAK\n${end}`;
+    const result = redactLogLine(pem);
+    assert.ok(!result.includes('MIIBOgIBAAJBAK'), 'PEM key body must be redacted');
+  });
+
   it('returns a string for any input', () => {
     assert.equal(typeof redactLogLine(''), 'string');
     assert.equal(typeof redactLogLine('safe message'), 'string');

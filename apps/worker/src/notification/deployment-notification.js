@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { User } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
+import { getFailureCopy } from '@hellodeploy/contracts';
 import { env } from '../config/env.js';
 
 let _resend = null;
@@ -71,6 +72,9 @@ export function buildDeploymentNotificationEmail(opts, owner) {
   const safeShortSha = escapeNotificationHtml(shortSha);
   const safeFailureCode = escapeNotificationHtml(failureCode);
   const safeFailureSummary = escapeNotificationHtml(failureSummary?.slice(0, 200));
+  const failureCopy = failureCode ? getFailureCopy(failureCode) : null;
+  const safeFailureMessage = failureCopy ? escapeNotificationHtml(failureCopy.message) : null;
+  const safeFailureAction = failureCopy ? escapeNotificationHtml(failureCopy.action) : null;
 
   if (isHealthy) {
     return {
@@ -93,11 +97,12 @@ export function buildDeploymentNotificationEmail(opts, owner) {
           <p>Hi ${safeOwnerName},</p>
           <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${safeProjectName}</strong> failed.</p>
           <p>Commit: <code>${safeShortSha}</code></p>
-          ${failureCode ? `<p>Reason: <code>${safeFailureCode}</code></p>` : ''}
-          ${failureSummary ? `<p>${safeFailureSummary}</p>` : ''}
+          ${safeFailureMessage ? `<p><strong>${safeFailureMessage}</strong></p>` : ''}
+          ${safeFailureAction ? `<p>${safeFailureAction}</p>` : ''}
+          ${failureCode ? `<p style="color:#888;font-size:12px;">Technical details: <code>${safeFailureCode}</code>${failureSummary ? ` — ${safeFailureSummary}` : ''}</p>` : ''}
           <p><a href="${safeDashboardUrl}">View deployment logs</a></p>
         `,
-    text: `Deployment #${sequenceNumber} of ${projectName} failed (commit ${shortSha}).\n\n${failureSummary ?? ''}\n\nView: ${dashboardUrl}`,
+    text: `Deployment #${sequenceNumber} of ${projectName} failed (commit ${shortSha}).\n\n${failureCopy ? `${failureCopy.message} ${failureCopy.action}` : ''}\n\nView: ${dashboardUrl}`,
   };
 }
 

@@ -9,6 +9,8 @@ import {
   JobType,
   validateJobPayload,
   JobPayloadValidationError,
+  getFailureCopy,
+  DEPLOYMENT_FAILURE_COPY,
 } from '@hellodeploy/contracts';
 
 describe('contracts — enums', () => {
@@ -132,5 +134,48 @@ describe('contracts — validateJobPayload', () => {
         }),
       JobPayloadValidationError,
     );
+  });
+});
+
+describe('contracts — getFailureCopy', () => {
+  it('returns the plain-language entry for a known failure code', () => {
+    const copy = getFailureCopy('BUILD_FAILED');
+    assert.equal(copy.message, DEPLOYMENT_FAILURE_COPY.BUILD_FAILED.message);
+    assert.ok(copy.action.length > 0);
+  });
+
+  it('covers every failure code the deploy pipeline actually stamps', () => {
+    const codes = [
+      'PORT_ALLOCATION_FAILED',
+      'NETWORK_SETUP_FAILED',
+      'SECRET_DECRYPTION_FAILED',
+      'CONTAINER_START_FAILED',
+      'CONTAINER_CRASHED_ON_STARTUP',
+      'HEALTH_CHECK_FAILED',
+      'SUBDOMAIN_INVALID',
+      'NGINX_ROUTE_FAILED',
+      'PROJECT_NOT_FOUND',
+      'REPO_ACCESS_REVOKED',
+      'GITHUB_TOKEN_FAILED',
+      'CLONE_FAILED',
+      'BUILD_CONTEXT_INVALID',
+      'DOCKERFILE_GENERATION_FAILED',
+      'BUILD_FAILED',
+      'ACTIVATION_ENQUEUE_FAILED',
+      'ROLLBACK_SOURCE_INVALID',
+      'QUEUE_UNAVAILABLE',
+    ];
+    const missing = codes.filter((code) => !DEPLOYMENT_FAILURE_COPY[code]);
+    assert.deepEqual(missing, []);
+  });
+
+  it('falls back to a generic message for an unrecognized code', () => {
+    const copy = getFailureCopy('SOME_FUTURE_CODE_NOT_YET_MAPPED');
+    assert.equal(copy.message, 'Something went wrong during deployment.');
+  });
+
+  it('falls back to a generic message when no code is given', () => {
+    const copy = getFailureCopy(undefined);
+    assert.equal(copy.message, 'Something went wrong during deployment.');
   });
 });

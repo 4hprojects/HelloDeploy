@@ -346,7 +346,12 @@
       acceptButton.disabled = false;
     }
 
-    function openModal(msg, target, trigger) {
+    function openModal(msg, target, trigger, attrSource) {
+      // attrSource lets a specific submit button (e.g. one of several
+      // actions sharing a form) override the form's own data-confirm-*
+      // styling/copy — falls back to target when a single button/link/form
+      // carries its own attributes directly (the common case).
+      const attrs = attrSource || target;
       pendingTarget = target;
       lastFocus = trigger || document.activeElement;
       modal.removeAttribute('aria-busy');
@@ -356,16 +361,16 @@
         'confirm-modal--success',
       );
       modal.classList.add(
-        'confirm-modal--' + (target.getAttribute('data-confirm-variant') || 'danger'),
+        'confirm-modal--' + (attrs.getAttribute('data-confirm-variant') || 'danger'),
       );
       if (eyebrow) {
-        eyebrow.textContent = target.getAttribute('data-confirm-eyebrow') || 'Confirm action';
+        eyebrow.textContent = attrs.getAttribute('data-confirm-eyebrow') || 'Confirm action';
       }
       if (title) {
-        title.textContent = target.getAttribute('data-confirm-title') || 'Continue?';
+        title.textContent = attrs.getAttribute('data-confirm-title') || 'Continue?';
       }
       message.textContent = msg;
-      setAcceptButton(target);
+      setAcceptButton(attrs);
       modal.hidden = false;
       document.body.classList.add('confirm-modal-open');
       requestAnimationFrame(() => {
@@ -380,12 +385,12 @@
       const target = pendingTarget;
       const submitter =
         pendingSubmitter && pendingSubmitter.form === target ? pendingSubmitter : null;
+      const attrs = submitter || target;
 
       modal.setAttribute('aria-busy', 'true');
       if (acceptButton) {
         acceptButton.disabled = true;
-        acceptButton.textContent =
-          target.getAttribute('data-confirm-pending-label') || 'Working...';
+        acceptButton.textContent = attrs.getAttribute('data-confirm-pending-label') || 'Working...';
       }
 
       pendingTarget = null;
@@ -425,13 +430,15 @@
 
     document.addEventListener('submit', (e) => {
       const form = e.target;
-      const msg = form.getAttribute('data-confirm');
+      const submitter = e.submitter && e.submitter.form === form ? e.submitter : null;
+      const msg =
+        (submitter && submitter.getAttribute('data-confirm')) || form.getAttribute('data-confirm');
       if (!msg || form.getAttribute('data-confirmed')) {
         return;
       }
       e.preventDefault();
-      pendingSubmitter = e.submitter && e.submitter.form === form ? e.submitter : pendingSubmitter;
-      openModal(msg, form, pendingSubmitter || form);
+      pendingSubmitter = submitter || pendingSubmitter;
+      openModal(msg, form, pendingSubmitter || form, submitter);
     });
 
     if (acceptButton) {

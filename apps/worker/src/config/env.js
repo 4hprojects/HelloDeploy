@@ -5,18 +5,10 @@ import {
   assertProductionSecrets,
   parseHostnameEnv,
   parseIntegerEnv,
+  required,
+  optional,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
-
-const required = (name) => {
-  const value = process.env[name];
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-};
-
-const optional = (name, defaultValue) => process.env[name] ?? defaultValue;
 
 const nodeEnv = optional('NODE_ENV', 'development');
 const production = nodeEnv === 'production';
@@ -62,6 +54,7 @@ if (portRangeStart > portRangeEnd) {
 const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
+const nextMasterKey = optional('HELLODEPLOY_MASTER_KEY_NEXT', '');
 const nginxEnabled = optional('NGINX_ENABLED', 'false') === 'true';
 const platformDomainRaw = optional('PLATFORM_DOMAIN', 'hellodeploy.online');
 const deploymentDomainRaw = optional('DEPLOYMENT_DOMAIN', platformDomainRaw);
@@ -73,7 +66,7 @@ const deploymentDomain = production
   : deploymentDomainRaw;
 
 if (production) {
-  assertProductionSecrets({ masterKey });
+  assertProductionSecrets({ masterKey, nextMasterKey });
   if (!nginxEnabled) {
     throw new Error('NGINX_ENABLED must be true in production for the V1 local Nginx helper.');
   }
@@ -132,6 +125,7 @@ export const env = {
 
   // Master encryption key for decrypting environment secrets at build/runtime
   HELLODEPLOY_MASTER_KEY: masterKey,
+  HELLODEPLOY_MASTER_KEY_NEXT: nextMasterKey,
 
   // GitHub App credentials — needed to generate installation tokens for git clone
   GITHUB_APP_ID: optional('GITHUB_APP_ID', ''),

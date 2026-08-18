@@ -296,6 +296,10 @@ export async function createDeployment({
     },
   });
 
+  // A queued deployment supersedes any earlier high-risk-change pause — the
+  // owner has now acted on (or past) whatever triggered the flag.
+  await Project.updateOne({ _id: projectId }, { $set: { reviewFlag: { active: false } } });
+
   return { success: true, deployment };
 }
 
@@ -566,9 +570,15 @@ export async function getDeploymentsPaginated(projectId, { page = 1, limit = 20 
   return { deployments, total, page: safePage, limit: safeLimit, totalPages };
 }
 
+// Retention keeps only the last 3 HEALTHY releases' images; this cap is
+// headroom above that, not a meaningful UX limit — a project's rollback
+// history should never realistically need more candidates than this.
+const MAX_ROLLBACK_TARGETS = 10;
+
 export async function getRollbackTargets(projectId, activeDeploymentId) {
   return Deployment.find(buildRollbackTargetQuery(projectId, activeDeploymentId))
     .sort({ sequenceNumber: -1 })
+    .limit(MAX_ROLLBACK_TARGETS)
     .lean();
 }
 

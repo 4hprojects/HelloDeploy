@@ -22,6 +22,11 @@ const domainModel = await readFile(
   'utf8',
 );
 
+const projectModel = await readFile(
+  new URL('../../packages/database/src/models/project.model.js', import.meta.url),
+  'utf8',
+);
+
 describe('database indexes for high-traffic admin and project paths', () => {
   it('indexes project membership lookups by user and project', () => {
     assert.match(membershipModel, /projectMembershipSchema\.index\(\{ userId: 1 \}\)/);
@@ -40,6 +45,14 @@ describe('database indexes for high-traffic admin and project paths', () => {
     );
     assert.match(domainModel, /domainSchema\.index\(\{ projectId: 1 \}\)/);
     assert.match(domainModel, /domainSchema\.index\(\{ status: 1 \}\)/);
+  });
+
+  it('uniquely indexes only assigned project platform subdomains', () => {
+    assert.match(
+      projectModel,
+      /partialFilterExpression:\s*\{ platformSubdomain: \{ \$type: 'string' \} \}/,
+    );
+    assert.doesNotMatch(projectModel, /platformSubdomain: 1 \}, \{ unique: true, sparse: true \}/);
   });
 
   it('indexes audit event filters with createdAt sort support', () => {

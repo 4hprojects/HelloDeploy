@@ -1,3 +1,17 @@
+/** Read a required environment variable, throwing if it is unset/empty. */
+export function required(name) {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(`Missing required environment variable: ${name}`);
+  }
+  return value;
+}
+
+/** Read an optional environment variable, falling back to `defaultValue`. */
+export function optional(name, defaultValue) {
+  return process.env[name] ?? defaultValue;
+}
+
 export function parseIntegerEnv(name, rawValue, { min, max }) {
   if (!/^-?\d+$/.test(String(rawValue))) {
     throw new Error(`${name} must be an integer.`);
@@ -37,16 +51,32 @@ export function assertAllOrNoneEnvironment(entries, integrationName) {
   }
 }
 
-export function assertProductionSecrets({ sessionSecret, masterKey }) {
+function decodeProductionMasterKey(name, value) {
+  if (!/^[A-Za-z0-9+/]{43}=$/.test(value || '')) {
+    throw new Error(`${name} must be a base64-encoded 32-byte key.`);
+  }
+  const decoded = Buffer.from(value, 'base64');
+  if (decoded.length !== 32) {
+    throw new Error(`${name} must be a base64-encoded 32-byte key.`);
+  }
+  if (decoded.equals(Buffer.alloc(32))) {
+    throw new Error(
+      `${name} must not be the all-zero development placeholder. Generate a real key with scripts/generate-secrets.js.`,
+    );
+  }
+  return decoded;
+}
+
+export function assertProductionSecrets({ sessionSecret, masterKey, nextMasterKey }) {
   if (typeof sessionSecret === 'string' && sessionSecret.length < 64) {
     throw new Error('SESSION_SECRET must contain at least 64 characters in production.');
   }
 
-  if (!/^[A-Za-z0-9+/]{43}=$/.test(masterKey || '')) {
-    throw new Error('HELLODEPLOY_MASTER_KEY must be a base64-encoded 32-byte key.');
-  }
-  const decoded = Buffer.from(masterKey, 'base64');
-  if (decoded.length !== 32) {
-    throw new Error('HELLODEPLOY_MASTER_KEY must be a base64-encoded 32-byte key.');
+  const primary = decodeProductionMasterKey('HELLODEPLOY_MASTER_KEY', masterKey);
+  if (nextMasterKey) {
+    const next = decodeProductionMasterKey('HELLODEPLOY_MASTER_KEY_NEXT', nextMasterKey);
+    if (next.equals(primary)) {
+      throw new Error('HELLODEPLOY_MASTER_KEY_NEXT must differ from HELLODEPLOY_MASTER_KEY.');
+    }
   }
 }

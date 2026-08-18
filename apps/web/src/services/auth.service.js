@@ -102,6 +102,7 @@ export async function verifyEmail({ rawToken, sourceIp, correlationId }) {
   user.emailVerifiedAt = new Date();
   user.emailVerificationTokenHash = null;
   user.emailVerificationExpiresAt = null;
+  user.lastLoginAt = new Date();
   await user.save();
 
   await writeAuditEvent({
@@ -115,7 +116,7 @@ export async function verifyEmail({ rawToken, sourceIp, correlationId }) {
     correlationId,
   });
 
-  return { success: true, user };
+  return { success: true, sessionUser: user.toSessionUser() };
 }
 
 export async function resendVerificationEmail({ email, sourceIp, correlationId }) {

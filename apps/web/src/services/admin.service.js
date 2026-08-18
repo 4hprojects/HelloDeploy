@@ -24,27 +24,48 @@ import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 
+const ADMIN_SEARCH_MAX_LENGTH = 200;
+
+function normalizeAdminSearch(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim().slice(0, ADMIN_SEARCH_MAX_LENGTH);
+}
+
+function allowlistedStatus(value, statuses) {
+  return typeof value === 'string' && Object.values(statuses).includes(value) ? value : null;
+}
+
+function escapedSearchRegex(value) {
+  return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+}
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
-  const [totalUsers, activeUsers, totalProjects, pendingApprovals] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ status: UserStatus.ACTIVE }),
-    Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
-    ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
-  ]);
-  return { totalUsers, activeUsers, totalProjects, pendingApprovals };
+  const [totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals] =
+    await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ status: UserStatus.ACTIVE }),
+      Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
+      ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
+      Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+    ]);
+  return { totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals };
 }
 
 // ─── User management ──────────────────────────────────────────────────────────
 
 export async function getUsers({ page = 1, limit = 20, status, search } = {}) {
   const query = {};
-  if (status) {
-    query.status = status;
+  const safeStatus = allowlistedStatus(status, UserStatus);
+  if (safeStatus) {
+    query.status = { $eq: safeStatus };
   }
-  if (search?.trim()) {
-    const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const safeSearch = normalizeAdminSearch(search);
+  if (safeSearch) {
+    const regex = escapedSearchRegex(safeSearch);
     query.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
   }
   const skip = (page - 1) * limit;
@@ -82,7 +103,7 @@ export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp
     metadata: { reason: reason?.trim() || null },
   });
 
-  return { success: true };
+  return { success: true, user };
 }
 
 export async function reactivateUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
@@ -111,15 +132,21 @@ export async function reactivateUser({ userId, adminId, adminRole, sourceIp, cor
     correlationId,
   });
 
-  return { success: true };
+  return { success: true, user };
 }
 
 // ─── Project management ───────────────────────────────────────────────────────
 
-export async function getProjects({ page = 1, limit = 20, status } = {}) {
+export async function getProjects({ page = 1, limit = 20, status, search } = {}) {
   const query = {};
-  if (status) {
-    query.status = status;
+  const safeStatus = allowlistedStatus(status, ProjectStatus);
+  if (safeStatus) {
+    query.status = { $eq: safeStatus };
+  }
+  const safeSearch = normalizeAdminSearch(search);
+  if (safeSearch) {
+    const regex = escapedSearchRegex(safeSearch);
+    query.$or = [{ name: regex }, { slug: regex }];
   }
   const skip = (page - 1) * limit;
   const [projects, total] = await Promise.all([
@@ -187,6 +214,8 @@ export async function adminReactivateProject({
   }
 
   project.status = ProjectStatus.ACTIVE;
+  project.suspendedAt = null;
+  project.suspensionReason = null;
   await project.save();
 
   await writeAuditEvent({
@@ -200,7 +229,7 @@ export async function adminReactivateProject({
     correlationId,
   });
 
-  return { success: true };
+  return { success: true, project };
 }
 
 // ─── Queue management ─────────────────────────────────────────────────────────
@@ -303,6 +332,23 @@ export async function getQuotaOverride(scopeType, scopeId) {
   return Quota.findOne({ scopeType, scopeId }).lean();
 }
 
+/**
+ * Resolve a quota scope to a human-readable label for display.
+ * Falls back to null when the scope type is unrecognized or the underlying
+ * record no longer exists — callers should show the raw ID in that case.
+ */
+export async function getQuotaScopeName(scopeType, scopeId) {
+  if (scopeType === QuotaScope.USER) {
+    const user = await User.findById(scopeId).select('firstName lastName email').lean();
+    return user ? `${user.firstName} ${user.lastName} (${user.email})` : null;
+  }
+  if (scopeType === QuotaScope.PROJECT) {
+    const project = await Project.findById(scopeId).select('name slug').lean();
+    return project ? `${project.name} (${project.slug})` : null;
+  }
+  return null;
+}
+
 export async function getQuotaConsumption(scopeType, scopeId) {
   if (scopeType === QuotaScope.USER) {
     const projects = await Project.find({
@@ -349,14 +395,12 @@ export async function getQuotaConsumption(scopeType, scopeId) {
  * Suspend a project AND enqueue a STOP_PROJECT job to shut down its container
  * and replace nginx with a maintenance block.
  */
-export async function adminSuspendProjectWithStop({
-  projectId,
-  adminId,
-  adminRole,
-  reason,
-  sourceIp,
-  correlationId,
-}) {
+export async function adminSuspendProjectWithStop(
+  { projectId, adminId, adminRole, reason, sourceIp, correlationId },
+  deps = {},
+) {
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+  const addJob = deps.enqueueJob ?? enqueueJob;
   const project = await Project.findById(projectId);
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -369,11 +413,13 @@ export async function adminSuspendProjectWithStop({
   }
 
   project.status = ProjectStatus.SUSPENDED;
+  project.suspendedAt = new Date();
+  project.suspensionReason = reason?.trim() || null;
   await project.save();
 
-  const queue = getDeploymentQueue();
+  const queue = getQueue();
   if (queue) {
-    await enqueueJob(
+    await addJob(
       queue,
       JobType.STOP_PROJECT,
       {
@@ -400,7 +446,7 @@ export async function adminSuspendProjectWithStop({
     metadata: { reason: reason?.trim() || null },
   });
 
-  return { success: true };
+  return { success: true, project };
 }
 
 // ─── Approval requests ────────────────────────────────────────────────────────

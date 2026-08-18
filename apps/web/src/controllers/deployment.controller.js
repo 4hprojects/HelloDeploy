@@ -1,5 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentTrigger } from '@hellodeploy/contracts';
+import { DeploymentTrigger, getFailureCopy } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
@@ -55,6 +55,7 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
   }
 
   const events = await getDeploymentEvents(deploymentId);
+  const failureCopy = deployment.failureCode ? getFailureCopy(deployment.failureCode) : null;
 
   res.render('pages/projects/deployment-detail', {
     title: `Deployment #${deployment.sequenceNumber} – ${project.name}`,
@@ -62,6 +63,7 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     membership: req.membership,
     deployment,
     events,
+    failureCopy,
   });
 });
 

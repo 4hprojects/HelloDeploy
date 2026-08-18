@@ -4,6 +4,15 @@ import { logger } from '@hellodeploy/observability';
 
 let resend = null;
 
+function escapeEmailHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function getResendClient() {
   if (!resend && env.RESEND_API_KEY) {
     resend = new Resend(env.RESEND_API_KEY);
@@ -69,6 +78,27 @@ export async function sendPasswordResetEmail({ to, firstName, resetCode }) {
     `,
     text: `Hi ${firstName},\n\nYour password reset code: ${resetCode}\n\nThis code expires in 1 hour.`,
   });
+}
+
+export function buildProjectPausedEmail({ to, firstName, projectName, projectUrl }) {
+  const safeFirstName = escapeEmailHtml(firstName);
+  const safeProjectName = escapeEmailHtml(projectName);
+  const safeProjectUrl = escapeEmailHtml(projectUrl);
+  const safeSubjectName = String(projectName ?? '').replace(/[\r\n]+/g, ' ');
+  return {
+    to,
+    subject: `Auto-deploy paused for ${safeSubjectName}`,
+    html: `
+      <p>Hi ${safeFirstName},</p>
+      <p>HelloDeploy detected a high-risk file change in a push to <strong>${safeProjectName}</strong> and paused automatic deployment as a precaution.</p>
+      <p>Review the change and deploy manually when you're ready: <a href="${safeProjectUrl}">${safeProjectUrl}</a></p>
+    `,
+    text: `Hi ${firstName},\n\nHelloDeploy paused automatic deployment for ${projectName} after detecting a high-risk file change. Review and deploy manually: ${projectUrl}`,
+  };
+}
+
+export async function sendProjectPausedEmail(options) {
+  await sendEmail(buildProjectPausedEmail(options));
 }
 
 export async function sendPasswordChangedEmail({ to, firstName }) {

@@ -4,14 +4,27 @@ import { writeAuditEvent } from '@hellodeploy/observability';
 
 export const MAINTENANCE_MODE_KEY = 'maintenanceMode';
 
+// Read on every request via middleware — cache briefly so a burst of traffic
+// doesn't hit Mongo per-request. setMaintenanceMode() updates the cache
+// immediately so an admin's own toggle is never delayed by it.
+const MAINTENANCE_CACHE_TTL_MS = 5_000;
+let cachedMaintenance = null;
+let cachedAt = 0;
+
 export async function getMaintenanceMode() {
+  if (cachedMaintenance && Date.now() - cachedAt < MAINTENANCE_CACHE_TTL_MS) {
+    return cachedMaintenance;
+  }
+
   const setting = await PlatformSetting.findOne({ key: MAINTENANCE_MODE_KEY }).lean();
-  return {
+  cachedMaintenance = {
     enabled: Boolean(setting?.value?.enabled),
     message: setting?.value?.message ?? null,
     updatedAt: setting?.updatedAt ?? null,
     updatedBy: setting?.updatedBy ?? null,
   };
+  cachedAt = Date.now();
+  return cachedMaintenance;
 }
 
 export async function setMaintenanceMode({
@@ -49,13 +62,16 @@ export async function setMaintenanceMode({
     metadata: { enabled: Boolean(enabled), hasMessage: Boolean(cleanMessage) },
   });
 
+  cachedMaintenance = {
+    enabled: Boolean(setting.value?.enabled),
+    message: setting.value?.message ?? null,
+    updatedAt: setting.updatedAt,
+    updatedBy: setting.updatedBy,
+  };
+  cachedAt = Date.now();
+
   return {
     success: true,
-    maintenance: {
-      enabled: Boolean(setting.value?.enabled),
-      message: setting.value?.message ?? null,
-      updatedAt: setting.updatedAt,
-      updatedBy: setting.updatedBy,
-    },
+    maintenance: cachedMaintenance,
   };
 }

@@ -20,7 +20,7 @@ See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [IMPROV
 - [Product and Platform Architecture](docs/PLATFORM_ARCHITECTURE.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Blueprint](hellodeploy-blueprint/00_MASTER_INDEX.md)
-- [P9-P12 Maintenance Summary](docs/P9_P12_MAINTENANCE_SUMMARY.md)
+- [Priorities](docs/PRIORITIES.md) - what's next, across every open track
 
 ## Local Development
 

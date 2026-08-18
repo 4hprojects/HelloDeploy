@@ -32,9 +32,22 @@ function makeDeps(overrides = {}) {
     removeDockerImage: async (tag) => calls.removedImages.push(tag),
     cleanupBuildWorkspace: async (dir) => calls.cleanedWorkspaces.push(dir),
     enqueueActivateRelease: async (payload, jobId) => calls.enqueued.push({ payload, jobId }),
+    sleep: async () => {},
     ...overrides,
   };
   return { deps, calls };
+}
+
+/** Throws a transient-shaped error the given number of times, then succeeds. */
+function failTimesThenSucceed(times, errorFactory, onSuccess) {
+  let attempts = 0;
+  return async (...args) => {
+    attempts += 1;
+    if (attempts <= times) {
+      throw errorFactory();
+    }
+    return onSuccess?.(...args);
+  };
 }
 
 function makeJob(project, repo, deployment, extra = {}) {
@@ -197,6 +210,50 @@ describe('build-deployment job', () => {
     await handleBuildDeployment(makeJob(project, revokedRepo, deployment), deps);
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.failureCode, 'REPO_ACCESS_REVOKED');
+  });
+
+  it('retries a transient clone timeout and succeeds without failing the deployment', async () => {
+    const { project, repo, deployment } = await seed();
+    const cloneExactCommit = failTimesThenSucceed(1, () => {
+      const err = new Error('git operation timed out');
+      return err;
+    });
+    const { deps } = makeDeps({ cloneExactCommit });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.status, DeploymentStatus.DEPLOYING);
+  });
+
+  it('does not retry a non-transient clone error', async () => {
+    const { project, repo, deployment } = await seed();
+    let calls = 0;
+    const { deps } = makeDeps({
+      cloneExactCommit: async () => {
+        calls += 1;
+        throw new Error('commit not found');
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'CLONE_FAILED');
+    assert.equal(calls, 1);
+  });
+
+  it('marks CLONE_FAILED once transient retries are exhausted', async () => {
+    const { project, repo, deployment } = await seed();
+    let calls = 0;
+    const { deps } = makeDeps({
+      cloneExactCommit: async () => {
+        calls += 1;
+        const err = new Error('The operation was aborted due to timeout');
+        err.name = 'TimeoutError';
+        throw err;
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'CLONE_FAILED');
+    assert.equal(calls, 3);
   });
 
   it('skips deployments that are no longer QUEUED', async () => {

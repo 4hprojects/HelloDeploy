@@ -118,7 +118,7 @@
           const latestEvent = latestEventForStage(stage);
           const startedAt = stageTime(stage, firstEvent);
           const statusText = state === 'active' ? 'In progress' : state === 'complete' ? 'Complete' : state === 'failed' ? deployment.status.replace('_', ' ') : 'Pending';
-          const message = state === 'failed' && deployment.failureSummary ? deployment.failureSummary : latestEvent?.messageRedacted ?? stage.detail;
+          const message = state === 'failed' && failureCopy ? failureCopy.message : latestEvent?.messageRedacted ?? stage.detail;
         %>
         <div class="deployment-stage deployment-stage--<%= state %>" data-stage-key="<%= stage.key %>">
           <div class="deployment-stage__marker" aria-hidden="true">
@@ -144,13 +144,28 @@
         <% } %>
       <% }) %>
     </div>
-    <% if (deployment.failureCode) { %>
+    <% if (deployment.failureCode && failureCopy) { %>
     <div class="alert alert--error mt-4">
-      <strong><%= deployment.failureCode %></strong>
-      <% if (deployment.failureSummary) { %>
-      <p class="text-sm mt-1"><%= deployment.failureSummary %></p>
-      <% } %>
+      <strong><%= failureCopy.message %></strong>
+      <p class="text-sm mt-1"><%= failureCopy.action %></p>
     </div>
+    <details class="guided-disclosure mt-4">
+      <summary class="guided-disclosure__summary">
+        <span>
+          <span class="guided-disclosure__title">Technical details</span>
+          <span class="guided-disclosure__description">
+            For the person who built the app, or for support.
+          </span>
+        </span>
+        <span class="guided-disclosure__toggle" aria-hidden="true">Show</span>
+      </summary>
+      <div class="guided-disclosure__body">
+        <p class="text-sm"><strong><%= deployment.failureCode %></strong></p>
+        <% if (deployment.failureSummary) { %>
+        <p class="text-sm mt-1"><%= deployment.failureSummary %></p>
+        <% } %>
+      </div>
+    </details>
     <% } %>
   </div>
 </div>

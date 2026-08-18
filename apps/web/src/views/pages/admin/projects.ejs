@@ -4,6 +4,13 @@
 </div>
 
 <form method="GET" action="/admin/projects" class="filter-bar mb-6">
+  <input
+    type="search"
+    name="search"
+    class="form-input filter-input--search"
+    placeholder="Search by name or slug…"
+    value="<%= filters.search %>"
+  />
   <select name="status" class="form-select filter-select--status">
     <option value="">All statuses</option>
     <option value="DRAFT" <%= filters.status === 'DRAFT' ? 'selected' : '' %>>Draft</option>
@@ -12,7 +19,7 @@
     <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
   </select>
   <button type="submit" class="button button--secondary">Filter</button>
-  <% if (filters.status) { %>
+  <% if (filters.search || filters.status) { %>
   <a href="/admin/projects" class="button button--ghost">Clear</a>
   <% } %>
 </form>
@@ -20,7 +27,7 @@
 <% if (projects.length === 0) { %>
 <div class="empty-state">
   <p class="empty-state__title">No projects match your filters</p>
-  <p class="empty-state__description">Clear the status filter to see every project.</p>
+  <p class="empty-state__description">Adjust the search or status filter to broaden the result set.</p>
   <div class="empty-state__actions">
     <a href="/admin/projects" class="button button--ghost">Clear Filters</a>
   </div>
@@ -52,9 +59,15 @@
           <span class="text-muted">—</span>
           <% } %>
         </td>
-        <td data-label="Status"><%- include('../../partials/status-badge', { status: p.status }) %></td>
+        <td data-label="Status">
+          <%- include('../../partials/status-badge', { status: p.status }) %>
+          <% if (p.status === 'SUSPENDED' && p.suspensionReason) { %>
+          <span class="text-muted text-xs d-block">Reason: <%= p.suspensionReason %></span>
+          <% } %>
+        </td>
         <td class="text-sm text-muted" data-label="Created"><%= new Date(p.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right" data-label="Actions">
+          <a href="/admin/quotas/PROJECT/<%= p._id %>" class="button button--ghost button--sm">Manage Quota</a>
           <% if (p.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" class="d-inline">
             <%- include('../../partials/csrf-field') %>
@@ -68,6 +81,7 @@
                 data-confirm-pending-label="Suspending..."
                 data-confirm-variant="warning">
             <%- include('../../partials/csrf-field') %>
+            <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the suspension." />
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>
@@ -81,11 +95,11 @@
 <% if (totalPages > 1) { %>
 <div class="pagination mt-4">
   <% if (page > 1) { %>
-  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>" class="button button--ghost button--sm">Previous</a>
+  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Previous</a>
   <% } %>
   <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
   <% if (page < totalPages) { %>
-  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>" class="button button--ghost button--sm">Next</a>
+  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Next</a>
   <% } %>
 </div>
 <% } %>

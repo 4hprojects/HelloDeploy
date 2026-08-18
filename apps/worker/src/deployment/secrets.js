@@ -1,5 +1,7 @@
 import { EnvironmentSecret } from '@hellodeploy/database';
 import { decrypt } from '@hellodeploy/security';
+import { writeAuditEvent } from '@hellodeploy/observability';
+import { AuditOutcome } from '@hellodeploy/contracts';
 
 /**
  * Decrypt all environment secrets for a project.
@@ -23,5 +25,16 @@ export async function getProjectEnvVars(projectId) {
       version: s.encryptionVersion,
     });
   }
+
+  if (secrets.length > 0) {
+    writeAuditEvent({
+      action: 'secrets.decrypted',
+      outcome: AuditOutcome.SUCCESS,
+      targetType: 'project',
+      targetId: projectId.toString(),
+      metadata: { secretCount: secrets.length },
+    }).catch(() => {});
+  }
+
   return result;
 }

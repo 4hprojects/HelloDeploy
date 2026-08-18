@@ -1,20 +1,21 @@
-# HelloDeploy and HelloRun Production Plan
+# HelloDeploy and HelloUniversity Production Plan
 
-Updated: 2026-08-10
+Updated: 2026-08-18
 
 ## Primary Goal
 
 Complete HelloDeploy's real production deployment workflow and use that workflow to
-successfully host HelloRun.
+successfully host HelloUniversity.
 
-HelloRun must be checked, approved, built, deployed, health-checked, routed, updated,
-and rolled back by HelloDeploy. Its existing independent PM2 process is a temporary
-fallback, not evidence that HelloDeploy can host applications.
+HelloUniversity must be checked, approved, built, deployed, health-checked, routed,
+updated, and rolled back by HelloDeploy. Its existing hosting route is retained for
+at least 24 continuously healthy hours after cutover. HelloRun remains operational
+but is no longer a release gate.
 
-> **Current safety rule:** Do not start a HelloRun or customer deployment while the
-> production worker is unavailable. A deployment may be recorded and queued, but no
-> worker can build or activate it. DNS verification jobs must also remain paused or be
-> deliberately requeued only after the worker and routing plane are ready.
+> **Current safety rule:** Do not retry HelloUniversity until the manually patched
+> production checkout has been reconciled to a clean reviewed full commit SHA through
+> the supported upgrade path. Trigger exactly one deployment and let its bounded clone
+> retry policy finish before considering another.
 
 ## Success Criteria
 
@@ -23,12 +24,12 @@ This goal is complete only when all of the following are directly demonstrated:
 - The HelloDeploy web service, worker, Docker execution plane, constrained Nginx
   helper, Redis queues, and wildcard application ingress are operational under their
   intended production identities.
-- `hellorun-e783` has a current successful application check, current approval
+- `hellouniversity-4e6a` has a current successful application check, current approval
   snapshot, approved project state, and healthy deployment produced by HelloDeploy.
-- HelloRun serves HTTPS traffic through its platform address at
-  `hellorun-e783.hellodeploy.online` and its custom address at
-  `hellorun.online`.
-- A safe HelloRun update succeeds, an intentionally broken candidate leaves the
+- HelloUniversity serves HTTPS traffic through its platform address and canonical
+  custom address at `hellouniversity.online`; `www.hellouniversity.online` redirects
+  permanently to the apex.
+- A safe HelloUniversity update succeeds, an intentionally broken candidate leaves the
   healthy release serving traffic, and retained-image rollback is proven.
 - A second supported project completes the same workflow without a manual server
   deployment.
@@ -41,7 +42,7 @@ in this document is complete.
 ## Document Ownership
 
 This plan owns the goal-specific execution order for completing HelloDeploy and
-hosting HelloRun. It does not replace the repository's established status and
+hosting HelloUniversity. It does not replace the repository's established status and
 evidence documents:
 
 - The [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) remains the
@@ -73,15 +74,15 @@ be recorded in the batch tracker.
 
 ## Priority Overview
 
-| Priority | Outcome                                        | Current status | Required before                |
-| -------- | ---------------------------------------------- | -------------- | ------------------------------ |
-| P0       | Recoverable current pilot                      | Complete       | Any host mutation              |
-| P1       | Isolated production service foundation         | Complete       | Worker or routing activation   |
-| P2       | Operational worker, queues, and public routing | In Progress    | Real application deployment    |
-| P3       | Proven secure deployment engine                | Not Started    | HelloRun production deployment |
-| P4       | HelloRun hosted by HelloDeploy                 | Not Started    | Other customer projects        |
-| P5       | Repeatable owner workflow                      | Not Started    | Customer-hosting GO            |
-| P6       | Recovery evidence and formal production GO     | Not Started    | General availability           |
+| Priority | Outcome                                        | Current status | Required before                       |
+| -------- | ---------------------------------------------- | -------------- | ------------------------------------- |
+| P0       | Recoverable current pilot                      | Complete       | Any host mutation                     |
+| P1       | Isolated production service foundation         | Complete       | Worker or routing activation          |
+| P2       | Operational worker, queues, and public routing | In Progress    | Real application deployment           |
+| P3       | Proven secure deployment engine                | In Progress    | HelloUniversity production deployment |
+| P4       | HelloUniversity hosted by HelloDeploy          | In Progress    | Other customer projects               |
+| P5       | Repeatable owner workflow                      | Not Started    | Customer-hosting GO                   |
+| P6       | Recovery evidence and formal production GO     | Not Started    | General availability                  |
 
 Priorities run in order. Work from a later priority may reduce local risk, but it
 cannot satisfy or bypass an earlier live gate.
@@ -274,8 +275,13 @@ Phases 2, 3, and 5.
       cookies, wildcard DNS, wildcard HTTPS, and test application routing.
 - [x] Cut dashboard traffic from PM2 to the isolated web service only after candidate
       checks pass.
-- [ ] Resume queues gradually, deliberately requeue valid DNS checks, and observe
-      failures, latency, Docker capacity, and route changes.
+- [x] Resume queues gradually, deliberately requeue valid DNS checks, and observe
+      failures, latency, Docker capacity, and route changes. Confirmed
+      retrospectively 2026-08-13 — see the dated evidence entry below; the
+      one valid DNS job processed as a side effect of the 2026-08-10 queue
+      resume, not a separately watched requeue as originally envisioned here,
+      but the observed outcome (job completed, domain moved to
+      `PENDING_ADMIN_APPROVAL`) is the same.
 
 ### Stop Conditions
 
@@ -398,9 +404,27 @@ job has not yet been deliberately requeued and observed, per this plan's own
 "deliberately requeue... and observe" framing — that remains a separate, manual,
 watched step.
 
+**2026-08-13 status correction (retrospective, read-only check):** A live
+Redis/BullMQ inspection found the domain-verification job referenced above
+(hostname `hellorun.online`) actually completed on 2026-08-10, `finishedOn`
+08:28:29 UTC — a side effect of the same `resume-deployment-queue.js` run, not
+a separately watched requeue as this plan called for. Worker journal confirms
+`"VerifyDomain: DNS verified, pending admin approval"`. The domain now sits in
+`PENDING_ADMIN_APPROVAL`; nginx route activation is the actual remaining next
+step for it, tracked as routine admin-approval work rather than a P2 blocker.
+Separately, `hellorun.online` — cited above as the blocker for a clean
+`revert-dashboard-cutover.sh` exercise — was checked live (`curl -I`) and
+returns `200`, not the `502` the 2026-08-09 entry above describes; that
+blocker is cleared, though the revert script itself still hasn't actually
+been run. No production actions were taken during this check. A brief,
+self-healed `hellodeploy-web` crash-loop was also observed around this time
+(~20:10-20:11, suspected Mongo DNS SRV flakiness, `NRestarts=22` lifetime,
+stable for 3.5+ hours after) — recorded in `PRIORITIES.md`, not investigated
+here.
+
 ## P3 - Validate the Real Deployment Engine
 
-**Status:** Not Started
+**Status:** In Progress
 
 **Dependencies:** P2 Complete; controlled sample repositories; production routing.
 
@@ -444,30 +468,29 @@ watched step.
 Every supported runtime serves through production routing, security boundaries hold,
 failure cleanup is complete, and rollback restores service.
 
-## P4 - Host HelloRun Through HelloDeploy
+## P4 - Host HelloUniversity Through HelloDeploy
 
-**Status:** Not Started
+**Status:** In Progress
 
-**Dependencies:** P3 Complete; current HelloRun repository access; administrator and
+**Dependencies:** reviewed immutable candidate; current HelloUniversity repository access; administrator and
 Owner workflow access; authoritative DNS and Cloudflare access.
 
 **Tracker mapping:** Batch 7 Pilot and Recovery Drills; Roadmap Phase 7.
 
 ### Actions
 
-- [ ] Request changes on the legacy `hellorun-e783` approval request with a clear
-      resubmission note.
-- [ ] Confirm the start command, application port, working-page path, production
-      branch, and current repository commit.
-- [ ] Run **Check again** and confirm detection is Ready for the current commit.
-- [ ] Resubmit with a short application purpose so the request contains a current
-      review snapshot.
-- [ ] Approve the current snapshot transactionally and confirm the project becomes
-      Active.
-- [ ] Start one manual deployment and follow queued, validating, building, deploying,
-      health-checking, and healthy states.
-- [ ] Verify deployment logs, notifications, resource limits, and
-      `hellorun-e783.hellodeploy.online`.
+- [x] Connect `4hprojects/hellouniversity`, detect Express, configure 39 environment
+      variable names, submit the current snapshot, approve it, and confirm the project
+      becomes Active.
+- [x] Record five clone-stage failures without claiming build, activation, or routing
+      success; implement the tarball and bounded retry corrections for reviewed release.
+- [ ] Revalidate the exact full commit, production branch, start command, health path,
+      detection freshness, environment-variable names, queue, and worker after the
+      immutable upgrade.
+- [ ] Start exactly one manual deployment and follow browser SSE plus worker logs through
+      clone, build, activation, health check, route creation, and HEALTHY.
+- [ ] Verify deployment records, active pointer, Nginx route, running container,
+      notifications, security limits, and `hellouniversity-4e6a.hellodeploy.online`.
 - [ ] Deploy a safe update and confirm the new healthy release replaces the prior
       release.
 - [ ] Deploy an intentionally broken candidate and confirm the healthy release stays
@@ -482,8 +505,8 @@ Owner workflow access; authoritative DNS and Cloudflare access.
   cannot be cancelled safely.
 - The platform application URL is unhealthy or bypasses the managed route.
 - A failed update displaces the healthy release.
-- The custom-domain change would remove the existing HelloRun fallback before the
-  managed release is proven.
+- The custom-domain change would remove the existing HelloUniversity fallback before
+  24 continuously healthy hours and the rollback drill pass.
 
 ### Required Evidence
 
@@ -495,18 +518,18 @@ Owner workflow access; authoritative DNS and Cloudflare access.
 
 ### Completion Gate
 
-HelloRun is built and operated by HelloDeploy, both public addresses are healthy, an
-update and rollback pass, and the independent PM2 deployment is no longer required
-for normal service.
+HelloUniversity is built and operated by HelloDeploy, both public addresses are
+healthy, an update and rollback pass, and the former hosting route completes its
+24-hour fallback period before retirement.
 
-## HelloRun Cutover Checklist
+## HelloUniversity Cutover Checklist
 
-- [ ] Keep the existing PM2 HelloRun process and its current traffic path unchanged.
-- [ ] Deploy `hellorun-e783` through HelloDeploy and verify the managed container
+- [ ] Keep the existing HelloUniversity hosting path unchanged and record exact rollback.
+- [ ] Deploy `hellouniversity-4e6a` through HelloDeploy and verify the managed container
       directly through the platform application address.
 - [ ] Observe the managed release long enough to confirm stable health, logs,
       resources, and notifications.
-- [ ] Confirm the active nameservers for `hellorun.online`; edit DNS only at the
+- [ ] Confirm the active nameservers for `hellouniversity.online`; edit DNS only at the
       authoritative provider.
 - [ ] Publish the exact HelloDeploy TXT verification record without replacing
       unrelated DNS records.
@@ -514,11 +537,12 @@ for normal service.
       domain approval.
 - [ ] Add the custom hostname to Cloudflare Tunnel ingress and the managed Nginx route.
 - [ ] Verify HTTPS, expected content, health, redirects, and application behavior at
-      `hellorun.online`.
-- [ ] Test the documented route back to the independent PM2 service.
-- [ ] Observe the managed custom domain before removing the old route or process.
-- [ ] Remove the independent service only after rollback ownership and monitoring are
-      confirmed.
+      `hellouniversity.online`; configure `www` as a permanent redirect to the apex.
+- [ ] Test the documented route back to the former hosting path, then reapply the
+      HelloDeploy route.
+- [ ] Observe the managed custom domain for at least 24 continuously healthy hours.
+- [ ] Remove the former route only after monitoring, rollback ownership, and final
+      owner approval are confirmed.
 
 ## P5 - Prove the Workflow for Other Projects
 
@@ -625,12 +649,15 @@ Record product or operational decisions that affect execution order, risk, or th
 definition of success. Do not record credentials, private identifiers, internal
 addresses, or secret values.
 
-| Date       | Decision                                           | Reason                                                        | Owner         |
-| ---------- | -------------------------------------------------- | ------------------------------------------------------------- | ------------- |
-| 2026-07-31 | Use the current Ubuntu 26.04 laptop as target host | Continue the prepared in-place productionization path         | Project Owner |
-| 2026-07-31 | Use HelloRun as the controlled production pilot    | Prove the real workflow before accepting other hosted apps    | Project Owner |
-| 2026-07-31 | Retain the independent PM2 HelloRun fallback       | Preserve availability until managed URLs and rollback pass    | Operator      |
-| 2026-07-31 | Require P0-P6 before customer-hosting GO           | UI readiness alone does not prove safe application deployment | Operator      |
+| Date       | Decision                                           | Reason                                                         | Owner         |
+| ---------- | -------------------------------------------------- | -------------------------------------------------------------- | ------------- |
+| 2026-07-31 | Use the current Ubuntu 26.04 laptop as target host | Continue the prepared in-place productionization path          | Project Owner |
+| 2026-07-31 | Use HelloRun as the controlled production pilot    | Prove the real workflow before accepting other hosted apps     | Project Owner |
+| 2026-07-31 | Retain the independent PM2 HelloRun fallback       | Preserve availability until managed URLs and rollback pass     | Operator      |
+| 2026-07-31 | Require P0-P6 before customer-hosting GO           | UI readiness alone does not prove safe application deployment  | Operator      |
+| 2026-08-18 | Replace HelloRun with HelloUniversity as P4 pilot  | Use the active real project and keep HelloRun outside the gate | Project Owner |
+| 2026-08-18 | Canonicalize `hellouniversity.online` at the apex  | Preserve one managed-domain quota; redirect `www` to the apex  | Project Owner |
+| 2026-08-18 | Retain former HelloUniversity hosting for 24 hours | Preserve a tested fallback during managed-domain cutover       | Operator      |
 
 ## Execution Evidence
 

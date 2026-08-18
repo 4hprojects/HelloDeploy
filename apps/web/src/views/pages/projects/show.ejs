@@ -94,6 +94,23 @@
   <% } %>
 </section>
 
+<% if (overviewState.reviewFlag) { %>
+<section class="project-home-section" aria-labelledby="review-flag-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="review-flag-title">Auto-deploy paused</h2>
+      <p class="text-sm text-muted">A push was flagged for review and did not deploy automatically.</p>
+    </div>
+  </div>
+  <ul class="approval-findings">
+    <li class="approval-finding approval-finding--warning">
+      <strong>Recommendation: Review the flagged change</strong>
+      <span>HelloDeploy detected a high-risk file change and paused automatic deployment. Review it, then deploy manually when ready.</span>
+    </li>
+  </ul>
+</section>
+<% } %>
+
 <% if (overviewState.attentionFindings.length > 0 && ['SETUP', 'NEEDS_ATTENTION'].includes(overviewState.phase)) { %>
 <section class="project-home-section" aria-labelledby="attention-title">
   <div class="project-home-section__heading">

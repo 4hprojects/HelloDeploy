@@ -2,6 +2,24 @@
   <h1 class="page-header__title">Admin Overview</h1>
 </div>
 
+<%
+  const workerDown = server?.worker && !server.worker.ready;
+  const queuePaused = server?.queue?.paused;
+  const failedJobs = server?.queue?.failed ?? 0;
+  const needsAttention = workerDown || queuePaused || failedJobs > 0;
+%>
+<% if (needsAttention) { %>
+<div class="alert alert--warning mb-6" role="alert">
+  <strong>Needs attention</strong>
+  <ul class="mt-1">
+    <% if (workerDown) { %><li>No deployment worker is connected — queued jobs will not be processed.</li><% } %>
+    <% if (queuePaused) { %><li>The deployment queue is paused — new deployments will not start.</li><% } %>
+    <% if (failedJobs > 0) { %><li><%= failedJobs %> failed job<%= failedJobs === 1 ? '' : 's' %> in the deployment queue.</li><% } %>
+  </ul>
+  <a href="/admin/server" class="button button--warning button--sm mt-2">Go to Server &amp; Queue</a>
+</div>
+<% } %>
+
 <div class="stats-grid mb-6">
   <div class="stat-card">
     <span class="stat-card__value"><%= stats.totalUsers %></span>
@@ -18,6 +36,10 @@
   <div class="stat-card<%= stats.pendingApprovals > 0 ? ' stat-card--alert' : '' %>">
     <span class="stat-card__value"><%= stats.pendingApprovals %></span>
     <span class="stat-card__label">Pending Reviews</span>
+  </div>
+  <div class="stat-card<%= stats.pendingDomainApprovals > 0 ? ' stat-card--alert' : '' %>">
+    <span class="stat-card__value"><%= stats.pendingDomainApprovals %></span>
+    <span class="stat-card__label">Pending Domains</span>
   </div>
   <% if (server?.running !== null && server?.running !== undefined) { %>
   <div class="stat-card">
@@ -36,7 +58,13 @@
 <div class="quick-links mt-4">
   <a href="/admin/users" class="button button--secondary">Manage Users</a>
   <a href="/admin/projects" class="button button--secondary">Manage Projects</a>
+  <% if (stats.pendingDomainApprovals > 0) { %>
+  <a href="/admin/domains" class="button button--primary">
+    Domain Queue (<%= stats.pendingDomainApprovals %>)
+  </a>
+  <% } else { %>
   <a href="/admin/domains" class="button button--secondary">Domain Queue</a>
+  <% } %>
   <a href="/admin/server" class="button button--secondary">Server &amp; Queue</a>
   <a href="/admin/audit-events" class="button button--secondary">Audit Log</a>
   <% if (stats.pendingApprovals > 0) { %>

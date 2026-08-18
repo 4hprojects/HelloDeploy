@@ -1,6 +1,6 @@
 # UI/UX Improvement Backlog
 
-Updated: 2026-07-14T14:15:20+08:00
+Updated: 2026-08-14
 
 This backlog tracks planned UI/UX improvements for HelloDeploy. The goal is to make the app more efficient, user-friendly, intuitive, consistent, and safer to operate without turning the product into a marketing-style interface.
 
@@ -25,7 +25,7 @@ This backlog tracks planned UI/UX improvements for HelloDeploy. The goal is to m
 
 - Update `Status`, `Acceptance Evidence`, and `Updated` whenever a backlog item changes.
 - Add implementation notes or links to supporting commits, screenshots, tests, or reports where useful.
-- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), and [Phase Task Tracker](PHASE_TASK_TRACKER.md).
+- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), and [Phase Task Tracker](archive/PHASE_TASK_TRACKER.md) (archived, historical reference).
 - Do not mark browser-facing work `Done` without checking desktop and mobile behavior.
 
 ## Priority Roadmap
@@ -41,22 +41,51 @@ This backlog tracks planned UI/UX improvements for HelloDeploy. The goal is to m
 
 ## Detailed Backlog
 
-| ID    | Status  | Priority | Area                  | Improvement                                                          | Implementation Notes                                                                                                                                                                                               | Acceptance Evidence                                                                                                                                                                     | Updated                   |
-| ----- | ------- | -------- | --------------------- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| UX-01 | Done    | P1       | Confirmation dialogs  | Replace browser default confirmations with a custom modal dialog.    | Reuses existing `data-confirm` attributes for forms and links; modal traps focus, closes on Escape/backdrop/cancel, and restores focus.                                                                            | Added shared confirmation modal, CSS, link/form handling, and `tests/ui/confirmation-modal.test.js`; verified with full checks.                                                         | 2026-07-01T20:38:24+08:00 |
-| UX-02 | Done    | P1       | Mobile navigation     | Improve sidebar drawer behavior on mobile.                           | Added backdrop, Escape close, link close, focus trap, body scroll lock, inert main content, viewport sync, and clearer toggle state.                                                                               | Added drawer markup/CSS/JS and `tests/ui/mobile-sidebar.test.js`; verified with full checks.                                                                                            | 2026-07-01T20:48:46+08:00 |
-| UX-03 | Done    | P1       | Tooltips              | Add helpful accessible tooltips.                                     | Added shared `data-tooltip` behavior for mouse, keyboard focus, Escape close, scroll/resize repositioning, and status badge hints.                                                                                 | Added tooltip CSS/JS, high-value control coverage, and `tests/ui/tooltips.test.js`; verified with focused/static checks.                                                                | 2026-07-01T22:58:46+08:00 |
-| UX-04 | Done    | P1       | Forms                 | Add floating labels for form controls.                               | Added scoped `form-field--floating` and `form-group--floating` patterns for text inputs, selects, textareas, password fields, hints, errors, and autofill.                                                         | Applied to auth partials plus core project/admin forms and covered by `tests/ui/floating-labels.test.js`.                                                                               | 2026-07-01T23:08:24+08:00 |
-| UX-05 | Done    | P2       | Navigation utility    | Add a floating scroll-to-top button.                                 | Added shared footer button that appears after scrolling, includes tooltip support, and uses instant scrolling when reduced motion is requested.                                                                    | Added responsive CSS/JS behavior and `tests/ui/scroll-top.test.js`; verified with focused/static checks.                                                                                | 2026-07-01T23:19:41+08:00 |
-| UX-06 | Done    | P2       | Responsive tables     | Improve admin and project tables on mobile.                          | Added shared responsive table wrappers and compact mobile row summaries using `data-label` values for admin and project operational tables.                                                                        | Admin/project tables remain readable and actionable at mobile and desktop widths; covered by `tests/ui/responsive-tables.test.js`.                                                      | 2026-07-01T23:28:53+08:00 |
-| UX-07 | Done    | P2       | Deployment clarity    | Add a clear deployment timeline and stage display.                   | Reworked deployment detail timeline to normalize status/event stages, show per-stage status, latest message, timestamps, and failed-stage context.                                                                 | Users can identify the active or failed deployment stage without reading raw logs first; covered by `tests/ui/deployment-timeline.test.js`.                                             | 2026-07-01T23:33:20+08:00 |
-| UX-08 | Done    | P2       | Empty states          | Upgrade empty states into guided next-step flows.                    | Added shared empty-state step/action patterns and guided paths for project creation, repository access, detection, secrets, domains, deployment, and admin queues.                                                 | Empty states show the next useful action without adding instructional clutter to normal screens; covered by `tests/ui/guided-empty-states.test.js`.                                     | 2026-07-01T23:38:16+08:00 |
-| UX-09 | Done    | P2       | Destructive actions   | Standardize danger-zone and risky-action patterns.                   | Added per-action confirmation title, severity, accept label, pending copy, submitter disabling, and styled warning/success button variants.                                                                        | Archive, suspend, delete, disconnect, rollback, queue, domain approval/rejection, and member actions use consistent safety patterns; covered by `tests/ui/destructive-actions.test.js`. | 2026-07-01T23:44:58+08:00 |
-| UX-10 | Done    | P3       | Theme polish          | Verify and improve light/dark theme persistence.                     | Centralized theme bootstrap in the shared head, removed duplicate auth bootstrap, synced `theme-color`/`color-scheme`, and aligned toggle label/pressed state.                                                     | Theme selection persists across main and auth layouts, avoids flash before stylesheet load, and is covered by `tests/ui/theme-persistence.test.js`.                                     | 2026-07-01T23:48:06+08:00 |
-| UX-11 | Done    | P3       | Icon consistency      | Replace symbolic navigation/action characters with consistent icons. | Added a shared inline SVG icon partial and applied it to sidebar navigation, theme/scroll/external controls, flash banners, password toggle, empty states, and feature cards.                                      | Dashboard, Projects, Deployments, Repository, Domains, Environment, Members, Audit Log, and Server use consistent named icons; covered by `tests/ui/icon-consistency.test.js`.          | 2026-07-01T23:53:29+08:00 |
-| UX-12 | Done    | P3       | Efficiency            | Add loading and pending states for forms and action buttons.         | Added a shared submit-pending handler that marks forms busy, prevents duplicate submissions, disables submit buttons, and applies action-specific pending labels.                                                  | Risky, auth, deployment, repository, domain, detection, quota, and admin queue actions use pending states; covered by `tests/ui/form-pending-states.test.js`.                           | 2026-07-01T23:57:56+08:00 |
-| UX-13 | Done    | P3       | Accessibility         | Run a focused accessibility pass after component updates.            | Fixed header button types, status badge accessible labels, and form-error icon consistency; documented keyboard, ARIA, focus, tooltip, modal, reduced-motion, and residual risk findings.                          | Findings recorded in `docs/UI_UX_ACCESSIBILITY_PASS.md`; related component contracts covered by `tests/ui/accessibility-pass.test.js`.                                                  | 2026-07-02T00:01:30+08:00 |
-| UX-14 | Partial | P1       | Repository connection | Allow an Owner to connect a public GitHub repository by HTTPS URL.   | Public URL inspection, branch choice, source persistence, detection, exact-commit clone, mode enforcement, feedback, and focused tests are implemented; GitHub App remains required for private/automatic sources. | Real Docker-backed deployment, responsive assistive-technology QA, and live operator evidence remain blocked by the inactive worker plane.                                              | 2026-07-14T14:41:55+08:00 |
+**UX-01 through UX-13 are all `Done`** (shipped 2026-07-01/02): custom
+confirmation modal, mobile sidebar drawer, accessible tooltips, floating
+form labels, floating scroll-to-top button, responsive admin/project
+tables, deployment timeline clarity, guided empty states, standardized
+destructive-action confirmations, light/dark theme persistence, consistent
+icon system, and form/action pending states — each with dedicated
+`tests/ui/*.test.js` coverage. UX-13's accessibility-pass findings are
+folded in below rather than kept in a separate file. One item remains open:
+
+| ID    | Status  | Priority | Area                  | Improvement                                                        | Implementation Notes                                                                                                                                                                                               | Acceptance Evidence                                                                                                                                                                          | Updated                   |
+| ----- | ------- | -------- | --------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| UX-14 | Partial | P1       | Repository connection | Allow an Owner to connect a public GitHub repository by HTTPS URL. | Public URL inspection, branch choice, source persistence, detection, exact-commit clone, mode enforcement, feedback, and focused tests are implemented; GitHub App remains required for private/automatic sources. | Real Docker-backed deployment, responsive assistive-technology QA, and live operator evidence remain blocked by the inactive worker plane; tracks with `docs/PUBLIC_GIT_REPOSITORY_SPEC.md`. | 2026-07-14T14:41:55+08:00 |
+
+## UX-13 Evidence: Accessibility Pass Findings
+
+Folded in from the former standalone `UI_UX_ACCESSIBILITY_PASS.md`
+(2026-07-01), a focused accessibility pass completed after the UX-01
+through UX-12 component updates.
+
+**Scope:** keyboard flow for header controls, sidebar drawer, modal
+dialog, tooltips, and form submissions; accessible names and ARIA state
+for icon-only controls, status badges, pending forms, and confirmation
+dialogs; focus visibility, focus restoration, reduced-motion behavior, and
+light/dark theme support; static coverage for the updated shared UI
+contracts.
+
+| Area                   | Status   | Notes                                                                                                                                      |
+| ---------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Header controls        | Fixed    | Menu and theme icon buttons now explicitly use `type="button"` and keep accessible labels/state.                                           |
+| Confirmation modal     | Verified | Dialog uses `role="dialog"`, `aria-modal`, labelled/described content, Escape/backdrop/cancel behavior, focus trap, and focus restoration. |
+| Tooltips               | Verified | Shared tooltip popover uses `role="tooltip"`, keyboard focus support, Escape close, and dark-theme styling.                                |
+| Mobile sidebar         | Verified | Drawer uses `aria-expanded`, viewport sync, focus trap, Escape/backdrop/link close, body scroll lock, and `inert` main content while open. |
+| Pending forms          | Verified | Forms mark `aria-busy`, prevent duplicate submissions, disable submit buttons, and preserve action-specific pending labels.                |
+| Status badges          | Fixed    | Badges now expose an accessible label that combines visible status text with tooltip context.                                              |
+| Icon-only/visual icons | Fixed    | Shared SVG icons are decorative by default; icon-only controls keep text alternatives through `aria-label` or adjacent text.               |
+| Reduced motion         | Verified | Global reduced-motion token and scroll-to-top reduced-motion behavior are present.                                                         |
+
+**Verification:** `tests/ui/accessibility-pass.test.js`, plus existing
+related coverage (confirmation modal, mobile sidebar, tooltips,
+scroll-to-top, theme persistence, icon consistency, form pending states).
+
+**Residual risk:** this pass is static and component-focused. A
+browser-based assistive-technology pass should still be run during final
+pilot validation — still open as of 2026-08-14, not superseded by
+anything since.
 
 ## Implementation Notes
 

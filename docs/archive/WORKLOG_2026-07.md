@@ -1,0 +1,2475 @@
+# Worklog Archive — 2026-07-02 to 2026-07-31
+
+Archived 2026-08-14 as part of a `WORKLOG.md` size split (the file had grown
+to 3,510 lines / 117 entries). This covers the initial hardening/UX phase
+and P0-P2 production-cutover work through 2026-07-31. Entries from
+2026-08-01 onward remain in [`WORKLOG.md`](../../WORKLOG.md). See
+[`PRIORITIES.md`](../PRIORITIES.md)'s "Also worth a deliberate decision"
+for the split rationale and the ongoing-policy proposal for future splits.
+
+## Operational Error Copy
+
+- Status: Completed
+- Started: 2026-07-02T12:05:51+08:00
+- Completed: 2026-07-02T12:08:22+08:00
+
+### Results
+
+- Added action-oriented deployment queue outage copy that points admins to Redis and worker health.
+- Added repository access inactive copy that tells users to reconnect or update GitHub App installation access.
+- Rewrote deployment-in-progress copy to point users to wait or cancel from Deployments.
+- Added domain queue and route activation copy with administrator recovery steps.
+- Added DNS propagation guidance to the verification queued flash message.
+- Added regression coverage for the operational error-copy strings.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/ui/operational-error-copy.test.js tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js tests/domain/domain-isolation.test.js` passed.
+
+## Deployment Log SSE Cap And Reconnect
+
+- Status: Completed
+- Started: 2026-07-02T12:02:22+08:00
+- Completed: 2026-07-02T12:05:51+08:00
+
+### Results
+
+- Added in-process active SSE stream counters by signed-in user and source IP.
+- Capped deployment log streams at 3 per user and 6 per source IP.
+- Return `429` with `Retry-After: 30` when stream caps are exceeded before opening the SSE response.
+- Release stream counters on client close, terminal deployment status, timeout, and pre-stream errors.
+- Added a reconnect button for live deployment logs after timeout or disconnect.
+- Added regression coverage for stream caps and reconnect behavior.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/deployment/live-progress-sse.test.js tests/deployment/log-viewer-safety.test.js tests/ui/deployment-timeline.test.js` passed.
+
+## Production Rate Limit Hardening
+
+- Status: Completed
+- Started: 2026-07-02T12:00:02+08:00
+- Completed: 2026-07-02T12:02:22+08:00
+
+### Results
+
+- Kept development/test memory-store fallback for local use.
+- Changed production Redis store creation failures to throw instead of silently falling back to in-memory rate limits.
+- Logged production Redis client errors as errors instead of warnings.
+- Set `passOnStoreError: false` explicitly on all five rate limiters so Redis store errors fail closed.
+- Added source-level regression coverage for production fail-closed behavior.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/security/rate-limit.test.js` passed.
+
+## Inline Style CSP Tightening
+
+- Status: Completed
+- Started: 2026-07-02T11:52:00+08:00
+- Completed: 2026-07-02T12:00:02+08:00
+
+### Results
+
+- Replaced app-rendered EJS `style` attributes with reusable CSS classes.
+- Added narrow utility/component classes for inline forms, hidden blocks, constrained filters/cards, success text, uppercase inputs, warning cards, and aligned form controls.
+- Switched repository branch visibility from `element.style.display` to `d-none`.
+- Reworked tooltip positioning to use CSS anchoring classes instead of JS-written `top`/`left` inline styles.
+- Tightened Helmet CSP from `style-src 'self' 'unsafe-inline'` to `style-src 'self'` and added `style-src-attr 'none'`.
+- Extended CSP tests to scan all EJS views for inline style attributes.
+
+### Verification
+
+- Source scan found no app view `style=` attributes, unsafe script sinks, or JS `element.style` usage in the checked browser paths.
+- `node --test tests/security/csp.test.js tests/ui/tooltips.test.js tests/ui/destructive-actions.test.js tests/ui/form-pending-states.test.js` passed.
+
+## Script CSP Implementation
+
+- Status: Completed
+- Started: 2026-07-02T06:47:00+08:00
+- Completed: 2026-07-02T07:34:11+08:00
+
+### Results
+
+- Moved shared browser behavior from EJS inline scripts into `apps/web/public/js/app.js`.
+- Added the static JS bundle to both main and auth layouts.
+- Replaced inline `onchange` behavior with delegated `data-auto-submit` handling.
+- Replaced repository branch `innerHTML` option resets with DOM-created nodes.
+- Added per-request CSP nonces for the early theme bootstrap.
+- Enabled Helmet CSP enforcement for scripts with `script-src 'self'` plus the request nonce.
+- Initially left `style-src 'unsafe-inline'` as a documented temporary allowance until inline style attributes were moved into CSS; this was removed in the follow-up inline style CSP pass.
+- Added CSP regression coverage and updated source-level UI tests to assert behavior in the static JS asset.
+- Updated today's remediation checklist and the comprehensive analysis report.
+
+### Verification
+
+- `node --test tests/security/csp.test.js tests/ui/theme-persistence.test.js tests/ui/mobile-sidebar.test.js tests/ui/form-pending-states.test.js tests/ui/confirmation-modal.test.js tests/ui/tooltips.test.js tests/deployment/live-progress-sse.test.js tests/deployment/log-viewer-safety.test.js tests/ui/deployment-timeline.test.js` passed.
+- `node --test tests/ui/accessibility-pass.test.js tests/ui/destructive-actions.test.js tests/ui/scroll-top.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 472 tests, 0 failures.
+- `npm run format:check` passed.
+
+## Web App P0 Tenant-Isolation Remediation
+
+- Status: Completed
+- Started: 2026-07-02T06:31:00+08:00
+- Completed: 2026-07-02T06:40:31+08:00
+
+### Results
+
+- Scoped deployment cancel and retry mutations to the authorized route project.
+- Scoped custom-domain verification and removal mutations to the authorized route project.
+- Added regression coverage for deployment and domain project isolation.
+- Fixed the existing `no-regex-spaces` lint issue in the live progress SSE test.
+- Updated today's remediation checklist, the web app analysis report, and the phase tracker.
+
+### Verification
+
+- `node --test tests/deployment/cancel-retry-flow.test.js tests/domain/domain-isolation.test.js tests/deployment/live-progress-sse.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 465 tests, 0 failures.
+- `npm run format:check` passed.
+
+## CSP Migration Prep
+
+- Status: Completed
+- Started: 2026-07-02T06:41:00+08:00
+- Completed: 2026-07-02T06:43:00+08:00
+
+### Results
+
+- Inventoried current inline script and inline handler blockers for CSP.
+- Identified reusable scripts that should move into static JS.
+- Identified one inline event handler and repository `innerHTML` assignments to remove before CSP enforcement.
+- Queued the CSP migration order in today's remediation checklist.
+
+### Verification
+
+- Source scan used `rg -n "<script|on[a-z]+=" apps/web/src/views apps/web/public`.
+- Sink scan used `rg -n "javascript:|innerHTML|insertAdjacentHTML|document\\.write|eval\\(|new Function" apps/web/src/views apps/web/public apps/web/src`.
+
+## Efficiency And UX Follow-Up Pass
+
+- Status: Completed
+- Started: 2026-07-02T06:43:00+08:00
+- Completed: 2026-07-02T06:47:00+08:00
+
+### Results
+
+- Reviewed project membership, deployment, domain, and audit event model indexes.
+- Confirmed membership, deployment, and domain indexes already cover the reviewed high-traffic paths.
+- Added audit event compound indexes for `outcome`, `targetType`, and `targetId` filters with `createdAt` sort support.
+- Added source-level regression coverage for the high-traffic model indexes.
+- Queued SSE stream cap/reconnect UX and operational error-copy follow-ups in today's remediation checklist.
+
+### Verification
+
+- `node --test tests/operations/database-indexes.test.js` passed.
+- `npm run lint` passed.
+- `npm test` passed: 469 tests, 0 failures.
+- `npm run format:check` passed.
+
+## P8-07 Live Progress Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:18:00+08:00
+- Completed: 2026-07-02T00:18:59+08:00
+
+### Checklist
+
+- [x] Verify deployment log SSE response headers.
+- [x] Verify existing and new SSE log events use redacted messages.
+- [x] Verify terminal status and timeout events are handled.
+- [x] Verify browser client uses EventSource and safe DOM updates.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added `tests/deployment/live-progress-sse.test.js`.
+- Confirmed existing log safety and timeline tests cover safe rendering around live progress.
+- Updated P8-07 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/live-progress-sse.test.js tests/deployment/log-viewer-safety.test.js tests/ui/deployment-timeline.test.js`.
+
+## P8-06 Deployment Notification Verification
+
+- Status: Partial
+- Started: 2026-07-02T00:15:00+08:00
+- Completed: 2026-07-02T00:16:59+08:00
+
+### Checklist
+
+- [x] Verify deployment notification email composition locally.
+- [x] Escape HTML interpolated into notification bodies.
+- [x] Verify activation and rollback workers invoke deployment notifications.
+- [x] Verify notification failures remain nonblocking.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+- [ ] Verify configured provider delivery end to end. _(2026-07-04: automated send was blocked by the agent-environment safety policy for external email; a ready-to-run script composes a real notification via `buildDeploymentNotificationEmail` and sends through the configured Resend key — run `node send-resend-e2e.mjs` from the session scratchpad or replicate per `docs/phases/phase-8-worklog-verifications.md`, then check the inbox and Resend dashboard.)_
+
+### Results
+
+- Added `escapeNotificationHtml` and `buildDeploymentNotificationEmail` in `apps/worker/src/notification/deployment-notification.js`.
+- Updated notification sending to use the escaped email builder.
+- Added `tests/deployment/deployment-notification.test.js`.
+- Kept P8-06 `Partial` because real provider delivery still needs an end-to-end environment check.
+
+### Verification
+
+- Passed `node --test tests/deployment/deployment-notification.test.js`.
+
+## P8-05 Rollback Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:12:00+08:00
+- Completed: 2026-07-02T00:13:54+08:00
+
+### Checklist
+
+- [x] Verify rollback targets are retained healthy deployments.
+- [x] Verify current active deployment is excluded from rollback targets.
+- [x] Verify rollback targets require an available image.
+- [x] Verify rollback queue payload includes project, rollback deployment, and source deployment IDs.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added rollback helper functions in `apps/web/src/services/deployment.service.js`.
+- Added `tests/deployment/rollback-flow.test.js`.
+- Updated P8-05 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/rollback-flow.test.js tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js`.
+
+## P8-04 Cancel And Retry Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:09:40+08:00
+- Completed: 2026-07-02T00:11:00+08:00
+
+### Checklist
+
+- [x] Make retryable deployment status checks explicit.
+- [x] Verify retry is limited to failed and cancelled deployments.
+- [x] Verify retry payloads use the original deployment commit and cache behavior.
+- [x] Verify cancellation remains guarded by active deployment states.
+- [x] Verify UI shows cancel/retry actions only for matching states.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added `isRetryableDeploymentStatus` in `apps/web/src/services/deployment.service.js`.
+- Added `tests/deployment/cancel-retry-flow.test.js`.
+- Updated P8-04 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/cancel-retry-flow.test.js tests/deployment/deployment-options.test.js tests/ui/destructive-actions.test.js`.
+
+## P8-03 Deployment Log Viewer Safety
+
+- Status: Completed
+- Started: 2026-07-02T00:07:30+08:00
+- Completed: 2026-07-02T00:08:42+08:00
+
+### Checklist
+
+- [x] Verify worker deployment events are stored through log redaction.
+- [x] Verify SSE log payloads use `messageRedacted`.
+- [x] Verify server-rendered logs use escaped redacted messages.
+- [x] Verify live log appends use DOM text nodes instead of HTML injection.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Added `tests/deployment/log-viewer-safety.test.js`.
+- Confirmed existing redaction and deployment timeline tests cover secret redaction and safe live rendering.
+- Updated P8-03 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/deployment/log-viewer-safety.test.js tests/security/redaction.test.js tests/ui/deployment-timeline.test.js`.
+
+## P8-02 Deployment Timeline Verification
+
+- Status: Completed
+- Started: 2026-07-02T00:06:30+08:00
+- Completed: 2026-07-02T00:06:51+08:00
+
+### Checklist
+
+- [x] Verify deployment timeline static coverage.
+- [x] Confirm stage display includes normalized stage state behavior.
+- [x] Update phase tracker evidence.
+
+### Results
+
+- Confirmed existing `tests/ui/deployment-timeline.test.js` covers timeline stage normalization, state hooks, safe log rendering, and CSS coverage.
+- Updated P8-02 in `docs/PHASE_TASK_TRACKER.md`.
+
+### Verification
+
+- Passed `node --test tests/ui/deployment-timeline.test.js`.
+
+## P8-01 Deployment Option Verification
+
+- Status: Partial
+- Started: 2026-07-02T00:02:00+08:00
+- Completed: 2026-07-02T00:05:17+08:00
+
+### Checklist
+
+- [x] Verify no-cache request parsing.
+- [x] Verify latest-commit deployment job payload shape.
+- [x] Verify retry/current-commit payload uses the original deployment commit.
+- [x] Keep deployment controller parsing aligned with the shared helper.
+- [x] Add focused regression coverage.
+- [x] Update phase tracker evidence.
+- [x] Verify or implement a selected-commit deployment path. _(2026-07-04: implemented — `createDeployment` accepts a validated 40-hex `commitSha` override (normalized to lowercase, `errorField`-scoped validation error), the deployments page gained a "Deploy a Specific Commit" card with inline error + sticky value, and the worker's exact-SHA clone needed no changes. Verified live: malformed SHA → inline error; valid SHA → QUEUED deployment + BullMQ payload carrying the chosen commit. Evidence in `docs/phases/phase-9-selected-commit-deploys.md`.)_
+- [x] Run browser or integration evidence for all deployment options. _(2026-07-04: driven live against the dev harness — deploy form renders both variants (hidden `noCache=true` on the no-cache form); POST deploy-latest produced a BullMQ payload with `noCache: false` and the repository's `lastCommitSha`; the no-cache POST produced `noCache: true`; retry of a FAILED deployment created a new QUEUED deployment reusing the original commit with `noCache: false`. Evidence in `docs/phases/phase-8-worklog-verifications.md`.)_
+
+### Results
+
+- Added `parseNoCacheFlag` and `buildDeploymentJobPayload` helpers in `apps/web/src/services/deployment.service.js`.
+- Updated `apps/web/src/controllers/deployment.controller.js` to use the shared no-cache parser.
+- Added `tests/deployment/deployment-options.test.js`.
+- Confirmed that deploy-latest/no-cache and retry/current-commit payloads are locally covered.
+- Recorded the remaining gap: there is no dedicated selected-commit deploy path in the current service/UI.
+
+### Verification
+
+- Passed `node --test tests/deployment/deployment-options.test.js tests/deployment/create-deployment-guards.test.js tests/github/webhook-push.test.js`.
+
+## UX-13 Accessibility Pass
+
+- Status: Completed
+- Started: 2026-07-01T23:58:00+08:00
+- Completed: 2026-07-02T00:01:30+08:00
+
+### Checklist
+
+- [x] Review keyboard and ARIA contracts for updated shared components.
+- [x] Fix critical accessibility issues found during the pass.
+- [x] Record findings and residual risk in a dedicated markdown report.
+- [x] Link the report from the documentation index.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added explicit `type="button"` to header icon buttons.
+- Replaced the form error summary warning glyph with the shared decorative icon partial.
+- Added accessible labels to status badges so focused badges include visible status and tooltip context.
+- Added `docs/UI_UX_ACCESSIBILITY_PASS.md` and linked it from `docs/README.md`.
+- Added `tests/ui/accessibility-pass.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/accessibility-pass.test.js tests/ui/confirmation-modal.test.js tests/ui/mobile-sidebar.test.js tests/ui/tooltips.test.js tests/ui/scroll-top.test.js tests/ui/theme-persistence.test.js tests/ui/icon-consistency.test.js tests/ui/form-pending-states.test.js`.
+
+## UX-12 Form Pending States
+
+- Status: Completed
+- Started: 2026-07-01T23:54:00+08:00
+- Completed: 2026-07-01T23:57:56+08:00
+
+### Checklist
+
+- [x] Add a shared form submit-pending handler.
+- [x] Prevent duplicate submissions after a valid submit event.
+- [x] Mark submitting forms busy for assistive technology.
+- [x] Disable submit buttons while the request is in progress.
+- [x] Add action-specific pending labels to high-value forms.
+- [x] Remove duplicate one-off auth submit scripts.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Extended `apps/web/src/views/partials/footer.ejs` with a generic pending-state submit handler.
+- Added `.form--pending` styling in `apps/web/public/css/components.css`.
+- Added `data-pending-label` coverage for auth, deployment, repository, domain, detection, environment, quota, and admin queue actions.
+- Removed older per-page auth submit-disable scripts in favor of the shared handler.
+- Added `tests/ui/form-pending-states.test.js` and updated destructive-action coverage for the shared form guard.
+
+### Verification
+
+- Passed `node --test tests/ui/form-pending-states.test.js tests/ui/confirmation-modal.test.js tests/ui/destructive-actions.test.js`.
+
+## UX-11 Icon Consistency
+
+- Status: Completed
+- Started: 2026-07-01T23:49:00+08:00
+- Completed: 2026-07-01T23:53:29+08:00
+
+### Checklist
+
+- [x] Add a shared inline SVG icon partial.
+- [x] Replace sidebar navigation glyphs with named icons.
+- [x] Replace high-visibility symbolic controls with shared icons.
+- [x] Keep icons decorative where text already provides the accessible name.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `apps/web/src/views/partials/icon.ejs` and shared `.ui-icon` styling.
+- Replaced ad hoc sidebar, theme toggle, scroll-to-top, external-link, flash, password-toggle, empty-state, and landing feature glyphs.
+- Removed pagination arrow glyphs from repeated table pagination controls.
+- Added `tests/ui/icon-consistency.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/icon-consistency.test.js tests/ui/tooltips.test.js tests/ui/scroll-top.test.js tests/ui/guided-empty-states.test.js tests/ui/theme-persistence.test.js`.
+
+## UX-10 Theme Persistence Polish
+
+- Status: Completed
+- Started: 2026-07-01T23:45:00+08:00
+- Completed: 2026-07-01T23:48:06+08:00
+
+### Checklist
+
+- [x] Centralize theme bootstrap for main and auth layouts.
+- [x] Preserve stored light/dark preference before stylesheets load.
+- [x] Respect system dark preference when no stored preference exists.
+- [x] Sync browser `theme-color` and native `color-scheme`.
+- [x] Keep theme toggle label, tooltip, and pressed state aligned with the active theme.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Consolidated theme persistence in `apps/web/src/views/partials/head.ejs`.
+- Removed duplicate pre-HTML auth layout theme script from `apps/web/src/views/layouts/auth.ejs`.
+- Updated `apps/web/src/views/partials/header.ejs` so the theme toggle reflects the active state and persists explicit user selection through the shared helper.
+- Added color-scheme tokens and active toggle styling in `apps/web/public/css/tokens.css` and `apps/web/public/css/layout.css`.
+- Added `tests/ui/theme-persistence.test.js` and updated the tooltip expectation for the dynamic theme toggle label.
+
+### Verification
+
+- Passed `node --test tests/ui/theme-persistence.test.js tests/ui/tooltips.test.js`.
+
+## UX-09 Destructive Action Consistency
+
+- Status: Completed
+- Started: 2026-07-01T23:42:50+08:00
+- Completed: 2026-07-01T23:44:58+08:00
+
+### Checklist
+
+- [x] Add severity-aware confirmation modal metadata.
+- [x] Add pending/disabled state for confirmed risky submissions.
+- [x] Style warning and success button variants already used by risky controls.
+- [x] Standardize confirm copy, titles, accept labels, and severity on project risky actions.
+- [x] Standardize confirm copy, titles, accept labels, and severity on admin risky actions.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Extended `apps/web/src/views/partials/footer.ejs` so `data-confirm` actions can define title, severity, accept label, and pending copy.
+- Added shared warning/success button styling and severity-specific confirmation modal eyebrow styling in `apps/web/public/css/components.css`.
+- Updated archive, suspend, delete, disconnect, rollback, cancel, queue, member, and domain review actions with consistent safety copy.
+- Added `tests/ui/destructive-actions.test.js` and expanded `tests/ui/confirmation-modal.test.js`.
+
+### Verification
+
+- Passed `node --test tests/ui/confirmation-modal.test.js tests/ui/destructive-actions.test.js`.
+
+## UX-08 Guided Empty States
+
+- Status: Completed
+- Started: 2026-07-01T23:38:16+08:00
+- Completed: 2026-07-01T23:38:16+08:00
+
+### Checklist
+
+- [x] Add shared empty-state step and action styling.
+- [x] Guide first-time users through project creation, repository connection, detection, secrets, and deployment.
+- [x] Guide optional setup states for custom domains and project overview cards.
+- [x] Add useful admin empty-state actions for queues and filtered results.
+- [x] Keep guidance limited to empty paths.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `.empty-state__steps` and `.empty-state__actions` in `apps/web/public/css/components.css`.
+- Updated project, repository, detection, deployment, environment, domain, dashboard, and admin empty states with concise next-step flows.
+- Added `tests/ui/guided-empty-states.test.js` for shared styling and key guided empty-state coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, responsive tables, deployment timeline, and guided empty states.
+
+## UX-07 Deployment Timeline Clarity
+
+- Status: Completed
+- Started: 2026-07-01T23:33:20+08:00
+- Completed: 2026-07-01T23:33:20+08:00
+
+### Checklist
+
+- [x] Fix timeline state class names so visual states render correctly.
+- [x] Normalize deployment statuses and worker event stages.
+- [x] Show per-stage status, latest message, and timestamp.
+- [x] Highlight the failed stage before users need to inspect raw logs.
+- [x] Keep live log updates synchronized with the timeline.
+- [x] Avoid injecting live log messages as HTML.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Reworked the deployment detail timeline in `apps/web/src/views/pages/projects/deployment-detail.ejs`.
+- Replaced the old dot-only timeline CSS with responsive stage summary cards in `apps/web/public/css/components.css`.
+- Updated live deployment log handling to safely append text nodes and refresh the active timeline stage.
+- Added `tests/ui/deployment-timeline.test.js` for timeline stage normalization, state hooks, safe log rendering, and CSS coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, responsive tables, and deployment timeline.
+
+## UX-06 Responsive Tables
+
+- Status: Completed
+- Started: 2026-07-01T23:28:53+08:00
+- Completed: 2026-07-01T23:28:53+08:00
+
+### Checklist
+
+- [x] Add shared responsive table styles.
+- [x] Convert admin operational tables to mobile row summaries.
+- [x] Convert project operational tables to mobile row summaries.
+- [x] Preserve desktop table layout.
+- [x] Keep compact legal/static tables unchanged.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `.table-responsive`, `.table-responsive--flush`, and `.table--responsive` mobile styles in `apps/web/public/css/components.css`.
+- Added `data-label` row summary labels to key admin and project tables.
+- Removed inline flush wrapper styles from dashboard/member tables in favor of shared classes.
+- Added `tests/ui/responsive-tables.test.js` for CSS, admin table, and project table coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, scroll-to-top, and responsive tables.
+
+## UX-05 Floating Scroll-To-Top Button
+
+- Status: Completed
+- Started: 2026-07-01T23:19:41+08:00
+- Completed: 2026-07-01T23:19:41+08:00
+
+### Checklist
+
+- [x] Add a shared floating scroll-to-top button.
+- [x] Show it only after the user scrolls down.
+- [x] Keep the control keyboard accessible and tooltip-enabled.
+- [x] Respect `prefers-reduced-motion`.
+- [x] Avoid covering primary content on small screens.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added shared scroll-to-top markup and behavior in `apps/web/src/views/partials/footer.ejs`.
+- Added responsive fixed-position styling in `apps/web/public/css/components.css`.
+- Added `tests/ui/scroll-top.test.js` for markup, scroll behavior, reduced-motion behavior, and CSS coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, floating labels, and scroll-to-top.
+
+## UX-04 Floating Labels
+
+- Status: Completed
+- Started: 2026-07-01T23:08:24+08:00
+- Completed: 2026-07-01T23:08:24+08:00
+
+### Checklist
+
+- [x] Add a scoped floating-label pattern for main form fields.
+- [x] Preserve hints, errors, required state, autocomplete, and password visibility behavior.
+- [x] Apply floating labels to auth, project, admin, quota, domain, environment, repository, and member forms.
+- [x] Leave compact filters and inline table controls unchanged.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `form-field--floating` and `form-group--floating` CSS in `apps/web/public/css/components.css`.
+- Updated reusable form partials in `apps/web/src/views/partials/form-field.ejs` and `apps/web/src/views/partials/password-field.ejs`.
+- Applied floating labels to core hand-written forms across project and admin pages.
+- Added `tests/ui/floating-labels.test.js` for floating-label style, partial, and page coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and focused UI tests for confirmation modal, mobile sidebar, tooltips, and floating labels.
+
+## UX-03 Accessible Tooltips
+
+- Status: Completed
+- Started: 2026-07-01T22:58:46+08:00
+- Completed: 2026-07-01T22:58:46+08:00
+
+### Checklist
+
+- [x] Add a shared tooltip behavior for `data-tooltip` targets.
+- [x] Support mouse hover and keyboard focus.
+- [x] Avoid relying on native `title` attributes.
+- [x] Add tooltips to high-value header, status, admin, deployment, domain, and quota controls.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added shared tooltip popover behavior in `apps/web/src/views/partials/footer.ejs`.
+- Added tooltip styling in `apps/web/public/css/components.css`.
+- Added tooltip hints to header controls, status badges, admin server controls, deployment actions, domain actions, audit export, and quota fields.
+- Added `tests/ui/tooltips.test.js` to cover tooltip markup, behavior hooks, styling, and high-value target coverage.
+
+### Verification
+
+- Passed `npm run format:check`, `npm run lint`, `git diff --check`, and `node --test tests/ui/tooltips.test.js`.
+- Full `node --test --test-reporter=dot tests/**/*.test.js` is blocked by unrelated installer tests whose child process stdout is empty under the current `node:test` sandbox.
+
+## UX-02 Mobile Sidebar Drawer
+
+- Status: Completed
+- Started: 2026-07-01T20:48:46+08:00
+- Completed: 2026-07-01T20:48:46+08:00
+
+### Checklist
+
+- [x] Fix mobile sidebar initialization so it runs after sidebar markup exists.
+- [x] Add a real mobile sidebar backdrop.
+- [x] Add Escape close, backdrop close, nav-link close, focus trapping, and body scroll lock.
+- [x] Improve hamburger toggle contrast and open state.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Added `#sidebar-backdrop` to the main layout next to the sidebar.
+- Updated `apps/web/src/views/partials/header.ejs` so sidebar drawer behavior initializes after `DOMContentLoaded`.
+- Updated `apps/web/public/css/layout.css` so the mobile sidebar drawer displays correctly, locks scroll, and uses a proper backdrop.
+- Added `tests/ui/mobile-sidebar.test.js` to cover drawer markup, initialization timing, accessibility behavior, and mobile CSS.
+
+## UX-01 Custom Confirmation Modal
+
+- Status: Completed
+- Started: 2026-07-01T20:38:24+08:00
+- Completed: 2026-07-01T20:38:24+08:00
+
+### Checklist
+
+- [x] Replace browser-default confirmation behavior for existing `data-confirm` actions.
+- [x] Support both confirmable forms and links.
+- [x] Add accessible modal markup, focus handling, Escape close, backdrop close, and focus restoration.
+- [x] Add shared modal styling.
+- [x] Add focused regression coverage.
+- [x] Update UI/UX backlog and phase tracker evidence.
+
+### Results
+
+- Replaced the old inline confirmation bar in `apps/web/src/views/partials/footer.ejs` with a shared modal dialog.
+- Added link and form handling for existing `data-confirm` attributes without broad template rewrites.
+- Added modal styling in `apps/web/public/css/components.css`.
+- Added `tests/ui/confirmation-modal.test.js` to verify modal markup, form/link support, and removal of browser-default confirmation usage.
+
+## UI/UX Improvement Backlog
+
+- Status: Completed
+- Started: 2026-07-01T20:30:11+08:00
+- Completed: 2026-07-01T20:30:11+08:00
+
+### Checklist
+
+- [x] Create a dedicated markdown backlog for UI/UX improvements.
+- [x] Organize planned work by priority, area, status, implementation notes, and acceptance evidence.
+- [x] Link the backlog from the documentation index.
+- [x] Cross-reference the backlog from the phase task tracker.
+- [x] Document update rules for future UI/UX implementation passes.
+
+### Results
+
+- Added `docs/UI_UX_IMPROVEMENT_BACKLOG.md` for planned usability, efficiency, confirmation, tooltip, floating-label, scroll-to-top, responsive, theme, and accessibility work.
+- Linked the backlog from `docs/README.md`.
+- Updated `docs/PHASE_TASK_TRACKER.md` so future UI/UX implementation changes keep the backlog aligned.
+
+## Phase Task Tracker
+
+- Status: Completed
+- Started: 2026-07-01T18:50:24+08:00
+- Completed: 2026-07-01T18:50:24+08:00
+
+### Checklist
+
+- [x] Create a dedicated markdown tracker for remaining phase tasks.
+- [x] Organize remaining work by phase and status.
+- [x] Link the tracker from the documentation index.
+- [x] Document update rules for future implementation passes.
+
+### Results
+
+- Added `docs/PHASE_TASK_TRACKER.md` as the active checklist for remaining implementation and target-host validation work.
+- Linked the tracker from `docs/README.md`.
+- Recorded that future implementation work should update tracker status, acceptance evidence, and timestamps before commit and push.
+
+## Markdown Maintenance Audit
+
+- Status: Completed
+- Started: 2026-07-01T18:39:27+08:00
+- Completed: 2026-07-01T18:39:27+08:00
+
+### Checklist
+
+- [x] Add a documentation index under `docs/`.
+- [x] Reconcile P9-P12 implementation status in the phase blueprint.
+- [x] Clarify known remaining operational validation work.
+- [x] Reconcile the older P2 `/health` checklist item with later P3 integration smoke results.
+- [x] Keep root README concise and point to the documentation index.
+
+### Results
+
+- Added `docs/README.md` as the canonical documentation map.
+- Updated the P9-P12 phase checklist to use explicit status labels instead of stale unchecked boxes.
+- Updated the P9-P12 maintenance summary with current known remaining work.
+- Reconciled the P2 `/health` checklist item by referencing the later P3 real local integration smoke result.
+
+## P12 Distribution and Self-Hosted Edition
+
+- Status: Completed
+- Started: 2026-07-01T18:17:24+08:00
+- Completed: 2026-07-01T18:19:44+08:00
+
+### Plan
+
+- Review installer, preflight, setup, backup, restore, upgrade, and uninstall scripts for environment assumptions and documented Ubuntu 22.04/24.04 support.
+- Add a non-mutating administrator setup wizard that can generate an install checklist and required environment variable template without embedding credentials.
+- Document self-hosted install modes: local-only, public-IP, and Cloudflare Tunnel.
+- Document the MIT license selection already present in `LICENSE`.
+- Add tests for setup wizard output and distribution-safe defaults.
+- Run final verification commands, then commit and push.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Add setup wizard and distribution documentation.
+- [x] Verify installer/preflight coverage and license documentation.
+- [x] Add focused distribution tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `scripts/self-hosted-checklist.js` for non-mutating local-only, public-IP, and Cloudflare Tunnel install planning.
+- Added `docs/SELF_HOSTED_INSTALL.md` covering supported Ubuntu versions, install modes, required environment keys, clean install steps, backup/restore commands, and MIT license reference.
+- Linked the self-hosted install guide from `README.md`.
+- Added focused tests for setup checklist defaults, Ubuntu support, required secret keys, public-IP mode, and fallback behavior.
+- Confirmed the existing `LICENSE` is MIT.
+- Ran `node scripts/self-hosted-checklist.js --mode cloudflare_tunnel --domain hellodeploy.example.com --json`, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P11 Hardening and Pilot
+
+- Status: Completed
+- Started: 2026-07-01T18:14:59+08:00
+- Completed: 2026-07-01T18:16:44+08:00
+
+### Plan
+
+- Add a repeatable capacity measurement script that records host, queue, and local HTTP measurements without requiring Docker mutation by default.
+- Document failure-recovery checks for MongoDB, Redis, Docker, Nginx, worker, and Cloudflare Tunnel with pass/blocker status.
+- Document measured operating thresholds and remaining pilot constraints from available local checks.
+- Add a noncritical pilot deployment checklist that proves a user can complete deployment without administrator terminal work.
+- Keep existing security tests as the blocking gate and avoid claiming unmeasured capacity.
+- Add focused tests for the new measurement/reporting helpers.
+- Run final verification commands, then commit and push before moving to P12.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Add repeatable capacity/failure-recovery measurement tooling.
+- [x] Document measured thresholds, recovery checks, and pilot checklist.
+- [x] Add focused hardening/pilot tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `scripts/measure-capacity.js` for non-destructive host snapshots and optional local HTTP sampling.
+- Captured a local host snapshot: 8 CPU cores, 31% memory used, 5% workspace filesystem used, and 894.1 GB free on the workspace filesystem.
+- Added `docs/HARDENING_AND_PILOT_REPORT.md` with conservative pilot thresholds, failure-recovery checklist status, and a noncritical pilot deployment checklist.
+- Documented that host-level MongoDB, Redis, Docker, Nginx, worker, and Cloudflare Tunnel recovery tests still require service control on the target host.
+- Added focused tests for capacity helper clamping and latency summaries.
+- Ran `node scripts/measure-capacity.js --json`, targeted operations tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P10 Administration and Operations
+
+- Status: Completed
+- Started: 2026-07-01T18:07:46+08:00
+- Completed: 2026-07-01T18:14:20+08:00
+
+### Plan
+
+- Complete the admin operations surface by hardening server capacity display, queue controls, and maintenance-mode controls.
+- Add neutral suspension/maintenance routing behavior where the worker already owns Nginx changes.
+- Improve quota override visibility and validation so Super Admins can safely edit limits and see consumption context.
+- Add audit export support with explicit privileged-action handling.
+- Add inactivity reporting and operational alert scaffolding without sending secrets or inventing deferred billing/multi-server behavior.
+- Add cleanup safeguards so active and retained release assets are protected.
+- Add incident, backup, restore, and upgrade runbooks for routine operations.
+- Tighten responsive admin layouts and theme persistence where existing CSS/templates are incomplete.
+- Run final verification commands, then commit and push before moving to P11.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Complete admin operations controls and maintenance mode.
+- [x] Add audit export, inactivity reporting, and quota consumption visibility.
+- [x] Add cleanup safeguards and operations runbooks.
+- [x] Tighten responsive admin/theme behavior where needed.
+- [x] Add focused administration and operations tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added database-backed maintenance mode with Super Admin controls on `/admin/server`.
+- Maintenance mode now blocks non-Super-Admin mutating requests while allowing safe read-only requests and maintenance control paths.
+- Added filtered audit CSV export and an audit event for export activity.
+- Hardened quota override parsing/validation and updated the quota view to show stored root quota fields plus user/project consumption context.
+- Added cleanup safeguards so release cleanup skips deployments still referenced as a project's active deployment.
+- Added `docs/OPERATIONS_RUNBOOKS.md` covering incident response, backup, restore, upgrade, rollback, and uninstall operations.
+- Added focused tests for maintenance-mode request gating and cleanup active-deployment protection.
+- Ran targeted admin tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P9 Custom Domains
+
+- Status: Completed
+- Started: 2026-07-01T18:03:54+08:00
+- Completed: 2026-07-01T18:06:49+08:00
+
+### Plan
+
+- Harden custom-domain registration so normalized hostnames cannot be claimed by more than one active project and previously removed domains can be safely reclaimed.
+- Keep ownership verification token values one-time only, store only token hashes, and show provider-neutral DNS instructions to project owners.
+- Ensure only verified domains can enter admin approval and only admin-approved domains can request route activation.
+- Tighten worker route activation/removal behavior so custom-domain routing is never marked active unless Nginx route activation succeeds when Nginx is enabled.
+- Add focused tests for normalization, uniqueness, verification job state transitions, admin approval route enqueueing, and activation failure handling.
+- Run final verification commands, then commit and push before moving to P10.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Harden domain service and worker route activation behavior.
+- [x] Update domain UI/docs where needed for provider-neutral instructions and status clarity.
+- [x] Add focused custom-domain tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Admin approval now records the approval and queues route activation without marking the domain active early.
+- The worker now marks a custom domain `ACTIVE` only after custom-domain Nginx route activation succeeds while Nginx is enabled.
+- Custom-domain route filenames now use stable hash-based slugs, avoiding invalid filename labels for long valid hostnames.
+- Activation failures leave the domain non-active and bubble the worker error for retry/failure handling.
+- Added focused worker job tests for DNS verification, activation success, activation failure, and unapproved activation attempts.
+- Ran targeted domain/Nginx tests, `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P8 Deployment Approval + Mode Guard Hardening
+
+- Status: Completed
+- Started: 2026-07-01T12:26:32+08:00
+- Completed: 2026-07-01T12:27:49+08:00
+
+### Plan
+
+- Harden `createDeployment` as the final service-level deployment gate so controller or webhook mistakes cannot bypass project approval requirements.
+- Enforce project lifecycle eligibility before repository/runtime/job work:
+  - Block deployments unless the project status is `ACTIVE`.
+  - Block deployments while the project deployment mode is `APPROVAL_REQUIRED`.
+  - Continue allowing active projects in `MANUAL` or `AUTOMATIC` mode to proceed through the existing deployment validation path.
+- Keep the change scoped to deployment creation; retry and rollback flows will remain unchanged unless verification exposes a direct bypass tied to this task.
+- Add focused tests for the deployment eligibility guard:
+  - Draft projects are blocked.
+  - Suspended projects are blocked.
+  - Archived projects are blocked.
+  - Active projects in approval-required mode are blocked.
+  - Active projects in manual or automatic mode are allowed by the new guard.
+- Run formatting, lint, format check, and the full test suite.
+- Update this worklog with completion timestamp and results, then commit and push after completion.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Enforce project status and deployment mode in deployment creation.
+- [x] Add focused deployment guard tests.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `validateProjectDeploymentEligibility` and wired it into `createDeployment` before repository/runtime/job checks.
+- Deployments are now blocked unless the project is `ACTIVE`.
+- Deployments are now blocked while the project mode is `APPROVAL_REQUIRED`.
+- Active projects in `MANUAL` and `AUTOMATIC` mode continue through the existing deployment validation path.
+- Added focused tests for draft, suspended, archived, approval-required, manual, and automatic guard behavior.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## Worklog and Push Policy
+
+- Status: Completed
+- Started: 2026-06-30T20:47:44+08:00
+- Completed: 2026-06-30T20:47:44+08:00
+
+### Rule
+
+- Before any implementation, create or update a markdown worklog entry for the priority, phase, or task.
+- Each worklog entry must include started and completed timestamps.
+- When a priority, phase, or task is completed, run the relevant verification, commit the completed work, and push it to the remote.
+
+## P3 MongoDB Connection Check
+
+- Status: Completed
+- Started: 2026-06-30T21:01:49+08:00
+- Completed: 2026-06-30T21:02:34+08:00
+
+### Checklist
+
+- [x] Test MongoDB connection using the project's configured environment.
+- [x] Record the result without exposing credentials.
+- [x] Run verification for the documentation update.
+- [x] Commit and push after completion.
+
+### Result
+
+- Initial sandboxed attempt could not resolve the MongoDB Atlas SRV record because network DNS access was blocked.
+- Escalated credential-safe check succeeded with `readyState: 1`.
+- Connected database: `hellodeploy_db`.
+- Connected topology: `ReplicaSetWithPrimary`.
+
+## P3 Real Local Integration Smoke
+
+- Status: Completed
+- Started: 2026-06-30T21:07:17+08:00
+- Completed: 2026-06-30T21:11:50+08:00
+
+### Checklist
+
+- [x] Confirm configured MongoDB is reachable.
+- [x] Confirm Redis availability.
+- [x] Start the web process with the real `.env`.
+- [x] Confirm `/health` responds from the running server.
+- [x] Smoke-test public/auth pages against the running server.
+- [x] Check worker startup path where local services permit.
+- [x] Record blockers separately from passing checks.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- MongoDB check passed against the configured environment: database `hellodeploy_db`, topology `ReplicaSetWithPrimary`.
+- Redis check passed against `127.0.0.1:6379` with `PONG`.
+- Web process started with `npm run start -w @hellodeploy/web` and connected to MongoDB.
+- `/health` returned `200 OK` with JSON status `ok`.
+- HTTP smoke checks returned `200 OK` for `/`, `/auth/sign-in`, `/auth/create-account`, `/auth/forgot-password`, `/terms`, and `/privacy`.
+- `/dashboard` returned the expected unauthenticated `302` redirect to `/auth/sign-in?returnTo=%2Fdashboard`.
+- Worker process started with `npm run start -w @hellodeploy/worker`, connected to MongoDB and Redis, and reached `ready — listening for jobs`.
+- Worker shut down cleanly on `SIGINT`.
+
+### Notes
+
+- Local socket probes require elevated tool access in this environment; sandboxed `curl` and Redis checks could not open localhost sockets.
+- No browser automation dependency is installed in the repo, so this pass used real HTTP integration smoke checks rather than Playwright/Puppeteer rendering.
+- `/auth/register` returned `404`; this is expected because the implemented registration route is `/auth/create-account`.
+
+## P4 User Guide and FAQ
+
+- Status: Completed
+- Started: 2026-06-30T21:15:23+08:00
+- Completed: 2026-06-30T21:17:29+08:00
+
+### Checklist
+
+- [x] Create a user guide for the main HelloDeploy usage flow.
+- [x] Create an FAQ for users and project owners.
+- [x] Add a root README that links to the user-facing docs.
+- [x] Keep guidance aligned with current V1 scope and implemented routes.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added `README.md` with links to user-facing and project documentation.
+- Added `docs/USER_GUIDE.md` covering account setup, projects, GitHub connection, detection, environment variables, approval, deployment, rollback, roles, custom domains, limits, and troubleshooting.
+- Added `docs/FAQ.md` covering common user, project, GitHub, deployment, configuration, domain, limit, and support questions.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P5 Legal Policies
+
+- Status: Completed
+- Started: 2026-06-30T21:19:30+08:00
+- Completed: 2026-06-30T21:26:39+08:00
+
+### Checklist
+
+- [x] Review existing public legal pages.
+- [x] Add missing user-facing legal policy coverage.
+- [x] Add markdown legal documents for repository review.
+- [x] Link legal pages from the app and README.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Added public legal index at `/legal`.
+- Added public Cookie Policy, Data Processing Terms, Copyright Policy, and Security Policy pages.
+- Updated Terms and Privacy pages with expanded coverage and cross-links.
+- Updated footer navigation and README links.
+- Added `docs/LEGAL_POLICIES.md` for repository-level legal policy review.
+- Smoke-tested `/legal`, `/cookies`, `/data-processing`, `/copyright`, and `/security`; all returned `200 OK`.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P6 Legal UX Integration
+
+- Status: Completed
+- Started: 2026-06-30T22:44:00+08:00
+- Completed: 2026-06-30T22:54:56+08:00
+
+### Checklist
+
+- [x] Update account creation consent wording for the legal policy bundle.
+- [x] Update auth footer legal links.
+- [x] Update user guide and FAQ legal references.
+- [x] Smoke-test auth and legal pages.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Updated registration consent to link Terms, Privacy, Cookies, Acceptable Use, and Legal Policies.
+- Updated shared auth footer to include Legal and Cookies links.
+- Updated `docs/USER_GUIDE.md` and `docs/FAQ.md` with legal bundle references.
+- Smoke-tested `/auth/create-account`, `/auth/sign-in`, `/auth/forgot-password`, `/auth/verify-email`, `/legal`, and `/cookies`; all returned `200 OK`.
+- Confirmed rendered create-account page includes `acceptTerms`, Cookie Policy, Legal Policies, `/cookies`, and `/legal`.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P7 GitHub Webhook Deployment Queue Integration
+
+- Status: Completed
+- Started: 2026-07-01T08:04:09+08:00
+- Completed: 2026-07-01T08:05:58+08:00
+
+### Plan
+
+- Reuse `createDeployment` from the deployment service for automatic deployments instead of duplicating deployment record, queue, and audit logic.
+- Keep webhook response behavior unchanged: validate signature/replay, return `200 OK` quickly, then process the event asynchronously.
+- Preserve current push handling:
+  - Ignore branch deletion pushes.
+  - Ignore repositories not tracked by HelloDeploy.
+  - Always update repository latest commit metadata for tracked repositories.
+  - Ignore inactive, suspended, draft, or archived projects.
+  - Ignore pushes to non-production branches.
+  - Pause deployment for high-risk file changes and log the pause.
+  - Do not deploy when the project is in manual mode.
+- For `AUTOMATIC` mode on the production branch with safe changes:
+  - Use `project.ownerId` as the actor because deployment records require `requestedBy`.
+  - Call `createDeployment` with `triggerType: AUTOMATIC`, `projectId`, `actorId`, and webhook `correlationId`.
+  - Log successful queueing with project ID, short commit SHA, and deployment ID.
+  - Log failed queueing with project ID, short commit SHA, and the returned error; do not fail the already-acknowledged webhook response.
+- Add focused tests for webhook push behavior using dependency injection around the push handler:
+  - Automatic production-branch push creates one automatic deployment request.
+  - Manual production-branch push updates commit metadata but does not create a deployment.
+  - Non-production branch push updates commit metadata but does not create a deployment.
+  - High-risk file changes do not create a deployment.
+- Run final verification commands and push after completion.
+
+### Checklist
+
+- [x] Add markdown plan before implementation.
+- [x] Wire automatic webhook push handling to `createDeployment`.
+- [x] Add focused tests for automatic/manual/non-production/high-risk behavior.
+- [x] Run final verification commands.
+- [x] Commit and push after completion.
+
+### Results
+
+- Automatic production-branch push webhooks now call `createDeployment` with `triggerType: AUTOMATIC`.
+- Manual mode, non-production branch pushes, and high-risk file changes do not queue deployments.
+- Webhook commit metadata updates remain intact for tracked repositories.
+- Added focused tests for automatic/manual/non-production/high-risk push behavior.
+- Ran `npm run format`, `npm run lint`, `npm run format:check`, and `npm test`.
+
+## P2 Browser Smoke Test
+
+- Status: Completed
+- Started: 2026-06-30T20:17:34+08:00
+- Completed: 2026-06-30T20:28:41+08:00
+
+### Checklist
+
+- [x] Start the web app locally.
+- [x] Confirm `/health` responds.
+- [x] Smoke-test public pages.
+- [x] Smoke-test authenticated/admin pages where local data permits.
+- [x] Smoke-test project pages where local data permits.
+- [x] Validate changed interactions where local data permits.
+- [x] Run final verification commands.
+
+### Findings
+
+- Web startup could not complete because local MongoDB was unavailable at `127.0.0.1:27017`.
+- Docker is installed, but this user cannot access `/var/run/docker.sock`, so temporary MongoDB/Redis containers were not available.
+- Used direct EJS render smoke tests with mock admin/project data as a fallback.
+- Found and fixed invalid partial include paths in admin/project/dashboard templates.
+- Render smoke covered public landing/auth pages, admin pages, project pages, sidebar output, pagination markup, and `data-confirm` markup.
+
+### Verification
+
+- Direct EJS render smoke test passed for main changed public/admin/project templates.
+- Direct EJS render smoke test passed for auth templates through the auth layout.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- `npm test` passed.
+
+### Reconciliation
+
+- Later P3 real local integration smoke confirmed `/health` returned `200 OK` with JSON status `ok` against the configured environment.
+
+## Batch 1 — Green Quality Baseline
+
+- Status: In Review
+- Started: 2026-07-12T05:39:00+08:00
+- Verified: 2026-07-12T05:48:30+08:00
+- Revision inspected: `0f8f8f3`
+
+### Changes
+
+- Added `.nvmrc` to select Node.js 22 for local NVM users.
+- Aligned contributor and self-hosted installation guidance with Node.js 22, npm 10+, and reproducible `npm ci` installs.
+- Added `docs/RELEASE_POLICY.md` defining `main` as the release branch, immutable annotated semantic-version tags, full-SHA deployment and rollback references, and clean-worktree release gates.
+
+### Verification
+
+- Installed and selected Node.js `v22.23.1` with npm `10.9.8`.
+- `npm ci` passed: 314 packages installed and 324 audited.
+- `package-lock.json` was unchanged before/after installation; SHA-256 remained `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- `npm test` passed: 601 tests, 134 suites, 0 failures, 0 skipped.
+- `npm audit --omit=dev --audit-level=moderate` passed with zero vulnerabilities.
+
+### Remaining completion gates
+
+- Review and commit the intended worktree changes so the release candidate is represented by a clean, reviewed commit.
+- Confirm the Node.js 22 CI workflow passes on that commit.
+
+## Autonomous Readiness Loop — Batches 2–5 Local Work
+
+- Status: Blocked on external host and configuration evidence
+- Verified: 2026-07-12T05:57:00+08:00
+
+### Implemented
+
+- Hardened Nginx route activation/removal transactions and added rollback tests for validation and reload failures.
+- Moved the production routing-mode invariant into worker configuration validation and added valid/invalid fixture tests.
+- Added dependency-aware `/ready` checks while preserving `/health` as liveness.
+- Added bounded, idempotent web shutdown and idempotent worker cleanup for BullMQ, Redis, and MongoDB.
+- Required immutable release references for upgrades, rejected dirty production checkouts, and retained full-SHA rollback references.
+
+### Verification
+
+- Focused configuration, routing, helper, privilege, readiness, shutdown, and upgrade-safety tests passed.
+- Full Node.js 22 suite passed after the initial lifecycle work: 617 tests, 139 suites, 0 failures, 0 skipped.
+- Lint, formatting, dependency audit, and diff checks passed.
+
+### External blockers
+
+- Review/commit and remote CI for the release candidate.
+- Supported Ubuntu host validation for users, groups, systemd, helper socket, Nginx validation/reload, and route rollback.
+- Production-equivalent GitHub App and routing configuration.
+- Second-host encrypted backup/restore proof and real Docker-backed deployment/pilot testing.
+
+### Backup integrity continuation
+
+- Made failed or unavailable local `mongodump` fatal unless `--skip-database` explicitly acknowledges a separately verified external snapshot.
+- Added non-interactive `HELLODEPLOY_DATABASE_BACKUP_MODE=external` support for upgrades using external snapshots.
+- Added generated Nginx routes and platform ingress to backup artifacts.
+- Added `CHECKSUMS.sha256` and versioned `manifest.json` with the full source commit.
+- Made restore validate checksums before prompting or changing services, fail on database restore errors, restore routing state, and run `nginx -t` before restart.
+- Final verification passed: 622 tests, 140 suites, 0 failures, 0 skipped; lint, formatting, audit, shell syntax, and diff checks also passed.
+
+## Destructive Project Cleanup Hardening
+
+- Status: Locally complete; real Docker proof remains part of Batch 6
+- Implemented: 2026-07-12
+
+### Changes
+
+- Capture all project container IDs and unique image tags before deleting deployment records and send them in a validated version-2 deletion job payload.
+- Preserve compatibility with version-1 jobs already waiting in Redis.
+- Refuse permanent database deletion when infrastructure teardown cannot be queued.
+- Remove all recorded containers, images, the per-project Docker network, and the Nginx route.
+- Attempt every teardown action, then fail the job when resources remain so BullMQ retries it.
+- Make Docker cleanup helpers report confirmed success/failure and bound managed-container JSON logs to three 10 MiB files.
+- Implement age-bounded abandoned build-workspace cleanup under the configured build root, including symlink-safe deletion.
+
+### Verification
+
+- Final Node.js 22 suite passed: 630 tests, 143 suites, 0 failures, 0 skipped.
+- Lint, formatting, production dependency audit, and diff checks passed.
+
+## Installed-Host Verification Gate
+
+- Status: Implemented locally; target-host execution remains required
+- Implemented: 2026-07-12
+
+### Changes
+
+- Added a root-run verifier for web/worker identities, Docker/helper group isolation, `.env`, route-directory and helper-socket metadata, GitHub private-key readability, service activity, `nginx -t`, and dependency-aware `/ready`.
+- Wired the verifier into fresh installation and immutable upgrades as a blocking gate.
+- Changed upgrade success validation from liveness-only `/health` to dependency-aware `/ready` plus the complete installed-host verifier.
+- Added focused static wiring and invariant tests and documented the operator command.
+
+### Verification
+
+- Shell syntax checks passed for installer, verifier, upgrade, backup, and restore scripts.
+- Final Node.js 22 suite passed: 634 tests, 144 suites, 0 failures, 0 skipped.
+- Lint, formatting, production dependency audit, and diff checks passed.
+
+## Protected Worker Readiness Visibility
+
+- Status: Implemented locally; supported-host observation remains required
+- Implemented: 2026-07-12T18:57:55+08:00
+
+### Changes
+
+- Added a sanitized BullMQ worker readiness check that returns only availability and the number of connected deployment workers.
+- Added worker readiness to the existing authenticated admin server dashboard instead of creating a public diagnostics endpoint.
+- Made unavailable queues, missing workers, and readiness errors fail closed without returning Redis addresses, client names, credentials, or error text.
+
+### Verification
+
+- Focused worker-readiness, admin-authorization, and related admin UI tests passed: 29 tests, 7 suites.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 638 tests, 145 suites, 0 failures, 0 skipped.
+- Prettier passed for all JavaScript files owned by this slice.
+- Repository-wide `npm run format:check` remains blocked by the pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`; it was preserved unchanged.
+- `git diff --check` passed.
+
+## Sanitized Fatal Process Handling
+
+- Status: Implemented locally; live systemd restart proof remains required
+- Implemented: 2026-07-12T19:00:20+08:00
+
+### Changes
+
+- Added shared, idempotent fatal handlers for uncaught exceptions and unhandled rejections.
+- Log only the failure event, error type, and a constrained error code; messages, stacks, credentials, and topology are excluded.
+- Split web and worker entrypoints into minimal bootstraps and dynamically loaded runtimes so configuration-time module failures are handled before application imports execute.
+- Exit nonzero after fatal startup or unexpected process failures so systemd can restart the service.
+
+### Verification
+
+- Focused process-handler and bootstrap tests passed, including configuration-time failures in both service entrypoints.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 643 tests, 146 suites, 0 failures, 0 skipped.
+- Prettier passed for all files owned by this slice.
+- Repository-wide formatting remains blocked only by the preserved, pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`.
+
+## Bounded Worker Drain and systemd Timeout Alignment
+
+- Status: Implemented locally; live systemd restart proof remains required
+- Implemented: 2026-07-12T19:02:25+08:00
+
+### Changes
+
+- Added an idempotent worker lifecycle with a 110-second active-job drain deadline beneath systemd's 120-second stop window.
+- Force BullMQ closed after a missed deadline, close Redis and MongoDB once, and return failure so the runtime exits nonzero.
+- Exported web and worker shutdown deadlines and added a regression test proving both remain below their installed systemd stop windows.
+
+### Verification
+
+- Focused worker lifecycle and fatal-process tests passed: 9 tests, 2 suites.
+- `npm run lint` passed on Node.js `v22.23.1`.
+- The full Node.js 22 suite passed: 647 tests, 147 suites, 0 failures, 0 skipped.
+- Prettier passed for all files owned by this slice.
+- Repository-wide formatting remains blocked only by the preserved, pre-existing untracked `docs/FULL_IMPLEMENTATION_OVERVIEW.md`.
+
+## Bounded `.env` File Import
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-12
+
+### Changes
+
+- Added an owner-only `.env` upload form alongside the existing one-variable-at-a-time form.
+- Read the selected file into the existing CSRF-protected form flow without adding multipart storage or logging file contents.
+- Validate the complete file before writes, with 64 KB and 100-variable limits, uppercase environment-name enforcement, duplicate and empty-value rejection, and errors that never reflect values.
+- Reused encrypted secret storage and audit events; imports update existing names and retain all existing manual-entry behavior.
+- Cache-busted the shared client bundle so newly deployed upload behavior cannot be masked by the previous one-hour browser cache, and added a `FileReader` fallback for browsers without `File.text()`.
+- Refined stored-secret controls into distinct Reveal value, Show/Hide value, and Clear revealed value actions; replacement editing explicitly keeps current plaintext out of form fields.
+- Reshaped secret rotation into a Render-style inline Stored Secrets editor: Edit changes table rows into masked replacement inputs, blank rows remain unchanged, and Save/Cancel stay attached to the table.
+- Marked all environment-management responses `Cache-Control: no-store` and `Pragma: no-cache` so reveal and validation responses are not retained in browser caches.
+
+### Verification
+
+- Focused parser, encrypted persistence, no-partial-write, upload UI, and related environment UI tests passed.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed after the reveal and rotation refinement: 660 tests, 150 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 1 Shell
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Added an Owner-only consolidated Settings route with seven stable section anchors and compatibility links to current authoritative setting pages.
+- Added shared role-aware project-navigation and settings-section registries; the sidebar and overview Quick Links now consume the same project navigation source.
+- Added sticky desktop and in-flow mobile section navigation with active-section tracking, keyboard focus movement, and reduced-motion-aware fragment scrolling.
+- Preserved all existing project settings, repository, detection, domain, deploy-hook, environment, member, and deployment routes for the Phase 2 migration.
+
+### Verification
+
+- Focused settings shell, navigation, icon, sidebar, authorization, and empty-state tests passed.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 666 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 2 Composition
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Composed General, Source & Build, Deployment, Custom Domains, Notifications, Health & Maintenance, and Danger Zone into the consolidated Settings page.
+- Reused every existing mutation route, validator, service, queue, confirmation, and CSRF contract instead of introducing parallel settings logic.
+- Load repository state, active domains, and effective project quota in parallel; resource limits remain display-only.
+- Strip the stored deploy-hook hash before rendering and expose only configured/not-configured state plus existing generate/revoke actions.
+- Kept repository connection, detection execution, domain DNS-token display, Environment, Members, and Deployments as focused workflows.
+
+### Verification
+
+- Focused settings composition, authorization, destructive-action, responsive-table, pending-form, navigation, and icon tests passed.
+- Settings EJS compiled and rendered with representative data.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 668 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 3 Interaction Standardization
+
+- Status: Implemented and verified locally
+- Implemented: 2026-07-13
+
+### Changes
+
+- Converted project name, build configuration, build filters, deployment mode, notification preference, and health-check path to read-first, edit-on-demand groups.
+- Enforced one open editor at a time; Cancel and Escape reset unsaved changes and restore focus to the triggering Edit control.
+- Added constrained same-project Settings return targets so successful mutations return to the relevant fragment without allowing open redirects.
+- Re-render General, Build, Filters, and Health validation failures in their active Settings group with safe submitted values and established field-level errors.
+- Retained direct confirmed behavior for deploy hooks, domains, maintenance, archive, and deletion because they are operational or destructive actions rather than ordinary field editing.
+- Cache-busted the shared client bundle for the new interaction behavior.
+
+### Verification
+
+- Focused settings interaction, return-target security, validation, pending-state, accessibility, authorization, and project-validator tests passed.
+- Settings EJS compiled and rendered in default and server-error edit states.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed: 671 tests, 151 suites, 0 failures, 0 skipped.
+
+## Consolidated Project Settings — Phase 4 Deferred Capability Evaluation
+
+- Status: Evaluation complete; all capabilities remain deferred
+- Evaluated: 2026-07-13
+
+### Changes
+
+- Evaluated pull-request previews, edge caching, region selection, instance sizing, shell access, scaling, persistent disks, one-off jobs, custom maintenance URLs, and advanced networking controls.
+- Recorded the user need, architecture and data impact, security boundary, operational requirements, acceptance evidence, and explicit approval gate for every capability.
+- Kept the settings UI limited to existing HelloDeploy behavior; no placeholder control, route, model, or unsupported capability was added.
+- Linked the evaluation from the Project Settings UX specification and documentation index.
+
+### Verification
+
+- `npm run format:check` passed after formatting the new evaluation document.
+- Focused Project Settings shell tests passed: 11 tests, 1 suite, 0 failures, 0 skipped.
+- `npm run lint` passed.
+- Full Node.js suite passed: 671 tests, 151 suites, 0 failures, 0 skipped.
+- Documentation links resolved, the sensitive screenshot-identifier scan returned no matches, and `git diff --check` passed.
+
+## Production Configuration Source Alignment
+
+- Status: Implemented and verified locally; production-equivalent startup remains externally blocked
+- Implemented: 2026-07-13
+
+### Changes
+
+- Separated startup-blocking environment keys from complete-or-empty and optional integration groups in the generated self-hosted checklist.
+- Aligned `.env.example`, the environment reference, setup prompts, and setup completion output with the web and worker runtime-validation contracts.
+- Stopped the setup wizard from defaulting a GitHub private-key path when the GitHub integration is otherwise left empty, avoiding an invalid partial configuration.
+- Added `npm run config:check` to the setup completion steps and documented that diagnostics report names and statuses without values.
+- Kept GitHub App configuration identified as required for repository deployments while allowing the platform processes to start with the complete group absent, matching current runtime behavior.
+- Added sanitized component diagnostics with bounded status labels and explicit `incomplete` reporting for partially populated integration groups.
+
+### Verification
+
+- Focused environment-validation and self-hosted-checklist tests passed, including sentinel-value success/failure diagnostics and incomplete integration reporting.
+- `npm run config:check` passed for both web and worker using the local environment.
+- `npm run lint` passed.
+- `npm run format:check` passed.
+- Full Node.js suite passed after configuration diagnostics were added: 675 tests, 151 suites, 0 failures, 0 skipped.
+
+## Verified Automatic Upgrade Rollback
+
+- Status: Implemented and verified locally; clean-host failed-upgrade exercise remains required
+- Implemented: 2026-07-13
+
+### Changes
+
+- Replaced the restart-only upgrade fallback with a bounded rollback function that checks out the previous full commit and reinstalls its locked production dependencies.
+- Validate both restored service configurations, reinstall the restored release's systemd units, rerender platform ingress, restart all HelloDeploy services, and wait for readiness.
+- Apply the same dependency-aware installed-host verification to both the candidate and restored releases.
+- Report verified rollback and critical rollback-verification failure as distinct operator outcomes.
+- Updated the operations runbook with the automatic rollback contract and critical-failure response.
+
+### Verification
+
+- `bash -n infrastructure/upgrade.sh` passed.
+- Focused upgrade, installation-verifier, and backup/restore safety tests passed after the complete failure guard was added: 15 tests, 3 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- Full Node.js suite passed: 678 tests, 151 suites, 0 failures, 0 skipped.
+
+## Upgrade Queue Pause and Drain
+
+- Status: Implemented and verified locally; clean-host execution remains required
+- Implemented: 2026-07-13
+
+### Changes
+
+- Added an operational BullMQ queue-maintenance CLI that globally pauses deployment starts and waits for active jobs to reach zero before checkout.
+- Added a bounded 10-minute default drain deadline with a validated 1-second to 1-hour operator override.
+- Preserve queues that operators had already paused and resume only queues paused by the upgrade.
+- Automatically resume after a pre-checkout drain failure, verified candidate activation, or verified rollback; keep the queue paused when rollback verification fails critically.
+- Wired state restoration through an exit trap so ordinary upgrade failures cannot silently strand the queue.
+
+### Verification
+
+- `bash -n infrastructure/upgrade.sh` passed.
+- Focused queue-maintenance, upgrade-safety, and installation-verifier tests passed: 16 tests, 3 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- Full Node.js suite passed: 683 tests, 152 suites, 0 failures, 0 skipped.
+
+## Public Deployment Evidence and Workflow Refinement
+
+- Status: Public boundary verified; authenticated and host workflows blocked
+- Observed: 2026-07-13
+
+### Public Evidence
+
+- Confirmed the public homepage and authentication entry point return `200` through Cloudflare.
+- Confirmed `/health` returns sanitized liveness and `/ready` returns `200` with MongoDB, Redis, and queue checks true.
+- Confirmed HSTS and the application CSP are present.
+- Observed deployed Phase 3 JavaScript and Phase 2 stylesheet asset identifiers; this does not prove later local changes are deployed.
+- Observed that the public session cookie includes `HttpOnly` and `SameSite=Strict` but omits `Secure`; no cookie value or session identifier was recorded. Host-side production environment and trusted-proxy verification remains required.
+
+### Workflow Changes
+
+- Added one prominent Next action to the owner onboarding checklist.
+- Added client-side `.env` entry-count feedback, zero-entry rejection, and explicit replacement confirmation without displaying values; server parsing remains authoritative.
+- Added a single Passed/Failed/Blocked/Not Run acceptance checklist separating public, authenticated owner, and operator evidence.
+- Reconciled the readiness roadmap and tracker with the deployed-but-NO-GO state and added the ordered production lifecycle to the operations runbook.
+
+### Verification
+
+- Focused workflow/settings tests passed before broad verification: 27 tests, 4 suites, 0 failures, 0 skipped.
+- Final focused security, workflow, settings, and documentation checks passed: 37 tests, 7 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, and `git diff --check` passed.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities.
+- Full Node.js suite passed: 690 tests, 153 suites, 0 failures, 0 skipped.
+
+## Production Session-Cookie Gate
+
+- Status: Prevention implemented locally; live release remains failed pending redeployment
+- Implemented: 2026-07-13
+
+### Changes
+
+- Made the supported web and worker `npm start` commands force `NODE_ENV=production`; `npm run dev` remains the explicit development path.
+- Added `--require-production` to configuration validation and made install/upgrade activation use it under each service identity.
+- Added bounded `runtime: production`/`non-production` diagnostics without exposing environment values.
+- Added `npm run production:check -- <https-url>` to verify the public homepage, HSTS, CSP, sanitized `/health` and `/ready`, and `Secure; HttpOnly; SameSite=Strict` without printing cookie values or response bodies.
+- Added operator recovery instructions that preserve strict cookies and constrained proxy trust.
+
+### Evidence
+
+- A fresh public check against `https://hellodeploy.online` passed homepage, sign-in, checkout-derived frontend assets, HSTS, CSP, sanitized health, and dependency readiness, but failed `session-cookie: missing secure`.
+- Focused configuration, lifecycle, ingress, public-check, and session-security tests passed: 40 tests, 8 suites, 0 failures, 0 skipped.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- Full Node.js suite passed after the production gate was completed: 697 tests, 154 suites, 0 failures, 0 skipped.
+- The live failure remains open until the new production start path is deployed and the external check passes; local changes are not production evidence.
+
+## Superseded Vendor Dashboard and Remote Worker Experiment
+
+- Status: Superseded after product-architecture correction; not approved V1 guidance
+- Implemented: 2026-07-13
+
+### Historical Changes
+
+- Added shared `REDIS_URL` support for the web queue, rate limiting, live-log subscription, maintenance CLI, and worker. Managed production endpoints require `rediss://`; URL configuration takes precedence while loopback host/port/password remains backward compatible.
+- Replaced Redis endpoint and raw connection-error logging with bounded connection modes and error classifications.
+- Separated the dashboard hostname from wildcard application routing through `PLATFORM_DOMAIN`, `DEPLOYMENT_DOMAIN`, and the aligned dashboard suffix. This domain separation remains valid for the self-hosted platform.
+- Added production hostname validation so schemes, ports, wildcards, paths, control syntax, and other Nginx-unsafe domain values fail before startup.
+- Added a hybrid checklist and deployment guide for Render web, shared MongoDB Atlas and managed TLS Redis, and an Ubuntu Docker/Nginx/Cloudflare Tunnel worker plane.
+- Added a hybrid worker preflight mode that requires managed TLS Redis without probing or exposing its endpoint and does not require a local Redis daemon.
+- Added worker-only install, upgrade, and verification roles. Worker installation requires an explicit immutable release and securely pre-provisioned shared configuration; it never generates a replacement encryption key or starts a local web service.
+
+### Verification
+
+- Focused Redis, configuration, routing, installer, privilege, upgrade, queue, SSE, and rate-limit tests passed during implementation.
+- `npm ci` installed 314 packages, reported zero vulnerabilities, and left `package-lock.json` unchanged at SHA-256 `6363f11311bed8124fecefe42240d0ce5e85a43631456fcc20edde171a968b3e`.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed.
+- Full Node.js suite passed after the hybrid preflight was added: 717 tests, 156 suites, 0 failures, 0 skipped.
+- The public production check passed homepage, checkout-derived assets, HSTS, CSP, sign-in, health, and readiness, but still failed `session-cookie: missing secure`.
+- Managed Redis connectivity, immutable full-host deployment, Ubuntu host verification, real Docker runtimes, authenticated QA, upgrade failure recovery, and second-host restore were not run and remain external blockers.
+
+## Grouped Production Completion Baseline
+
+- Status: Historical grouping superseded by the self-hosted topology correction
+- Recorded: 2026-07-13
+
+### Execution Structure
+
+- Grouped the remaining production work into release, Render security, Ubuntu routing, deployment/product QA, recovery, and final-decision stages in the authoritative implementation tracker.
+- Kept individual live results in the existing acceptance checklist instead of creating a second status source.
+- Selected guided execution for credentialed Render, Cloudflare, Ubuntu, S3-compatible backup, and restore-host actions.
+- Selected an annotated `v0.1.0` tag on the reviewed `main` merge commit as the first immutable release reference.
+
+### Release Evidence
+
+- Draft PR #1 contains three coherent commits for settings/secrets UX, the hybrid worker foundation, and production-readiness documentation.
+- The PR head is cleanly mergeable at `85428baacf6cd5b80cf8d3b3aff1a5094e9fd363`.
+- GitHub Actions completed the Node.js 22 CI workflow successfully for that head, including clean dependency installation, lint, formatting, configuration validation, tests, and the production dependency audit.
+- Local release verification passed with 717 tests across 156 suites, no failures or skips, and zero reported production dependency vulnerabilities.
+- Review, merge, annotated-tag creation, Render redeployment, and every target-host or authenticated acceptance row remain unverified and must not be inferred from this repository evidence.
+
+## Immutable v0.1.0 Release Baseline
+
+- Status: Group 0 complete; later vendor-specific Group 1 superseded
+- Published: 2026-07-13
+
+### Release Evidence
+
+- The grouped documentation update passed focused workflow-documentation checks and the full local release gate: lint, formatting, configuration validation, 717 tests across 156 suites, production dependency audit, and diff validation.
+- PR #1 passed the refreshed Node.js 22 CI workflow and was merged into `main` as `740b9a83d4414bf85b97894ea6a1dca0056cfc9e`.
+- Published annotated tag `v0.1.0`; local and remote verification resolve the tag to that exact merge commit.
+- A fresh public production check passed homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but still failed `session-cookie: missing secure`.
+- Public asset matching does not prove the deployed commit or target host topology. Exact release identity, production environment, supported start command, Redis configuration, and full-host deployment remain operator checks.
+
+### Provider Environment Compatibility
+
+- Confirmed Node.js exits before startup when `--env-file` references a missing file, which makes the supported workspace command incompatible with any process manager that supplies environment variables without creating `.env`.
+- Changed both production service scripts to `--env-file-if-exists=../../.env`. Local and Ubuntu `.env` loading remains supported, while process-managed environments can start without a physical file.
+- Added a configuration contract test for both service start scripts. This provider-neutral compatibility remains valid.
+- Kept `v0.1.0` immutable. The compatibility correction requires reviewed patch release `v0.1.1`, and the later successful-upgrade drill moves to `v0.1.1` → `v0.1.2`.
+
+## Immutable v0.1.1 Provider Compatibility Release
+
+- Status: Published; production validation remains blocked on topology reconciliation and full-host evidence
+- Published: 2026-07-13
+
+### Release Evidence
+
+- PR #2 passed the Node.js 22 CI workflow and was merged into `main` as `eee3440c9e47aa60a95736883d48fdbc307af36e`.
+- Published annotated tag `v0.1.1`; local and remote verification resolve the tag to that exact merge commit.
+- The release retains the strict production cookie contract and adds provider-managed environment compatibility to the supported web and worker start commands.
+- A fresh public production check passed the homepage, expected frontend assets, HSTS, CSP, sign-in, sanitized health, and dependency readiness, but failed `session-cookie: missing secure`.
+- The public result does not prove which commit, start command, or host topology served the response. Production validation remains blocked until an immutable release runs on the supported full Ubuntu topology with production mode and verified shared-service configuration before another public check.
+- Focused workflow-documentation tests passed, as did lint, formatting, configuration validation, all 717 tests across 156 suites, the production dependency audit with zero reported vulnerabilities, and diff validation.
+
+## Product and Platform Architecture Correction
+
+- Status: Documentation correction implemented; repository implementation reconciliation pending
+- Corrected: 2026-07-13
+
+### Findings
+
+- Confirmed from the blueprint, web/worker boundaries, Docker pipeline, Nginx routing, installer, and user guide that HelloDeploy is the application hosting platform, not a control panel for another PaaS.
+- Restored the canonical V1 topology: one administrator-controlled Ubuntu host running privilege-separated web, worker, constrained Nginx helper, Nginx, Docker, and Cloudflare Tunnel services.
+- Confirmed MongoDB Atlas and managed TLS Redis are optional platform dependencies, not deployment providers.
+- Confirmed `hellodeploy.online` is the dashboard host and `*.apps.hellodeploy.online` is the hosted-project namespace.
+- Classified the vendor-hosted dashboard and remote worker-only path as unapproved multi-node architecture drift. Remote workers remain deferred until an ADR and explicit product approval.
+- Preserved provider-neutral improvements: managed `rediss://` support, bounded Redis diagnostics, process-environment compatibility, dashboard/application domain separation, strict cookies, and public production checks.
+
+### Documentation Changes
+
+- Added the canonical product and platform architecture document and linked it from the repository and documentation indexes.
+- Reconciled the blueprint, settings UX boundary, install guide, environment reference, user guide, readiness tracker, roadmap, implementation overview, and live acceptance checklist.
+- Removed the obsolete hybrid deployment guide and made topology reconciliation the next implementation group.
+
+### Limitation at Documentation Merge
+
+- At the time of the documentation correction, the `hybrid_worker` checklist and worker-only installer/upgrade/verifier branches still existed. The following implementation entry records their local removal; supported-host verification remains open.
+
+### Verification
+
+- Focused live-workflow documentation tests passed: 4 tests, 1 suite, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- Architecture-specific links and domain references resolve. A repository-wide link scan separately found eight pre-existing missing phase-spec targets referenced by `docs/phases/README.md`; no missing files were invented or claimed as part of this correction.
+
+## Single-Host V1 Implementation Reconciliation
+
+- Status: Implemented; local verification and draft PR CI passed; review and merge pending
+- Implemented: 2026-07-13
+
+### Changes
+
+- Removed the `hybrid_worker` preflight and checklist modes and rejected removed host-mode arguments explicitly.
+- Removed worker-only branches and host-role variables from install, upgrade, and installed-host verification.
+- Made installation, upgrade, rollback verification, and service activation always include the web, worker, and constrained Nginx helper services.
+- Removed the production external-router acknowledgment; V1 production now requires `NGINX_ENABLED=true` and the local helper path.
+- Kept managed `rediss://` support in the normal full-host preflight while retaining local Redis checks when no managed URL is configured.
+- Renamed the ingress configurator to `configure-platform-ingress.sh` to avoid confusing the verb “render” with a hosting-provider dependency.
+- Updated configuration, installer, preflight, upgrade, Nginx, environment, roadmap, architecture, acceptance, and historical phase documentation.
+
+### Verification
+
+- `bash -n` passed for install, upgrade, verifier, and platform-ingress scripts.
+- Node syntax checks passed for preflight, checklist, and configuration validation.
+- Focused configuration, preflight, checklist, installer, upgrade, verifier, and Nginx tests passed: 51 tests across 7 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- Published commit `3db74be` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- Host installation and privilege evidence remained blocked at that checkpoint; the following entry identifies the current Ubuntu 26.04 pilot as the in-place validation target.
+
+## Local Ubuntu 26.04 Pilot Host Reconciliation
+
+- Status: Direct pilot evidence recorded; local and draft PR validation passed; review and merge pending
+- Observed: 2026-07-13T16:04:00+08:00
+
+### Sanitized Host Evidence
+
+- `hostnamectl`, `/etc/os-release`, and `uname` confirmed that the current laptop runs Ubuntu 26.04 LTS and is the machine serving the HelloDeploy pilot. Machine and boot identifiers were not recorded.
+- Process and listener inspection confirmed that the web and worker run from this repository under the interactive account rather than separate HelloDeploy system identities or units.
+- `systemctl status` confirmed active Nginx, Redis, and Cloudflare Tunnel services. HelloDeploy web, worker, and helper units are not installed.
+- `redis-cli ping` returned `PONG`; local web `/health` and `/ready` returned `200`.
+- Sanitized tunnel inspection confirmed that both dashboard hostnames connect directly to web port 3001. Tunnel identifiers and credential paths were excluded.
+- Nginx configuration inspection found a dashboard upstream with no active listener. The current dashboard tunnel therefore bypasses Nginx.
+- Docker CLI and socket checks found neither present. The HelloDeploy helper runtime directory, managed Nginx route directory, and wildcard application tunnel route are also absent.
+- `npm run production:check -- https://hellodeploy.online` passed homepage, expected assets, HSTS, CSP, sign-in, liveness, and readiness; it failed only `session-cookie: missing secure`. Cookie values were not captured.
+
+### Readiness Interpretation
+
+- The current machine is the live local dashboard pilot and the in-place productionization target; it is not a control workstation for a separate host.
+- Dashboard availability does not prove Docker-backed customer application hosting, wildcard routing, privilege isolation, rollback, or recovery.
+- Ubuntu 26.04 is candidate-supported. Ubuntu 22.04 and 24.04 remain the generally supported releases until Ubuntu 26.04 passes installer, Docker, systemd, routing, deployment, rollback, interruption, and restore gates.
+- Privileged host changes remain unperformed. The next implementation group must first verify backups, immutable release identity, health, and explicit rollback steps while preserving the current dashboard.
+
+### Documentation Verification
+
+- Focused live-workflow documentation tests passed: 4 tests, 1 suite, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 717 tests across 156 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- Every local link in the touched documentation resolves. The stale-claim review preserves historical observations while distinguishing them from the current pilot evidence.
+- Published documentation commit `80a439b` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+
+## Ubuntu 26.04 Candidate Gate
+
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
+- Implemented: 2026-07-13T16:42:00+08:00
+
+### Changes
+
+- Added one shared Ubuntu release classifier that keeps 22.04 and 24.04 supported, identifies 26.04 as candidate, and rejects other distributions or versions.
+- Made preflight fail closed on Ubuntu 26.04 unless `--allow-candidate-os` is explicit.
+- Made installation fail closed on Ubuntu 26.04 unless `HELLODEPLOY_ALLOW_CANDIDATE_OS=true` is explicit.
+- Kept the preflight flag and installer variable separate so a prior diagnostic acknowledgment cannot silently authorize privileged installation.
+- Added the candidate release to the generated self-hosted checklist without adding it to the supported-release list.
+- Added an availability-preserving in-place baseline and rollback workflow to the operations runbook and documented the installer-only control outside application `.env` configuration.
+
+### Verification
+
+- Shell and Node syntax checks passed for the installer, preflight, shared classifier, and checklist.
+- Focused installer, preflight, checklist, and Ubuntu policy tests passed: 27 tests across 4 suites, no failures or skips.
+- Direct preflight on the pilot failed the candidate OS row plus both Docker rows by default. With candidate acknowledgment, only the OS row changed to passing; both Docker blockers remained failed.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 722 tests across 157 suites, no failures or skips.
+- Published commit `d920b35` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- No package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
+
+## Sanitized In-Place Host Baseline
+
+- Status: Implemented; focused, broad, and draft PR CI verification passed; review pending
+- Implemented: 2026-07-13T16:48:00+08:00
+
+### Changes
+
+- Added `npm run host:baseline` as a read-only inventory command with JSON and concise human output.
+- Reports only the OS support tier, full release commit and clean/dirty state, bounded prerequisite/service/identity/routing booleans, liveness/readiness status codes, and enumerated blocker codes.
+- Reads the tunnel configuration only to determine whether dashboard and wildcard route shapes exist; it never returns hostnames, services, identifiers, credentials, paths, or file contents.
+- Accepts an explicit active web port for local health checks but does not return an address.
+- Rejects unknown arguments and invalid ports before inspection.
+
+### Verification
+
+- Focused host-baseline tests passed: 4 tests, 1 suite, no failures or skips.
+- Sentinel tests confirmed that environment secrets, Redis URLs, endpoints, hostnames, and process details are absent from stdout and stderr.
+- The first sanitized pilot run reported candidate OS, healthy liveness/readiness, active Nginx/Redis/tunnel, and bounded blockers for dirty release state, Docker, isolated identities/units, helper, managed routes, and wildcard ingress.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- The full Node.js suite passed: 726 tests across 158 suites, no failures or skips.
+- Published commit `e0aa0f7` to draft PR #5; its Node.js 22 `Lint & Test` check passed.
+- No backup, package, identity, service, Nginx, tunnel, Docker, or traffic mutation was performed.
+
+## PR #5 Merge and Encrypted Pilot Backup Guardrail
+
+- Status: PR merged; repository-local backup tooling implemented; actual protected backup blocked on external inputs
+- Updated: 2026-07-13T17:22:00+08:00
+
+### Release Evidence
+
+- Rechecked PR #5 at head `5a6b0ed20e089558069d67a044663f5b64eb393b`: merge state was clean and its Node.js 22 `Lint & Test` check passed.
+- Reviewed the release policy, implementation/security diff, changed-file list, secret-sensitive additions, and stale topology terms. No credential, machine identifier, private endpoint, tunnel identifier, or provider dependency was introduced.
+- GitHub showed no separately submitted reviewer approval; the user authorized continuation and the final implementation/security diff review was completed before merge.
+- Marked PR #5 ready and merged it without deleting or switching the live pilot checkout. GitHub recorded merge commit `789b903157b3872d26c82721a9628063f8d82cc4` on `main`.
+- Existing tags are `v0.1.0` and `v0.1.1`; no tag was moved or created during this merge.
+
+### Pilot Backup Guardrail
+
+- Direct inspection showed that the installed-host backup script cannot safely represent the current repository-run pilot: its fixed installed paths do not match this checkout, the MongoDB dump tool is absent, active tunnel state is not included, and its output directory contains plaintext secrets.
+- Added a separate pre-cutover pilot command that requires a clean full Git commit, active environment/Nginx/tunnel files, tunnel credentials, explicit confirmation of a verified external database snapshot, a private output directory, and an existing public GPG recipient.
+- The command stages with restrictive permissions, records only a sanitized manifest, checksums every payload file, encrypts to the selected recipient, refuses overwrite, and removes plaintext staging on every exit path. It does not stop services or change traffic.
+- Added a non-mutating verifier that decrypts to private temporary storage, rejects absolute/parent-traversal archive paths, verifies checksums and manifest shape, and removes plaintext on exit.
+- Hardened the destination against privileged temporary-output symlink attacks by requiring a root-owned directory with no group/other access, and removed ambiguous recipient lookup by requiring a complete 40-character GPG fingerprint.
+- Made a root-owned private rollback-instructions file mandatory so the exact existing process startup and recovery sequence is preserved inside the encrypted artifact without appearing in repository evidence.
+- Restricted verification to the exact generated member and checksum inventories; duplicate members, symlinks, hard links, devices, unexpected files, and unsafe checksum paths fail before integrity can be accepted.
+
+### Verification and Limitation
+
+- `bash -n infrastructure/backup-pilot.sh infrastructure/verify-pilot-backup.sh` passed.
+- Focused pilot-backup safety tests passed: 4 tests, 1 suite, no failures or skips.
+- Functional verifier tests passed for one valid archive plus unexpected-member, symlink-member, unsafe-checksum-path, and missing-checksum attacks: 5 tests, 1 suite, no failures or skips.
+- Focused backup, restore, verifier, and workflow-documentation tests passed: 17 tests across 4 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 735 tests across 160 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- The host has GPG and OpenSSL, but no `age`, `restic`, `rclone`, AWS CLI, or MongoDB dump command. No approved GPG recipient or protected off-host destination was discoverable.
+- No secret-bearing file was copied, no encrypted artifact was created, and no package, identity, service, Nginx, tunnel, Docker, queue, or traffic state was changed. Priority 1 remains blocked from privileged execution until the user selects the recipient and off-host destination and confirms the external database snapshot.
+
+## Inactive In-Place Installer Preparation
+
+- Status: Repository implementation complete; target-host execution blocked by the protected backup gate
+- Updated: 2026-07-13T18:12:00+08:00
+
+### Changes
+
+- Added an explicit preparation-only installer mode for availability-preserving migration of the current repository-run pilot.
+- Ubuntu 26.04 installation now requires separate candidate-OS, verified-off-host-backup, and verified-rollback-baseline acknowledgements; no single flag bypasses the other gates.
+- Preparation requires a reviewed configuration source that is a non-symlink, root-owned private file under a root-owned parent that is not group/other-writable and outside the installation checkout.
+- The reviewed configuration is copied unchanged. Preparation never runs secret generation or the setup wizard and refuses to overwrite an existing installed `.env`.
+- Preparation refuses any active or enabled HelloDeploy unit. It creates the immutable checkout, prerequisites, identities, protected directories, dependencies, configuration, and inactive unit files while leaving the global Nginx include and platform ingress unchanged.
+- Preparation exits before enabling, starting, or verifying services. Activation and traffic cutover remain a separate workflow after foundation inspection and queue coordination.
+- Added a read-only prepared-foundation verifier and invoke it before preparation succeeds. It requires the expected full commit and clean checkout, validates identities and protected files, proves worker Docker access and web denial, requires every HelloDeploy unit inactive/disabled, rejects a pre-existing helper socket or occupied candidate port, validates current Nginx syntax, and runs both production configuration checks.
+- The prepared verifier contains no service, ingress, Docker-container, queue, or traffic mutation commands and emits bounded component results without configuration values.
+
+### Verification and Limitations
+
+- `bash -n infrastructure/install.sh` passed.
+- Focused preparation, installed-host verifier, prepared-foundation verifier, Ubuntu policy, and workflow-documentation tests passed: 26 tests across 5 suites, no failures or skips.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+- The full Node.js suite passed: 745 tests across 162 suites, no failures or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- No package, identity, file under system installation paths, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
+- Actual preparation remains blocked until the encrypted artifact is created, retrieved, and verified off-host and exact rollback evidence is accepted.
+
+## Priority 1 Release Candidate and Runtime-Identity Gate
+
+- Status: Repository release candidate verified; protected-media and host execution pending
+- Updated: 2026-07-13T19:24:50+08:00
+
+### Changes and Findings
+
+- Added an npm `>=10` preflight requirement and made the installer upgrade older npm installations before dependency installation.
+- Clarified that retrieval verification from remounted off-host storage on the pilot proves artifact and recovery-key integrity but does not satisfy the cross-host restore gate.
+- Direct process inspection found that the PM2 web and worker processes started before several later Git checkout changes. The active runtime therefore cannot be attributed to the current checkout or one immutable release tag.
+- The approved recovery workflow now requires an emergency encrypted capture, controlled restart on reviewed `v0.1.2` under Node.js 22 in production mode, public cookie verification, and a second final capture before inactive installation.
+
+### Verification and Limitations
+
+- Shell syntax and the focused backup, malicious-archive, installer, preparation, preflight, Nginx, and documentation suites passed: 47 tests across 9 suites.
+- Node.js `v22.22.1` and npm `10.9.8` were used for the release gate without replacing dependencies under the live PM2 process.
+- A separate detached worktree ran `npm ci`, installing 314 packages without tracked changes. Lint and formatting passed.
+- An isolated full test run passed all 747 tests across 162 suites with no failures or skips. An earlier overlapping diagnostic run was discarded after it contended with a duplicate test invocation and reported one failure; no overlapping process remained for the accepted run.
+- Configuration validation passed in the pilot checkout. The clean worktree intentionally contained no copied `.env` or secret-bearing state.
+- The production dependency audit reported zero vulnerabilities; `git diff --check` and the clean-worktree status check passed.
+- Draft PR #6 contains the intended three commits, passed Node.js 22 CI, and was reported cleanly mergeable at the reviewed head.
+- No disk, GPG keyring, database snapshot, package, PM2 process, identity, service, Nginx, tunnel, Docker, queue, secret, or traffic state was changed.
+- Both removable media and exact destructive-device confirmation remain required before the emergency backup stage can begin.
+
+## `v0.1.2` Publication and Protected-Media Gate
+
+- Status: Release published; external-media gate blocked without mutation
+- Updated: 2026-07-13T19:30:22+08:00
+
+### Release Evidence
+
+- The final three-commit head of PR #6 passed Node.js 22 CI after its evidence update and GitHub reported a clean merge state.
+- PR #6 merged at full commit `4b6c15ebd8ba8dc2251d9c17fb9331892414d967`.
+- Annotated tag `v0.1.2` was created without moving an existing tag, pushed, and verified to peel to the reviewed merge commit.
+
+### Protected-Media Stop Condition
+
+- Read-only block-device discovery found the internal system disk and optical device only; no removable storage candidate or stable removable-device path was present.
+- The current user GPG keyring contains no secret key. No dedicated backup identity was generated because the separate recovery-key medium is absent.
+- No partitioning, formatting, mounting, key generation, key import, database snapshot, backup creation, PM2 restart, package installation, service preparation, Nginx change, tunnel change, Docker change, or traffic change occurred.
+- Resume only after both separate removable media are attached. Display and confirm the exact backup device before any destructive operation.
+
+## Protected Media and Atlas Free Database Export
+
+- Status: Media and database-export prerequisites passed; complete pilot capture pending
+- Updated: 2026-07-13T20:37:26+08:00
+
+### Sanitized Host Evidence
+
+- The explicitly confirmed external backup drive was repartitioned as one LUKS2 container with an ext4 filesystem, mounted at a root-only location, and given a root-owned mode-`0700` artifact directory. The internal system disk and separate recovery-key medium were not modified by that operation.
+- A dedicated passphrase-protected Ed25519 recovery identity with a cv25519 encryption subkey was generated in an ephemeral GPG home. The protected secret export, public key, revocation certificate, fingerprint record, and checksums are held on separate removable media. An ephemeral secret-key re-import passed and the temporary keyring was removed; only the public key was imported into the root keyring.
+- Atlas reported the database as a Free cluster with managed backups inactive, so no snapshot capability was claimed. MongoDB Database Tools `100.17.0` were downloaded from the official distribution endpoint and their detached signature verified successfully.
+- `mongodump` created one compressed archive directly on the encrypted backup filesystem. `mongorestore --dryRun` checked the archive without restoring data, and a private checksum file was created. The first verification attempt failed because the helper omitted the protected connection configuration and therefore selected its default local target; it retained no completed or partial artifact. The corrected run passed.
+- The database copy is a verified `mongodump` export, not an Atlas snapshot, full pilot backup, remount/retrieval proof, or cross-host restore.
+
+### Repository Follow-up
+
+- Added a repeatable database-export command that loads the connection setting through a protected runtime config, writes only to a root-private destination, refuses overwrite, runs a non-restoring archive check, and removes the temporary config on every exit path.
+- Require the MongoDB tool binaries used by the privileged export command to be root-owned and not group/other writable; this removes the temporary-helper trust path from the supported workflow.
+- Added a mutually exclusive `--database-export` evidence mode to the pilot backup command while preserving the existing external-snapshot mode.
+- Require the export, checksum, and parent directory to be root-owned and private; require the export to be nonempty, outside the repository, and checksum-matched before staging.
+- Include the export under a fixed payload name and require the verifier's manifest mode, member inventory, and checksum inventory to agree.
+- PM2, Nginx, tunnel, Docker, queue, and traffic state remain unchanged. The next gate is a reviewed immutable release of this fix, followed by root-private rollback instructions and the emergency encrypted pilot capture.
+
+### Verification
+
+- Shell syntax passed for the database exporter, pilot backup command, and non-restoring verifier.
+- Focused backup, malicious-archive, installed-backup, and workflow-documentation checks passed: 22 tests across 4 suites, with no failures or skips.
+- The official Node.js `v22.22.1` archive matched its published SHA-256 manifest; its bundled npm `10.9.4` ran the broad gate without replacing the live PM2 interpreter.
+- A detached clean worktree installed 314 locked packages with `npm ci`, reran the complete gate, and remained clean afterward.
+- Lint, formatting, and configuration validation passed. The full suite passed 752 tests across 162 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities; `git diff --check` and the secret-sensitive diff scan passed.
+- The complete encrypted pilot artifact, remount/retrieval verification, PM2 normalization, cookie recheck, Docker installation, service preparation, and traffic changes remain unrun.
+
+## Public-Key-Only Pilot Backup Packet Check
+
+- Status: Fail-closed live defect reproduced; repository fix locally verified
+- Updated: 2026-07-13T21:18:31+08:00
+
+### Sanitized Live Finding
+
+- The reviewed `v0.1.3` backup command passed repository cleanliness, protected database-export checksum, release identity, configuration capture, staging checksum, archive creation, and GPG encryption.
+- Its post-encryption `gpg --list-packets` command returned exit code `2` because the pilot intentionally retains only the recovery identity's public key. GPG parsed the ciphertext but then attempted decryption and could not find the separately held secret key.
+- The failure remained safe: the exit trap removed plaintext staging and the `.partial` ciphertext, and no completed emergency artifact was retained. PM2, Nginx, tunnel, Docker, queue, and traffic were unchanged.
+
+### Repository Correction
+
+- Changed the post-encryption structural check to `gpg --list-only --list-packets`, which parses ciphertext without requesting the unavailable secret key.
+- Reproduced the distinction in isolated temporary keyrings: ordinary packet listing returned `2` with a public-only keyring, while non-decrypting packet listing returned `0` for the same valid ciphertext.
+- Added a focused contract assertion so the backup path cannot regress to a decrypting packet check.
+- Shell syntax and 14 focused backup safety/verifier tests passed. Lint, formatting, configuration validation, the complete 752-test suite, the production dependency audit, and `git diff --check` also passed with no failures, skips, vulnerabilities, or whitespace errors.
+- Actual emergency capture and remount/recovery-key verification remain blocked until the root-installed backup command is replaced with this reviewed correction.
+
+## Verified Emergency Pilot Capture and Normalization Stop
+
+- Status: Emergency capture Passed; production runtime normalization Failed preflight
+- Updated: 2026-07-14T06:49:21+08:00
+
+### Release and Capture Evidence
+
+- PR #9 contained the bounded public-key-only packet-check correction, passed Node.js 22 CI, merged cleanly, and was published as annotated tag `v0.1.4` at the reviewed merge commit.
+- The root-installed reviewed command captured the clean tagged checkout, protected environment, active Nginx and tunnel configuration, tunnel credential, root-private rollback instructions, and verified database export into one encrypted artifact. No completed artifact from the earlier fail-closed attempts was retained.
+- After the encrypted filesystem was closed and reopened, the artifact checksum and separate recovery-media checksums passed. A fresh temporary GPG home imported the protected recovery identity, decrypted the artifact, and ran the non-restoring verifier successfully.
+- The verifier accepted only the fixed member inventory, checked every internal checksum, confirmed consistent release and database modes, and restored nothing. The temporary keyring and plaintext verification directory were removed. Both removable media were then unmounted and the encrypted mapping closed.
+- The first passphrase-protected verifier invocation waited on an invisible GPG pinentry interaction and was interrupted. Cleanup removed the temporary keyring and plaintext directory. A bounded explicit terminal prompt then decrypted and verified the same checksummed artifact successfully. The supported verifier now provides that terminal-only prompt mode and a two-minute decryption deadline so this wait cannot recur silently.
+- Shell syntax and 27 focused backup, verifier, preparation, host-baseline, and documentation tests passed. Lint, formatting, configuration validation, the complete 753-test suite, the production dependency audit, and `git diff --check` also passed with no failures, skips, vulnerabilities, or whitespace errors.
+- Local and public health and readiness remained HTTP `200` before and after capture. PM2, Nginx, tunnel routing, Docker, queue, and traffic were unchanged.
+
+### Normalization Stop Condition
+
+- The clean pilot checkout is `v0.1.4`, but the active PM2 process still uses the earlier Node.js 24 repository-run definition and cannot be attributed to the reviewed checkout.
+- A verified Node.js 22 runtime with npm 10 is available for the eventual restart. No installation or PM2 mutation was performed.
+- Value-safe production validation failed before restart: the web configuration is missing `GITHUB_APP_NAME`, and the worker requires `NGINX_ENABLED=true` with the constrained local helper path. The current helper, identities, Docker plane, and managed route directory remain absent.
+- Source inspection confirmed the production worker synchronously calls the Nginx helper during startup. Full runtime normalization therefore cannot safely precede helper preparation as the earlier plan required.
+- The proposed corrected sequence is complete production configuration, use the verified emergency capture as the recovery gate for prepare-only foundation installation, pause and drain the deployment queue, separately activate and validate the helper, perform controlled Node.js 22 normalization, verify the cookie, and create the second final baseline before traffic cutover or application deployment. This sequencing amendment requires explicit approval; host mutation remains stopped, cross-host restore remains blocked, and no GO claim is made.
+
+## Production Web Pilot Recovery and Cookie Gate
+
+- Status: Dashboard recovery and cookie gate Passed; worker foundation Blocked
+- Updated: 2026-07-14T14:01:16+08:00
+
+### Release and Configuration Evidence
+
+- PR #10 passed Node.js 22 CI, merged cleanly at full commit `c16f33db2ca57147d266d9a0ae30cab22971030d`, and was published as annotated tag `v0.1.5`.
+- A value-safe environment audit found no malformed or duplicate assignments and confirmed mode `0600`. The GitHub App slug and deployment domain were completed, the dashboard/application domain relationship was corrected, and the intended helper socket was recorded while routing remained explicitly disabled.
+- The configured numeric GitHub App identity authenticated two downloaded keys for the expected private app. The newest verified key was selected without printing its filename, identifiers, JWT, or contents, then installed outside the checkout with root ownership and mode `0640`. An authenticated app-identity request passed from the installed file.
+- Local Redis remains in the supported host/port compatibility mode. Unused client-credential fields remain present but are not consumed by the current HelloDeploy GitHub App runtime contract; they were not displayed or changed during this recovery.
+
+### Fail-Closed Restart and Recovery
+
+- A PM2 reload picked up the reviewed start scripts, which force production mode. The combined web/worker pilot then failed closed because the production worker requires the unavailable constrained Nginx helper. It accumulated 970 restart attempts without opening the web port; the public edge returned `502`.
+- The combined entry was stopped. It was preserved rather than deleted, and the other PM2 applications were not modified.
+- Production web configuration passed after the protected GitHub App key and corrected application domain were available. A separate web-only PM2 pilot started from the clean `v0.1.5` checkout with zero restarts.
+- Local and public `/health` and `/ready` returned successful sanitized responses. The public production checker passed the homepage, expected frontend assets, HSTS, CSP, `Secure; HttpOnly; SameSite=Strict`, sign-in page, health, and dependency readiness without capturing response bodies, cookies, sessions, or secret values.
+
+### Remaining Boundaries
+
+- The recovered web still runs through the interactive PM2 pilot using Node.js 24; this is not the isolated Node.js 22 systemd target.
+- The worker is intentionally offline. Docker, isolated identities, the constrained helper, Nginx dashboard ingress, wildcard application routing, real deployments, final post-normalization backup, failed-upgrade rollback, and cross-host restore remain blocked or unrun.
+- Customer application hosting remains **NO-GO** despite the restored dashboard and passing cookie gate.
+
+### Verification
+
+- `node --test tests/ui/live-workflow-docs.test.js` passed 4 tests in 1 suite.
+- `npm run lint`, `npm run format:check`, `npm run config:check`, `npm audit --omit=dev --audit-level=moderate`, and `git diff --check` passed; the production dependency audit reported zero vulnerabilities.
+- `npm test` passed 753 tests across 162 suites with no failures, cancellations, or skips.
+- `npm run production:check -- https://hellodeploy.online` passed every public boundary check, including the strict cookie contract.
+
+## Public Git Repository Source Implementation
+
+- Status: Repository implementation Passed; live deployment validation Blocked
+- Updated: 2026-07-14T14:52:30+08:00
+
+### Implemented Behavior
+
+- Added an accepted `PUBLIC_GIT` source type for canonical public GitHub HTTPS repositories while preserving existing GitHub App records and flows.
+- Added strict URL reconstruction and validation, bounded redirect-denying public metadata inspection, branch selection, server-side revalidation, conditional repository persistence, and Owner-only rate-limited routes.
+- Added credential-free public detection and exact-commit worker cloning with terminal prompts, system configuration, and ambient credential helpers disabled. Git commands retain argument arrays, bounded output, bounded execution time, safe errors, remote removal, and Git metadata cleanup.
+- Added public-source commit resolution during deployment creation and prevented Automatic mode in the Overview, consolidated Settings, and server mutation path. Connecting from an Automatic project requires explicit confirmation and changes the project to Manual in the audited persistence operation.
+- Reworked the Repository page into public URL and GitHub App paths with pending, validation, retry, branch-selection, connected-source, and explanatory states. Private repositories and signed Automatic deployments continue to require the GitHub App.
+- Reconciled the user guide, FAQ, architecture, blueprint, accepted ADR, UX backlog, and implementation specification. These changes describe HelloDeploy as the hosting platform and use reference products only as interaction inspiration.
+
+### Verification Evidence
+
+- Focused repository contract, model, public metadata, detection, UI, worker, build-context, command-injection, and rate-limit checks passed. The final public metadata, UI, and fail-closed rate-limit regression set passed 19 tests across 3 suites, including streaming response limits without relying on `Content-Length`.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed. The value-safe configuration check reported this shell's current non-production mode and disabled routing; it was not treated as live worker evidence.
+- `npm test` passed 779 tests across 166 suites with zero failures, cancellations, or skips after updating established guided-copy and fail-closed limiter inventory contracts.
+- `npm audit --omit=dev --audit-level=moderate` reported zero vulnerabilities, and `git diff --check` passed.
+- PM2, Nginx, Cloudflare Tunnel, Docker, Redis, the deployment queue, and live traffic were not changed. A real Docker-backed Public Git deployment remains Blocked while the isolated worker plane is offline; customer application hosting remains **NO-GO**.
+
+## Guided Project Overview
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T22:09:35+08:00
+
+### Implemented Behavior
+
+- Replaced the project overview's technical card grid and five-step onboarding counter with a lifecycle-aware summary that derives setup, attention, review, deployment, live, and suspended states from repository access, persisted detection freshness, approval state, project status, and deployment records.
+- Added four meaningful milestones, one role-aware next action, prominent approval feedback, safe platform application links, recent deployment activity, stale-source guidance, and first-deployment failure recovery while keeping existing deployment and retry routes unchanged.
+- Consolidated read-only repository, runtime, branch, deployment mode, and notification values into a responsive details disclosure. Editable deployment and notification controls remain in Project Settings, and environment variables remain optional guidance.
+- Added responsive wrapping and focus treatment, rendered real EJS fixtures at 1440px and 390px for visual inspection, and reconciled the user guide and historical onboarding specification.
+
+### Verification Evidence
+
+- Focused lifecycle, rendered EJS, approval, settings, accessibility, empty-state, and risky-action coverage passed 48 tests across 7 suites before the final edge-case additions; the final overview-focused run passed 18 tests across 2 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 818 tests across 171 suites with zero failures, cancellations, or skips.
+- Visual fixtures confirmed readable desktop and mobile layouts for a live app with a failed update and a draft with requested changes, including long repository names, administrator notes, application URLs, and failure messages. No production services, queues, workers, deployments, or traffic were changed.
+
+## Repair and Simplify Project Settings
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T22:45:27+08:00
+
+### Implemented Behavior
+
+- Repaired the authenticated Settings render by replacing the undefined build-value helper with render-safe values that preserve submitted and stored build configuration.
+- Added an internal Settings view model for friendly runtime, deployment, notification, detection-freshness, domain, hook, maintenance, build, and deploy-rule summaries.
+- Reworked the seven stable Settings sections into read-first, unframed bands with advanced disclosures for technical controls. Repository, detection, domains, deploy hooks, and maintenance now link to their dedicated workflows.
+- Made archived Settings read-only except for permanent deletion and added a shared server-side guard across project mutation routes. Danger Zone failures now honor the validated Settings return target.
+- Added real EJS render coverage for normal, validation-error, long-value, public-source, legacy-mode, and archived fixtures, plus focused archived-route and Settings-shell coverage.
+
+### Verification Evidence
+
+- Focused Settings, detection, approval, public-source, archived-project, and destructive-action checks passed 35 tests across 5 suites; the final stale-assertion regression run passed 16 tests across 3 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 830 tests across 173 suites with zero failures, cancellations, or skips.
+- Authenticated-style EJS fixtures were inspected at 1440px desktop and 390px mobile widths, including long repository/domain values and archived read-only behavior. No production services, queues, workers, deployments, or traffic were changed.
+
+## Guided Custom Domains
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:11:44+08:00
+
+### Implemented Behavior
+
+- Replaced the technical domain form-first page with a four-stage setup summary covering domain entry, DNS record creation, ownership checking, and administrator activation.
+- Expanded the one-time TXT screen with nameserver-based provider guidance, exact Type, Name, Value, and TTL fields, accessible copy controls, DNS timing guidance, and a direct check action. Successful domain creation now lands on this instruction panel.
+- Added a persistent recovery state for pending domains whose one-time value is no longer available. Owners can check an already-created record or remove and restart setup to receive a new value without weakening hashed token storage.
+- Added plain-language progress and next actions for pending verification, administrator review, active, rejected, Owner, and read-only states, with responsive wrapping for long hostnames and verification values.
+- Reconciled the user guide and existing UI contracts with the guided workflow.
+
+### Verification Evidence
+
+- Focused domain guidance, responsive-table, pending-form, empty-state, destructive-action, and operational-copy checks passed 33 tests across 7 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 837 tests across 174 suites with zero failures, cancellations, or skips.
+- Real EJS fixtures for the one-time TXT screen and lost-token recovery state were inspected at 1440px desktop and 390px mobile widths. Long TXT values wrapped without horizontal overflow. No DNS records, verification jobs, approval decisions, routes, workers, deployments, or production traffic were changed.
+
+## Named Submit Decision Preservation
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:35:50+08:00
+
+### Implemented Behavior
+
+- Fixed the shared pending-form handler so disabling a clicked submit button no longer removes its name and value from the submitted form data.
+- Preserved approval decisions such as `CHANGES_REQUESTED` in a hidden field before applying the disabled and pending presentation.
+- Added focused regression coverage for named submit-button preservation and both approval decision values.
+
+### Verification Evidence
+
+- Focused pending-form, approval UI, and transactional approval workflow checks passed 18 tests across 3 suites.
+- A real Chromium form submission retained `CHANGES_REQUESTED` after the clicked button was disabled and changed to its pending label.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 838 tests across 174 suites with zero failures, cancellations, or skips.
+
+## Approval Decision Asset Refresh
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-30T23:46:12+08:00
+
+### Implemented Behavior
+
+- Updated the shared authenticated and public layout asset versions so browsers immediately load the submit-decision preservation fix instead of retaining the prior script for its four-hour cache lifetime.
+- Added regression coverage requiring both layouts to reference the fresh script version.
+
+### Verification Evidence
+
+- Focused pending-form and approval-guidance checks passed 11 tests across 2 suites.
+- `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
+- Confirmed the live script contains the decision-preservation implementation; no approval decisions, production services, queues, workers, deployments, or traffic were changed.
+
+## HelloDeploy and HelloRun Production Plan
+
+- Status: Documentation and local verification Passed
+- Updated: 2026-07-31T00:10:26+08:00
+
+### Implemented Behavior
+
+- Added the goal-specific P0-P6 execution plan for completing HelloDeploy's real deployment workflow and hosting HelloRun through it.
+- Defined success criteria, dependencies, actions, stop conditions, evidence requirements, completion gates, the HelloRun cutover checklist, and decision and evidence records.
+- Linked the plan from the documentation index and authoritative batch tracker without changing status ownership or production-readiness state.
+
+### Verification Evidence
+
+- Prettier passed for every changed documentation file.
+- Validated 50 relative documentation links and the ordered P0-P6 heading structure.
+- `git diff --check` passed, and a credential-pattern scan found no sensitive values.
+- No deployment jobs, DNS checks, approval decisions, host services, routes, workers, deployments, or production traffic were changed.
+
+## P0 Production Dependency Audit Repair
+
+- Status: Implementation and local verification Passed
+- Updated: 2026-07-31T00:25:59+08:00
+
+### Implemented Behavior
+
+- Updated EJS to its current supported major release, removing the vulnerable Jake, filelist, minimatch, and brace-expansion production chain.
+- Updated compatible lockfile resolutions for body-parser and Mongoose advisories without changing their declared major versions.
+- Adjusted real EJS render tests to use the package's supported default ESM export while preserving Express rendering behavior.
+
+### Verification Evidence
+
+- Focused real-template, approval, and input-validation coverage passed 35 tests across 5 suites.
+- `npm run config:check`, `npm run lint`, `npm run format:check`, and `git diff --check` passed.
+- `npm test` passed 839 tests across 174 suites with zero failures, cancellations, or skips.
+- `npm audit --omit=dev --audit-level=moderate` reported zero production vulnerabilities.
+- No host services, queues, DNS records, routes, deployments, or production traffic were changed.
+
+## P0 Baseline and Stop-Gate Evidence
+
+- Status: In Progress; blocked before privileged backup execution
+- Updated: 2026-07-31T00:33:54+08:00
+
+### Verified State
+
+- PR #11 passed Node.js 22 CI and merged to `main` at full candidate commit `6d0bf82530d01bb941b6309c83a1a8bde18a4447`.
+- The same clean commit passed local Node.js 22.23.2 clean installation, lint, formatting, configuration validation, 839 tests across 174 suites, production audit, and diff checks.
+- A fresh value-safe baseline confirmed local and public dashboard health while Docker, isolated identities and units, the helper, managed routes, and wildcard application ingress remain absent.
+- Read-only queue inspection found no deployment job or in-flight deployment and one valid DNS verification job waiting for deliberate processing after P2.
+- Backup and preparation shell syntax passed, and focused backup, verifier, preparation, baseline, and queue-maintenance coverage passed 33 tests across 6 suites.
+
+### Active Blockers
+
+- The independent HelloRun PM2 process is stable, but the public hostname returns Cloudflare error 1033 because it is missing from the active tunnel configuration.
+- The PM2 dashboard has not been cut over to the merged candidate, so the public checker reports one expected frontend asset missing.
+- No approved off-host medium is mounted, `mongodump` is unavailable, the recovery private key is not loaded, and root-owned rollback evidence cannot be inspected without privileged access.
+- No service, queue, DNS, Cloudflare, route, deployment, or traffic mutation was performed. P0 remains In Progress and P1 remains blocked.
+
+## P0 Dashboard Recovery and HelloRun Tunnel Diagnosis
+
+- Status: In Progress; DNS tunnel-route repair requires authorization
+- Updated: 2026-07-31T08:30:35+08:00
+
+### Verified State
+
+- The operator manually restarted the PM2 `hellodeploy` process. The complete public production check then passed, including the frontend release, homepage, sign-in, health, readiness, HSTS, CSP, and session-cookie checks.
+- The operator restarted the dedicated `cloudflared-hellorun` service. The service remained active and registered four current Cloudflare edge connections.
+- `hellorun.online` continued to return Cloudflare error 1033 after the restart while the independent PM2 HelloRun process remained stable.
+- Read-only tunnel inspection confirmed that the running connector belongs to the expected named tunnel. The remaining failure is isolated to the hostname's Cloudflare DNS tunnel route.
+
+### Stop State
+
+- A controlled DNS route repair must capture the prior route, target the active named tunnel, validate both HelloRun and the dashboard, and retain the captured prior value as rollback evidence.
+- The installed Cloudflare credential is scoped to `hellodeploy.online`. A CLI route attempt therefore created `hellorun.online.hellodeploy.online` instead of changing the intended hostname. The unintended record was immediately deleted, and an authoritative API read confirmed that it is absent. Cached public answers may remain until their previous TTL expires.
+- The `hellorun.online` hostname and both original applications remained unchanged. Repair requires a dashboard or API action authorized for that separate Cloudflare zone.
+- Off-host backup media, database export tooling, recovery-key access, and root-owned rollback inputs remain unavailable. P0 remains In Progress and P1 remains blocked.
+
+## P0 HelloRun Fallback Recovery
+
+- Status: Public fallback Passed; backup gate remains blocked
+- Updated: 2026-07-31T09:07:29+08:00
+
+### Implemented State
+
+- Confirmed through a value-safe Cloudflare API query that `hellorun.online` is not visible to the account that owns the original local tunnel. Cloudflare Tunnel DNS targets cannot proxy records from a different account.
+- Created a remotely managed tunnel in the account containing `hellorun.online`. Its token is stored only in a root-owned `0600` file and is not present in the systemd command line, repository, logs, or evidence.
+- Added and enabled a separate hardened `cloudflared-hellorun-zone` systemd unit. The existing HelloDeploy and original HelloRun tunnel services were not replaced or stopped.
+- Published `hellorun.online` to the existing `http://localhost:80` fallback and added the proxied root CNAME for the new same-account tunnel.
+
+### Verification Evidence
+
+- Both authoritative nameservers returned the proxied root address.
+- `https://hellorun.online/` returned HTTPS 200 with HSTS in four consecutive checks; the response body was nonempty.
+- The local fallback origin remained reachable, and the independent PM2 HelloRun process was not restarted or replaced.
+- The complete HelloDeploy public production check passed, including release assets, HSTS, CSP, session cookie, sign-in, health, and readiness.
+- All three Cloudflare connector services remained active. The new connector registered four edge connections and reported zero restarts.
+- The fallback health stop condition is cleared. Off-host backup media, database export tooling, recovery-key access, and root-owned rollback evidence still block P0 and P1.
+
+## P0 Encrypted Capture and Completion
+
+- Status: Passed; P0 Complete
+- Updated: 2026-07-31T22:11:18+08:00
+
+### Protected Capture
+
+- Candidate `2ed2f4ea390d32267820fee4d854b3aa2f7d11f6` remained clean while the dashboard and independent HelloRun fallback returned public success.
+- MongoDB Database Tools `100.17.0` passed the official signing-fingerprint, detached-signature, and archive-path checks before installation under a root-owned trusted path.
+- The current MongoDB export was written directly to the LUKS2 off-host medium. `mongorestore --dryRun` and its private checksum passed without restoring data or exposing the database address.
+- Root-owned rollback instructions recorded the immutable release, PM2 startup mechanisms, Nginx and tunnel files, current HelloRun connector state, queue baseline, and ordered recovery checks.
+- The encrypted pilot artifact included the protected environment, database export, dashboard routing state, supplemental current HelloRun Nginx/tunnel/token/unit state, release identity, and rollback instructions.
+
+### Retrieval Verification
+
+- The artifact's outer checksum passed before storage cycling and again after the backup volume was unmounted, locked, unlocked, and remounted.
+- The separate recovery medium passed its recorded checksum. Exactly one protected secret export parsed and imported into an isolated root keyring.
+- The recovery key decrypted the artifact. The repository verifier passed the fixed member allowlist, database/data consistency, release identity, and every internal checksum without restoring state.
+- The temporary keyring and its GPG agent were removed. An interrupted first prompt retained no keyring, core file, or crash report.
+- The recovery USB has pre-existing FAT boot-copy, dirty-bit, and free-space metadata differences. Its recovery files remain checksum-consistent and importable; the sole private-key copy was not repaired. Keep this media read-only until a second verified copy exists.
+- Both media were safely unmounted, the encrypted volume was locked, and both devices were physically removed. The clean repository, complete HelloDeploy production check, public HelloRun response, PM2 processes, and all Cloudflare connector services remained healthy.
+
+### Gate Result
+
+- P0 completion criteria pass. This proves same-host encrypted retrieval and rollback preparation, not the P6 second-host restoration gate.
+- P1 may begin with Docker installation and prepare-only isolated service foundation. The worker, queues, wildcard ingress, and customer deployments remain unchanged and customer hosting remains NO-GO.
+
+## P1 Exact Node.js Runtime Guard
+
+- Status: Local implementation passed; host unchanged
+- Updated: 2026-07-31T22:21:46+08:00
+
+### Finding and Repair
+
+- The pilot host runs Node.js 24, while the reviewed production contract and Node.js 22 CI require exact major 22.
+- Preflight previously accepted any major at or above 22, and the installer replaced only older majors. That combination would have allowed the unsupported host runtime into the isolated systemd foundation.
+- A shared production-runtime classifier now accepts major 22 and rejects older or newer majors.
+- The installer now invokes the reviewed Node.js 22 source whenever the current major differs, permits the intentional package downgrade, and fails closed unless the installed major is 22.
+- The live host, PM2 processes, ingress, Docker state, queues, and traffic were not changed.
+
+### Verification
+
+- Focused installer, preflight, preparation, verifier, and privilege tests passed: 28 tests.
+- `bash -n infrastructure/install.sh`, lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 841 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P1 Partial Preparation Retry Guard
+
+- Status: Local implementation passed; inactive host preparation partially complete
+- Updated: 2026-07-31T22:39:07+08:00
+
+### Host Findings
+
+- The first installer attempt stopped at `apt-get update` because the Ubuntu installation-media source remained enabled without mounted release media. No Docker, identity, checkout, unit, queue, ingress, or traffic change occurred.
+- After that obsolete source was disabled, the reviewed procedure installed Docker `29.7.0`, system Node.js `22.22.1`, isolated web and worker identities, and protected preparation state.
+- The dedicated HelloDeploy web, worker, and helper units remained inactive and disabled. Docker had no containers or images, the helper socket remained absent, candidate port `3100` remained free, and both public sites stayed healthy.
+- A repeat run reached configuration and stopped because an installed `.env` already existed. This was safe but prevented recovery from a partial preparation even when the reviewed source was unchanged.
+
+### Repair
+
+- Preparation now compares the installed configuration to `HELLODEPLOY_CONFIG_SOURCE` without printing either file.
+- A byte-for-byte match is preserved and preparation continues. Any difference remains a blocking error and is never overwritten.
+- The self-hosted guide documents this exact-match retry behavior.
+
+### Verification
+
+- Focused preparation, verifier, and Ubuntu installer tests passed: 16 tests.
+- Shell syntax, lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 842 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P1 Candidate Web Shutdown Repair
+
+- Status: Local implementation passed; real-host retest pending
+- Updated: 2026-07-31T22:48:13+08:00
+
+### Live Lifecycle Finding
+
+- The reviewed inactive preparation passed every verifier row at merge `42daf64cb2ebe726a106022ddf07db814c63c215`.
+- A controlled start left the worker inactive, created the protected helper socket, and passed the candidate web `/health` and `/ready` checks against MongoDB, Redis, and the queue.
+- The cleanup trap stopped the helper, preserved the managed-route inventory, and removed the candidate listener. The PM2 dashboard and independent HelloRun fallback remained publicly healthy.
+- The web journal recorded graceful cleanup completion in under one second, but the process remained alive. Systemd reached its 30-second stop deadline, sent `SIGKILL`, and retained `Result=timeout`.
+
+### Repair
+
+- The web signal boundary now waits for the existing bounded graceful-shutdown result and then explicitly exits.
+- Successful cleanup exits zero. A failed result, thrown shutdown, or expired internal deadline exits nonzero.
+- Unit coverage verifies exit ordering and both unsuccessful paths without terminating the test process.
+
+### Verification
+
+- Focused web/worker lifecycle and systemd privilege tests passed: 14 tests.
+- Lint, formatting, configuration validation, and `git diff --check` passed.
+- The complete suite passed: 844 tests across 174 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P1 Isolated Foundation Completion
+
+- Status: Passed; P1 Complete
+- Updated: 2026-07-31T23:05:06+08:00
+
+### Real-Host Retest
+
+- PR #17 passed Node.js 22 CI and merged as candidate `704cb75a02d76a36a88d155a37052df4464bf1a2`.
+- The prepare-only installer preserved the exact reviewed configuration and passed every immutable release, identity, permission, Docker isolation, unit, socket, port, Nginx, and production-configuration check.
+- The controlled candidate lifecycle reached healthy and ready state with MongoDB, Redis, and queue checks passing. The helper socket was mode `0660` and owned by the intended root/helper group.
+- The worker remained inactive and managed routes were byte-state unchanged.
+- The corrected web process completed graceful cleanup and exited normally. Systemd recorded inactive, `Result=success`, status zero, and no restart without reaching its stop timeout.
+- The helper socket and candidate listener were removed. The complete public dashboard check, PM2 processes, and independent HelloRun fallback remained healthy.
+
+### Gate Result
+
+- P1 completion criteria pass. The production foundation is installed but remains disabled and stopped.
+- P2 begins with queue pause and sanitized inventory. No worker, queued deployment, DNS job, ingress, or customer traffic may activate before that control step.
+
+## P2 Queue Control and Routing Foundation
+
+- Status: Queue control Passed; routing activation under review
+- Updated: 2026-07-31T23:23:36+08:00
+
+### Queue Evidence
+
+- The production worker remained inactive while the combined deployment/domain queue
+  was paused and drained. The private prior-state record remains outside the
+  repository with mode `0600`.
+- Sanitized inventory found no waiting, active, delayed, failed, or completed
+  deployment jobs. No stale deployment job required cancellation.
+- One valid domain-verification job remains paused. Its stored project/domain
+  references match, the domain remains pending verification, the default TXT-proof
+  mode is configured, and the proof is present.
+
+### Routing Implementation
+
+- Added a fail-closed root activation command that requires an immutable clean
+  installed release, inactive worker and helper, paused queue, unused fixed probe,
+  and valid Nginx before installing the reviewed managed-route include.
+- Added a live verifier that uses the worker identity and constrained helper socket to
+  prove route creation, replacement, invalid-candidate rejection with restoration,
+  and removal on a loopback-only test server.
+- Partial activation rolls back the probe, helper, and newly created include, validates
+  and reloads Nginx, and never resumes the queue.
+
+### Verification
+
+- Shell and JavaScript syntax checks passed.
+- Focused routing-foundation and helper-client coverage passed 7 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities, and the focused
+  credential-pattern scan found no sensitive values.
+- No worker, queued job, DNS record, tunnel route, project deployment, dashboard
+  traffic, or customer traffic was activated.
+
+## P2 Routing Verifier Environment Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:34:13+08:00
+
+### Live Finding
+
+- The immutable P2 release installed successfully and passed every inactive
+  preparation check.
+- Routing activation failed before changing Nginx or starting the helper because the
+  worker-identity verifier inherited the operator checkout as its working directory.
+  `dotenv` therefore did not load the protected installed environment and production
+  configuration rejected the missing master key.
+- Automatic rollback left the helper inactive and disabled, the managed include and
+  probe absent, the worker inactive, and the queue paused.
+
+### Repair
+
+- The activation command now changes to the immutable installed release before
+  invoking the verifier as the worker identity. This matches the systemd service
+  working directory and loads `/opt/hellodeploy/.env` without exposing any value.
+- Focused regression coverage requires the installed working directory and relative
+  verifier entry point.
+
+### Verification
+
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- Focused routing-foundation and helper-client coverage passed 7 tests.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Helper PID Sandbox Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:39:36+08:00
+
+### Live Finding
+
+- The corrected verifier loaded the installed production environment and confirmed the
+  queue pause before helper activation.
+- The helper started under its intended identity, but this Nginx build opens
+  `/run/nginx.pid` during `nginx -t`. `ProtectSystem=strict` made that file read-only,
+  so validation stopped before any probe route was created.
+- Automatic rollback disabled and stopped the helper, removed the new managed include,
+  left no probe or socket, kept the worker inactive, and kept the queue paused.
+
+### Repair
+
+- The helper unit now grants write access to the exact root-owned Nginx PID file in
+  addition to its managed route and private runtime directories.
+- The sandbox remains strict and does not grant general write access to `/run`.
+- Regression coverage requires the exact three-path allowlist.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Helper Log Sandbox Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:46:30+08:00
+
+### Live Finding
+
+- The exact Nginx PID-file permission took effect and validation advanced beyond its
+  previous failure.
+- This Nginx build also opens its configured error log during `nginx -t`; strict
+  filesystem protection rejected that write before any probe route was created.
+- The host configuration contains exactly one error log and one access log under the
+  standard Nginx log directory.
+- Automatic rollback again left the helper inactive and disabled, the include, probe,
+  and socket absent, the worker inactive, and the queue paused.
+
+### Repair
+
+- The helper unit adds only the two configured root-owned Nginx log files to its
+  existing exact-path write allowlist.
+- Strict filesystem protection remains active; no directory-wide write permission is
+  added for `/var/log` or `/var/log/nginx`.
+- Regression coverage requires both exact log paths.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- Lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P2 Nginx Reload Convergence Repair
+
+- Status: Local repair in verification; live retry pending
+- Updated: 2026-07-31T23:50:53+08:00
+
+### Live Finding
+
+- The helper successfully created the loopback route, validated Nginx, and reloaded it.
+- It then successfully replaced the route, validated Nginx again, and reloaded again.
+- The verifier made its replacement request immediately and received the old worker's
+  `204` response before Nginx's graceful reload converged to the new `202` response.
+- Final cleanup successfully removed and reloaded the probe route. Automatic rollback
+  left the helper inactive and disabled, no include, probe, socket, or listener, the
+  worker inactive, and the queue paused.
+
+### Repair
+
+- Route HTTP assertions now retry connection failures and prior statuses for a bounded
+  five-second convergence window after Nginx reload.
+- Failure remains generic and value-safe after the deadline.
+- Regression coverage requires the bounded retry count, delay, and terminal failure.
+
+### Verification
+
+- Focused systemd, routing-foundation, and helper-client coverage passed 10 tests.
+- JavaScript syntax, lint, formatting, configuration validation, and diff checks
+  passed.
+- The complete suite passed 848 tests across 175 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.
+
+## P2 Routing Foundation Completion
+
+- Status: Passed; local wildcard ingress next
+- Updated: 2026-07-31T23:58:00+08:00
+
+### Live Evidence
+
+- The immutable installation and inactive preparation checks passed.
+- The constrained helper remained active and enabled after the live verifier completed.
+- Through the worker identity, route creation, replacement, invalid-candidate rejection
+  with prior-route restoration, and removal all passed.
+- The managed include remains installed. No probe file, transaction file, socket
+  residue, or loopback listener remains from the test.
+- The production worker remains inactive and disabled, and the combined queue remains
+  paused.
+- The complete public dashboard check and independent HelloRun fallback passed after
+  activation.
+
+### Next Gate
+
+- Added a fail-closed local wildcard-ingress activation command for both active
+  connectors on the shared dashboard tunnel.
+- It validates immutable release, helper, worker, queue, config metadata, shared
+  tunnel identity, candidate ingress, connector restart, rule matching, and existing
+  public fallbacks.
+- Failure restores both root-owned configs, restarts both connectors, rechecks the
+  public fallbacks, and never creates DNS or resumes the queue.
+
+### Verification
+
+- Focused routing, wildcard-ingress, and live-documentation coverage passed 12 tests
+  before the final multi-connector public-check hardening.
+- Bash syntax, lint, formatting, configuration validation, and diff checks passed.
+- The complete suite passed 852 tests across 176 suites with no failures or skips.
+- The production dependency audit reported zero vulnerabilities.

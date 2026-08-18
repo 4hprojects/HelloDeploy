@@ -17,6 +17,7 @@ import {
   setQuotaOverride,
   getQuotaOverride,
   getQuotaConsumption,
+  getQuotaScopeName,
 } from '../services/admin.service.js';
 import { collectServerStats } from '../services/server-stats.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
@@ -189,9 +190,10 @@ export const getAdminAuditExport = asyncHandler(async (req, res) => {
 
 export const getAdminQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
-  const [quota, consumption] = await Promise.all([
+  const [quota, consumption, scopeName] = await Promise.all([
     getQuotaOverride(scopeType, scopeId),
     getQuotaConsumption(scopeType, scopeId),
+    getQuotaScopeName(scopeType, scopeId),
   ]);
   res.render('pages/admin/quota', {
     title: 'Quota Override',
@@ -199,6 +201,7 @@ export const getAdminQuota = asyncHandler(async (req, res) => {
     consumption,
     scopeType,
     scopeId,
+    scopeName,
   });
 });
 
@@ -208,9 +211,10 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
 
   const { errors, hasErrors, limits } = validateSetQuota(req.body);
   if (hasErrors) {
-    const [quota, consumption] = await Promise.all([
+    const [quota, consumption, scopeName] = await Promise.all([
       getQuotaOverride(scopeType, scopeId),
       getQuotaConsumption(scopeType, scopeId),
+      getQuotaScopeName(scopeType, scopeId),
     ]);
     return res.status(400).render('pages/admin/quota', {
       title: 'Quota Override',
@@ -218,6 +222,7 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
       consumption,
       scopeType,
       scopeId,
+      scopeName,
       errors,
     });
   }
@@ -275,7 +280,7 @@ export const postSuspendUser = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'User suspended.');
+    req.flash('success', `${result.user.firstName} ${result.user.lastName} suspended.`);
   }
 
   res.redirect('/admin/users');
@@ -293,7 +298,7 @@ export const postReactivateUser = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'User reactivated.');
+    req.flash('success', `${result.user.firstName} ${result.user.lastName} reactivated.`);
   }
 
   res.redirect('/admin/users');
@@ -303,9 +308,9 @@ export const postReactivateUser = asyncHandler(async (req, res) => {
 
 export const getAdminProjects = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const { status } = req.query;
+  const { status, search } = req.query;
 
-  const { projects, total, limit } = await getProjects({ page, status });
+  const { projects, total, limit } = await getProjects({ page, status, search });
 
   res.render('pages/admin/projects', {
     title: 'All Projects',
@@ -314,7 +319,7 @@ export const getAdminProjects = asyncHandler(async (req, res) => {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    filters: { status: status ?? '' },
+    filters: { status: status ?? '', search: search ?? '' },
   });
 });
 
@@ -332,7 +337,7 @@ export const postAdminSuspendProject = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'Project suspended.');
+    req.flash('success', `${result.project.name} suspended.`);
   }
 
   res.redirect('/admin/projects');
@@ -350,7 +355,7 @@ export const postAdminReactivateProject = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'Project reactivated.');
+    req.flash('success', `${result.project.name} reactivated.`);
   }
 
   res.redirect('/admin/projects');

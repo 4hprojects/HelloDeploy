@@ -52,9 +52,15 @@
           <span class="text-muted text-xs d-block"><%= u.email %></span>
         </td>
         <td data-label="Role"><span class="role-pill"><%= u.platformRole %></span></td>
-        <td data-label="Status"><%- include('../../partials/status-badge', { status: u.status }) %></td>
+        <td data-label="Status">
+          <%- include('../../partials/status-badge', { status: u.status }) %>
+          <% if (u.status === 'SUSPENDED' && u.suspensionReason) { %>
+          <span class="text-muted text-xs d-block">Reason: <%= u.suspensionReason %></span>
+          <% } %>
+        </td>
         <td class="text-sm text-muted" data-label="Joined"><%= new Date(u.createdAt).toLocaleDateString('en-GB') %></td>
         <td class="text-right" data-label="Actions">
+          <a href="/admin/quotas/USER/<%= u._id %>" class="button button--ghost button--sm">Manage Quota</a>
           <% if (u.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/reactivate" class="d-inline">
             <%- include('../../partials/csrf-field') %>
@@ -68,6 +74,7 @@
                 data-confirm-pending-label="Suspending..."
                 data-confirm-variant="warning">
             <%- include('../../partials/csrf-field') %>
+            <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the suspension." />
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>

@@ -79,6 +79,45 @@ describe('environment validation', () => {
       /HELLODEPLOY_MASTER_KEY/,
     );
   });
+
+  it('rejects the all-zero development placeholder master key in production', () => {
+    const devPlaceholderKey = Buffer.alloc(32, 0).toString('base64');
+    assert.throws(
+      () =>
+        assertProductionSecrets({ sessionSecret: 's'.repeat(64), masterKey: devPlaceholderKey }),
+      /placeholder/,
+    );
+  });
+
+  it('validates an optional next master key and requires it to differ', () => {
+    const masterKey = Buffer.alloc(32, 1).toString('base64');
+    const nextMasterKey = Buffer.alloc(32, 2).toString('base64');
+    assert.doesNotThrow(() =>
+      assertProductionSecrets({
+        sessionSecret: 's'.repeat(64),
+        masterKey,
+        nextMasterKey,
+      }),
+    );
+    assert.throws(
+      () =>
+        assertProductionSecrets({
+          sessionSecret: 's'.repeat(64),
+          masterKey,
+          nextMasterKey: 'not-base64',
+        }),
+      /HELLODEPLOY_MASTER_KEY_NEXT/,
+    );
+    assert.throws(
+      () =>
+        assertProductionSecrets({
+          sessionSecret: 's'.repeat(64),
+          masterKey,
+          nextMasterKey: masterKey,
+        }),
+      /must differ/,
+    );
+  });
 });
 
 describe('production worker routing validation', () => {

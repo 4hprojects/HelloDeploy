@@ -84,6 +84,23 @@
   </div>
 </div>
 
+<!-- MongoDB connectivity -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">MongoDB</h2>
+    <span class="badge <%= server.mongo?.connected ? 'badge--success' : 'badge--danger' %>">
+      <%= server.mongo?.connected ? 'Connected' : 'Unavailable' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (server.mongo?.connected) { %>
+    <p class="text-sm">Database connection is healthy.</p>
+    <% } else { %>
+    <p class="text-muted text-sm">Could not reach MongoDB. Most platform features will be unavailable.</p>
+    <% } %>
+  </div>
+</div>
+
 <!-- Worker readiness -->
 <div class="card mb-6">
   <div class="card__header">
@@ -142,9 +159,14 @@
 
     <div class="button-group">
       <% if (server.queue?.paused) { %>
-      <form method="POST" action="/admin/server/queue/resume">
+      <form method="POST" action="/admin/server/queue/resume"
+            data-confirm="Resume the deployment queue? Queued jobs will start running again."
+            data-confirm-title="Resume deployment queue"
+            data-confirm-accept-label="Resume Queue"
+            data-confirm-pending-label="Resuming..."
+            data-confirm-variant="success">
         <%- include('../../partials/csrf-field') %>
-        <button type="submit" class="button button--success" data-pending-label="Resuming..." data-tooltip="Allow queued deployment jobs to start again.">Resume Queue</button>
+        <button type="submit" class="button button--success" data-tooltip="Allow queued deployment jobs to start again.">Resume Queue</button>
       </form>
       <% } else { %>
       <form method="POST" action="/admin/server/queue/pause"

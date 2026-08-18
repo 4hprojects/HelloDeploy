@@ -190,14 +190,24 @@
     <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
     <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
   </header>
+  <% const domainFormErrors = locals.errors || {}; %>
+  <% const domainFormValues = locals.values || {}; %>
+  <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
   <form method="POST" action="/projects/<%= project.slug %>/domains"
     class="domain-add-form">
     <%- include('../../partials/csrf-field') %>
     <div class="form-group form-group--floating">
       <label for="hostname" class="form-label">Domain</label>
-      <input type="text" id="hostname" name="hostname" class="form-input"
-        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false">
-      <p class="form-hint text-xs text-muted mt-1">Do not include <code class="code-inline">https://</code> or a page path.</p>
+      <input type="text" id="hostname" name="hostname"
+        class="form-input<%= domainFormErrors.hostname ? ' form-input--error' : '' %>"
+        value="<%= domainFormValues.hostname ?? '' %>"
+        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false"
+        aria-describedby="<%= domainFormErrors.hostname ? 'hostname-error' : 'hostname-hint' %>">
+      <% if (domainFormErrors.hostname) { %>
+      <p class="form-error" id="hostname-error" role="alert"><%= domainFormErrors.hostname %></p>
+      <% } else { %>
+      <p class="form-hint text-xs text-muted mt-1" id="hostname-hint">Do not include <code class="code-inline">https://</code> or a page path.</p>
+      <% } %>
     </div>
     <button type="submit" class="button button--primary"
       data-pending-label="Adding...">Add domain</button>

@@ -1,12 +1,12 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Quota, ProjectMembership } from '@hellodeploy/database';
+import { Quota, ProjectMembership, User } from '@hellodeploy/database';
 import { DeploymentStatus, QuotaScope, ProjectStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
-const { getQuotaConsumption, setQuotaOverride, getQuotaOverride } =
+const { getQuotaConsumption, setQuotaOverride, getQuotaOverride, getQuotaScopeName } =
   await import('../../apps/web/src/services/admin.service.js');
 
 describe('admin.service — getQuotaConsumption', () => {
@@ -139,5 +139,44 @@ describe('admin.service — setQuotaOverride', () => {
     assert.equal(all[0].maxOwnedProjects, 4);
     const fetched = await getQuotaOverride(QuotaScope.USER, userId);
     assert.equal(fetched.maxOwnedProjects, 4);
+  });
+});
+
+describe('admin.service — getQuotaScopeName', () => {
+  before(async () => {
+    await startTestDb();
+  });
+  after(async () => {
+    await stopTestDb();
+  });
+  beforeEach(async () => {
+    await clearTestDb();
+  });
+
+  it('resolves a USER scope to the owner’s name and email', async () => {
+    const user = await User.create({
+      firstName: 'Ada',
+      lastName: 'Lovelace',
+      email: 'ada@example.test',
+      passwordHash: 'hash',
+    });
+    const name = await getQuotaScopeName(QuotaScope.USER, user._id);
+    assert.equal(name, 'Ada Lovelace (ada@example.test)');
+  });
+
+  it('resolves a PROJECT scope to the project’s name and slug', async () => {
+    const project = await createProject({ name: 'My App', slug: 'my-app' });
+    const name = await getQuotaScopeName(QuotaScope.PROJECT, project._id);
+    assert.equal(name, 'My App (my-app)');
+  });
+
+  it('returns null when the scoped record no longer exists', async () => {
+    const name = await getQuotaScopeName(QuotaScope.USER, objectId());
+    assert.equal(name, null);
+  });
+
+  it('returns null for a scope type it does not resolve', async () => {
+    const name = await getQuotaScopeName(QuotaScope.PLAN, objectId());
+    assert.equal(name, null);
   });
 });

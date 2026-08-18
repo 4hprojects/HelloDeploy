@@ -271,6 +271,8 @@
       Show and Hide only change visual masking; use Clear revealed value to remove plaintext from the page.
       Environment pages are not browser-cached, and you should rotate secrets after any exposure you no longer trust.
       Secrets are injected into your container at runtime only — they are never written to disk or included in build artifacts.
+      <strong>Adding, editing, or deleting a secret does not update your live app.</strong> Deploy again from the
+      <a href="/projects/<%= project.slug %>/deployments">Deployments</a> page for the change to take effect.
     </p>
   </div>
 </div>

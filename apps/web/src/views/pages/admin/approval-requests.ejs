@@ -108,9 +108,19 @@
         </div>
         <div class="button-group">
           <button type="submit" name="decision" value="APPROVED" class="button button--primary button--sm"
-            formnovalidate data-pending-label="Approving..." <%= !r.snapshotState.isCurrent ? 'disabled' : '' %>>Approve</button>
+            formnovalidate
+            data-confirm="Approve <%= project ? project.name : 'this project' %>? It will go live immediately."
+            data-confirm-title="Approve project"
+            data-confirm-accept-label="Approve"
+            data-confirm-pending-label="Approving..."
+            data-confirm-variant="success"
+            <%= !r.snapshotState.isCurrent ? 'disabled' : '' %>>Approve</button>
           <button type="submit" name="decision" value="CHANGES_REQUESTED" class="button button--secondary button--sm"
-            data-pending-label="Sending...">Request changes</button>
+            data-confirm="Request changes on <%= project ? project.name : 'this project' %>? The owner will need to update and resubmit."
+            data-confirm-title="Request changes"
+            data-confirm-accept-label="Request Changes"
+            data-confirm-pending-label="Sending..."
+            data-confirm-variant="warning">Request changes</button>
         </div>
       </form>
     </div>

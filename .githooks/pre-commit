@@ -1,0 +1,5 @@
+#!/bin/sh
+# Mirrors the CI lint/format gate locally so failures surface before push,
+# not only after. Installed via `npm run prepare` -> core.hooksPath.
+
+npm run lint && npm run format:check

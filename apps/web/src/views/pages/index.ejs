@@ -9,6 +9,45 @@
       <a href="/auth/create-account" class="button button--primary button--lg">Get Started</a>
       <a href="/auth/sign-in" class="button button--secondary button--lg">Sign In</a>
     </div>
+    <p class="text-sm text-muted mt-4">
+      Free to use. This instance is an active pilot operated by Henson Sagorsor as an
+      MIT capstone project, running on shared infrastructure — see the <a href="/terms">Terms</a>
+      for details. Features and availability may change.
+    </p>
+  </div>
+</div>
+
+<div class="text-center mt-8">
+  <h2 class="feature-title">How it works</h2>
+</div>
+<div class="feature-grid mt-4">
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon">1</p>
+      <h2 class="feature-title">Connect</h2>
+      <p class="text-sm text-muted">Connect a GitHub repository. HelloDeploy detects the runtime and suggests build settings.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon">2</p>
+      <h2 class="feature-title">Configure</h2>
+      <p class="text-sm text-muted">Review or adjust the build command, start command, and environment variables.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon">3</p>
+      <h2 class="feature-title">Deploy</h2>
+      <p class="text-sm text-muted">Push to your production branch, or deploy manually. HelloDeploy builds a container image.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon">4</p>
+      <h2 class="feature-title">Live</h2>
+      <p class="text-sm text-muted">HelloDeploy health-checks the new release and routes traffic to it at a live URL.</p>
+    </div>
   </div>
 </div>
 
@@ -54,5 +93,24 @@
       <h2 class="feature-title">Audit log</h2>
       <p class="text-sm text-muted">Every deployment, config change, and access event is recorded with actor, IP, and outcome.</p>
     </div>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2 class="feature-title">What you can deploy</h2>
+    <p class="text-sm text-muted mt-2">Version 1 supports:</p>
+    <ul class="text-sm text-muted mt-2">
+      <li>Static sites</li>
+      <li>Node.js applications</li>
+      <li>Express applications</li>
+      <li>React static builds</li>
+      <li>Vue static builds</li>
+      <li>Constrained Next.js applications</li>
+    </ul>
+    <p class="text-sm text-muted mt-4">
+      Not yet supported: Python, PHP, Java, Docker Compose, arbitrary container images, or
+      privileged containers.
+    </p>
   </div>
 </div>

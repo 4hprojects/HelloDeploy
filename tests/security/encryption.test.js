@@ -104,3 +104,56 @@ describe('decrypt', () => {
     assert.throws(() => decrypt(payload), /Unsupported encryption version/);
   });
 });
+
+describe('master key rotation', () => {
+  it('keeps encrypting under the primary key when no rotation is in progress', () => {
+    const result = encrypt('unrotated');
+    assert.equal(result.version, 1);
+  });
+
+  it('encrypts under the next key and stamps version 2 during a rotation window', () => {
+    const nextKey = Buffer.alloc(32, 9).toString('base64');
+    process.env.HELLODEPLOY_MASTER_KEY_NEXT = nextKey;
+    try {
+      const result = encrypt('rotated');
+      assert.equal(result.version, 2);
+    } finally {
+      delete process.env.HELLODEPLOY_MASTER_KEY_NEXT;
+    }
+  });
+
+  it('still decrypts version-1 payloads with only the primary key set', () => {
+    const payload = encrypt('pre-rotation secret');
+    process.env.HELLODEPLOY_MASTER_KEY_NEXT = Buffer.alloc(32, 9).toString('base64');
+    try {
+      assert.equal(decrypt(payload), 'pre-rotation secret');
+    } finally {
+      delete process.env.HELLODEPLOY_MASTER_KEY_NEXT;
+    }
+  });
+
+  it('decrypts version-2 payloads using the next key during rotation', () => {
+    process.env.HELLODEPLOY_MASTER_KEY_NEXT = Buffer.alloc(32, 9).toString('base64');
+    try {
+      const payload = encrypt('mid-rotation secret');
+      assert.equal(decrypt(payload), 'mid-rotation secret');
+    } finally {
+      delete process.env.HELLODEPLOY_MASTER_KEY_NEXT;
+    }
+  });
+
+  it('decrypts version-2 payloads after the next key is promoted to primary', () => {
+    const originalPrimary = process.env.HELLODEPLOY_MASTER_KEY;
+    const nextKey = Buffer.alloc(32, 9).toString('base64');
+    process.env.HELLODEPLOY_MASTER_KEY_NEXT = nextKey;
+    const payload = encrypt('promoted secret');
+
+    process.env.HELLODEPLOY_MASTER_KEY = nextKey;
+    delete process.env.HELLODEPLOY_MASTER_KEY_NEXT;
+    try {
+      assert.equal(decrypt(payload), 'promoted secret');
+    } finally {
+      process.env.HELLODEPLOY_MASTER_KEY = originalPrimary;
+    }
+  });
+});

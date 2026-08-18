@@ -1,5 +1,6 @@
 import { Project, Deployment, DeploymentEvent } from '@hellodeploy/database';
-import { DeploymentStatus, RuntimeType } from '@hellodeploy/contracts';
+import { DeploymentStatus, RuntimeType, AuditOutcome } from '@hellodeploy/contracts';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
@@ -96,6 +97,20 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   ) {
     deps.removeDockerImage(freshDeployment.imageTag);
   }
+
+  writeAuditEvent({
+    action: `deployment.${toStatus.toLowerCase()}`,
+    outcome: toStatus === DeploymentStatus.HEALTHY ? AuditOutcome.SUCCESS : AuditOutcome.FAILURE,
+    actorId: project?.ownerId ? project.ownerId.toString() : null,
+    targetType: 'deployment',
+    targetId: deploymentId.toString(),
+    metadata: {
+      projectId: project?._id?.toString(),
+      sequenceNumber: freshDeployment?.sequenceNumber,
+      commitSha: freshDeployment?.commitSha?.slice(0, 7),
+      failureCode: freshDeployment?.failureCode,
+    },
+  }).catch(() => {}); // audit failures must never affect the deployment pipeline
 
   if (project && deps?.notifyDeploymentResult) {
     deps
@@ -406,10 +421,41 @@ export async function runReleasePipeline({
     );
   }
 
-  // ── Swap: stop old active container if one exists ───────────────────────────
-  if (project.activeDeploymentId) {
-    const oldDeployment = await Deployment.findById(project.activeDeploymentId).lean();
-    if (oldDeployment?.activeContainerId) {
+  // ── Persist active state, then retire the previous container ────────────────
+  // The candidate is already live and routed. Persist the project pointer first,
+  // then HEALTHY state, before touching the previous container. If either write
+  // fails, throw so BullMQ can retry this idempotent pipeline; never report success
+  // while the database disagrees with the live route. On retry the deterministic
+  // candidate name is replaced and the pointer write is safe to repeat.
+  let oldDeployment = null;
+  try {
+    if (project.activeDeploymentId) {
+      oldDeployment = await Deployment.findById(project.activeDeploymentId).lean();
+    }
+
+    await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deploymentId } });
+
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.HEALTHY,
+      { activeContainerId: containerId, completedAt: new Date() },
+      statusOptions,
+    );
+  } catch (err) {
+    logger.error('ReleasePipeline: CRITICAL — post-activation state update failed', {
+      deploymentId: deploymentId.toString(),
+      projectId: projectId.toString(),
+      correlationId,
+      error: err.message,
+    });
+    throw err;
+  }
+
+  // Once the new release is durably active, previous-container cleanup is
+  // best-effort. A cleanup failure must not undo or misreport the healthy release;
+  // periodic retention can safely retry removal later.
+  if (oldDeployment?.activeContainerId) {
+    try {
       await logEvent(
         deploymentId,
         'DEPLOY',
@@ -431,18 +477,15 @@ export async function runReleasePipeline({
           },
         );
       }
+    } catch (err) {
+      logger.warn('ReleasePipeline: previous container cleanup deferred', {
+        deploymentId: deploymentId.toString(),
+        previousDeploymentId: oldDeployment._id.toString(),
+        correlationId,
+        error: err.message,
+      });
     }
   }
-
-  // ── Mark HEALTHY ────────────────────────────────────────────────────────────
-  await updateStatus(
-    deploymentId,
-    DeploymentStatus.HEALTHY,
-    { activeContainerId: containerId, completedAt: new Date() },
-    statusOptions,
-  );
-
-  await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deploymentId } });
 
   return { ok: true, containerId, hostPort, containerName: cName };
 }
