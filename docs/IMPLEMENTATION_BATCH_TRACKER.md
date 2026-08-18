@@ -6,13 +6,13 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 
 ## Current Status
 
-| Field            | Value                                                                                                                                                        |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                                                  |
-| Release progress | `v0.1.5` published; unreleased multi-area work is being reconciled on `stabilize/hellouniversity-release`                                                    |
-| Current batch    | Release reconciliation before the next production retry                                                                                                      |
-| Next action      | Finish clean candidate gates and review, merge the immutable SHA, then normalize production with the supported upgrade path before one HelloUniversity retry |
-| Release state    | NO-GO for customer application hosting                                                                                                                       |
+| Field            | Value                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                             |
+| Release progress | `v0.1.5` published; PR #37 is green at `abb2fe90fab1be49a7e74e4cd09d6a1e47df2b39` and awaiting merge                                    |
+| Current batch    | Final release-candidate evidence and merge before production normalization                                                              |
+| Next action      | Merge PR #37, use the resulting full merge SHA as the immutable candidate, then normalize production through the supported upgrade path |
+| Release state    | NO-GO for customer application hosting                                                                                                  |
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
@@ -34,6 +34,19 @@ the live worker while diagnosing those failures; that intervention is deployment
 drift, not a release. No further pilot retry is permitted until the current worktree
 is reviewed, committed, merged, installed by immutable full SHA, and verified clean.
 P3/P4 are therefore In Progress, while customer hosting remains NO-GO.
+
+**2026-08-18 release-gate update:** PR #37's first CodeQL pass found four high
+findings: two real admin-filter NoSQL injection paths and two test-pattern false
+positives. The query paths now require primitive allowlisted statuses and literal
+predicates, and the test assertions verify behavior without resembling sanitizers.
+Fresh CodeQL analysis and its security gate pass with zero alerts. CI then exposed
+three new tests that accidentally depended on the pilot host's live Redis service;
+their queue boundaries are now injected explicitly. Full coverage with Redis pointed
+at a closed port passes 979 tests, and final GitHub CI passes in 60 seconds. Production
+has not been mutated: a read-only baseline confirms the isolated services and PM2
+fallback are active and the public readiness/fallback checks return 200. Privileged
+drift, backup, Nginx, queue, revert, and upgrade checks remain pending the declared
+maintenance window.
 
 ## Status Legend
 

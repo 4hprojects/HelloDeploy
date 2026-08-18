@@ -1841,8 +1841,8 @@ browser session, which this session doesn't hold. See
 
 ## HelloUniversity Release Reconciliation
 
-- Status: Local candidate gates passed; cohort commits and remote review pending
-- Updated: 2026-08-18T22:05:00+08:00
+- Status: PR #37 candidate gates passed; merge pending
+- Updated: 2026-08-18T22:52:00+08:00
 
 ### Scope and findings
 
@@ -1876,7 +1876,7 @@ browser session, which this session doesn't hold. See
 - Focused database/index, migration, clone/security, rotation, notification,
   activation/rollback, project-search, accessibility, and workflow-documentation tests
   passed after their respective changes.
-- Two independent final `npm test` runs each passed 976 tests across 205 suites with
+- Two independent pre-review `npm test` runs each passed 976 tests across 205 suites with
   zero failures, skips, cancellations, or todos. This includes repeated real MongoDB
   index reconciliation and duplicate-subdomain enforcement.
 - The production-only dependency audit reports zero vulnerabilities. A lockfile-only
@@ -1885,13 +1885,42 @@ browser session, which this session doesn't hold. See
 - Lint, formatting, configuration validation, final diff checks, and the
   clean-checkout `npm ci` replay passed. The exact CI test command
   (`npm run test:coverage`) also passed all 976 tests and produced an aggregate report
-  of 78.23% line, 89.16% branch, and 86.21% function coverage. Remote CI and CodeQL
-  remain pending; only commands actually completed are recorded as passed.
+  of 78.23% line, 89.16% branch, and 86.21% function coverage.
+- PR #37's first CodeQL security gate reported four high findings. Two were real
+  NoSQL-injection flows in admin project filtering; status input now must be a
+  primitive allowlisted value and is embedded with `$eq`, while search input is
+  primitive and bounded. Two test-only HTML/URL pattern findings were replaced with
+  behavior assertions. The final CodeQL analysis and security gate both pass with
+  zero alerts.
+- The first remote CI coverage run hung because three new unit tests opened the real
+  BullMQ Redis client. This was masked locally by the pilot host's active Redis. The
+  admin suspend and server-stats queue boundaries are now injectable, their tests use
+  explicit no-queue or stubbed-queue dependencies, and the STOP_PROJECT enqueue path
+  remains directly covered. `REDIS_PORT=1 npm run test:coverage` passed 979 tests
+  across 205 suites with no Redis dependency; final GitHub CI then passed in 60
+  seconds at full head `abb2fe90fab1be49a7e74e4cd09d6a1e47df2b39`.
+
+### Phase 2 read-only baseline
+
+- The current workstation is the Ubuntu 26.04 pilot/production host and
+  `/opt/hellodeploy` is present as root-controlled mode `750`; the current user cannot
+  read or mutate it and noninteractive sudo is unavailable.
+- `hellodeploy-web`, `hellodeploy-worker`, `hellodeploy-nginx-helper`, Nginx, and both
+  Cloudflare Tunnel services are active. The web and worker use their intended
+  identities and currently report zero restart counts.
+- Public dashboard readiness, the unmatched-host fallback, and the retained PM2
+  fallback each returned HTTP 200. Nginx parsed its configuration, but a complete
+  `nginx -t` could not read the root-owned PID file and is not recorded as passing.
+- No queue pause, backup, drift restoration, dashboard revert/reactivation, checkout
+  change, service restart, or upgrade ran. Those actions require the merged immutable
+  SHA, a declared maintenance window, and an operator-provided interactive sudo
+  session.
 
 ### Next gate
 
-Split the reviewed work into the four planned cohorts, rerun the final local gate from
-the resulting committed checkout, publish for CI/CodeQL review, and merge only after
-both remote gates pass. Production normalization, deployment retry, database migration,
-DNS cutover, and recovery work remain unexecuted and require their declared operational
-preconditions.
+Merge green PR #37 and record its resulting full merge commit as the immutable
+candidate. Then, during the declared maintenance window, capture and verify protected
+backup evidence, pause/drain the queue, complete the dashboard-revert proof, archive
+and remove explained production drift, and run `infrastructure/upgrade.sh` with that
+full SHA. Production normalization, deployment retry, database migration, DNS cutover,
+and recovery remain unexecuted until their declared operational preconditions pass.
