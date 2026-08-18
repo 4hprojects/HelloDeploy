@@ -29,12 +29,14 @@ async function getMongoStats() {
  *
  * @returns {Promise<object>}
  */
-export async function collectServerStats() {
+export async function collectServerStats(deps = {}) {
+  const queueClient =
+    deps.queue === undefined ? (deps.getDeploymentQueue ?? getDeploymentQueue)() : deps.queue;
   const [memory, disk, queue, worker, running, mongo] = await Promise.all([
     getMemoryStats(),
     getDiskStats(),
-    getQueueStats(),
-    checkWorkerReadiness(getDeploymentQueue()),
+    getQueueStats(queueClient),
+    checkWorkerReadiness(queueClient),
     getRunningContainerCount(),
     getMongoStats(),
   ]);
@@ -111,9 +113,8 @@ async function getDiskStats() {
   }
 }
 
-async function getQueueStats() {
+async function getQueueStats(queue) {
   try {
-    const queue = getDeploymentQueue();
     if (!queue) {
       return null;
     }
