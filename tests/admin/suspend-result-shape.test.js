@@ -8,7 +8,8 @@ import { createProject } from '../helpers/worker-fixtures.js';
 
 const { suspendUser, reactivateUser, adminSuspendProjectWithStop, adminReactivateProject } =
   await import('../../apps/web/src/services/admin.service.js');
-const { closeDeploymentQueue } = await import('../../apps/web/src/queue/client.js');
+
+const noQueue = { getDeploymentQueue: () => null };
 
 // Flash messages need the acted-on record's name/email, not a generic
 // "User suspended." — these tests lock in the return-value contract the
@@ -18,7 +19,6 @@ describe('admin suspend/reactivate result shape', () => {
     await startTestDb();
   });
   after(async () => {
-    await closeDeploymentQueue();
     await stopTestDb();
   });
   beforeEach(async () => {
@@ -64,11 +64,14 @@ describe('admin suspend/reactivate result shape', () => {
   it('returns the suspended project record', async () => {
     const project = await createProject({ name: 'My App' });
 
-    const result = await adminSuspendProjectWithStop({
-      projectId: project._id,
-      adminId: objectId().toString(),
-      adminRole: 'SUPER_ADMIN',
-    });
+    const result = await adminSuspendProjectWithStop(
+      {
+        projectId: project._id,
+        adminId: objectId().toString(),
+        adminRole: 'SUPER_ADMIN',
+      },
+      noQueue,
+    );
 
     assert.equal(result.project.name, 'My App');
   });

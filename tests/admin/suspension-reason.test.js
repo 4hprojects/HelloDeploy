@@ -2,13 +2,14 @@ import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
 import { User, Project } from '@hellodeploy/database';
-import { UserStatus, ProjectStatus } from '@hellodeploy/contracts';
+import { JobType, UserStatus, ProjectStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 import { createProject } from '../helpers/worker-fixtures.js';
 
 const { suspendUser, reactivateUser, adminSuspendProjectWithStop, adminReactivateProject } =
   await import('../../apps/web/src/services/admin.service.js');
-const { closeDeploymentQueue } = await import('../../apps/web/src/queue/client.js');
+
+const noQueue = { getDeploymentQueue: () => null };
 
 async function createUser(overrides = {}) {
   return User.create({
@@ -25,7 +26,6 @@ describe('admin suspension reason', () => {
     await startTestDb();
   });
   after(async () => {
-    await closeDeploymentQueue();
     await stopTestDb();
   });
   beforeEach(async () => {
@@ -75,15 +75,43 @@ describe('admin suspension reason', () => {
   it('records the reason when suspending a project', async () => {
     const project = await createProject();
 
-    await adminSuspendProjectWithStop({
-      projectId: project._id,
-      adminId: objectId().toString(),
-      adminRole: 'SUPER_ADMIN',
-      reason: 'Terms of service violation',
-    });
+    await adminSuspendProjectWithStop(
+      {
+        projectId: project._id,
+        adminId: objectId().toString(),
+        adminRole: 'SUPER_ADMIN',
+        reason: 'Terms of service violation',
+      },
+      noQueue,
+    );
 
     const fresh = await Project.findById(project._id).lean();
     assert.equal(fresh.suspensionReason, 'Terms of service violation');
+  });
+
+  it('enqueues the stop job through the injected queue boundary', async () => {
+    const project = await createProject();
+    const queue = {};
+    let enqueueCall;
+
+    await adminSuspendProjectWithStop(
+      {
+        projectId: project._id,
+        adminId: objectId().toString(),
+        adminRole: 'SUPER_ADMIN',
+        correlationId: 'test-correlation',
+      },
+      {
+        getDeploymentQueue: () => queue,
+        enqueueJob: async (...args) => {
+          enqueueCall = args;
+        },
+      },
+    );
+
+    assert.equal(enqueueCall[0], queue);
+    assert.equal(enqueueCall[1], JobType.STOP_PROJECT);
+    assert.equal(enqueueCall[2].projectId, project._id.toString());
   });
 
   it('clears the project reason when reactivated', async () => {

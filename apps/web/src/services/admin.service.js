@@ -395,14 +395,12 @@ export async function getQuotaConsumption(scopeType, scopeId) {
  * Suspend a project AND enqueue a STOP_PROJECT job to shut down its container
  * and replace nginx with a maintenance block.
  */
-export async function adminSuspendProjectWithStop({
-  projectId,
-  adminId,
-  adminRole,
-  reason,
-  sourceIp,
-  correlationId,
-}) {
+export async function adminSuspendProjectWithStop(
+  { projectId, adminId, adminRole, reason, sourceIp, correlationId },
+  deps = {},
+) {
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+  const addJob = deps.enqueueJob ?? enqueueJob;
   const project = await Project.findById(projectId);
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -419,9 +417,9 @@ export async function adminSuspendProjectWithStop({
   project.suspensionReason = reason?.trim() || null;
   await project.save();
 
-  const queue = getDeploymentQueue();
+  const queue = getQueue();
   if (queue) {
-    await enqueueJob(
+    await addJob(
       queue,
       JobType.STOP_PROJECT,
       {
