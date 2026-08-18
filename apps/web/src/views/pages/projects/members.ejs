@@ -6,6 +6,12 @@
   <a href="/projects/<%= project.slug %>" class="button button--secondary">Back to Project</a>
 </div>
 
+<p class="text-sm text-muted mb-4">
+  <strong>Owner:</strong> full control, including settings, secrets, members, and domains.
+  <strong>Maintainer:</strong> can deploy and roll back releases, but cannot change settings, secrets, members, or domains.
+  <strong>Viewer:</strong> read-only — can view the project and deployment history, but cannot deploy or change anything.
+</p>
+
 <div class="card mb-6">
   <div class="table-wrapper table-responsive table-responsive--flush">
     <table class="table table--responsive">
@@ -99,6 +105,8 @@
           </select>
           <% if (errors.role) { %>
           <span id="role-error" class="form-error" role="alert"><%= errors.role %></span>
+          <% } else { %>
+          <span class="form-hint text-xs text-muted">Maintainers can deploy; Viewers are read-only.</span>
           <% } %>
         </div>
       </div>

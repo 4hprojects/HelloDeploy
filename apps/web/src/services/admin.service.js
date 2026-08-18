@@ -27,13 +27,15 @@ import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
-  const [totalUsers, activeUsers, totalProjects, pendingApprovals] = await Promise.all([
-    User.countDocuments(),
-    User.countDocuments({ status: UserStatus.ACTIVE }),
-    Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
-    ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
-  ]);
-  return { totalUsers, activeUsers, totalProjects, pendingApprovals };
+  const [totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals] =
+    await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ status: UserStatus.ACTIVE }),
+      Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
+      ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
+      Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+    ]);
+  return { totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals };
 }
 
 // ─── User management ──────────────────────────────────────────────────────────
@@ -82,7 +84,7 @@ export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp
     metadata: { reason: reason?.trim() || null },
   });
 
-  return { success: true };
+  return { success: true, user };
 }
 
 export async function reactivateUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
@@ -111,15 +113,19 @@ export async function reactivateUser({ userId, adminId, adminRole, sourceIp, cor
     correlationId,
   });
 
-  return { success: true };
+  return { success: true, user };
 }
 
 // ─── Project management ───────────────────────────────────────────────────────
 
-export async function getProjects({ page = 1, limit = 20, status } = {}) {
+export async function getProjects({ page = 1, limit = 20, status, search } = {}) {
   const query = {};
   if (status) {
     query.status = status;
+  }
+  if (search?.trim()) {
+    const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    query.$or = [{ name: regex }, { slug: regex }];
   }
   const skip = (page - 1) * limit;
   const [projects, total] = await Promise.all([
@@ -187,6 +193,8 @@ export async function adminReactivateProject({
   }
 
   project.status = ProjectStatus.ACTIVE;
+  project.suspendedAt = null;
+  project.suspensionReason = null;
   await project.save();
 
   await writeAuditEvent({
@@ -200,7 +208,7 @@ export async function adminReactivateProject({
     correlationId,
   });
 
-  return { success: true };
+  return { success: true, project };
 }
 
 // ─── Queue management ─────────────────────────────────────────────────────────
@@ -303,6 +311,23 @@ export async function getQuotaOverride(scopeType, scopeId) {
   return Quota.findOne({ scopeType, scopeId }).lean();
 }
 
+/**
+ * Resolve a quota scope to a human-readable label for display.
+ * Falls back to null when the scope type is unrecognized or the underlying
+ * record no longer exists — callers should show the raw ID in that case.
+ */
+export async function getQuotaScopeName(scopeType, scopeId) {
+  if (scopeType === QuotaScope.USER) {
+    const user = await User.findById(scopeId).select('firstName lastName email').lean();
+    return user ? `${user.firstName} ${user.lastName} (${user.email})` : null;
+  }
+  if (scopeType === QuotaScope.PROJECT) {
+    const project = await Project.findById(scopeId).select('name slug').lean();
+    return project ? `${project.name} (${project.slug})` : null;
+  }
+  return null;
+}
+
 export async function getQuotaConsumption(scopeType, scopeId) {
   if (scopeType === QuotaScope.USER) {
     const projects = await Project.find({
@@ -369,6 +394,8 @@ export async function adminSuspendProjectWithStop({
   }
 
   project.status = ProjectStatus.SUSPENDED;
+  project.suspendedAt = new Date();
+  project.suspensionReason = reason?.trim() || null;
   await project.save();
 
   const queue = getDeploymentQueue();
@@ -400,7 +427,7 @@ export async function adminSuspendProjectWithStop({
     metadata: { reason: reason?.trim() || null },
   });
 
-  return { success: true };
+  return { success: true, project };
 }
 
 // ─── Approval requests ────────────────────────────────────────────────────────

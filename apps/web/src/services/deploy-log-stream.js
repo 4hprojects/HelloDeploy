@@ -9,6 +9,32 @@ export const DEPLOY_LOG_CHANNEL_PREFIX = 'deploy-logs:';
 let _subscriber = null;
 const channelHandlers = new Map(); // channel → Set<handler>
 
+/**
+ * Fan a raw pub/sub message out to every handler subscribed to its channel.
+ * Exported standalone (pure aside from the handler registry) so the fanout,
+ * error-isolation, and malformed-payload behavior can be unit tested without
+ * a real Redis connection.
+ */
+export function dispatchDeployLogMessage(channel, raw, handlers = channelHandlers) {
+  const channelSubscribers = handlers.get(channel);
+  if (!channelSubscribers) {
+    return;
+  }
+  let payload;
+  try {
+    payload = JSON.parse(raw);
+  } catch {
+    return;
+  }
+  for (const handler of channelSubscribers) {
+    try {
+      handler(payload);
+    } catch {
+      // one broken stream must not affect the others
+    }
+  }
+}
+
 function getSubscriber() {
   if (_subscriber) {
     return _subscriber;
@@ -18,25 +44,7 @@ function getSubscriber() {
     _subscriber.on('error', (err) => {
       logger.warn('Deploy-log subscriber Redis error', { error: classifyRedisError(err) });
     });
-    _subscriber.on('message', (channel, raw) => {
-      const handlers = channelHandlers.get(channel);
-      if (!handlers) {
-        return;
-      }
-      let payload;
-      try {
-        payload = JSON.parse(raw);
-      } catch {
-        return;
-      }
-      for (const handler of handlers) {
-        try {
-          handler(payload);
-        } catch {
-          // one broken stream must not affect the others
-        }
-      }
-    });
+    _subscriber.on('message', (channel, raw) => dispatchDeployLogMessage(channel, raw));
     return _subscriber;
   } catch (err) {
     logger.warn('Could not create deploy-log subscriber connection', {

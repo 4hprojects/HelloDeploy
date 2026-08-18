@@ -98,9 +98,20 @@ describe('destructive and risky action UX', () => {
     assert.match(files.adminServer, /data-confirm-title="Enable maintenance"/);
     assert.match(files.adminServer, /data-confirm-title="Disable maintenance"/);
     assert.match(files.adminServer, /data-confirm-title="Pause deployment queue"/);
+    assert.match(files.adminServer, /data-confirm-title="Resume deployment queue"/);
     assert.match(files.approvalRequests, /value="CHANGES_REQUESTED"/);
     assert.match(files.approvalRequests, /Required when requesting changes/);
+    assert.match(files.approvalRequests, /data-confirm-title="Approve project"/);
+    assert.match(files.approvalRequests, /data-confirm-title="Request changes"/);
     assert.match(files.adminDomains, /data-confirm-title="Approve domain"/);
     assert.match(files.adminDomains, /data-confirm-title="Reject domain"/);
+  });
+
+  it("lets a submit button override its shared form's confirmation copy/style", () => {
+    // Approve and Request Changes share one <form> in approval-requests.ejs —
+    // the confirm dialog must be able to read a per-button data-confirm
+    // instead of only the form's, since the two actions need different copy.
+    assert.match(files.appJs, /submitter && submitter\.getAttribute\('data-confirm'\)/);
+    assert.match(files.appJs, /function openModal\(msg, target, trigger, attrSource\)/);
   });
 });

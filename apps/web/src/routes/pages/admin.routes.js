@@ -55,8 +55,10 @@ router.post('/domains/:domainId/approve', postApproveDomain);
 router.post('/domains/:domainId/reject', postRejectDomain);
 
 router.get('/server', getAdminServer);
-router.post('/server/queue/pause', postPauseQueue);
-router.post('/server/queue/resume', postResumeQueue);
+// Queue pause/resume is a platform-wide operational lever (stalls every
+// project's deploys), same class of impact as maintenance mode below.
+router.post('/server/queue/pause', requireSuperAdmin, postPauseQueue);
+router.post('/server/queue/resume', requireSuperAdmin, postResumeQueue);
 router.post('/server/maintenance/enable', requireSuperAdmin, postEnableMaintenance);
 router.post('/server/maintenance/disable', requireSuperAdmin, postDisableMaintenance);
 
@@ -64,6 +66,7 @@ router.get('/audit-events', getAdminAuditEvents);
 router.get('/audit-events/export', getAdminAuditExport);
 
 router.get('/quotas/:scopeType/:scopeId', getAdminQuota);
-router.post('/quotas/:scopeType/:scopeId', postAdminSetQuota);
+// Quota overrides are a resource/billing policy lever, not routine moderation.
+router.post('/quotas/:scopeType/:scopeId', requireSuperAdmin, postAdminSetQuota);
 
 export default router;

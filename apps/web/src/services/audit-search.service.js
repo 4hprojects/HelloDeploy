@@ -1,4 +1,26 @@
-import { AuditEvent } from '@hellodeploy/database';
+import { AuditEvent, User } from '@hellodeploy/database';
+
+/**
+ * Resolve each event's actorId to a readable "Name (email)" label.
+ * Falls back silently (no actorName set) for system actions or actors whose
+ * User record no longer exists — the view keeps showing the raw ID then.
+ */
+async function attachActorNames(events) {
+  const actorIds = [...new Set(events.map((e) => e.actorId?.toString()).filter(Boolean))];
+  if (actorIds.length === 0) {
+    return events;
+  }
+  const actors = await User.find({ _id: { $in: actorIds } })
+    .select('firstName lastName email')
+    .lean();
+  const actorById = new Map(actors.map((a) => [a._id.toString(), a]));
+  return events.map((event) => {
+    const actor = event.actorId ? actorById.get(event.actorId.toString()) : null;
+    return actor
+      ? { ...event, actorName: `${actor.firstName} ${actor.lastName} (${actor.email})` }
+      : event;
+  });
+}
 
 function buildAuditQuery({ action, actorId, targetType, targetId, outcome, from, to } = {}) {
   const query = {};
@@ -68,10 +90,11 @@ export async function searchAuditEvents({
 
   const skip = (page - 1) * limit;
 
-  const [events, total] = await Promise.all([
+  const [rawEvents, total] = await Promise.all([
     AuditEvent.find(query).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
     AuditEvent.countDocuments(query),
   ]);
+  const events = await attachActorNames(rawEvents);
 
   return { events, total, page, limit, totalPages: Math.ceil(total / limit) };
 }

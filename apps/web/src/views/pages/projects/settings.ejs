@@ -330,7 +330,11 @@
               <span class="form-label">How deployments start</span>
               <p class="form-hint">Manual waits for you; Automatic publishes production-branch changes.</p>
               <% if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
-              <p class="form-error mt-2" role="alert">Approval Required is no longer supported. Choose Manual or Automatic.</p>
+              <p class="form-error mt-2" role="alert">
+                Approval Required is no longer supported as a per-deployment mode — the one-time
+                project approval before your project first goes live now covers this. Choose Manual
+                (you trigger each deploy) or Automatic (deploys after production-branch changes).
+              </p>
               <% } %>
             </div>
             <div class="settings-display-row">

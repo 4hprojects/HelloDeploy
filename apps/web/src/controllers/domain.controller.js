@@ -7,6 +7,7 @@ import {
   getPendingApprovalDomains,
   approveDomain,
   rejectDomain,
+  getLiveVerificationTxtRecords,
 } from '../services/domain.service.js';
 
 // ─── Project-scoped domain management ─────────────────────────────────────────
@@ -39,8 +40,17 @@ export const postAddDomain = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    req.flash('error', result.error);
-    return res.redirect(`/projects/${project.slug}/domains`);
+    const domains = await getProjectDomains(project._id);
+    return res.status(400).render('pages/projects/domains', {
+      title: `Custom Domains – ${project.name}`,
+      project,
+      membership: req.membership,
+      domains,
+      verificationToken: req.session.pendingDomainToken ?? null,
+      pendingHostname: req.session.pendingDomainHostname ?? null,
+      errors: { hostname: result.error },
+      values: { hostname },
+    });
   }
 
   // Store token in session for one-time display on the redirect page
@@ -98,9 +108,22 @@ export const postRemoveDomain = asyncHandler(async (req, res) => {
 export const getAdminDomains = asyncHandler(async (req, res) => {
   const domains = await getPendingApprovalDomains();
 
+  // Live re-check, shown alongside the original verification timestamp so
+  // an admin can independently confirm the record is still published before
+  // approving — not a substitute for the system's own verification.
+  const liveTxtRecordsById = new Map(
+    await Promise.all(
+      domains.map(async (d) => [
+        d._id.toString(),
+        await getLiveVerificationTxtRecords(d.hostnameNormalized),
+      ]),
+    ),
+  );
+
   res.render('pages/admin/domains', {
     title: 'Domain Approval Queue',
     domains,
+    liveTxtRecordsById,
   });
 });
 

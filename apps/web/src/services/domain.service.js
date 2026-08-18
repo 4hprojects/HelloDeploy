@@ -1,4 +1,5 @@
 import { randomBytes, createHash } from 'node:crypto';
+import { resolveTxt } from 'node:dns/promises';
 import { Domain, Project } from '@hellodeploy/database';
 import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent, logger } from '@hellodeploy/observability';
@@ -373,4 +374,40 @@ export async function getPendingApprovalDomains() {
     .populate('projectId', 'name slug')
     .sort({ createdAt: 1 })
     .lean();
+}
+
+// ─── Live DNS re-check (admin approval screen) ─────────────────────────────────
+
+const VERIFICATION_SUBDOMAIN_PREFIX = '_hellodeploy-verify.';
+const DNS_LOOKUP_TIMEOUT_MS = 3_000;
+
+/**
+ * Look up the TXT records currently published at the verification subdomain,
+ * for display on the admin approval screen. DNS TXT records are public once
+ * published, so this is safe to show directly — unlike the stored
+ * `verificationTokenHash`, which is never surfaced anywhere. Not a substitute
+ * for the system's own verification (VERIFY_DOMAIN job) — just corroborating
+ * evidence so an admin can independently confirm the record is still
+ * published before approving.
+ *
+ * Returns null on no record / lookup failure / timeout — all shown the same
+ * way to the admin ("no record found"), since the distinction isn't actionable.
+ *
+ * @param {string} hostname
+ * @param {(name: string) => Promise<string[][]>} [dnsResolveTxt] - injectable for tests
+ * @returns {Promise<string[]|null>}
+ */
+export async function getLiveVerificationTxtRecords(hostname, dnsResolveTxt = resolveTxt) {
+  const lookupName = `${VERIFICATION_SUBDOMAIN_PREFIX}${hostname}`;
+  try {
+    const records = await Promise.race([
+      dnsResolveTxt(lookupName),
+      new Promise((_resolve, reject) =>
+        setTimeout(() => reject(new Error('DNS lookup timed out')), DNS_LOOKUP_TIMEOUT_MS),
+      ),
+    ]);
+    return records.map((parts) => parts.join(''));
+  } catch {
+    return null;
+  }
 }

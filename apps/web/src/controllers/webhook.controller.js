@@ -1,10 +1,15 @@
-import { Repository, Project } from '@hellodeploy/database';
+import { Repository, Project, User } from '@hellodeploy/database';
 import { DeploymentMode, ProjectStatus, DeploymentTrigger } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { verifyWebhookSignature } from '../services/github.service.js';
 import { createDeployment } from '../services/deployment.service.js';
+import { sendProjectPausedEmail } from '../services/email.service.js';
 import { getRedisConnection } from '../queue/client.js';
 import { env } from '../config/env.js';
+
+function baseUrl() {
+  return env.isProduction() ? `https://${env.PLATFORM_DOMAIN}` : `http://localhost:${env.PORT}`;
+}
 
 // ─── Delivery deduplication (Redis-backed, 1-hour window) ─────────────────────
 
@@ -143,7 +148,9 @@ function shouldSkipBuild(changedPaths, buildFilters) {
 const defaultPushDeps = {
   Repository,
   Project,
+  User,
   createDeployment,
+  sendProjectPausedEmail,
 };
 
 export async function handlePushEvent(payload, correlationId, deps = defaultPushDeps) {
@@ -190,7 +197,33 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
       repoFullName,
       branch,
     });
-    // TODO Phase 8: notify owner and flag project for review
+
+    await deps.Project.updateOne(
+      { _id: project._id },
+      {
+        $set: {
+          reviewFlag: { active: true, reason: 'HIGH_RISK_FILE_CHANGE', flaggedAt: new Date() },
+        },
+      },
+    );
+
+    try {
+      const owner = await deps.User.findById(project.ownerId);
+      if (owner?.email) {
+        await deps.sendProjectPausedEmail({
+          to: owner.email,
+          firstName: owner.firstName,
+          projectName: project.name,
+          projectUrl: `${baseUrl()}/projects/${project.slug}`,
+        });
+      }
+    } catch (err) {
+      logger.warn('Webhook: failed to notify owner of paused auto-deploy', {
+        projectId: project._id.toString(),
+        error: err.message,
+      });
+    }
+
     return;
   }
 

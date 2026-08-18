@@ -86,7 +86,7 @@ describe('form pending states', () => {
     assert.match(files.repository, /data-pending-label="Connecting\.\.\."/);
     assert.match(files.domains, /data-pending-label="Checking DNS\.\.\."/);
     assert.match(files.detection, /data-pending-label="Checking\.\.\."/);
-    assert.match(files.adminServer, /data-pending-label="Resuming\.\.\."/);
+    assert.match(files.adminServer, /data-confirm-pending-label="Resuming\.\.\."/);
   });
 
   it('removes older one-off auth submit handlers', () => {

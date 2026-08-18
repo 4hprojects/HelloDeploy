@@ -133,7 +133,7 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
 // ─── Verify Email ──────────────────────────────────────────────────────────────
 
 export const getVerifyEmail = asyncHandler(async (req, res) => {
-  const { token, submitted, resent } = req.query;
+  const { token, submitted, resent, rateLimited } = req.query;
 
   if (submitted) {
     return res.render(
@@ -146,6 +146,13 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
     return res.render(
       'pages/auth/verify-email',
       authRenderOpts({ title: 'Verify Email', resent: true }),
+    );
+  }
+
+  if (rateLimited) {
+    return res.render(
+      'pages/auth/verify-email',
+      authRenderOpts({ title: 'Verify Email', rateLimited: true }),
     );
   }
 
@@ -166,8 +173,18 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
     );
   }
 
-  req.flash('success', 'Email verified. Welcome to HelloDeploy!');
-  res.redirect('/auth/sign-in');
+  // Session fixation protection — regenerate session ID after auth, same as sign-in
+  const sessionUser = result.sessionUser;
+  req.session.regenerate((err) => {
+    if (err) {
+      return res.redirect('/auth/sign-in');
+    }
+    req.session.user = sessionUser;
+    req.flash('success', 'Email verified. Welcome to HelloDeploy!');
+    req.session.save(() => {
+      res.redirect(redirectByRole(sessionUser.platformRole));
+    });
+  });
 });
 
 export const postResendVerification = asyncHandler(async (req, res) => {

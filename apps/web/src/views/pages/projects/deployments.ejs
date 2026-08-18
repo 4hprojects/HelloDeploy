@@ -64,8 +64,12 @@
     <h2 class="card__title text-sm">Rollback</h2>
   </div>
   <div class="card__body">
+    <p class="text-sm text-muted mb-3">
+      Switch live traffic back to a previous working version. Only the most recent
+      healthy releases stay available here — older ones are cleaned up automatically.
+    </p>
     <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
-          data-confirm="Roll back production traffic to the selected retained healthy deployment?"
+          data-confirm="Switch live traffic to the selected previous version?"
           data-confirm-title="Roll back deployment"
           data-confirm-accept-label="Roll Back"
           data-confirm-pending-label="Rolling back..."
@@ -80,7 +84,7 @@
         </option>
         <% }) %>
       </select>
-      <button type="submit" class="button button--warning button--sm" data-tooltip="Restore the selected retained healthy deployment.">Roll Back</button>
+      <button type="submit" class="button button--warning button--sm" data-tooltip="Switch live traffic to this previous version.">Roll Back</button>
     </form>
   </div>
 </div>

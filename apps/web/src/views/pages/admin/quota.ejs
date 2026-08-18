@@ -1,8 +1,13 @@
 <div class="page-header">
   <div>
-    <h1 class="page-header__title">Quota Override</h1>
+    <h1 class="page-header__title">
+      Quota Override<% if (scopeName) { %> — <%= scopeName %><% } %>
+    </h1>
     <p class="page-header__subtitle text-muted text-sm">
       <%= scopeType %> / <code class="code-inline"><%= scopeId %></code>
+      <% if (!scopeName) { %>
+      <span class="text-xs">(no matching <%= scopeType.toLowerCase() %> found)</span>
+      <% } %>
     </p>
   </div>
 </div>

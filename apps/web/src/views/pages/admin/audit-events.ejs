@@ -86,7 +86,9 @@
             </span>
           </td>
           <td class="text-muted text-xs" data-label="Actor">
-            <% if (ev.actorId) { %>
+            <% if (ev.actorName) { %>
+              <%= ev.actorName %>
+            <% } else if (ev.actorId) { %>
               <code class="code-inline"><%= ev.actorId.toString().slice(-8) %></code>
             <% } else { %>
               system

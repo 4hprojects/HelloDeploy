@@ -28,6 +28,14 @@
     </div>
     <p class="mt-4"><a href="/auth/sign-in">Back to Sign In</a></p>
 
+  <% } else if (typeof rateLimited !== 'undefined' && rateLimited) { %>
+    <div class="alert alert--error" role="alert">
+      Too many resend attempts. Please wait a while before requesting another
+      email, or check your inbox (and spam folder) for the link you already
+      have.
+    </div>
+    <p class="mt-4"><a href="/auth/sign-in">Back to Sign In</a></p>
+
   <% } else if (typeof error !== 'undefined' && error) { %>
     <div class="alert alert--error" role="alert">
       <%= error %>

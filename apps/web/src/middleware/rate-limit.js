@@ -69,6 +69,18 @@ const onLimitReached = (req, res, _options) => {
   }
 };
 
+// Keeps the user on the verify-email page instead of the generic full-page
+// error — they're mid-flow waiting for an email, not somewhere to bounce from.
+const onResendVerificationLimitReached = (req, res, _options) => {
+  if (req.accepts('html')) {
+    res.redirect('/auth/verify-email?rateLimited=1');
+  } else {
+    res.status(429).json({
+      error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
+    });
+  }
+};
+
 /** General pages / static assets */
 export const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -110,7 +122,7 @@ export const resendVerificationLimiter = rateLimit({
   legacyHeaders: false,
   passOnStoreError: false,
   store: makeStore('resend-verify'),
-  handler: onLimitReached,
+  handler: onResendVerificationLimitReached,
 });
 
 /** Password reset initiation */

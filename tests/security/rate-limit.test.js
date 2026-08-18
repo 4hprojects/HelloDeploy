@@ -66,8 +66,33 @@ function invoke(limiter, ip, acceptsHtml = false) {
       json(body) {
         resolve({ status: capturedStatus, type: 'json', body });
       },
+      redirect(url) {
+        resolve({ status: capturedStatus, type: 'redirect', url });
+      },
     };
     limiter(req, res, (err) => resolve({ status: null, type: 'pass', err: err ?? null }));
+  });
+}
+
+// Handler signature matches the production onResendVerificationLimitReached
+// in rate-limit.js — redirects back to the verify-email page instead of the
+// generic full-page error, so a user waiting on a verification email isn't
+// yanked off that page.
+function makeTestResendLimiter(limit) {
+  return rateLimit({
+    windowMs: 60 * 1000,
+    limit,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler(req, res) {
+      if (req.accepts('html')) {
+        res.redirect('/auth/verify-email?rateLimited=1');
+      } else {
+        res.status(429).json({
+          error: { code: 'RATE_LIMITED', message: 'Too many requests. Please try again later.' },
+        });
+      }
+    },
   });
 }
 
@@ -160,6 +185,33 @@ describe('brute-force protection — rate limit behaviour', () => {
     }
     const blocked = await invoke(registrationPattern, ip);
     assert.equal(blocked.status, 429, '6th registration attempt must be blocked (limit=5)');
+  });
+
+  it('resend-verification limiter redirects back to the verify-email page on 429 (browser)', async () => {
+    const limiter = makeTestResendLimiter(1);
+    const ip = '192.0.2.30';
+    await invoke(limiter, ip, true); // exhaust
+    const result = await invoke(limiter, ip, true); // trigger 429
+    assert.equal(result.type, 'redirect', 'must redirect rather than render a full-page error');
+    assert.equal(result.url, '/auth/verify-email?rateLimited=1');
+  });
+
+  it('resend-verification limiter still returns JSON for API (non-browser) requests', async () => {
+    const limiter = makeTestResendLimiter(1);
+    const ip = '192.0.2.31';
+    await invoke(limiter, ip, false); // exhaust
+    const result = await invoke(limiter, ip, false); // trigger 429
+    assert.equal(result.status, 429);
+    assert.equal(result.type, 'json');
+    assert.equal(result.body?.error?.code, 'RATE_LIMITED');
+  });
+
+  it('wires resendVerificationLimiter to the redirect-back handler, not the generic one', () => {
+    assert.match(
+      rateLimitSource,
+      /export const resendVerificationLimiter = rateLimit\(\{[\s\S]*?handler: onResendVerificationLimitReached,?\s*\}\);/,
+      'resend-verification limiter must use the page-preserving handler',
+    );
   });
 
   it('does not silently fall back to memory rate limits in production', () => {

@@ -48,11 +48,15 @@ function makeProject(overrides = {}) {
 
 function makeDeps({ repo = makeRepoRecord(), project = makeProject(), deploymentResult } = {}) {
   const createDeploymentCalls = [];
+  const projectUpdateCalls = [];
+  const sendProjectPausedEmailCalls = [];
 
   return {
     repo,
     project,
     createDeploymentCalls,
+    projectUpdateCalls,
+    sendProjectPausedEmailCalls,
     Repository: {
       async findOne(query) {
         assert.deepEqual(query, {
@@ -68,6 +72,15 @@ function makeDeps({ repo = makeRepoRecord(), project = makeProject(), deployment
         assert.equal(projectId, repo.projectId);
         return project;
       },
+      async updateOne(query, update) {
+        projectUpdateCalls.push({ query, update });
+      },
+    },
+    User: {
+      async findById(userId) {
+        assert.equal(userId, project.ownerId);
+        return { firstName: 'Ada', email: 'ada@example.com' };
+      },
     },
     async createDeployment(opts) {
       createDeploymentCalls.push(opts);
@@ -77,6 +90,9 @@ function makeDeps({ repo = makeRepoRecord(), project = makeProject(), deployment
           deployment: { _id: 'deployment-1', status: DeploymentStatus.QUEUED },
         }
       );
+    },
+    async sendProjectPausedEmail(opts) {
+      sendProjectPausedEmailCalls.push(opts);
     },
   };
 }
@@ -129,5 +145,31 @@ describe('GitHub push webhook deployment behavior', () => {
 
     assert.equal(deps.repo.saveCalls, 1);
     assert.equal(deps.createDeploymentCalls.length, 0);
+  });
+
+  it('flags the project for review when high-risk files changed', async () => {
+    const deps = makeDeps();
+    await handlePushEvent(
+      makePayload({
+        commits: [{ added: ['Dockerfile'], modified: ['src/app.js'], removed: [] }],
+      }),
+      'correlation-5',
+      deps,
+    );
+
+    assert.equal(deps.projectUpdateCalls[0].update.$set.reviewFlag.reason, 'HIGH_RISK_FILE_CHANGE');
+  });
+
+  it('emails the project owner when high-risk files changed', async () => {
+    const deps = makeDeps();
+    await handlePushEvent(
+      makePayload({
+        commits: [{ added: ['Dockerfile'], modified: ['src/app.js'], removed: [] }],
+      }),
+      'correlation-6',
+      deps,
+    );
+
+    assert.equal(deps.sendProjectPausedEmailCalls[0].to, 'ada@example.com');
   });
 });

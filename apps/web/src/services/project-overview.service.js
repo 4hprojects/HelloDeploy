@@ -126,6 +126,9 @@ export function buildProjectOverviewState({
     primaryAction: null,
     milestones,
     attentionFindings,
+    reviewFlag: project.reviewFlag?.active
+      ? { reason: project.reviewFlag.reason, flaggedAt: project.reviewFlag.flaggedAt }
+      : null,
     latestDeployment,
     inFlightDeployment,
     appLive,
