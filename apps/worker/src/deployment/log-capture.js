@@ -15,6 +15,10 @@ const REDACT_PATTERNS = [
   /x-access-token:[^@\s]*/gi,
   // npm tokens
   /npm_[A-Za-z0-9]{36}/g,
+  // JWTs (header.payload.signature, header always starts with base64url '{"')
+  /\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\b/g,
+  // PEM-encoded private key blocks (RSA/EC/DSA/OpenSSH/PKCS8)
+  /-----BEGIN [A-Z ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z ]*PRIVATE KEY-----/g,
   // Generic secrets (key=value format)
   /(?:password|secret|token|key|credential)=[^\s&]*/gi,
 ];

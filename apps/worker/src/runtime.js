@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { connectDatabase, disconnectDatabase } from '@hellodeploy/database';
+import { connectDatabase, disconnectDatabase, AuditEvent } from '@hellodeploy/database';
 import {
   createRedisConnection,
   createDeploymentQueue,
@@ -7,7 +7,7 @@ import {
   classifyRedisError,
 } from '@hellodeploy/queue';
 import { JobType, validateJobPayload } from '@hellodeploy/contracts';
-import { logger } from '@hellodeploy/observability';
+import { logger, configureAuditService } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
@@ -37,6 +37,8 @@ if (env.NGINX_ENABLED) {
 
 await connectDatabase(env.MONGODB_URI);
 logger.info('Worker: database connected');
+
+configureAuditService(AuditEvent);
 
 // ── Redis + BullMQ worker ──────────────────────────────────────────────────────
 

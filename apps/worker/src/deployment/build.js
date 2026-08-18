@@ -127,3 +127,29 @@ export async function removeDockerImage(imageTag) {
     proc.on('error', () => resolve(false));
   });
 }
+
+/**
+ * Remove dangling (untagged, unreferenced) images left behind by interrupted
+ * or superseded builds. Only ever touches untagged images — a tagged,
+ * in-use release image is never a candidate, so this cannot affect a live
+ * deployment. Returns the number of images removed.
+ */
+export async function pruneDanglingImages() {
+  return new Promise((resolve) => {
+    const out = [];
+    const proc = spawn('docker', ['image', 'prune', '--force'], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    proc.stdout.on('data', (d) => out.push(d));
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        logger.warn('Docker: dangling image prune failed');
+        return resolve(0);
+      }
+      const stdout = Buffer.concat(out).toString('utf8');
+      const deleted = stdout.match(/^deleted:/gim)?.length ?? 0;
+      resolve(deleted);
+    });
+    proc.on('error', () => resolve(0));
+  });
+}

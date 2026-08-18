@@ -2,14 +2,19 @@ import { Deployment, Project } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
-import { removeDockerImage } from '../deployment/build.js';
+import { removeDockerImage, pruneDanglingImages } from '../deployment/build.js';
 import { isImageTagInUse } from '../deployment/retention.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { env } from '../config/env.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
 
-const defaultDeps = { stopAndRemoveContainer, removeDockerImage, cleanupAbandonedBuildWorkspaces };
+const defaultDeps = {
+  stopAndRemoveContainer,
+  removeDockerImage,
+  cleanupAbandonedBuildWorkspaces,
+  pruneDanglingImages,
+};
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
   return activeDeploymentIds.has(deployment._id?.toString());
@@ -22,6 +27,7 @@ export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
  *   1. Old HEALTHY deployments beyond the 3-release retention limit
  *   2. Abandoned build workspaces older than BUILD_WORKSPACE_MAX_AGE_MS
  *   3. Old DeploymentEvent records (supplemental cleanup beyond TTL index)
+ *   4. Dangling (untagged) Docker images left by interrupted/superseded builds
  *
  * Payload:
  *   - projectId? — limit to a specific project, else clean all
@@ -134,10 +140,13 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     await Deployment.updateOne({ _id: dep._id }, { $unset: { imageTag: 1 } }).catch(() => {});
   }
 
+  const removedDanglingImages = await deps.pruneDanglingImages();
+
   logger.info('CleanupReleases: complete', {
     removedContainers,
     removedImages,
     removedAbandonedImages,
+    removedDanglingImages,
     removedWorkspaces,
     projectId: projectId ?? 'all',
   });

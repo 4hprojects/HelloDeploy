@@ -7,6 +7,11 @@ import { activateRoute } from '../nginx/helper-client.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
 
+const defaultDeps = {
+  stopAndRemoveContainer,
+  activateRoute,
+};
+
 /**
  * STOP_PROJECT job handler.
  *
@@ -16,7 +21,7 @@ import { env } from '../config/env.js';
  *   3. Replace nginx route with a maintenance 503 block
  *   4. Mark active deployment as ROLLED_BACK (it is no longer serving)
  */
-export async function handleStopProject(job) {
+export async function handleStopProject(job, deps = defaultDeps) {
   const { projectId } = job.data;
 
   const project = await Project.findById(projectId).lean();
@@ -30,7 +35,7 @@ export async function handleStopProject(job) {
     const deployment = await Deployment.findById(project.activeDeploymentId).lean();
     if (deployment?.activeContainerId) {
       try {
-        await stopAndRemoveContainer(deployment.activeContainerId);
+        await deps.stopAndRemoveContainer(deployment.activeContainerId);
         logger.info('StopProject: stopped active container', {
           projectId,
           containerId: deployment.activeContainerId,
@@ -66,7 +71,7 @@ export async function handleStopProject(job) {
       });
 
       try {
-        await activateRoute({
+        await deps.activateRoute({
           configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
           slug: subdomain,
           configContent: maintenanceConfig,

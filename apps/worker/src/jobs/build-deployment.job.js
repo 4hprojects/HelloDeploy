@@ -20,6 +20,39 @@ import {
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 
+// Retries only the clone step, and only for errors that look like a transient
+// network stall rather than a deterministic failure (bad SHA, revoked repo,
+// oversized archive). WHY: this host has shown real, evidenced connectivity
+// blips to GitHub specifically (CLONE_FAILED incidents 2026-08-14/15/16) that
+// clear within seconds — a short retry avoids turning one blip into a failed
+// deployment that needs a manual re-trigger.
+const CLONE_RETRY_ATTEMPTS = 3;
+const CLONE_RETRY_BACKOFF_MS = [3000, 9000];
+
+function isRetryableCloneError(err) {
+  return (
+    err.name === 'TimeoutError' ||
+    err.name === 'AbortError' ||
+    err.message === 'git operation timed out' ||
+    err.message === 'fetch failed'
+  );
+}
+
+async function cloneWithRetry(cloneFn, sleep, onRetry) {
+  for (let attempt = 1; attempt <= CLONE_RETRY_ATTEMPTS; attempt += 1) {
+    try {
+      return await cloneFn();
+    } catch (err) {
+      if (attempt === CLONE_RETRY_ATTEMPTS || !isRetryableCloneError(err)) {
+        throw err;
+      }
+      await onRetry(attempt, err);
+      await sleep(CLONE_RETRY_BACKOFF_MS[attempt - 1]);
+    }
+  }
+  return undefined; // unreachable — loop always returns or throws
+}
+
 async function enqueueActivateRelease(payload, jobId) {
   // Import lazily to avoid circular dependency with worker.js
   const { getWorkerQueue } = await import('../queue/worker-queue.js');
@@ -42,6 +75,7 @@ const defaultDeps = {
   removeDockerImage,
   cleanupBuildWorkspace,
   enqueueActivateRelease,
+  sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
 /**
@@ -118,13 +152,27 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   // ── Clone ───────────────────────────────────────────────────────────────────
   try {
+    const onRetry = (attempt, err) =>
+      logEvent(
+        deploymentId,
+        'VALIDATE',
+        'WARN',
+        `Clone attempt ${attempt} failed transiently (${err.message}); retrying.`,
+        correlationId,
+      );
+
     if (repo.sourceType === RepositorySourceType.PUBLIC_GIT) {
-      await deps.clonePublicExactCommit({
-        ownerLogin: repo.ownerLogin,
-        repoName: repo.name,
-        commitSha,
-        workDir,
-      });
+      await cloneWithRetry(
+        () =>
+          deps.clonePublicExactCommit({
+            ownerLogin: repo.ownerLogin,
+            repoName: repo.name,
+            commitSha,
+            workDir,
+          }),
+        deps.sleep,
+        onRetry,
+      );
     } else {
       let installationToken;
       try {
@@ -144,13 +192,18 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         });
         return;
       }
-      await deps.cloneExactCommit({
-        installationToken,
-        ownerLogin: repo.ownerLogin,
-        repoName: repo.name,
-        commitSha,
-        workDir,
-      });
+      await cloneWithRetry(
+        () =>
+          deps.cloneExactCommit({
+            installationToken,
+            ownerLogin: repo.ownerLogin,
+            repoName: repo.name,
+            commitSha,
+            workDir,
+          }),
+        deps.sleep,
+        onRetry,
+      );
     }
     await logEvent(
       deploymentId,

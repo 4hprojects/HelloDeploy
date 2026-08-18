@@ -1,10 +1,20 @@
 import { spawn } from 'node:child_process';
 import { mkdir, rm } from 'node:fs/promises';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { logger } from '@hellodeploy/observability';
 import { normalizePublicGithubRepositoryUrl } from '@hellodeploy/contracts';
 
 const GIT_TIMEOUT_MS = 120_000;
 const GIT_OUTPUT_MAX_BYTES = 1_000_000;
+const TARBALL_DOWNLOAD_TIMEOUT_MS = 180_000;
+const TARBALL_MAX_BYTES = 200_000_000;
+const ISOLATED_GIT_ENV = {
+  GIT_CONFIG_NOSYSTEM: '1',
+  GIT_CONFIG_COUNT: '1',
+  GIT_CONFIG_KEY_0: 'credential.helper',
+  GIT_CONFIG_VALUE_0: '',
+};
 
 // ─── Git runner ────────────────────────────────────────────────────────────────
 
@@ -20,7 +30,12 @@ function runGit(args, opts = {}) {
   return new Promise((resolve, reject) => {
     const proc = spawn('git', args, {
       cwd: opts.cwd,
-      env: { ...process.env, ...opts.env, GIT_TERMINAL_PROMPT: '0' },
+      env: {
+        ...process.env,
+        ...ISOLATED_GIT_ENV,
+        ...opts.env,
+        GIT_TERMINAL_PROMPT: '0',
+      },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -121,8 +136,85 @@ export async function cloneExactCommit({
   logger.info('Git: clone complete', { sha: commitSha.slice(0, 7), workDir });
 }
 
+/**
+ * Pipe a source stream (optionally through intermediate transforms) into
+ * `tar`, extracting into workDir and stripping the single top-level
+ * wrapper directory GitHub's archive endpoint always includes.
+ * SECURITY: tar invoked with a fixed argument array, no shell interpolation.
+ *
+ * @param {NodeJS.ReadableStream[]} streamChain - source stream, then any
+ *   transforms to pipe it through before it reaches tar's stdin
+ * @param {string} workDir
+ * @returns {Promise<void>}
+ */
+function extractTarballStream(streamChain, workDir) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn('tar', ['-xzf', '-', '--strip-components=1', '-C', workDir], {
+      stdio: ['pipe', 'ignore', 'pipe'],
+    });
+
+    let settled = false;
+    const settle = (fn, value) => {
+      if (!settled) {
+        settled = true;
+        fn(value);
+      }
+    };
+
+    proc.stderr.on('data', () => {});
+    proc.on('close', (code) => {
+      if (code === 0) {
+        settle(resolve);
+      } else {
+        // Never include stderr verbatim in the thrown error — kept out of
+        // logs/failureSummary consistently with runGit's own convention.
+        settle(reject, new Error(`tar exited with code ${code}`));
+      }
+    });
+    proc.on('error', (err2) => settle(reject, new Error(`tar spawn error: ${err2.message}`)));
+
+    // A single pipeline() across the whole chain (source → transforms →
+    // tar's stdin) so an error or early exit anywhere properly destroys
+    // every stage instead of leaking an unconsumed fetch response body.
+    pipeline(...streamChain, proc.stdin).catch((pipelineErr) => {
+      // Already reflected by proc's own 'close'/'error' handlers above when
+      // it's a tar-side failure (EPIPE, early exit) — this catch exists so
+      // an upstream failure (e.g. the byte-limit transform erroring) is
+      // still surfaced, and so nothing becomes an unhandled rejection.
+      settle(reject, pipelineErr);
+    });
+  });
+}
+
+/**
+ * A counting passthrough that errors once a byte budget is exceeded —
+ * enforced independently of the `Content-Length` header, which isn't
+ * always present or trustworthy. The error propagates through pipeline()
+ * in extractTarballStream, which cleans up every stage of the chain.
+ */
+function createByteLimiter(maxBytes) {
+  let total = 0;
+  return new Transform({
+    transform(chunk, _encoding, callback) {
+      total += chunk.length;
+      if (total > maxBytes) {
+        callback(new Error('Repository archive exceeds the size limit.'));
+        return;
+      }
+      callback(null, chunk);
+    },
+  });
+}
+
 /** Clone an exact commit from an allowlisted public GitHub repository. */
-export async function clonePublicExactCommit({ ownerLogin, repoName, commitSha, workDir }) {
+export async function clonePublicExactCommit({
+  ownerLogin,
+  repoName,
+  commitSha,
+  workDir,
+  maxBytes = TARBALL_MAX_BYTES,
+  downloadTimeoutMs = TARBALL_DOWNLOAD_TIMEOUT_MS,
+}) {
   let source;
   try {
     source = normalizePublicGithubRepositoryUrl(`https://github.com/${ownerLogin}/${repoName}`);
@@ -136,31 +228,43 @@ export async function clonePublicExactCommit({ ownerLogin, repoName, commitSha, 
   ) {
     throw new Error('Invalid public repository clone parameters.');
   }
+
   await mkdir(workDir, { recursive: true });
-  const cloneUrl = source.canonicalCloneUrl;
-  const publicGitEnv = {
-    GIT_CONFIG_NOSYSTEM: '1',
-    GIT_CONFIG_COUNT: '1',
-    GIT_CONFIG_KEY_0: 'credential.helper',
-    GIT_CONFIG_VALUE_0: '',
-  };
-  logger.info('Git: initializing public clone', {
+
+  // Downloads a tarball of the exact commit rather than using `git fetch`.
+  // WHY: git's smart-HTTP pack transfer (an HTTP response piped into a
+  // separate `git index-pack` process) proved unreliable on a production
+  // host's network — reproducibly stalling indefinitely even though plain
+  // HTTP downloads of the same content transferred fine. The working tree
+  // only ever needs file contents at one commit — `.git` was already being
+  // deleted immediately after cloning — so nothing is lost by using
+  // GitHub's archive endpoint instead.
+  // SECURITY TRADEOFF: unlike `git fetch`, which independently verifies
+  // fetched objects against their expected hash, this relies entirely on
+  // TLS to protect the transfer in transit — there's no client-side
+  // verification that the tarball GitHub serves for this URL genuinely
+  // corresponds to `commitSha`. Not a materially different trust boundary
+  // in practice (GitHub is already fully trusted either way), but it's a
+  // real property being traded away for reliability, worth keeping in mind.
+  const tarballUrl = `https://codeload.github.com/${ownerLogin}/${repoName}/tar.gz/${commitSha}`;
+
+  logger.info('Clone: downloading public repository archive', {
     repository: `${ownerLogin}/${repoName}`,
     sha: commitSha.slice(0, 7),
     workDir,
   });
-  await runGit(['init', workDir], { env: publicGitEnv });
-  await runGit(['remote', 'add', 'origin', cloneUrl], { cwd: workDir, env: publicGitEnv });
-  try {
-    await runGit(['fetch', '--depth', '1', 'origin', commitSha], {
-      cwd: workDir,
-      env: publicGitEnv,
-    });
-  } catch {
-    await runGit(['fetch', '--depth', '50', 'origin'], { cwd: workDir, env: publicGitEnv });
+
+  const response = await fetch(tarballUrl, {
+    signal: AbortSignal.timeout(downloadTimeoutMs),
+    redirect: 'follow',
+  });
+  if (!response.ok || !response.body) {
+    throw new Error(`Archive download failed: HTTP ${response.status}`);
   }
-  await runGit(['checkout', commitSha], { cwd: workDir, env: publicGitEnv });
-  await runGit(['remote', 'remove', 'origin'], { cwd: workDir, env: publicGitEnv });
-  await rm(`${workDir}/.git`, { recursive: true, force: true });
-  logger.info('Git: public clone complete', { sha: commitSha.slice(0, 7), workDir });
+
+  const bodyStream = Readable.fromWeb(response.body);
+  const limiter = createByteLimiter(maxBytes);
+  await extractTarballStream([bodyStream, limiter], workDir);
+
+  logger.info('Clone: public repository extracted', { sha: commitSha.slice(0, 7), workDir });
 }

@@ -126,6 +126,44 @@ describe('activate-release job', () => {
     assert.deepEqual(calls.stoppedContainers, ['container-id-old']);
   });
 
+  it('does not retire the healthy release or report success when active-state persistence fails', async () => {
+    const project = await createProject({ platformSubdomain: 'persist-failure' });
+    const oldDeployment = await createDeployment(project._id, {
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-old',
+      activeContainerId: 'container-id-old',
+    });
+    await Project.updateOne(
+      { _id: project._id },
+      { $set: { activeDeploymentId: oldDeployment._id } },
+    );
+    const freshProject = await Project.findById(project._id);
+    const deployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      status: DeploymentStatus.DEPLOYING,
+      imageTag: 'img-new',
+    });
+    const { deps, calls } = makeDeps();
+    const realUpdateOne = Project.updateOne;
+    Project.updateOne = async () => {
+      throw new Error('database unavailable');
+    };
+
+    try {
+      await assert.rejects(
+        handleActivateRelease(makeJob(freshProject, deployment), deps),
+        /database unavailable/,
+      );
+    } finally {
+      Project.updateOne = realUpdateOne;
+    }
+
+    const freshDeployment = await Deployment.findById(deployment._id).lean();
+    assert.equal(freshDeployment.status, DeploymentStatus.DEPLOYING);
+    assert.ok(!calls.stoppedContainers.includes('container-id-old'));
+    assert.equal(calls.retentionRuns.length, 0);
+  });
+
   it('runs retention cleanup after a successful activation', async () => {
     const { project, deployment } = await seed();
     const { deps, calls } = makeDeps();

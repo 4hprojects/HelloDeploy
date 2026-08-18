@@ -1,4 +1,5 @@
-import { logger } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
+import { AuditOutcome } from '@hellodeploy/contracts';
 import { networkName, removeNetwork, stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
 import { removeRoute } from '../nginx/helper-client.js';
@@ -86,6 +87,14 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
       });
     }
   }
+
+  await writeAuditEvent({
+    action: 'project.infrastructure_teardown',
+    outcome: failures.length > 0 ? AuditOutcome.FAILURE : AuditOutcome.SUCCESS,
+    targetType: 'project',
+    targetId: projectId,
+    metadata: { projectSlug, failures },
+  }).catch(() => {});
 
   if (failures.length > 0) {
     throw new Error(`Project teardown incomplete for: ${failures.join(', ')}`);

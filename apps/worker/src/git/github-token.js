@@ -27,7 +27,7 @@ function loadPrivateKey() {
 
 // ─── App JWT (RS256 via node:crypto — no external JWT lib) ────────────────────
 
-function generateAppJWT() {
+export function generateAppJWT() {
   const privateKey = loadPrivateKey();
   if (!privateKey) {
     throw new Error('GitHub App private key is not configured.');

@@ -38,11 +38,18 @@ describe('command injection prevention — spawn() must never use shell: true', 
     );
   });
 
-  it('public clones disable system and ambient credential-helper lookup', async () => {
+  it('private clones disable system and ambient credential-helper lookup', async () => {
     const source = await src('apps/worker/src/git/clone.js');
     assert.ok(source.includes("GIT_CONFIG_NOSYSTEM: '1'"));
     assert.ok(source.includes("GIT_CONFIG_KEY_0: 'credential.helper'"));
     assert.ok(source.includes("GIT_CONFIG_VALUE_0: ''"));
+  });
+
+  it('public clones use a fixed HTTPS archive origin and argument-array tar extraction', async () => {
+    const source = await src('apps/worker/src/git/clone.js');
+    assert.ok(source.includes('https://codeload.github.com/'));
+    assert.ok(source.includes("spawn('tar', ['-xzf', '-'"));
+    assert.ok(source.includes('normalizePublicGithubRepositoryUrl'));
   });
 
   it('apps/worker/src/git/clone.js removes the remote after clone (token URL not retained)', async () => {

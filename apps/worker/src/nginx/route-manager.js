@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join, basename } from 'node:path';
-import { logger } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
+import { AuditOutcome } from '@hellodeploy/contracts';
 import { isValidSubdomainLabel } from './reserved-subdomains.js';
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
@@ -127,6 +128,13 @@ export async function activateRoute({
           slug,
           error: restoreErr.message,
         });
+        writeAuditEvent({
+          action: 'nginx.route_restore_failed',
+          outcome: AuditOutcome.FAILURE,
+          targetType: 'nginx_route',
+          targetId: slug,
+          metadata: { activationError: err.message, restoreError: restoreErr.message },
+        }).catch(() => {});
       });
     } else {
       await fs.unlink(confPath).catch(() => {});
