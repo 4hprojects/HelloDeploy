@@ -16,16 +16,29 @@ const exportDatabase = await readFile(
 );
 
 describe('pre-cutover pilot backup safety', () => {
-  it('requires clean immutable state and exactly one explicit database evidence mode', () => {
+  it('defaults to clean immutable state and requires one explicit database evidence mode', () => {
     assert.match(backup, /--external-database-snapshot-confirmed/);
     assert.match(backup, /--database-export/);
     assert.match(backup, /Choose exactly one database evidence mode/);
     assert.match(backup, /verified-mongodump-export/);
     assert.match(backup, /--rollback-instructions/);
-    assert.match(backup, /status --porcelain --untracked-files=normal/);
+    assert.match(backup, /status --porcelain --untracked-files=all/);
     assert.match(backup, /rev-parse --verify HEAD\^\{commit\}/);
     assert.match(backup, /-c safe\.directory="\$REPO_DIR" -C "\$REPO_DIR"/);
     assert.match(backup, /\^\[0-9a-f\]\{40\}\$/);
+  });
+
+  it('captures dirty production drift only through an explicit encrypted-evidence mode', () => {
+    assert.match(backup, /--capture-dirty-checkout/);
+    assert.match(backup, /REPOSITORY_STATE="dirty-captured"/);
+    assert.match(backup, /"formatVersion": 2/);
+    assert.match(backup, /status --porcelain=v1 -z --untracked-files=all/);
+    assert.match(backup, /diff --binary --full-index --no-ext-diff/);
+    assert.match(backup, /diff --cached --binary --full-index --no-ext-diff/);
+    assert.match(backup, /ls-files --others --exclude-standard -z/);
+    assert.match(backup, /--null --verbatim-files-from --no-recursion/);
+    assert.match(backup, /unsupported changed file type/);
+    assert.doesNotMatch(backup, /info .*repository_path|echo .*repository_path/);
   });
 
   it('accepts only a protected checksummed database export outside the repository', () => {
@@ -91,6 +104,12 @@ describe('pre-cutover pilot backup safety', () => {
     assert.match(verify, /allowed\["payload\/database-export\.archive\.gz"\]/);
     assert.match(verify, /backup checksum inventory is unsafe/);
     assert.match(verify, /Pilot backup release identity is inconsistent/);
+    assert.match(verify, /Pilot backup repository-state inventory is inconsistent/);
+    assert.match(verify, /Pilot backup repository-state archive is invalid/);
+    assert.match(verify, /repositoryState/);
+    assert.match(verify, /dirty-captured/);
+    assert.match(verify, /"formatVersion": \(1\|2\)/);
+    assert.match(verify, /FORMAT_VERSION.*== 2/);
     assert.match(verify, /Pilot backup data inventory is inconsistent/);
     assert.match(verify, /Pilot backup database inventory is inconsistent/);
     assert.match(verify, /--no-same-owner --no-same-permissions/);
