@@ -24,6 +24,23 @@ import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 
+const ADMIN_SEARCH_MAX_LENGTH = 200;
+
+function normalizeAdminSearch(value) {
+  if (typeof value !== 'string') {
+    return '';
+  }
+  return value.trim().slice(0, ADMIN_SEARCH_MAX_LENGTH);
+}
+
+function allowlistedStatus(value, statuses) {
+  return typeof value === 'string' && Object.values(statuses).includes(value) ? value : null;
+}
+
+function escapedSearchRegex(value) {
+  return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+}
+
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
@@ -42,11 +59,13 @@ export async function getAdminOverview() {
 
 export async function getUsers({ page = 1, limit = 20, status, search } = {}) {
   const query = {};
-  if (status) {
-    query.status = status;
+  const safeStatus = allowlistedStatus(status, UserStatus);
+  if (safeStatus) {
+    query.status = { $eq: safeStatus };
   }
-  if (search?.trim()) {
-    const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const safeSearch = normalizeAdminSearch(search);
+  if (safeSearch) {
+    const regex = escapedSearchRegex(safeSearch);
     query.$or = [{ firstName: regex }, { lastName: regex }, { email: regex }];
   }
   const skip = (page - 1) * limit;
@@ -120,11 +139,13 @@ export async function reactivateUser({ userId, adminId, adminRole, sourceIp, cor
 
 export async function getProjects({ page = 1, limit = 20, status, search } = {}) {
   const query = {};
-  if (status) {
-    query.status = status;
+  const safeStatus = allowlistedStatus(status, ProjectStatus);
+  if (safeStatus) {
+    query.status = { $eq: safeStatus };
   }
-  if (search?.trim()) {
-    const regex = new RegExp(search.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  const safeSearch = normalizeAdminSearch(search);
+  if (safeSearch) {
+    const regex = escapedSearchRegex(safeSearch);
     query.$or = [{ name: regex }, { slug: regex }];
   }
   const skip = (page - 1) * limit;

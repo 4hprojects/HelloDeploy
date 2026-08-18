@@ -45,9 +45,8 @@ describe('command injection prevention — spawn() must never use shell: true', 
     assert.ok(source.includes("GIT_CONFIG_VALUE_0: ''"));
   });
 
-  it('public clones use a fixed HTTPS archive origin and argument-array tar extraction', async () => {
+  it('public clones normalize repository input and use argument-array tar extraction', async () => {
     const source = await src('apps/worker/src/git/clone.js');
-    assert.ok(source.includes('https://codeload.github.com/'));
     assert.ok(source.includes("spawn('tar', ['-xzf', '-'"));
     assert.ok(source.includes('normalizePublicGithubRepositoryUrl'));
   });

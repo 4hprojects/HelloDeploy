@@ -12,7 +12,9 @@ describe('project paused email', () => {
       projectUrl: 'https://hellodeploy.example/projects/test?value="unsafe"',
     });
 
-    assert.doesNotMatch(email.html, /<Admin>|<script>|"unsafe"/);
+    assert.equal(email.html.includes('<Admin>'), false);
+    assert.equal(email.html.includes('<script>'), false);
+    assert.equal(email.html.includes('"unsafe"'), false);
     assert.match(email.html, /&lt;Admin&gt;/);
     assert.match(email.html, /&lt;script&gt;/);
     assert.doesNotMatch(email.subject, /[\r\n]/);
