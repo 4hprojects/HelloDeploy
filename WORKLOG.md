@@ -1959,3 +1959,72 @@ complete the dashboard-revert/reactivation proof, and run
 `infrastructure/upgrade.sh --ref 8bfdf399501578a7c008834dbc76453016ab95e6`.
 Production normalization, deployment retry, database migration, DNS cutover, and
 recovery remain unexecuted until their declared operational preconditions pass.
+
+## Reboot Persistence Regression and Public Dashboard Outage
+
+- Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs
+- Updated: 2026-08-28T14:07:39+08:00
+
+### Findings
+
+- The host booted at 13:44 PST. Nginx and the constrained helper are active, but
+  `hellodeploy-web` and `hellodeploy-worker` are inactive and disabled. Nginx still
+  routes the dashboard to loopback port 3100, where no process is listening, so the
+  public dashboard, health, and readiness endpoints return `502`.
+- The local PM2 HelloDeploy fallback on port 3001 remains healthy, HelloRun returns
+  `200`, and the unmatched HelloUniversity hostname still returns the default Nginx
+  response. No public route or service was changed during diagnosis.
+- Historical journal evidence shows the worker repeatedly failed safely during
+  startup and reached more than 100,000 systemd restart attempts before reboot. The
+  sanitized fatal handler intentionally records only an error classification, so
+  the underlying protected configuration/dependency error still requires privileged
+  diagnosis.
+- PR #38's head passed CI, CodeQL analysis, and the CodeQL security gate before merge,
+  but merge commit `2b404acee2a0e29f28de1b8a71cc131f4f85a427` is superseded as a
+  production candidate because the reboot exposed missing service persistence.
+
+### Local correction
+
+- Successful dashboard cutover now enables the isolated web and worker only after
+  routing, public, fallback, and queue checks pass. Its failure handler restores the
+  prior enabled/disabled state.
+- Upgrade activation enables the complete V1 service set before restart, and the
+  installed-host verifier requires every service to be both active and enabled.
+- Web and worker units now bound repeated startup failures to five attempts per
+  minute instead of crash-looping indefinitely.
+
+### Verification and blocker
+
+- Shell syntax and 33 focused dashboard, upgrade, installation, and privilege tests
+  pass; focused ESLint and Prettier checks pass for the JavaScript tests.
+- The complete clean-install gate passes: `npm ci`, lint, formatting, local
+  configuration validation, the full test suite, coverage, the production
+  dependency audit with zero vulnerabilities, and `git diff --check`. Coverage is
+  78.13% lines, 89.29% branches, and 86.13% functions.
+- Noninteractive sudo is unavailable. An operator-approved desktop privilege prompt
+  allowed bounded read-only inspection: the installed checkout is still at
+  `32b5adbc0a434c78cdfc6ed7c2b56492e581d8b6` with exactly two Git-visible drift
+  entries; protected production web and worker configuration validation and
+  `nginx -t` pass. Root has one public backup key, no recovery secret key, three
+  private rollback/recovery files, and no mounted removable/off-host destination.
+  No backup, queue, checkout, service, Nginx, tunnel, deployment, database, or DNS
+  mutation ran.
+- Resume with an operator-authorized privileged session plus protected backup
+  destination, recovery key, database evidence, and rollback instructions. Capture
+  and verify the dirty live state before reconciling it or switching traffic.
+
+### 2026-08-31 release qualification refresh
+
+- Preserved the complete 14-file correction worktree on
+  `fix/boot-persistence-recovery`; no unrelated starting change was discarded.
+- Shell syntax and 37 focused lifecycle/documentation tests pass. Targeted ESLint
+  passes; the repository formatting command passes all supported files.
+- A clean `npm ci` installed 308 packages from the lockfile. Configuration
+  validation, lint, formatting, and all 984 tests across 205 suites pass with no
+  failures, skips, cancellations, or todos.
+- Coverage passes the same 984 tests at 78.13% lines, 89.31% branches, and 86.13%
+  functions. The production dependency audit reports zero vulnerabilities and
+  `git diff --check` passes.
+- Production remains unchanged while the correction proceeds through review. The
+  next release gate is a passing PR/CodeQL review and the resulting merged full SHA;
+  protected host recovery must still precede the immutable upgrade.

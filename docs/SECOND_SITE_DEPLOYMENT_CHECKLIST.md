@@ -1,6 +1,6 @@
 # Second-Site Deployment Checklist
 
-Updated: 2026-08-18
+Updated: 2026-08-31
 
 ## Purpose
 
@@ -17,13 +17,19 @@ attempt when it happens.
 
 ## Bottom line
 
-**Not yet.** Platform infrastructure is live, and the first production pilot has
-begun, but HelloUniversity has not completed a deployment. Five clone-stage attempts
-failed before build or activation, so the platform URL is not application evidence.
-The tarball/retry fixes are live only as manually copied drift. The next attempt is
-blocked on reconciling that work into a reviewed immutable release and normalizing
-the host through the supported upgrade path. Treat this as validation work, not a
-routine onboarding.
+**Not yet.** The first production pilot has begun, but HelloUniversity has not
+completed a deployment. Five clone-stage attempts failed before build or activation,
+so the platform URL is not application evidence. A 2026-08-28 host reboot also
+exposed that the isolated web and worker units were never made boot-persistent after
+dashboard cutover; the public dashboard currently returns `502` while the local PM2
+fallback remains healthy. The next attempt is blocked on protected recovery,
+boot-persistence correction, a reviewed immutable release, and host normalization
+through the supported upgrade path. Treat this as validation work, not routine
+onboarding.
+
+The boot-persistence correction now passes the refreshed local release gate on
+`fix/boot-persistence-recovery`; PR/CodeQL review, a merged immutable SHA, and the
+protected production recovery sequence remain required before another deployment.
 
 ## Pre-flight checklist
 

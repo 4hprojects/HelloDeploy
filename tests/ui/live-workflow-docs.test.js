@@ -35,8 +35,11 @@ describe('live workflow documentation', () => {
   });
 
   it('keeps the public deployment distinct from the release decision', () => {
-    assert.match(tracker, /Overall status\s+\|.*P2.*P3\/P4.*In Progress/i);
-    assert.match(tracker, /Current batch\s+\|.*Phase 2.*backup.*drift.*production normalization/i);
+    assert.match(tracker, /Overall status\s+\|.*P2.*P3\/P4.*(?:In Progress|paused)/i);
+    assert.match(
+      tracker,
+      /Current batch\s+\|.*(?:Phase 2|dashboard recovery).*drift.*production normalization/i,
+    );
     assert.match(tracker, /Release state\s+\| NO-GO for customer application hosting/);
     assert.match(checklist, /Current decision: \*\*NO-GO for customer application hosting\*\*/);
     assert.match(checklist, /Public dashboard availability[\s\S]{0,120}not[\s\S]{0,40}evidence/i);

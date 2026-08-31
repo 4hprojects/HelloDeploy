@@ -1,18 +1,43 @@
 # Implementation Batch Tracker
 
-Updated: 2026-08-18
+Updated: 2026-08-31
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                                                                                       |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P1 complete; P2 has one independent revert proof left; P3/P4 pilot execution is in progress                                                                 |
-| Release progress | PR #37 merged; immutable production candidate is `8bfdf399501578a7c008834dbc76453016ab95e6`; no final production tag exists                                 |
-| Current batch    | Phase 2 protected backup, drift reconciliation, dashboard-revert proof, and immutable production normalization                                              |
-| Next action      | Declare the maintenance window and provide an interactive sudo session; capture the dirty live state before reconciling it, then run the supported workflow |
-| Release state    | NO-GO for customer application hosting                                                                                                                      |
+| Field            | Value                                                                                                                                                         |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status   | P2 regressed after a host reboot exposed disabled production units; P3/P4 pilot execution is paused                                                           |
+| Release progress | Boot-persistence correction passes the refreshed local release gate on `fix/boot-persistence-recovery`; review and a new merged immutable SHA remain required |
+| Current batch    | Public dashboard recovery, protected drift capture, boot-persistence correction, dashboard-revert proof, and immutable production normalization               |
+| Next action      | Complete PR/CodeQL review, then use the operator-provided protected inputs to recover, normalize, and immutable-upgrade the production host                   |
+| Release state    | NO-GO for customer application hosting                                                                                                                        |
+
+**2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
+the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did
+not because both units remained disabled after the earlier transient-candidate
+activation and dashboard cutover. Nginx still targets the isolated web port, so the
+public dashboard currently returns `502`; the local PM2 fallback remains healthy and
+HelloRun returns `200`. Before the reboot, the worker had accumulated more than
+100,000 restart attempts while failing safely during startup, exposing a second
+lifecycle gap: startup failures were unbounded at the systemd layer. The repository
+correction enables the isolated services only after successful cutover, makes upgrade
+activation persistent, requires installed services to be active and enabled, and
+bounds repeated startup failures. Focused lifecycle tests pass. No privileged host
+mutation ran: operator-approved read-only inspection passed protected configuration
+validation and `nginx -t`, but found no mounted off-host backup destination or
+recovery secret key. The complete local clean-install, lint, formatting,
+configuration, test, coverage, audit, and diff-check gate passes. The prior
+candidates are superseded until this correction is reviewed and merged.
+
+**2026-08-31 release-gate refresh:** The complete correction was preserved on
+`fix/boot-persistence-recovery`. Shell syntax, 37 focused lifecycle/documentation
+tests, targeted lint, clean installation, configuration validation, repository lint
+and formatting, all 984 tests, coverage, the zero-vulnerability production audit,
+and diff validation pass locally. Production has not been changed. PR/CodeQL review
+and a merged immutable SHA remain mandatory before protected host recovery and
+upgrade.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
