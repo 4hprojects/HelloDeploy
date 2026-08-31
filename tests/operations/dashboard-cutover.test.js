@@ -63,6 +63,27 @@ describe('P2 dashboard traffic cutover', () => {
     assert.doesNotMatch(cutover, /queue\.resume/);
   });
 
+  it('enables the isolated services only after routing and queue checks pass', () => {
+    const queueRecheck = cutover.indexOf('CURRENT_STAGE="queue-recheck"');
+    const persistenceStage = cutover.indexOf('CURRENT_STAGE="service-persistence"');
+    assert.ok(queueRecheck >= 0 && persistenceStage > queueRecheck);
+    assert.match(cutover, /systemctl enable "\$\{CANDIDATE_SERVICES\[@\]\}"/);
+    assert.match(cutover, /systemctl is-enabled --quiet "\$service"/);
+    assert.match(cutover, /candidate_services=enabled/);
+  });
+
+  it('restores prior service enablement if cutover fails after changing persistence', () => {
+    const rollbackFn = cutover.slice(
+      cutover.indexOf('rollback() {'),
+      cutover.indexOf('trap rollback EXIT'),
+    );
+    assert.match(rollbackFn, /PERSISTENCE_CHANGED/);
+    assert.match(rollbackFn, /WEB_WAS_ENABLED/);
+    assert.match(rollbackFn, /WORKER_WAS_ENABLED/);
+    assert.match(rollbackFn, /systemctl disable hellodeploy-web/);
+    assert.match(rollbackFn, /systemctl disable hellodeploy-worker/);
+  });
+
   it('restores the prior PM2/tunnel path on failure and reports a critical stop condition', () => {
     assert.match(
       cutover,

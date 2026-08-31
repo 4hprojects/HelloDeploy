@@ -45,6 +45,7 @@ describe('upgrade safety policy', () => {
     );
     assert.match(script, /install_service_units \|\| return 1/);
     assert.match(script, /configure-platform-ingress\.sh[\s\S]*\|\| return 1/);
+    assert.match(script, /systemctl enable "\$\{services\[@\]\}" \|\| return 1/);
     assert.match(script, /systemctl restart[\s\S]*\|\| return 1/);
     assert.match(script, /Rollback verified at \$PREV_COMMIT/);
     assert.match(script, /CRITICAL: rollback to \$PREV_COMMIT failed verification/);
@@ -65,6 +66,15 @@ describe('upgrade safety policy', () => {
     );
     assert.match(script, /validate-config\.js --component web --require-production/);
     assert.match(script, /validate-config\.js --component worker --require-production/);
+  });
+
+  it('makes every upgraded service persistent across host reboot', () => {
+    const activation = script.slice(
+      script.indexOf('activate_checked_out_release()'),
+      script.indexOf('rollback_release()'),
+    );
+    assert.match(activation, /systemctl enable "\$\{services\[@\]\}"/);
+    assert.ok(activation.indexOf('systemctl enable') < activation.indexOf('systemctl restart'));
   });
 
   it('guards every candidate activation failure with automatic rollback', () => {

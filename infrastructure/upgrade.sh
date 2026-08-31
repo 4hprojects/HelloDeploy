@@ -53,6 +53,7 @@ activate_checked_out_release() {
 
   section "Restarting services"
   local services=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
+  systemctl enable "${services[@]}" || return 1
   systemctl restart "${services[@]}" || return 1
 
   section "Readiness check"

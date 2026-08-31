@@ -6,6 +6,7 @@ EXPECTED_COMMIT="${HELLODEPLOY_EXPECTED_RELEASE_COMMIT:-}"
 HD_HOME="/opt/hellodeploy"
 CONFIGS=(/etc/cloudflared/config.yml /etc/cloudflared/hellodeploy.yml)
 SERVICES=(cloudflared.service cloudflared-hellodeploy.service)
+CANDIDATE_SERVICES=(hellodeploy-web hellodeploy-worker)
 LEGACY_VHOST_LINK="/etc/nginx/sites-enabled/hellodeploy"
 LEGACY_VHOST_TARGET="/etc/nginx/sites-available/hellodeploy"
 PLATFORM_VHOST="/etc/nginx/conf.d/hellodeploy-platform.conf"
@@ -13,6 +14,9 @@ BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
 BACKUP_DIR=""
 CHANGED=false
 LEGACY_VHOST_REMOVED=false
+PERSISTENCE_CHANGED=false
+WEB_WAS_ENABLED=false
+WORKER_WAS_ENABLED=false
 CURRENT_STAGE="preflight"
 RESPONSE_BODY=""
 
@@ -39,6 +43,12 @@ if ! systemctl is-active --quiet hellodeploy-worker; then
 fi
 if ! systemctl is-active --quiet hellodeploy-nginx-helper; then
   fail "Nginx helper must be active before cutover."
+fi
+if systemctl is-enabled --quiet hellodeploy-web 2>/dev/null; then
+  WEB_WAS_ENABLED=true
+fi
+if systemctl is-enabled --quiet hellodeploy-worker 2>/dev/null; then
+  WORKER_WAS_ENABLED=true
 fi
 if ! nginx -t >/dev/null 2>&1; then
   fail "Existing Nginx configuration is invalid."
@@ -125,6 +135,19 @@ rollback() {
     for service in "${SERVICES[@]}"; do
       systemctl restart "$service" >/dev/null 2>&1 || true
     done
+  fi
+
+  if [[ "$PERSISTENCE_CHANGED" == true ]]; then
+    if [[ "$WEB_WAS_ENABLED" == true ]]; then
+      systemctl enable hellodeploy-web >/dev/null 2>&1 || true
+    else
+      systemctl disable hellodeploy-web >/dev/null 2>&1 || true
+    fi
+    if [[ "$WORKER_WAS_ENABLED" == true ]]; then
+      systemctl enable hellodeploy-worker >/dev/null 2>&1 || true
+    else
+      systemctl disable hellodeploy-worker >/dev/null 2>&1 || true
+    fi
   fi
 
   if ! verify_public_fallbacks || ! wait_for_url https://hellodeploy.online/health; then
@@ -242,6 +265,13 @@ verify_public_fallbacks
 CURRENT_STAGE="queue-recheck"
 run_as_worker --check-queue-only
 
+CURRENT_STAGE="service-persistence"
+PERSISTENCE_CHANGED=true
+systemctl enable "${CANDIDATE_SERVICES[@]}"
+for service in "${CANDIDATE_SERVICES[@]}"; do
+  systemctl is-enabled --quiet "$service" || fail "Candidate service is not enabled after cutover: $service"
+done
+
 trap - EXIT
 printf 'legacy_vhost=disabled\n'
 printf 'dashboard_nginx_vhost=active\n'
@@ -251,4 +281,5 @@ printf 'dashboard_ready=passed\n'
 printf 'session_cookie=passed\n'
 printf 'public_fallbacks=passed\n'
 printf 'queue_state=paused\n'
+printf 'candidate_services=enabled\n'
 printf 'traffic_cutover=performed\n'

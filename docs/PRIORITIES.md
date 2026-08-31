@@ -100,6 +100,14 @@ runs.
 
 ## Track A — P2 production-cutover completion (blocking)
 
+**2026-08-28 regression:** a host reboot exposed that the isolated web and worker
+units were still disabled after dashboard cutover. Nginx returned targeting the
+inactive isolated web port, so `hellodeploy.online` currently returns `502`; the
+local PM2 fallback is healthy. The worker had also been retrying a fatal startup more
+than 100,000 times before reboot. Restore service only through the protected recovery
+workflow, then ship the reviewed lifecycle correction that enables services after
+cutover/upgrade, verifies active-and-enabled state, and bounds startup retries.
+
 1. Exercise `infrastructure/revert-dashboard-cutover.sh` to a clean success —
    its stated blocker (HelloRun's own unrelated port-3000 PM2 crash-loop) is
    cleared as of a 2026-08-13 live check (`hellorun.online` now returns `200`,

@@ -3,6 +3,8 @@ Description=HelloDeploy deployment worker
 After=network-online.target docker.service hellodeploy-nginx-helper.service
 Wants=network-online.target docker.service
 Requires=hellodeploy-nginx-helper.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple

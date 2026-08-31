@@ -37,6 +37,15 @@ describe('Ubuntu systemd privilege separation', () => {
     assert.doesNotMatch(installer, /docker "\$HD_WEB_USER"/);
   });
 
+  it('bounds repeated startup failures instead of crash-looping indefinitely', () => {
+    for (const service of [web, worker]) {
+      assert.match(service, /^StartLimitIntervalSec=60$/m);
+      assert.match(service, /^StartLimitBurst=5$/m);
+      assert.match(service, /^Restart=on-failure$/m);
+      assert.match(service, /^RestartSec=5$/m);
+    }
+  });
+
   it('runs the root helper with a protected local runtime directory', () => {
     assert.match(helper, /^User=root$/m);
     assert.match(helper, /^Group=hellodeploy-nginx$/m);

@@ -28,6 +28,7 @@ describe('installed-host verification wiring', () => {
 
   it('checks services, Nginx configuration, and dependency readiness', () => {
     assert.match(verifier, /systemctl is-active/);
+    assert.match(verifier, /systemctl is-enabled/);
     assert.match(verifier, /nginx -t/);
     assert.match(verifier, /\/ready/);
   });

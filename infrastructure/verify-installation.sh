@@ -65,6 +65,7 @@ fi
 SERVICES=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
 for service in "${SERVICES[@]}"; do
   if systemctl is-active --quiet "$service"; then pass "service active: $service"; else fail "service inactive: $service"; fi
+  if systemctl is-enabled --quiet "$service"; then pass "service enabled: $service"; else fail "service disabled: $service"; fi
 done
 
 if nginx -t >/dev/null 2>&1; then pass "nginx configuration valid"; else fail "nginx -t failed"; fi
