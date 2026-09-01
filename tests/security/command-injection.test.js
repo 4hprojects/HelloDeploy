@@ -148,11 +148,12 @@ describe('Docker build — no shell interpolation in image tag or context path',
     assert.ok(!source.includes('shell: true'));
   });
 
-  it('build.js uses --network none during build (no outbound network access)', () => {
+  it('build.js uses the isolated default build network, never host networking', () => {
     assert.ok(
-      source.includes('--network') && source.includes('none'),
-      'Docker build must run without network access to prevent dependency smuggling',
+      source.includes("'--network'") && source.includes("'default'"),
+      'Docker build must use the default builder network for locked dependency retrieval',
     );
+    assert.ok(!source.includes("'host'"), 'Docker build must never use host networking');
   });
 
   it('build.js sets a memory limit on the build process', () => {

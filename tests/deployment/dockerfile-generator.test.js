@@ -91,8 +91,7 @@ describe('generateDockerfile — EXPRESS', () => {
     assert.ok(df.includes('FROM node:22-alpine'));
     assert.ok(df.includes('EXPOSE 3000'));
     assert.ok(df.includes('npm ci'));
-    // Ensure CMD is JSON array format (not shell string)
-    assert.ok(df.includes('"node"') && df.includes('"server.js"') && df.includes('CMD ['));
+    assert.ok(df.includes('CMD ["sh","-c","node server.js"]'));
   });
   it('generates valid CMD array for npm start', () => {
     const df = generateDockerfile({
@@ -102,8 +101,20 @@ describe('generateDockerfile — EXPRESS', () => {
       outputDirectory: null,
       applicationPort: 8080,
     });
-    assert.ok(df.includes('"npm"') && df.includes('"start"') && df.includes('CMD ['));
+    assert.ok(df.includes('CMD ["sh","-c","npm start"]'));
     assert.ok(df.includes('EXPOSE 8080'));
+  });
+
+  it('copies source before npm lifecycle scripts and preserves compound start commands', () => {
+    const df = generateDockerfile({
+      runtimeType: 'EXPRESS',
+      buildCommand: null,
+      startCommand: 'npm run check-node && node server.js',
+      outputDirectory: null,
+      applicationPort: 3000,
+    });
+    assert.ok(df.indexOf('COPY --chown=node:node . .') < df.indexOf('RUN npm ci'));
+    assert.ok(df.includes('CMD ["sh","-c","npm run check-node && node server.js"]'));
   });
 });
 
@@ -116,7 +127,7 @@ describe('generateDockerfile — NODEJS', () => {
       outputDirectory: null,
       applicationPort: 3000,
     });
-    assert.ok(df.includes('"node"') && df.includes('"index.js"') && df.includes('CMD ['));
+    assert.ok(df.includes('CMD ["sh","-c","node index.js"]'));
   });
 });
 

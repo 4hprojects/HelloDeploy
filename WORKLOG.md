@@ -1988,6 +1988,43 @@ recovery remain unexecuted until their declared operational preconditions pass.
   fallback. Next gate: CI and CodeQL for the verifier correction, followed by an
   immutable upgrade retry using the resulting merged full SHA.
 
+## 2026-09-02 — Production Normalization, Database Migration, and Pilot Build Gate
+
+- PR #40 passed Node.js 22 CI, CodeQL analysis, and the CodeQL gate and merged at
+  full SHA `d14d297cc88913041f3625062ea060367ef08daa`. The immutable production
+  upgrade passed the corrected verifier, followed by the isolated dashboard cutover.
+- A controlled reboot proved web, worker, helper, Nginx, and both tunnel services
+  return automatically. All three HelloDeploy units were active and enabled with
+  zero restarts; public dashboard health/readiness and HelloRun returned 200.
+- The `hellotasks` to `hellodeploy_db` dry run identified 12 owned collections and
+  intentionally excluded sessions. With web and worker writes stopped, the confirmed
+  migration passed collection-count, document-identity, current-index, and reference
+  parity with zero orphans. The protected URI switch, configuration validation,
+  service restart, installed-host verifier, and public checks passed. The untouched
+  source URI and data remain the rollback path.
+- Pilot preflight confirmed the active Express project, current approval snapshot,
+  exact GitHub `main` commit, manual mode, expected start/health settings, 39 secret
+  names, repository access, quota, worker/helper readiness, and ample Docker/disk
+  capacity. One previously queued manual deployment was the only live queue job.
+- Deployment #6 emitted matching live Redis/SSE-source and persisted events through
+  clone, validation, and build, then failed safely at `npm ci`. No managed container,
+  active pointer, or Nginx route was created. The queue was paused again.
+- Root cause: the worker forced `--network none` while generated Dockerfiles retrieve
+  locked dependencies, and the Node template ran lifecycle scripts before copying
+  source. The correction uses Docker's non-host default build network while keeping
+  runtime secrets out of builds, copies Node source before `npm ci`, and preserves
+  compound approved start commands as one JSON-encoded shell argument.
+- An exact-SHA HelloUniversity proof build completed its CSS lifecycle and produced
+  a non-root `node` image with the approved command. The disposable proof image and
+  workspace were removed afterward. The application audit reports 15 dependency
+  vulnerabilities, including one critical; custom-domain cutover remains blocked on
+  application dependency remediation.
+- Verification: 55 focused deployment/security tests, configuration validation,
+  lint, formatting, 986 tests across 205 suites, coverage at 78.13% lines, 89.31%
+  branches, and 86.14% functions, platform production audit with zero vulnerabilities,
+  and `git diff --check` pass. Next gate: CI/CodeQL, merged immutable SHA, guarded
+  production upgrade, then a controlled retry with the queue paused on any failure.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs
