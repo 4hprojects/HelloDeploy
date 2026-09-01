@@ -8,9 +8,9 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 
 | Field            | Value                                                                                                                                      |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Overall status   | Protected recovery evidence and dashboard fallback drill pass; immutable production normalization is paused on a verifier correction       |
+| Overall status   | P2 protected recovery and fallback drill pass; P3/P4 remain paused on the production installation-verifier correction                      |
 | Release progress | Boot persistence merged at `a83d34009e02dffd35dc97392d0d5cf8833ca00d`; the installation-verifier correction passes the complete local gate |
-| Current batch    | Review the verifier correction, retry the immutable upgrade, prove reboot persistence, and continue the controlled HelloUniversity pilot   |
+| Current batch    | Phase 2 dashboard recovery, archived drift, immutable production normalization, reboot proof, and controlled HelloUniversity pilot         |
 | Next action      | Merge the verifier correction through CI and CodeQL, then retry the production upgrade with the resulting full immutable SHA               |
 | Release state    | NO-GO for customer application hosting                                                                                                     |
 
