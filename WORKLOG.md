@@ -1960,6 +1960,34 @@ complete the dashboard-revert/reactivation proof, and run
 Production normalization, deployment retry, database migration, DNS cutover, and
 recovery remain unexecuted until their declared operational preconditions pass.
 
+## 2026-09-02 — Protected Recovery Gate and Installation Verifier Correction
+
+- PR #39 passed CI and CodeQL and merged at full SHA
+  `a83d34009e02dffd35dc97392d0d5cf8833ca00d`.
+- Captured the exact dirty production checkout, configuration, database evidence,
+  routing state, and rollback instructions in an encrypted artifact. Copied it to
+  the protected removable destination, retrieved it after remount, decrypted it
+  with the separate recovery key, and passed the bounded archive verifier.
+- Confirmed production drift contained only the two documented worker files,
+  archived those copies, restored those paths to the recorded live commit, and
+  required a clean checkout. Paused the deployment queue and passed the dashboard
+  revert drill against the healthy PM2 fallback.
+- The first immutable upgrade attempt stopped and rolled back on a verifier
+  false-negative: on the Ubuntu 26.04 pilot, `runuser ... test -r` returned false
+  for the protected GitHub key while a real open under both service identities
+  succeeded. No key permissions were weakened.
+- Changed the installation verifier to prove access with a zero-byte open and added
+  a regression contract. The candidate verifier passes on the live host, including
+  user/group boundaries, protected metadata, helper socket, active and enabled
+  units, Nginx, and readiness.
+- Verification: shell syntax; 20 focused installer/upgrade tests; configuration
+  validation; lint; formatting; 985 tests across 205 suites; coverage at 78.13%
+  lines, 89.33% branches, and 86.13% functions; production audit with zero
+  vulnerabilities; and `git diff --check` all pass.
+- The queue remains paused and dashboard traffic remains on the verified PM2
+  fallback. Next gate: CI and CodeQL for the verifier correction, followed by an
+  immutable upgrade retry using the resulting merged full SHA.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs

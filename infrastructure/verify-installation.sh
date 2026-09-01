@@ -23,6 +23,14 @@ check_user() {
 check_user hellodeploy-web
 check_user hellodeploy-worker
 
+can_read_as() {
+  local user="$1" path="$2"
+  # Prove the service identity can actually open the file. On the Ubuntu 26.04
+  # pilot, `test -r` reports false for this group-readable key even though an
+  # open succeeds, producing a false-negative install and rollback result.
+  runuser -u "$user" -- head -c 0 -- "$path" >/dev/null
+}
+
 WEB_GROUPS=$(id -nG hellodeploy-web 2>/dev/null || true)
 WORKER_GROUPS=$(id -nG hellodeploy-worker 2>/dev/null || true)
 if [[ " $WEB_GROUPS " == *" docker "* || " $WEB_GROUPS " == *" hellodeploy-nginx "* ]]; then
@@ -53,8 +61,8 @@ check_metadata "$HELPER_SOCKET" "root:hellodeploy-nginx:660" "Nginx helper socke
 if [[ -f "$ENV_FILE" ]]; then
   PRIVATE_KEY_PATH=$(awk -F= '$1 == "GITHUB_APP_PRIVATE_KEY_PATH" {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE")
   if [[ -n "$PRIVATE_KEY_PATH" ]]; then
-    if runuser -u hellodeploy-worker -- test -r "$PRIVATE_KEY_PATH"; then pass "worker can read GitHub private key"; else fail "worker cannot read GitHub private key"; fi
-    if runuser -u hellodeploy-web -- test -r "$PRIVATE_KEY_PATH"; then
+    if can_read_as hellodeploy-worker "$PRIVATE_KEY_PATH"; then pass "worker can read GitHub private key"; else fail "worker cannot read GitHub private key"; fi
+    if can_read_as hellodeploy-web "$PRIVATE_KEY_PATH"; then
       pass "web can read GitHub private key (required by current GitHub App signing flow)"
     else
       fail "web cannot read GitHub private key required by current signing flow"

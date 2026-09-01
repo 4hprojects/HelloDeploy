@@ -1,18 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-08-31
+Updated: 2026-09-02
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                                                                                         |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P2 regressed after a host reboot exposed disabled production units; P3/P4 pilot execution is paused                                                           |
-| Release progress | Boot-persistence correction passes the refreshed local release gate on `fix/boot-persistence-recovery`; review and a new merged immutable SHA remain required |
-| Current batch    | Public dashboard recovery, protected drift capture, boot-persistence correction, dashboard-revert proof, and immutable production normalization               |
-| Next action      | Complete PR/CodeQL review, then use the operator-provided protected inputs to recover, normalize, and immutable-upgrade the production host                   |
-| Release state    | NO-GO for customer application hosting                                                                                                                        |
+| Field            | Value                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overall status   | Protected recovery evidence and dashboard fallback drill pass; immutable production normalization is paused on a verifier correction       |
+| Release progress | Boot persistence merged at `a83d34009e02dffd35dc97392d0d5cf8833ca00d`; the installation-verifier correction passes the complete local gate |
+| Current batch    | Review the verifier correction, retry the immutable upgrade, prove reboot persistence, and continue the controlled HelloUniversity pilot   |
+| Next action      | Merge the verifier correction through CI and CodeQL, then retry the production upgrade with the resulting full immutable SHA               |
+| Release state    | NO-GO for customer application hosting                                                                                                     |
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did
@@ -38,6 +38,22 @@ and formatting, all 984 tests, coverage, the zero-vulnerability production audit
 and diff validation pass locally. Production has not been changed. PR/CodeQL review
 and a merged immutable SHA remain mandatory before protected host recovery and
 upgrade.
+
+**2026-09-02 protected recovery and verifier correction:** PR #39 passed CI and
+CodeQL and merged at `a83d34009e02dffd35dc97392d0d5cf8833ca00d`. The exact dirty
+production checkout and database evidence were captured in an encrypted artifact,
+copied to the removable protected destination, retrieved after remount, decrypted
+with the separate recovery key, and accepted by the bounded verifier. The two
+documented manual worker copies were archived and restored, leaving the checkout
+clean. The queue was paused and the dashboard revert drill passed against the PM2
+fallback. The immutable upgrade then stopped and rolled back because Ubuntu 26.04
+reported false for `test -r` under both service identities even though each identity
+could open the protected GitHub key. The verifier now tests a real zero-byte open;
+its candidate passes on the live host. Shell syntax, 20 focused installer/upgrade
+tests, configuration validation, lint, formatting, all 985 tests, coverage, the
+zero-vulnerability production audit, and diff validation pass locally. Production
+remains on the verified fallback with the queue paused until this correction passes
+review and the immutable upgrade is retried.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
