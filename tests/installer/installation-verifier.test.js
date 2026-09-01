@@ -26,6 +26,13 @@ describe('installed-host verification wiring', () => {
     assert.match(verifier, /root:hellodeploy-nginx:660/);
   });
 
+  it('proves private-key readability with a real open under each service identity', () => {
+    assert.match(verifier, /runuser -u "\$user" -- head -c 0 -- "\$path"/);
+    assert.match(verifier, /can_read_as hellodeploy-worker "\$PRIVATE_KEY_PATH"/);
+    assert.match(verifier, /can_read_as hellodeploy-web "\$PRIVATE_KEY_PATH"/);
+    assert.doesNotMatch(verifier, /runuser -u hellodeploy-(?:worker|web) -- test -r/);
+  });
+
   it('checks services, Nginx configuration, and dependency readiness', () => {
     assert.match(verifier, /systemctl is-active/);
     assert.match(verifier, /systemctl is-enabled/);
