@@ -113,17 +113,15 @@ CMD ["node", "server.js"]
 }
 
 function generateNode({ startCommand, applicationPort }) {
-  // Parse the start script to get just the executable and args
-  // e.g. "node server.js" → ["node", "server.js"]
-  // e.g. "npm start" → ["npm", "start"]
-  const parts = startCommand.split(/\s+/).filter(Boolean);
-  const cmdJson = JSON.stringify(parts);
+  // Keep the approved start command as one JSON-encoded shell argument. This
+  // preserves common package-script operators such as `&&` without allowing a
+  // newline to inject another Dockerfile directive (guarded above).
+  const cmdJson = JSON.stringify(['sh', '-c', startCommand]);
 
   return `FROM ${NODE_IMAGE}
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --prefer-offline --omit=dev
 COPY --chown=node:node . .
+RUN npm ci --prefer-offline --omit=dev
 USER node
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}

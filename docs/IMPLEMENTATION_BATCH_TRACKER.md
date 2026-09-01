@@ -6,13 +6,13 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 
 ## Current Status
 
-| Field            | Value                                                                                                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| Overall status   | P2 protected recovery and fallback drill pass; P3/P4 remain paused on the production installation-verifier correction                      |
-| Release progress | Boot persistence merged at `a83d34009e02dffd35dc97392d0d5cf8833ca00d`; the installation-verifier correction passes the complete local gate |
-| Current batch    | Phase 2 dashboard recovery, archived drift, immutable production normalization, reboot proof, and controlled HelloUniversity pilot         |
-| Next action      | Merge the verifier correction through CI and CodeQL, then retry the production upgrade with the resulting full immutable SHA               |
-| Release state    | NO-GO for customer application hosting                                                                                                     |
+| Field            | Value                                                                                                                                |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
+| Release progress | Verifier correction merged and installed at `d14d297cc88913041f3625062ea060367ef08daa`; pilot build correction passes locally        |
+| Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
+| Next action      | Merge the pilot build correction through CI and CodeQL, immutable-upgrade the worker, then retry the failed HelloUniversity release  |
+| Release state    | NO-GO for customer application hosting                                                                                               |
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did
@@ -54,6 +54,26 @@ tests, configuration validation, lint, formatting, all 985 tests, coverage, the
 zero-vulnerability production audit, and diff validation pass locally. Production
 remains on the verified fallback with the queue paused until this correction passes
 review and the immutable upgrade is retried.
+
+**2026-09-02 normalization, database migration, and pilot build correction:** PR
+#40 passed CI and CodeQL and merged at
+`d14d297cc88913041f3625062ea060367ef08daa`. The immutable upgrade, isolated
+dashboard cutover, and controlled reboot all passed; web, worker, and helper returned
+active and enabled with zero restarts. The `hellotasks` to `hellodeploy_db` dry run
+and confirmed migration passed count, identity, index, and reference parity for all
+12 owned collections, with sessions intentionally excluded. The protected URI was
+switched and the platform passed configuration, installation, public health, and
+readiness checks. The one existing manual pilot job then cloned the approved commit
+but failed safely because a clean Docker builder had no dependency network. A proof
+build exposed a second ordering defect: Node lifecycle scripts ran before source was
+copied. The correction uses Docker's non-host default build network, withholds runtime
+secrets until activation, copies Node source before lifecycle scripts, and preserves
+approved compound start commands as one JSON-encoded shell argument. The exact pilot
+source now builds as non-root user `node`. Fifty-five focused deployment/security
+tests, configuration validation, lint, formatting, all 986 tests, coverage, the
+zero-vulnerability platform production audit, and diff validation pass. The failed
+candidate did not create a managed container or route; the queue is paused pending
+review and immutable installation of this correction.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,

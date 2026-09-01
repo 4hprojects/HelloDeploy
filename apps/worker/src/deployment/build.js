@@ -53,7 +53,11 @@ export async function buildDockerImage({
       '--memory',
       '1g',
       '--network',
-      'none', // no network during build — dependencies must be in the image
+      // Generated Node Dockerfiles install the lockfile's dependencies inside
+      // the build. Use Docker's isolated builder network so a clean host can
+      // reach the package registry, but never grant host networking. Runtime
+      // secrets are injected only when the finished container starts.
+      'default',
       ...(noCache ? ['--no-cache'] : []),
       contextDir,
     ];
