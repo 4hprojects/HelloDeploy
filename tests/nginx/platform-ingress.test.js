@@ -26,6 +26,12 @@ describe('platform Nginx ingress', () => {
     assert.doesNotMatch(template, /proxy_set_header X-Forwarded-Proto \$scheme;/);
   });
 
+  it('defines the WebSocket connection variable used by managed application routes', () => {
+    assert.match(template, /map \$http_upgrade \$connection_upgrade/);
+    assert.match(template, /default upgrade;/);
+    assert.match(template, /''\s+close;/);
+  });
+
   it('is configured for both fresh installs and upgrades', () => {
     assert.match(installScript, /configure-platform-ingress\.sh/);
     assert.match(upgradeScript, /configure-platform-ingress\.sh/);

@@ -4,6 +4,11 @@
 # sends X-Forwarded-Proto with the visitor-facing scheme; preserving that value lets
 # Express determine that an HTTP origin request represents a public HTTPS request.
 
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
 server {
     listen 80;
     server_name {{PLATFORM_DOMAIN}} www.{{PLATFORM_DOMAIN}};
