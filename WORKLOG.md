@@ -2041,6 +2041,19 @@ recovery remain unexecuted until their declared operational preconditions pass.
   tests across 205 suites, coverage at 78.13% lines, 89.32% branches, and 86.15%
   functions, the zero-vulnerability production audit, and diff validation pass.
 
+### Upgrade wrapper readiness-race follow-up
+
+- PR #42 passed Node.js 22 CI and both CodeQL gates and merged at full SHA
+  `e25ff75396cd8264c96f1ed6610c6e92b8e4f6b4`.
+- The guarded production upgrade exposed a second one-shot readiness request in
+  `upgrade.sh`, before the newly bounded verifier. It rejected the candidate during
+  normal startup, restored `d14d297cc88913041f3625062ea060367ef08daa`, and the
+  bounded verifier then confirmed the rollback. The checkout is clean, all required
+  services are active and enabled, public readiness passes, and the queue remains
+  operator-paused.
+- `upgrade.sh` now delegates release acceptance entirely to the complete bounded
+  installation verifier. Shell syntax and 21 focused installer/upgrade tests pass.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs

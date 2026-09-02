@@ -34,10 +34,6 @@ install_service_units() {
 }
 
 verify_release() {
-  local services=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)
-  systemctl is-active --quiet "${services[@]}" || return 1
-  curl --fail --silent --show-error \
-    "http://127.0.0.1:$(awk -F= '$1 == "PORT" {print $2}' .env)/ready" >/dev/null || return 1
   bash infrastructure/verify-installation.sh
 }
 

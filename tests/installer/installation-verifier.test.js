@@ -49,7 +49,7 @@ describe('installed-host verification wiring', () => {
   it('runs after installation and upgrade and upgrade no longer accepts liveness alone', () => {
     assert.match(installer, /bash infrastructure\/verify-installation\.sh/);
     assert.match(upgrade, /bash infrastructure\/verify-installation\.sh/);
-    assert.match(upgrade, /\/ready/);
+    assert.doesNotMatch(upgrade, /curl[\s\S]*\/ready/);
     assert.doesNotMatch(upgrade, /\/health/);
   });
 

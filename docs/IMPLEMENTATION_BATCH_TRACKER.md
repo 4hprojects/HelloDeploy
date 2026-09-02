@@ -9,9 +9,9 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Field            | Value                                                                                                                                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
-| Release progress | Pilot build correction merged at `b0147d021dbe7682019dc3125d1c7d352f314f51`; bounded readiness retry passes locally                  |
+| Release progress | PR #42 merged at `e25ff75396cd8264c96f1ed6610c6e92b8e4f6b4`; upgrade wrapper readiness correction passes locally                     |
 | Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
-| Next action      | Merge the bounded readiness retry through CI and CodeQL, immutable-upgrade the worker, then retry the failed pilot release           |
+| Next action      | Merge the upgrade wrapper correction through CI and CodeQL, immutable-upgrade the worker, then retry the failed pilot release        |
 | Release state    | NO-GO for customer application hosting                                                                                               |
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
@@ -86,6 +86,15 @@ release and the queue remains paused. The verifier now retries readiness for at 
 30 seconds, with no change to failure behavior after the deadline. Twenty-one focused
 installer/upgrade tests, configuration validation, lint, formatting, all 987 tests,
 coverage, the zero-vulnerability production audit, and diff validation pass locally.
+
+PR #42 passed CI and CodeQL and merged the bounded verifier at
+`e25ff75396cd8264c96f1ed6610c6e92b8e4f6b4`. The guarded production upgrade then
+exposed a redundant one-shot `/ready` request in `upgrade.sh` before the bounded
+verifier runs. It rejected the candidate during startup, automatically restored the
+prior release, verified that rollback through the bounded verifier, and preserved
+the operator-paused queue. Production is clean and publicly ready on the prior
+release. The local correction removes the duplicate one-shot request so candidate
+and rollback both use the same complete bounded installation verifier.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,
