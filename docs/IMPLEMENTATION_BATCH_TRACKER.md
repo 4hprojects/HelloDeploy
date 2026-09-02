@@ -9,9 +9,9 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Field            | Value                                                                                                                                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
-| Release progress | Verifier correction merged and installed at `d14d297cc88913041f3625062ea060367ef08daa`; pilot build correction passes locally        |
+| Release progress | Pilot build correction merged at `b0147d021dbe7682019dc3125d1c7d352f314f51`; bounded readiness retry passes locally                  |
 | Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
-| Next action      | Merge the pilot build correction through CI and CodeQL, immutable-upgrade the worker, then retry the failed HelloUniversity release  |
+| Next action      | Merge the bounded readiness retry through CI and CodeQL, immutable-upgrade the worker, then retry the failed pilot release           |
 | Release state    | NO-GO for customer application hosting                                                                                               |
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
@@ -74,6 +74,18 @@ tests, configuration validation, lint, formatting, all 986 tests, coverage, the
 zero-vulnerability platform production audit, and diff validation pass. The failed
 candidate did not create a managed container or route; the queue is paused pending
 review and immutable installation of this correction.
+
+**2026-09-02 upgrade readiness-race correction:** PR #41 passed CI and CodeQL and
+merged the pilot build correction at
+`b0147d021dbe7682019dc3125d1c7d352f314f51`. Its guarded upgrade reached the
+candidate restart, but the installed-host verifier checked readiness immediately;
+MongoDB-backed web startup completed roughly three seconds later. The same premature
+check made the automatic rollback report a critical failure even though the restored
+services also converged healthy seconds later. Production is healthy on the prior
+release and the queue remains paused. The verifier now retries readiness for at most
+30 seconds, with no change to failure behavior after the deadline. Twenty-one focused
+installer/upgrade tests, configuration validation, lint, formatting, all 987 tests,
+coverage, the zero-vulnerability production audit, and diff validation pass locally.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,

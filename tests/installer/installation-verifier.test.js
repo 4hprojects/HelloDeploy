@@ -40,6 +40,12 @@ describe('installed-host verification wiring', () => {
     assert.match(verifier, /\/ready/);
   });
 
+  it('allows bounded dependency startup time before failing readiness', () => {
+    assert.match(verifier, /wait_for_web_readiness/);
+    assert.match(verifier, /for attempt in \$\(seq 1 30\)/);
+    assert.match(verifier, /if \(\(attempt < 30\)\); then\s+sleep 1/);
+  });
+
   it('runs after installation and upgrade and upgrade no longer accepts liveness alone', () => {
     assert.match(installer, /bash infrastructure\/verify-installation\.sh/);
     assert.match(upgrade, /bash infrastructure\/verify-installation\.sh/);

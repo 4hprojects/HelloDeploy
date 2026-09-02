@@ -2025,6 +2025,22 @@ recovery remain unexecuted until their declared operational preconditions pass.
   and `git diff --check` pass. Next gate: CI/CodeQL, merged immutable SHA, guarded
   production upgrade, then a controlled retry with the queue paused on any failure.
 
+### Upgrade readiness-race follow-up
+
+- PR #41 passed CI and CodeQL and merged the build correction at full SHA
+  `b0147d021dbe7682019dc3125d1c7d352f314f51`.
+- The guarded upgrade installed the candidate, but its single immediate readiness
+  request ran before MongoDB-backed web startup completed. The verifier initiated
+  rollback, then made the same premature request against the restored release and
+  reported a critical rollback failure. Journals show both web starts converged
+  normally in about three seconds; the prior release is publicly healthy and the
+  queue remains paused.
+- The installed-host verifier now retries readiness once per second for at most 30
+  attempts. It still fails closed after that bounded deadline. Shell syntax, 21
+  focused installer/upgrade tests, configuration validation, lint, formatting, 987
+  tests across 205 suites, coverage at 78.13% lines, 89.32% branches, and 86.15%
+  functions, the zero-vulnerability production audit, and diff validation pass.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs

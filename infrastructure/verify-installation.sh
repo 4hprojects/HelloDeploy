@@ -80,7 +80,20 @@ if nginx -t >/dev/null 2>&1; then pass "nginx configuration valid"; else fail "n
 
 PORT=$(awk -F= '$1 == "PORT" {print $2; exit}' "$ENV_FILE" 2>/dev/null || true)
 PORT="${PORT:-3000}"
-if curl --fail --silent --show-error "http://127.0.0.1:${PORT}/ready" >/dev/null; then
+wait_for_web_readiness() {
+  local attempt
+  for attempt in $(seq 1 30); do
+    if curl --fail --silent "http://127.0.0.1:${PORT}/ready" >/dev/null; then
+      return 0
+    fi
+    if ((attempt < 30)); then
+      sleep 1
+    fi
+  done
+  return 1
+}
+
+if wait_for_web_readiness; then
   pass "web readiness endpoint is healthy"
 else
   fail "web readiness endpoint is unhealthy"
