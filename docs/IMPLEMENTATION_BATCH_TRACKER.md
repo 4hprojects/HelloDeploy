@@ -9,9 +9,9 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Field            | Value                                                                                                                                |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
-| Release progress | PR #42 merged at `e25ff75396cd8264c96f1ed6610c6e92b8e4f6b4`; upgrade wrapper readiness correction passes locally                     |
+| Release progress | Production runs `c8806013588e93bdc08314ea51868f5d826842ea`; managed-route WebSocket map correction passes locally                    |
 | Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
-| Next action      | Merge the upgrade wrapper correction through CI and CodeQL, immutable-upgrade the worker, then retry the failed pilot release        |
+| Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
 | Release state    | NO-GO for customer application hosting                                                                                               |
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
@@ -95,6 +95,15 @@ prior release, verified that rollback through the bounded verifier, and preserve
 the operator-paused queue. Production is clean and publicly ready on the prior
 release. The local correction removes the duplicate one-shot request so candidate
 and rollback both use the same complete bounded installation verifier.
+
+PR #43 passed CI and CodeQL, merged at
+`c8806013588e93bdc08314ea51868f5d826842ea`, and its guarded production upgrade
+passed. HelloUniversity dependency remediation and its writable upload-directory
+fix then passed repository CI and merged. Deployment #8 started non-root and passed
+HTTP health, but managed-route activation failed closed because the host did not
+define the route template's `$connection_upgrade` variable. No active pointer or
+route was committed and the queue is paused. The platform ingress template now
+defines the standard WebSocket upgrade map; focused Nginx tests pass locally.
 
 **Historical snapshot through 2026-08-10 (superseded by the corrections below):**
 The current Ubuntu 26.04 laptop is the pilot host. The isolated web, worker, helper,

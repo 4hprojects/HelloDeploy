@@ -2054,6 +2054,20 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - `upgrade.sh` now delegates release acceptance entirely to the complete bounded
   installation verifier. Shell syntax and 21 focused installer/upgrade tests pass.
 
+### HelloUniversity managed-route activation follow-up
+
+- HelloUniversity dependency remediation merged at
+  `a314e43f02b0e72827ec5c84bf468bd82f70a826` with 605 tests and a zero-finding
+  production audit. Deployment #7 built successfully but failed startup because the
+  non-root container could not create an absent `uploads/` directory.
+- The application correction merged at
+  `77151de9b2ffdbb15f69187706c016f4ad487e78`. Deployment #8 then started non-root
+  and passed its HTTP 200 health check, but route activation failed closed because
+  the generated route uses `$connection_upgrade` and the host Nginx configuration
+  did not define it. Neither candidate became active; the queue is paused.
+- The platform ingress template now defines the standard bounded WebSocket upgrade
+  map in the Nginx `http` context. Seventeen focused Nginx tests pass.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs
