@@ -55,6 +55,7 @@ describe('upgrade safety policy', () => {
     assert.match(script, /verify_release\(\)/);
     assert.equal(script.match(/verify_release/g)?.length, 2);
     assert.match(script, /bash infrastructure\/verify-installation\.sh/);
+    assert.doesNotMatch(script, /curl[\s\S]*\/ready/);
   });
 
   it('always activates and verifies the complete V1 service set', () => {
