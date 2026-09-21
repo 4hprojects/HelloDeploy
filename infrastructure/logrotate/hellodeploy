@@ -1,0 +1,16 @@
+# HelloDeploy application logs.
+#
+# The services log to stdout and journald, but the PM2 path (ecosystem.config.cjs)
+# writes files here with no rotation, so /var/log/hellodeploy grows without bound
+# on a host that has not completed the systemd migration.
+/var/log/hellodeploy/*.log {
+    daily
+    rotate 14
+    missingok
+    notifempty
+    compress
+    delaycompress
+    copytruncate
+    su root root
+    create 0640 root root
+}

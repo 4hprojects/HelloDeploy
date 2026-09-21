@@ -183,6 +183,16 @@ curl -s http://127.0.0.1:<hostPort>/      # app responds
 
 ## Backup
 
+### Log rotation
+
+The PM2 path writes files to `/var/log/hellodeploy` with no rotation, so install
+the shipped config on any host that has not finished the systemd migration:
+
+```bash
+sudo cp infrastructure/logrotate/hellodeploy /etc/logrotate.d/hellodeploy
+sudo logrotate --debug /etc/logrotate.d/hellodeploy
+```
+
 ### Scheduling
 
 `infrastructure/backup.sh` has always existed but nothing installed a schedule,

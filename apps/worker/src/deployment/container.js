@@ -216,26 +216,3 @@ export async function stopAndRemoveContainer(containerIdOrName) {
     return false;
   }
 }
-
-/**
- * Collect basic metrics from a running container.
- * Returns null if the container is not running or stats are unavailable.
- *
- * @param {string} containerIdOrName
- * @returns {Promise<{ cpuPercent: string, memUsage: string } | null>}
- */
-export async function getContainerStats(containerIdOrName) {
-  try {
-    const output = await runDocker([
-      'stats',
-      '--no-stream',
-      '--format',
-      '{{.CPUPerc}}\t{{.MemUsage}}',
-      containerIdOrName,
-    ]);
-    const [cpuPercent, memUsage] = output.split('\t');
-    return { cpuPercent: cpuPercent?.trim(), memUsage: memUsage?.trim() };
-  } catch {
-    return null;
-  }
-}
