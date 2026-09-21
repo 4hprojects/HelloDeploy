@@ -20,6 +20,7 @@ import {
   getQuotaScopeName,
 } from '../services/admin.service.js';
 import { collectServerStats } from '../services/server-stats.service.js';
+import { getReleaseVersion } from '../services/release-version.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
@@ -38,12 +39,30 @@ export const getAdminIndex = asyncHandler(async (req, res) => {
 // ─── Server dashboard ──────────────────────────────────────────────────────────
 
 export const getAdminServer = asyncHandler(async (req, res) => {
-  const [server, maintenance] = await Promise.all([collectServerStats(), getMaintenanceMode()]);
+  const [server, maintenance, release] = await Promise.all([
+    collectServerStats(),
+    getMaintenanceMode(),
+    getReleaseVersion(),
+  ]);
   res.render('pages/admin/server', {
     title: 'Server & Queue',
     server,
     maintenance,
+    release,
   });
+});
+
+/**
+ * Machine-readable form of the server dashboard, for scripted checks.
+ *
+ * Admin-gated like the dashboard it mirrors: queue depth, project counts and
+ * release identity are not public information, and no scraper has been chosen
+ * yet. A tokened Prometheus endpoint can be added alongside this once the
+ * monitoring owner is decided.
+ */
+export const getAdminMetrics = asyncHandler(async (req, res) => {
+  const [server, release] = await Promise.all([collectServerStats(), getReleaseVersion()]);
+  res.json({ service: 'web', release, ...server });
 });
 
 export const postPauseQueue = asyncHandler(async (req, res) => {

@@ -84,6 +84,29 @@
   </div>
 </div>
 
+<!-- Running release -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Running Release</h2>
+  </div>
+  <div class="card__body">
+    <% if (typeof release !== 'undefined' && release.commit) { %>
+    <p class="text-sm">
+      <code><%= release.commit %></code>
+    </p>
+    <p class="text-muted text-sm">
+      Resolved from the <%= release.source %>. This is what the running process started with,
+      not what is on disk now.
+    </p>
+    <% } else { %>
+    <p class="text-muted text-sm">
+      This process cannot identify its release. Set HELLODEPLOY_RELEASE_REF at install time,
+      or install from a git checkout.
+    </p>
+    <% } %>
+  </div>
+</div>
+
 <!-- MongoDB connectivity -->
 <div class="card mb-6">
   <div class="card__header">

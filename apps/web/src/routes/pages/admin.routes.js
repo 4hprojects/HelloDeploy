@@ -13,6 +13,7 @@ import {
   getApprovalRequestsList,
   postReviewApprovalRequest,
   getAdminServer,
+  getAdminMetrics,
   postPauseQueue,
   postResumeQueue,
   postEnableMaintenance,
@@ -55,6 +56,7 @@ router.post('/domains/:domainId/approve', postApproveDomain);
 router.post('/domains/:domainId/reject', postRejectDomain);
 
 router.get('/server', getAdminServer);
+router.get('/metrics', getAdminMetrics);
 // Queue pause/resume is a platform-wide operational lever (stalls every
 // project's deploys), same class of impact as maintenance mode below.
 router.post('/server/queue/pause', requireSuperAdmin, postPauseQueue);
