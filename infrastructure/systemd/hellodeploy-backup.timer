@@ -1,0 +1,14 @@
+[Unit]
+Description=Run the HelloDeploy backup daily
+Documentation=file:///opt/hellodeploy/docs/OPERATIONS_RUNBOOKS.md
+
+[Timer]
+OnCalendar=daily
+# Spread the start so a fleet of hosts does not dump their databases in lockstep.
+RandomizedDelaySec=30m
+# A host that was powered off at the scheduled time still gets its backup.
+Persistent=true
+Unit=hellodeploy-backup.service
+
+[Install]
+WantedBy=timers.target

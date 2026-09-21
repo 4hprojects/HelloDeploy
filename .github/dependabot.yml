@@ -1,0 +1,19 @@
+# Dependency and Action updates were entirely manual, which is how the release
+# gate ended up blocked on an advisory that already had a published fix.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+    groups:
+      # Patch and minor updates land together; majors stay individual so each
+      # breaking change is reviewed on its own.
+      safe-updates:
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

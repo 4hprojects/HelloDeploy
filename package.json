@@ -34,6 +34,7 @@
   },
   "allowScripts": {
     "argon2@0.41.1": true,
-    "msgpackr-extract@3.0.4": true
+    "msgpackr-extract@3.0.4": true,
+    "mongodb-memory-server@11.3.0": true
   }
 }

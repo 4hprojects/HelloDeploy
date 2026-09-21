@@ -3,8 +3,13 @@ name: CI
 on:
   push:
     branches: [main, develop]
+  # develop was previously unchecked on pull requests, so work could reach it
+  # without ever running lint, tests or the dependency audit.
   pull_request:
-    branches: [main]
+    branches: [main, develop]
+
+permissions:
+  contents: read
 
 jobs:
   lint-and-test:
@@ -42,3 +47,39 @@ jobs:
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=moderate
+
+  shell:
+    name: Shell
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # infrastructure/ carries thousands of lines of bash that run as root
+      # during install, upgrade, backup and restore, linted by nothing until now.
+      # Advisory on its first run: the existing findings have never been
+      # triaged, and a newly-blocking job would stop all work. Remove
+      # continue-on-error once the backlog is clean.
+      - name: ShellCheck
+        continue-on-error: true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+          shellcheck --severity=error $(git ls-files '*.sh')
+
+  secrets:
+    name: Secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # Advisory until the history has been reviewed once. A scan that blocks
+      # on a historical commit would stop all work before anyone can triage it.
+      - name: Gitleaks
+        continue-on-error: true
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

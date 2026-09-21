@@ -1,0 +1,18 @@
+[Unit]
+Description=HelloDeploy scheduled backup
+Documentation=file:///opt/hellodeploy/docs/OPERATIONS_RUNBOOKS.md
+After=network-online.target mongod.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Runs as root: the archive covers .env, /var/lib/hellodeploy and the
+# generated Nginx state, none of which the service accounts can read whole.
+User=root
+WorkingDirectory=/opt/hellodeploy
+ExecStart=/usr/bin/env bash /opt/hellodeploy/infrastructure/backup.sh --quiet
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/backups/hellodeploy /var/log/hellodeploy

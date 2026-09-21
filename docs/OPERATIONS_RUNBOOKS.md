@@ -183,6 +183,29 @@ curl -s http://127.0.0.1:<hostPort>/      # app responds
 
 ## Backup
 
+### Scheduling
+
+`infrastructure/backup.sh` has always existed but nothing installed a schedule,
+so backups only existed when someone remembered to run one. Install the timer:
+
+```bash
+sudo cp infrastructure/systemd/hellodeploy-backup.{service,timer} /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now hellodeploy-backup.timer
+systemctl list-timers hellodeploy-backup.timer
+```
+
+Verify that backups are actually landing, rather than assuming the timer
+implies success:
+
+```bash
+node scripts/check-backup-age.js --max-age-hours 48
+```
+
+It prints `status=passed` or `status=failed` and exits nonzero on failure, so it
+can drive an alert. A backup that silently stops is indistinguishable from a
+working one until a restore is attempted, which is the worst moment to find out.
+
 Back up these assets before upgrades and after major configuration changes:
 
 - MongoDB Atlas backup/export for platform collections.
