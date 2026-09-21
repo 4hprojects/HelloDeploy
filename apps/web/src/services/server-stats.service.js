@@ -1,6 +1,6 @@
 import { cpus, totalmem, freemem, loadavg, uptime } from 'node:os';
 import { statfs } from 'node:fs/promises';
-import { Deployment, mongoose } from '@hellodeploy/database';
+import { Deployment, EmailDelivery, EmailDeliveryOutcome, mongoose } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { getDeploymentQueue } from '../queue/client.js';
 import { env } from '../config/env.js';
@@ -24,6 +24,40 @@ async function getMongoStats() {
 }
 
 /**
+ * Recent email delivery health.
+ *
+ * A send that fails, or is skipped because no provider key is configured,
+ * previously left no operator-visible trace - which is how a broken signup
+ * path went unnoticed.
+ */
+async function getEmailStats() {
+  try {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const [sent, failed, skipped, lastFailure] = await Promise.all([
+      EmailDelivery.countDocuments({
+        outcome: EmailDeliveryOutcome.SENT,
+        createdAt: { $gte: since },
+      }),
+      EmailDelivery.countDocuments({
+        outcome: EmailDeliveryOutcome.FAILED,
+        createdAt: { $gte: since },
+      }),
+      EmailDelivery.countDocuments({
+        outcome: EmailDeliveryOutcome.SKIPPED,
+        createdAt: { $gte: since },
+      }),
+      EmailDelivery.findOne({ outcome: { $ne: EmailDeliveryOutcome.SENT } })
+        .sort({ createdAt: -1 })
+        .select('template outcome error createdAt')
+        .lean(),
+    ]);
+    return { sent, failed, skipped, healthy: failed === 0 && skipped === 0, lastFailure };
+  } catch {
+    return { sent: null, failed: null, skipped: null, healthy: null, lastFailure: null };
+  }
+}
+
+/**
  * Collect host and platform statistics for the admin server dashboard.
  * All stats are best-effort — any individual failure returns nulls for that section.
  *
@@ -32,13 +66,14 @@ async function getMongoStats() {
 export async function collectServerStats(deps = {}) {
   const queueClient =
     deps.queue === undefined ? (deps.getDeploymentQueue ?? getDeploymentQueue)() : deps.queue;
-  const [memory, disk, queue, worker, running, mongo] = await Promise.all([
+  const [memory, disk, queue, worker, running, mongo, email] = await Promise.all([
     getMemoryStats(),
     getDiskStats(),
     getQueueStats(queueClient),
     checkWorkerReadiness(queueClient),
     getRunningContainerCount(),
     getMongoStats(),
+    getEmailStats(),
   ]);
 
   const load = loadavg();
@@ -51,6 +86,7 @@ export async function collectServerStats(deps = {}) {
     worker,
     running,
     mongo,
+    email,
     cpu: {
       cores: cpus().length,
       load1: load[0].toFixed(2),

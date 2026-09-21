@@ -11,4 +11,5 @@ export { EnvironmentSecret } from './models/environment-secret.model.js';
 export { Deployment } from './models/deployment.model.js';
 export { DeploymentEvent } from './models/deployment-event.model.js';
 export { Domain } from './models/domain.model.js';
+export { EmailDelivery, EmailDeliveryOutcome } from './models/email-delivery.model.js';
 export { PlatformSetting } from './models/platform-setting.model.js';

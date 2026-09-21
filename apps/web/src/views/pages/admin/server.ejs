@@ -101,6 +101,39 @@
   </div>
 </div>
 
+<!-- Email delivery -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Email Delivery</h2>
+    <span class="badge <%= server.email?.healthy === false ? 'badge--danger' : 'badge--success' %>">
+      <%= server.email?.healthy === false ? 'Failing' : 'Healthy' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (server.email?.sent === null) { %>
+    <p class="text-muted text-sm">Delivery history is unavailable.</p>
+    <% } else { %>
+    <p class="text-sm">
+      Last 24 hours: <%= server.email.sent %> sent, <%= server.email.failed %> failed,
+      <%= server.email.skipped %> skipped.
+    </p>
+    <% if (server.email.skipped > 0) { %>
+    <p class="text-muted text-sm">
+      Skipped emails were never attempted because no delivery provider key is configured.
+      Account verification will not reach new users while this is the case.
+    </p>
+    <% } %>
+    <% if (server.email.lastFailure) { %>
+    <p class="text-muted text-sm">
+      Most recent problem: <%= server.email.lastFailure.template %>
+      (<%= server.email.lastFailure.outcome.toLowerCase() %>)
+      <% if (server.email.lastFailure.error) { %>— <%= server.email.lastFailure.error %><% } %>
+    </p>
+    <% } %>
+    <% } %>
+  </div>
+</div>
+
 <!-- Worker readiness -->
 <div class="card mb-6">
   <div class="card__header">

@@ -1,6 +1,7 @@
 import { Resend } from 'resend';
 import { env } from '../config/env.js';
 import { logger } from '@hellodeploy/observability';
+import { EmailDelivery, EmailDeliveryOutcome } from '@hellodeploy/database';
 
 let resend = null;
 
@@ -24,7 +25,22 @@ function getResendClient() {
  * Send an email. In development without RESEND_API_KEY, logs to stdout instead.
  * @returns {Promise<void>}
  */
-async function sendEmail({ to, subject, html, text }) {
+/**
+ * Record one send attempt. Never allowed to fail the caller - a delivery log
+ * that can break signup is worse than no delivery log.
+ */
+function recordDelivery({ recipient, template, outcome, error = null }) {
+  return EmailDelivery.create({
+    recipient,
+    template,
+    outcome,
+    error: error ? String(error).slice(0, 500) : null,
+  }).catch((err) => {
+    logger.warn('[email] could not record delivery', { error: err.message });
+  });
+}
+
+async function sendEmail({ to, subject, html, text, template = 'unknown' }) {
   const client = getResendClient();
 
   if (!client) {
@@ -32,6 +48,14 @@ async function sendEmail({ to, subject, html, text }) {
       to,
       subject,
       preview: text?.slice(0, 200),
+    });
+    // Recorded, not silent. Without a key in production this is a total
+    // delivery outage, and it previously left no trace anywhere.
+    await recordDelivery({
+      recipient: to,
+      template,
+      outcome: EmailDeliveryOutcome.SKIPPED,
+      error: 'RESEND_API_KEY is not configured',
     });
     return;
   }
@@ -46,14 +70,27 @@ async function sendEmail({ to, subject, html, text }) {
 
   if (error) {
     logger.error('[email] Failed to send email', { to, subject, error: error.message });
+    await recordDelivery({
+      recipient: to,
+      template,
+      outcome: EmailDeliveryOutcome.FAILED,
+      error: error.message,
+    });
     throw new Error(`Email delivery failed: ${error.message}`);
   }
+
+  await recordDelivery({
+    recipient: to,
+    template,
+    outcome: EmailDeliveryOutcome.SENT,
+  });
 }
 
 export async function sendVerificationEmail({ to, firstName, verificationUrl }) {
   await sendEmail({
     to,
     subject: 'Verify your HelloDeploy email address',
+    template: 'verification',
     html: `
       <p>Hi ${firstName},</p>
       <p>Thanks for creating a HelloDeploy account. Please verify your email address by clicking the link below:</p>
@@ -69,6 +106,7 @@ export async function sendPasswordResetEmail({ to, firstName, resetCode }) {
   await sendEmail({
     to,
     subject: 'Reset your HelloDeploy password',
+    template: 'password-reset',
     html: `
       <p>Hi ${firstName},</p>
       <p>You requested a password reset. Enter the code below on the HelloDeploy website:</p>
@@ -98,13 +136,14 @@ export function buildProjectPausedEmail({ to, firstName, projectName, projectUrl
 }
 
 export async function sendProjectPausedEmail(options) {
-  await sendEmail(buildProjectPausedEmail(options));
+  await sendEmail({ ...buildProjectPausedEmail(options), template: 'project-paused' });
 }
 
 export async function sendPasswordChangedEmail({ to, firstName }) {
   await sendEmail({
     to,
     subject: 'Your HelloDeploy password has been changed',
+    template: 'password-changed',
     html: `
       <p>Hi ${firstName},</p>
       <p>Your HelloDeploy password was successfully changed.</p>
