@@ -71,8 +71,8 @@ describe('form pending states', () => {
   });
 
   it('loads the decision-preservation script through a fresh asset version', () => {
-    assert.match(files.mainLayout, /app\.js\?v=20260921-create-account-ux/);
-    assert.match(files.authLayout, /app\.js\?v=20260921-create-account-ux/);
+    assert.match(files.mainLayout, /app\.js\?v=20260922-create-account-followup/);
+    assert.match(files.authLayout, /app\.js\?v=20260922-create-account-followup/);
   });
 
   it('uses action-specific labels with a safe fallback', () => {

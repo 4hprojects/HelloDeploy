@@ -1,5 +1,6 @@
 <%
   const _error = typeof error !== 'undefined' ? error : null;
+  const _isChecked = typeof isChecked !== 'undefined' && isChecked;
 %>
 <div class="form-field consent">
   <div class="checkbox-field<% if (_error) { %> checkbox-field--error<% } %>">
@@ -9,6 +10,7 @@
       name="acceptTerms"
       value="1"
       class="checkbox-input"
+      <% if (_isChecked) { %>checked<% } %>
       aria-required="true"
       aria-describedby="acceptTerms-policies<% if (_error) { %> acceptTerms-error<% } %>"
     />

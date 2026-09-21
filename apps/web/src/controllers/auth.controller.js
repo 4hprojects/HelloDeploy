@@ -91,6 +91,7 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
           firstName: req.body.firstName ?? '',
           lastName: req.body.lastName ?? '',
           email: req.body.email ?? '',
+          acceptTerms: req.body.acceptTerms === '1',
         },
       }),
     );
@@ -112,6 +113,7 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
           firstName: req.body.firstName ?? '',
           lastName: req.body.lastName ?? '',
           email: req.body.email ?? '',
+          acceptTerms: req.body.acceptTerms === '1',
         },
       }),
     );

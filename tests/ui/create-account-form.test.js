@@ -61,4 +61,37 @@ describe('create-account form', () => {
 
     assert.match(html, /aria-describedby="acceptTerms-policies acceptTerms-error"/);
   });
+
+  it('keeps the consent checkbox ticked after a validation error', async () => {
+    const html = await renderPage({
+      values: { firstName: 'Ada', lastName: '', email: 'ada@example.com', acceptTerms: true },
+      errors: { lastName: 'Last name is required.' },
+    });
+
+    assert.match(html, /id="acceptTerms"[^>]*\schecked/);
+  });
+
+  it('leaves the consent checkbox unticked on a fresh page', async () => {
+    const html = await renderPage();
+
+    assert.doesNotMatch(html, /id="acceptTerms"[^>]*\schecked/);
+  });
+
+  it('omits the Turnstile widget when no site key is configured', async () => {
+    const html = await renderPage({ turnstileSiteKey: '' });
+
+    assert.doesNotMatch(html, /cf-turnstile/);
+  });
+
+  it('renders the Turnstile widget with the configured site key', async () => {
+    const html = await renderPage({ turnstileSiteKey: 'test-site-key' });
+
+    assert.match(html, /class="cf-turnstile mt-4" data-sitekey="test-site-key"/);
+  });
+
+  it('tells the user a verification email is coming', async () => {
+    const html = await renderPage();
+
+    assert.match(html, /verification link/);
+  });
 });

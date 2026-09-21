@@ -669,6 +669,72 @@
     confirm.addEventListener('input', update);
   }
 
+  function initAuthErrorFocus() {
+    if (!document.querySelector('.auth-form')) {
+      return;
+    }
+    // Server re-renders the whole page on error; without this, phone users land at the top with no cue.
+    document
+      .querySelector(
+        '.form-errors-summary, .form-input--error, .checkbox-field--error .checkbox-input',
+      )
+      ?.focus();
+  }
+
+  function initCreateAccountInlineValidation() {
+    if (!document.getElementById('create-account-form')) {
+      return;
+    }
+
+    // Mirrors validateRegistration(); the server stays the source of truth.
+    const rules = {
+      firstName: (value) => (value.trim() ? '' : 'First name is required.'),
+      lastName: (value) => (value.trim() ? '' : 'Last name is required.'),
+      email(value) {
+        const email = value.trim();
+        if (!email) {
+          return 'Email address is required.';
+        }
+        return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? '' : 'Enter a valid email address.';
+      },
+    };
+
+    function showError(input, message) {
+      const errorId = `${input.id}-error`;
+      let error = document.getElementById(errorId);
+      if (message && !error) {
+        error = document.createElement('p');
+        error.className = 'form-error';
+        error.id = errorId;
+        error.setAttribute('role', 'alert');
+        input.closest('.form-field').appendChild(error);
+      }
+      if (error) {
+        error.textContent = message;
+        error.hidden = !message;
+      }
+      input.classList.toggle('form-input--error', Boolean(message));
+      if (message) {
+        input.setAttribute('aria-describedby', errorId);
+      } else {
+        input.removeAttribute('aria-describedby');
+      }
+    }
+
+    Object.entries(rules).forEach(([id, validate]) => {
+      const input = document.getElementById(id);
+      if (!input) {
+        return;
+      }
+      input.addEventListener('blur', () => showError(input, validate(input.value)));
+      input.addEventListener('input', () => {
+        if (input.classList.contains('form-input--error')) {
+          showError(input, validate(input.value));
+        }
+      });
+    });
+  }
+
   function option(value, text) {
     const item = document.createElement('option');
     item.value = value;
@@ -1183,6 +1249,8 @@
     initPasswordToggles();
     initPasswordRequirements();
     initPasswordMatchHint();
+    initCreateAccountInlineValidation();
+    initAuthErrorFocus();
     initRepositoryBranchLoader();
     initDeploymentLiveLogs();
     initEnvFileImport();

@@ -82,14 +82,18 @@
     </fieldset>
 
     <%- include('../../partials/policy-consent', {
+      isChecked: typeof values !== 'undefined' && values.acceptTerms === true,
       error: typeof errors !== 'undefined' ? errors.acceptTerms : null
     }) %>
 
+    <% if (turnstileSiteKey) { %>
     <%# Cloudflare Turnstile widget placeholder (rendered by Turnstile JS) %>
     <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>"></div>
+    <% } %>
 
     <button type="submit" class="button button--primary button--full mt-6" id="submit-btn" data-pending-label="Creating...">
       Create Account
     </button>
+    <p class="auth-form__note">We'll email you a verification link. You'll need it before you can sign in.</p>
   </form>
 </div>
