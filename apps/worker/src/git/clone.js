@@ -5,9 +5,14 @@ import { pipeline } from 'node:stream/promises';
 import { logger } from '@hellodeploy/observability';
 import { normalizePublicGithubRepositoryUrl } from '@hellodeploy/contracts';
 
+import { env } from '../config/env.js';
+
 const GIT_TIMEOUT_MS = 120_000;
 const GIT_OUTPUT_MAX_BYTES = 1_000_000;
-const TARBALL_DOWNLOAD_TIMEOUT_MS = 180_000;
+// Codeload serves a whole repository snapshot, so this scales with repository
+// size rather than with network round trips. The pilot's tarball takes ~146s,
+// which left the previous fixed 180s bound with under 20% headroom.
+const TARBALL_DOWNLOAD_TIMEOUT_MS = env.CLONE_DOWNLOAD_TIMEOUT_MS;
 const TARBALL_MAX_BYTES = 200_000_000;
 const ISOLATED_GIT_ENV = {
   GIT_CONFIG_NOSYSTEM: '1',

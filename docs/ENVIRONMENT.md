@@ -57,15 +57,16 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 ## Worker build/deploy
 
-| Variable                | Required (prod) | Default                         | Purpose                                                    |
-| ----------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
-| `WORKER_CONCURRENCY`    | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
-| `BUILD_TIMEOUT_MS`      | no              | `600000`                        | Hard cap on `docker build` duration                        |
-| `BUILD_WORKSPACE_ROOT`  | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
-| `RELEASE_METADATA_ROOT` | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
-| `PROJECT_VOLUME_ROOT`   | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
-| `PORT_RANGE_START`      | no              | `10000`                         | First loopback host port available for deployed containers |
-| `PORT_RANGE_END`        | no              | `19999`                         | Last loopback host port available for deployed containers  |
+| Variable                    | Required (prod) | Default                         | Purpose                                                    |
+| --------------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
+| `WORKER_CONCURRENCY`        | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
+| `BUILD_TIMEOUT_MS`          | no              | `600000`                        | Hard cap on `docker build` duration                        |
+| `CLONE_DOWNLOAD_TIMEOUT_MS` | no              | `300000`                        | Hard cap on the source tarball download                    |
+| `BUILD_WORKSPACE_ROOT`      | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
+| `RELEASE_METADATA_ROOT`     | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
+| `PROJECT_VOLUME_ROOT`       | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
+| `PORT_RANGE_START`          | no              | `10000`                         | First loopback host port available for deployed containers |
+| `PORT_RANGE_END`            | no              | `19999`                         | Last loopback host port available for deployed containers  |
 
 ## Email / notifications
 

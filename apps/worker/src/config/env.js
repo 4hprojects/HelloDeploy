@@ -35,6 +35,11 @@ const buildTimeoutMs = parseIntegerEnv('BUILD_TIMEOUT_MS', optional('BUILD_TIMEO
   min: 1000,
   max: 86400000,
 });
+const cloneDownloadTimeoutMs = parseIntegerEnv(
+  'CLONE_DOWNLOAD_TIMEOUT_MS',
+  optional('CLONE_DOWNLOAD_TIMEOUT_MS', '300000'),
+  { min: 30000, max: 1800000 },
+);
 const helperTimeoutMs = parseIntegerEnv(
   'NGINX_HELPER_TIMEOUT_MS',
   optional('NGINX_HELPER_TIMEOUT_MS', '15000'),
@@ -105,6 +110,7 @@ export const env = {
 
   WORKER_CONCURRENCY: workerConcurrency,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
+  CLONE_DOWNLOAD_TIMEOUT_MS: cloneDownloadTimeoutMs,
   PORT_RANGE_START: portRangeStart,
   PORT_RANGE_END: portRangeEnd,
 
