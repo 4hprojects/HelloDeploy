@@ -18,6 +18,7 @@ Use this index as the starting point for repository documentation. The top-level
 
 ## Production Readiness and Status
 
+- [Task Backlog](TASK_BACKLOG.md) - the single consolidated list of remaining work, phased and prioritized, with an ID map back to the older tracking systems and a list of stale claims not to act on. **Start here.**
 - [Priorities](PRIORITIES.md) - quick-scan, actively-maintained punch list of what's next across every open track. Start here for current status.
 - [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md) - authoritative monitor for current production-readiness execution, verification evidence, blockers, completion gates, and the current handoff state.
 - [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) - prioritized P0-P6 execution plan and live-cutover evidence log for completing the real deployment workflow and hosting HelloUniversity through HelloDeploy. The most current release-gate record.
