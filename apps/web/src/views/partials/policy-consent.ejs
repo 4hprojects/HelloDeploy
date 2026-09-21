@@ -1,7 +1,7 @@
 <%
   const _error = typeof error !== 'undefined' ? error : null;
 %>
-<div class="form-field">
+<div class="form-field consent">
   <div class="checkbox-field<% if (_error) { %> checkbox-field--error<% } %>">
     <input
       type="checkbox"
@@ -10,17 +10,17 @@
       value="1"
       class="checkbox-input"
       aria-required="true"
-      <% if (_error) { %>aria-describedby="acceptTerms-error"<% } %>
+      aria-describedby="acceptTerms-policies<% if (_error) { %> acceptTerms-error<% } %>"
     />
-    <label for="acceptTerms" class="checkbox-label">
-      I agree to the
-      <a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a>,
-      <a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a>,
-      <a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie Policy</a>,
-      <a href="/acceptable-use" target="_blank" rel="noopener noreferrer">Acceptable Use Policy</a>, and
-      <a href="/legal" target="_blank" rel="noopener noreferrer">Legal Policies</a>.
-    </label>
+    <label for="acceptTerms" class="checkbox-label">I agree to the HelloDeploy policies</label>
   </div>
+  <ul class="consent__links" id="acceptTerms-policies" role="list">
+    <li><a href="/terms" target="_blank" rel="noopener noreferrer">Terms of Service</a></li>
+    <li><a href="/privacy" target="_blank" rel="noopener noreferrer">Privacy Policy</a></li>
+    <li><a href="/cookies" target="_blank" rel="noopener noreferrer">Cookie Policy</a></li>
+    <li><a href="/acceptable-use" target="_blank" rel="noopener noreferrer">Acceptable Use</a></li>
+    <li><a href="/legal" target="_blank" rel="noopener noreferrer">Legal Policies</a></li>
+  </ul>
   <% if (_error) { %>
   <p class="form-error" id="acceptTerms-error" role="alert"><%= _error %></p>
   <% } %>

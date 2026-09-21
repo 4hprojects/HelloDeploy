@@ -12,60 +12,74 @@
       <input type="text" name="website" tabindex="-1" autocomplete="off" />
     </div>
 
-    <div class="form-row">
-      <%- include('../../partials/form-field', {
-        fieldId: 'firstName',
-        label: 'First Name',
-        type: 'text',
-        name: 'firstName',
-        value: typeof values !== 'undefined' ? values.firstName : '',
-        autocomplete: 'given-name',
-        required: true,
-        error: typeof errors !== 'undefined' ? errors.firstName : null
-      }) %>
+    <fieldset class="auth-section">
+      <legend class="auth-section__title">Your details</legend>
+
+      <div class="form-row">
+        <%- include('../../partials/form-field', {
+          fieldId: 'firstName',
+          label: 'First Name',
+          type: 'text',
+          name: 'firstName',
+          value: typeof values !== 'undefined' ? values.firstName : '',
+          autocomplete: 'given-name',
+          autocapitalize: 'words',
+          required: true,
+          error: typeof errors !== 'undefined' ? errors.firstName : null
+        }) %>
+
+        <%- include('../../partials/form-field', {
+          fieldId: 'lastName',
+          label: 'Last Name',
+          type: 'text',
+          name: 'lastName',
+          value: typeof values !== 'undefined' ? values.lastName : '',
+          autocomplete: 'family-name',
+          autocapitalize: 'words',
+          required: true,
+          error: typeof errors !== 'undefined' ? errors.lastName : null
+        }) %>
+      </div>
 
       <%- include('../../partials/form-field', {
-        fieldId: 'lastName',
-        label: 'Last Name',
-        type: 'text',
-        name: 'lastName',
-        value: typeof values !== 'undefined' ? values.lastName : '',
-        autocomplete: 'family-name',
+        fieldId: 'email',
+        label: 'Email Address',
+        type: 'email',
+        name: 'email',
+        value: typeof values !== 'undefined' ? values.email : '',
+        autocomplete: 'email',
+        autocapitalize: 'none',
+        inputmode: 'email',
+        spellcheck: false,
         required: true,
-        error: typeof errors !== 'undefined' ? errors.lastName : null
+        error: typeof errors !== 'undefined' ? errors.email : null
       }) %>
-    </div>
+    </fieldset>
 
-    <%- include('../../partials/form-field', {
-      fieldId: 'email',
-      label: 'Email Address',
-      type: 'email',
-      name: 'email',
-      value: typeof values !== 'undefined' ? values.email : '',
-      autocomplete: 'email',
-      required: true,
-      error: typeof errors !== 'undefined' ? errors.email : null
-    }) %>
+    <fieldset class="auth-section">
+      <legend class="auth-section__title">Secure your account</legend>
 
-    <%- include('../../partials/password-field', {
-      fieldId: 'password',
-      fieldName: 'password',
-      label: 'Password',
-      required: true,
-      autocomplete: 'new-password',
-      error: typeof errors !== 'undefined' ? errors.password : null
-    }) %>
+      <%- include('../../partials/password-field', {
+        fieldId: 'password',
+        fieldName: 'password',
+        label: 'Password',
+        required: true,
+        autocomplete: 'new-password',
+        error: typeof errors !== 'undefined' ? errors.password : null
+      }) %>
 
-    <%- include('../../partials/password-requirements') %>
+      <%- include('../../partials/password-requirements') %>
 
-    <%- include('../../partials/password-field', {
-      fieldId: 'confirmPassword',
-      fieldName: 'confirmPassword',
-      label: 'Confirm Password',
-      required: true,
-      autocomplete: 'new-password',
-      error: typeof errors !== 'undefined' ? errors.confirmPassword : null
-    }) %>
+      <%- include('../../partials/password-field', {
+        fieldId: 'confirmPassword',
+        fieldName: 'confirmPassword',
+        label: 'Confirm Password',
+        required: true,
+        autocomplete: 'new-password',
+        error: typeof errors !== 'undefined' ? errors.confirmPassword : null
+      }) %>
+      <p class="form-hint password-match" data-match-hint aria-live="polite" hidden></p>
+    </fieldset>
 
     <%- include('../../partials/policy-consent', {
       error: typeof errors !== 'undefined' ? errors.acceptTerms : null

@@ -1,6 +1,6 @@
 <%
   // Required locals: fieldId, label, type, name, value, autocomplete
-  // Optional: required, hint, error, placeholder
+  // Optional: required, hint, error, placeholder, autocapitalize, inputmode, spellcheck
   const _required = typeof required !== 'undefined' ? required : false;
   const _hint = typeof hint !== 'undefined' ? hint : null;
   const _error = typeof error !== 'undefined' ? error : null;
@@ -8,6 +8,9 @@
   const _autocomplete = typeof autocomplete !== 'undefined' ? autocomplete : 'off';
   const _type = typeof type !== 'undefined' ? type : 'text';
   const _value = typeof value !== 'undefined' ? value : '';
+  const _autocapitalize = typeof autocapitalize !== 'undefined' ? autocapitalize : null;
+  const _inputmode = typeof inputmode !== 'undefined' ? inputmode : null;
+  const _hasSpellcheck = typeof spellcheck === 'undefined' || spellcheck;
 %>
 <div class="form-field form-field--floating">
   <label for="<%= fieldId %>" class="form-label<% if (_required) { %> form-label--required<% } %>">
@@ -20,6 +23,9 @@
     value="<%= _value %>"
     class="form-input<% if (_error) { %> form-input--error<% } %>"
     autocomplete="<%= _autocomplete %>"
+    <% if (_autocapitalize) { %>autocapitalize="<%= _autocapitalize %>"<% } %>
+    <% if (_inputmode) { %>inputmode="<%= _inputmode %>"<% } %>
+    <% if (!_hasSpellcheck) { %>spellcheck="false" autocorrect="off"<% } %>
     <% if (_required) { %>aria-required="true"<% } %>
     <% if (_error) { %>aria-describedby="<%= fieldId %>-error"<% } else if (_hint) { %>aria-describedby="<%= fieldId %>-hint"<% } %>
     placeholder="<%= _placeholder || ' ' %>"

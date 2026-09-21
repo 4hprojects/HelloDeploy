@@ -192,6 +192,10 @@
   font-weight: var(--font-bold);
 }
 
+.auth-mobile-brand {
+  display: none;
+}
+
 .auth-layout__form-panel {
   padding: var(--space-12) var(--space-10);
   display: flex;
@@ -228,7 +232,23 @@
   }
 
   .auth-layout__brand-panel {
-    display: none; /* Compact brand shown above form on mobile */
+    display: none;
+  }
+
+  .auth-mobile-brand {
+    display: flex;
+    padding: var(--space-4);
+    background: var(--color-navy);
+  }
+
+  .auth-layout {
+    min-height: 100dvh;
+    grid-template-rows: auto 1fr;
+  }
+
+  .auth-layout__form-panel {
+    justify-content: flex-start;
+    padding: var(--space-6) var(--space-4) calc(var(--space-6) + env(safe-area-inset-bottom));
   }
 }
 

@@ -605,6 +605,7 @@
   function initPasswordRequirements() {
     const input = document.getElementById('password');
     const items = document.querySelectorAll('.password-req');
+    const segments = document.querySelectorAll('.password-meter__segment');
     if (!input || !items.length) {
       return;
     }
@@ -625,16 +626,47 @@
     };
 
     input.addEventListener('input', () => {
+      let metCount = 0;
       items.forEach((item) => {
         const req = item.dataset.req;
         const met = checks[req] && checks[req](input.value);
+        if (met) {
+          metCount += 1;
+        }
         item.classList.toggle('password-req--met', met);
         const icon = item.querySelector('.password-req__icon');
         if (icon) {
           icon.textContent = met ? '✓' : '○';
         }
       });
+      segments.forEach((segment, index) => {
+        segment.classList.toggle('password-meter__segment--on', index < metCount);
+      });
     });
+  }
+
+  function initPasswordMatchHint() {
+    const password = document.getElementById('password');
+    const confirm = document.getElementById('confirmPassword');
+    const hint = document.querySelector('[data-match-hint]');
+    if (!password || !confirm || !hint) {
+      return;
+    }
+
+    function update() {
+      if (!confirm.value) {
+        hint.hidden = true;
+        return;
+      }
+      const isMatch = confirm.value === password.value;
+      hint.hidden = false;
+      hint.textContent = isMatch ? 'Passwords match' : 'Passwords do not match yet';
+      hint.classList.toggle('form-hint--success', isMatch);
+      hint.classList.toggle('form-hint--error', !isMatch);
+    }
+
+    password.addEventListener('input', update);
+    confirm.addEventListener('input', update);
   }
 
   function option(value, text) {
@@ -1150,6 +1182,7 @@
     initAutoSubmitControls();
     initPasswordToggles();
     initPasswordRequirements();
+    initPasswordMatchHint();
     initRepositoryBranchLoader();
     initDeploymentLiveLogs();
     initEnvFileImport();
