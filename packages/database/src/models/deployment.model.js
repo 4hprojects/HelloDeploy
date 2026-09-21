@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import { DeploymentStatus, DeploymentTrigger, ContainerStatus } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -26,6 +26,14 @@ const deploymentSchema = new Schema(
     imageDigest: { type: String, default: null },
     candidateContainerId: { type: String, default: null },
     activeContainerId: { type: String, default: null },
+    // Last observed runtime state of activeContainerId, written by the
+    // reconciliation sweep. Null until a sweep has looked at this deployment.
+    containerStatus: {
+      type: String,
+      enum: [...Object.values(ContainerStatus), null],
+      default: null,
+    },
+    containerCheckedAt: { type: Date, default: null },
     startedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
     failureCode: { type: String, default: null },

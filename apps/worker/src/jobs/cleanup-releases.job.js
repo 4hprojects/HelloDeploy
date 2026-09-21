@@ -6,6 +6,7 @@ import { removeDockerImage, pruneDanglingImages } from '../deployment/build.js';
 import { isImageTagInUse } from '../deployment/retention.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { sweepStuckDeployments } from '../deployment/stuck-sweeper.js';
+import { reconcileActiveContainers } from '../deployment/reconciler.js';
 import { env } from '../config/env.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
@@ -16,6 +17,7 @@ const defaultDeps = {
   cleanupAbandonedBuildWorkspaces,
   pruneDanglingImages,
   sweepStuckDeployments,
+  reconcileActiveContainers,
 };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
@@ -31,6 +33,7 @@ export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
  *   3. Old DeploymentEvent records (supplemental cleanup beyond TTL index)
  *   4. Dangling (untagged) Docker images left by interrupted/superseded builds
  *   5. Deployments abandoned in a non-terminal status by a dead worker
+ *   6. Drift between the recorded active release and the live container
  *
  * Payload:
  *   - projectId? — limit to a specific project, else clean all
@@ -152,6 +155,10 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
   const sweep = deps.sweepStuckDeployments ?? sweepStuckDeployments;
   const resolvedStuck = await sweep();
 
+  // Compare the database's view of each active release against Docker's.
+  const reconcile = deps.reconcileActiveContainers ?? reconcileActiveContainers;
+  const reconciled = await reconcile();
+
   logger.info('CleanupReleases: complete', {
     removedContainers,
     removedImages,
@@ -159,6 +166,8 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     removedDanglingImages,
     removedWorkspaces,
     resolvedStuck,
+    containersChecked: reconciled.checked,
+    containersDrifted: reconciled.drifted,
     projectId: projectId ?? 'all',
   });
 }
