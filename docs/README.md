@@ -11,6 +11,7 @@ Use this index as the starting point for repository documentation. The top-level
 
 ## Operations Documentation
 
+- [Phase 1 Pilot Runbook](runbooks/PHASE_1_PILOT.md) - the ordered, privileged command sequence for taking the pilot live: preconditions, the eight prior deployment failures and their fixes, runtime matrix, rollback, and the 11-step custom-domain cutover.
 - [Operations Runbooks](OPERATIONS_RUNBOOKS.md) - incident response, backup, restore, upgrade, rollback, uninstall, maintenance workflows, and the post-release non-root container smoke test.
 - [Self-Hosted Install Guide](SELF_HOSTED_INSTALL.md) - supported Ubuntu versions, install modes, setup steps, required environment keys, and lifecycle commands.
 - [Environment Reference](ENVIRONMENT.md) - every environment variable read by the web and worker processes, grouped by concern.
