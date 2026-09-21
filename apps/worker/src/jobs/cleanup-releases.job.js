@@ -7,6 +7,7 @@ import { isImageTagInUse } from '../deployment/retention.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { sweepStuckDeployments } from '../deployment/stuck-sweeper.js';
 import { reconcileActiveContainers } from '../deployment/reconciler.js';
+import { sweepUnverifiedDomains } from '../domain/reverify-sweeper.js';
 import { env } from '../config/env.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
@@ -18,6 +19,7 @@ const defaultDeps = {
   pruneDanglingImages,
   sweepStuckDeployments,
   reconcileActiveContainers,
+  sweepUnverifiedDomains,
 };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
@@ -34,6 +36,7 @@ export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
  *   4. Dangling (untagged) Docker images left by interrupted/superseded builds
  *   5. Deployments abandoned in a non-terminal status by a dead worker
  *   6. Drift between the recorded active release and the live container
+ *   7. Domains left unverified long enough that DNS has probably propagated
  *
  * Payload:
  *   - projectId? — limit to a specific project, else clean all
@@ -159,6 +162,11 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
   const reconcile = deps.reconcileActiveContainers ?? reconcileActiveContainers;
   const reconciled = await reconcile();
 
+  // Give owners whose DNS propagated late a second look without making them
+  // notice and retry by hand.
+  const reverify = deps.sweepUnverifiedDomains ?? sweepUnverifiedDomains;
+  const domainsRechecked = await reverify();
+
   logger.info('CleanupReleases: complete', {
     removedContainers,
     removedImages,
@@ -168,6 +176,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     resolvedStuck,
     containersChecked: reconciled.checked,
     containersDrifted: reconciled.drifted,
+    domainsRechecked,
     projectId: projectId ?? 'all',
   });
 }
