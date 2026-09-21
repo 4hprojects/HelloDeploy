@@ -11,18 +11,23 @@ import { Quota } from './models/quota.model.js';
  * to carry them in.
  */
 const PLAN_DEFAULTS = Object.freeze({
+  // These limits are now enforced, where previously they were only displayed.
+  // maxOwnedProjects and maxProjectMembers keep their product-scope values
+  // because they were already enforced. The rest are deliberately set wide
+  // enough not to change behaviour for anyone today; tighten them to product
+  // scope once the pilot is live and real usage is known.
   maxOwnedProjects: 1,
-  maxRunningApps: 1,
+  maxRunningApps: 5,
   maxProjectMembers: 3, // Owner + 2
   memoryMb: 256,
   cpuCores: 0.25,
   storageMb: 500,
-  deploymentsPerMonth: 10,
+  deploymentsPerMonth: 100,
   // Matches the BUILD_TIMEOUT_MS default that has actually been in force. The
   // previous 300 was never enforced anywhere, so lowering projects to it now
   // would be a silent regression rather than a policy change.
   buildTimeoutSeconds: 600,
-  maxCustomDomains: 1,
+  maxCustomDomains: 5,
   maxRollbackReleases: 3,
   logRetentionDays: 7,
 });
