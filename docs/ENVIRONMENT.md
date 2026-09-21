@@ -62,6 +62,7 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | `WORKER_CONCURRENCY`        | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
 | `BUILD_TIMEOUT_MS`          | no              | `600000`                        | Hard cap on `docker build` duration                        |
 | `CLONE_DOWNLOAD_TIMEOUT_MS` | no              | `300000`                        | Hard cap on the source tarball download                    |
+| `MAINTENANCE_INTERVAL_MS`   | no              | `86400000`                      | Interval between recurring release-cleanup sweeps          |
 | `BUILD_WORKSPACE_ROOT`      | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
 | `RELEASE_METADATA_ROOT`     | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
 | `PROJECT_VOLUME_ROOT`       | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |

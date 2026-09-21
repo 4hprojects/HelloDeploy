@@ -28,6 +28,22 @@ describe('worker graceful shutdown', () => {
     assert.ok(WORKER_SHUTDOWN_TIMEOUT_MS < workerStopMs);
   });
 
+  it('closes the queue before the Redis connection it shares', async () => {
+    const calls = [];
+    const shutdown = createGracefulWorkerShutdown({
+      worker: { close: async () => calls.push('worker') },
+      closeQueue: async () => calls.push('queue'),
+      closeRedis: async () => calls.push('redis'),
+      closeDatabase: async () => calls.push('database'),
+      logger: createLogger(),
+      timeoutMs: 100,
+    });
+
+    await shutdown('SIGTERM');
+
+    assert.ok(calls.indexOf('queue') < calls.indexOf('redis'));
+  });
+
   it('drains once and closes Redis and MongoDB', async () => {
     const calls = [];
     const shutdown = createGracefulWorkerShutdown({

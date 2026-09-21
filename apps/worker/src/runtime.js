@@ -10,6 +10,7 @@ import { JobType, validateJobPayload } from '@hellodeploy/contracts';
 import { logger, configureAuditService } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
+import { registerMaintenanceSchedulers } from './queue/maintenance-scheduler.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
 import { validateNginxConfig } from './nginx/helper-client.js';
 import { handleBuildDeployment } from './jobs/build-deployment.job.js';
@@ -53,6 +54,20 @@ const queue = createDeploymentQueue(redis);
 setWorkerQueue(queue);
 // Expose the connection for fire-and-forget publishes (live deploy logs)
 setWorkerRedis(redis);
+
+// Recurring maintenance sweep. A registration failure must not stop the worker
+// from deploying, so it is reported and execution continues; the error log is
+// the operator's signal that cleanup is not running.
+try {
+  await registerMaintenanceSchedulers(queue, { intervalMs: env.MAINTENANCE_INTERVAL_MS });
+  logger.info('Worker: maintenance sweep scheduled', {
+    intervalMs: env.MAINTENANCE_INTERVAL_MS,
+  });
+} catch (err) {
+  logger.error('Worker: failed to schedule maintenance sweep — cleanup will not run', {
+    error: err.message,
+  });
+}
 
 /**
  * Main job processor — dispatches to the correct handler by job name.
@@ -125,6 +140,7 @@ logger.info('Worker: ready — listening for jobs');
 
 const shutdown = createGracefulWorkerShutdown({
   worker,
+  closeQueue: () => queue.close(),
   closeRedis: () => redis.quit(),
   closeDatabase: disconnectDatabase,
   logger,

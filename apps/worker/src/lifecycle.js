@@ -7,6 +7,7 @@ export const WORKER_SHUTDOWN_TIMEOUT_MS = 110_000;
  */
 export function createGracefulWorkerShutdown({
   worker,
+  closeQueue,
   closeRedis,
   closeDatabase,
   logger,
@@ -16,7 +17,14 @@ export function createGracefulWorkerShutdown({
   let dependencyClosePromise = null;
 
   function closeDependencies() {
-    dependencyClosePromise ??= Promise.allSettled([closeRedis(), closeDatabase()]);
+    // The queue holds the same Redis connection, so it closes first; an absent
+    // closeQueue keeps older callers working unchanged.
+    dependencyClosePromise ??= (async () => {
+      if (closeQueue) {
+        await closeQueue();
+      }
+      return Promise.allSettled([closeRedis(), closeDatabase()]);
+    })();
     return dependencyClosePromise;
   }
 
