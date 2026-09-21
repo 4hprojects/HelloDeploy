@@ -4,6 +4,7 @@ export { AuditEvent } from './models/audit-event.model.js';
 export { Project } from './models/project.model.js';
 export { ProjectMembership } from './models/project-membership.model.js';
 export { Quota } from './models/quota.model.js';
+export { getPlanDefaults, resolveUserQuota, resolveProjectQuota } from './quota-resolver.js';
 export { ApprovalRequest } from './models/approval-request.model.js';
 export { Repository } from './models/repository.model.js';
 export { EnvironmentSecret } from './models/environment-secret.model.js';

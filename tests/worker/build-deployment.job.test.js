@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment } from '@hellodeploy/database';
-import { DeploymentStatus, RepositorySourceType } from '@hellodeploy/contracts';
+import { Deployment, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, RepositorySourceType, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment, createRepository } from '../helpers/worker-fixtures.js';
 
@@ -166,6 +166,37 @@ describe('build-deployment job', () => {
       cpuCores: 0.25,
       pidsLimit: 100,
     });
+  });
+
+  it('carries a project quota override into the activation payload', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      memoryMb: 1024,
+      cpuCores: 2,
+      createdBy: project.ownerId,
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.enqueued[0]?.payload.resourceLimits, {
+      memoryMb: 1024,
+      cpuCores: 2,
+      pidsLimit: 100,
+    });
+  });
+
+  it('falls back to the owner quota when the project has no override', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.USER,
+      scopeId: project.ownerId,
+      memoryMb: 512,
+      createdBy: project.ownerId,
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.enqueued[0]?.payload.resourceLimits.memoryMb, 512);
   });
 
   it('marks CLONE_FAILED and never builds when the clone throws', async () => {

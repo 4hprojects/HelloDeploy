@@ -1,4 +1,4 @@
-import { Project, Deployment } from '@hellodeploy/database';
+import { Project, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { allocatePort } from '../deployment/port-allocator.js';
@@ -103,12 +103,18 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     correlationId,
   );
 
+  // A rollback re-runs the release pipeline, so it must carry the project's
+  // limits too. Without this the restored container silently drops to the
+  // pipeline defaults while the dashboard still shows the configured quota.
+  const quota = await resolveProjectQuota(projectId, project.ownerId);
+
   const result = await runReleasePipeline({
     project,
     deploymentId,
     imageTag: sourceDeployment.imageTag,
     correlationId,
     deps,
+    resourceLimits: { memoryMb: quota.memoryMb, cpuCores: quota.cpuCores },
     opts: {
       removeImageOnFailure: false,
       failOnInvalidSubdomain: false,

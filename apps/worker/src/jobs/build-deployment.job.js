@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { Project, Repository, Deployment } from '@hellodeploy/database';
+import { Project, Repository, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -343,6 +343,15 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   // Cleanup build workspace before activation — image is in the Docker daemon
   await deps.cleanupBuildWorkspace(workDir);
 
+  // Per-project limits, falling back to the pipeline defaults. An admin raising
+  // a project's memory has to reach the container, not just the settings page.
+  const quota = await resolveProjectQuota(projectId, project.ownerId);
+  const resourceLimits = {
+    memoryMb: quota.memoryMb ?? DEFAULT_MEMORY_MB,
+    cpuCores: quota.cpuCores ?? DEFAULT_CPU_CORES,
+    pidsLimit: DEFAULT_PIDS_LIMIT,
+  };
+
   // Enqueue the ACTIVATE_RELEASE job — worker picks it up next
   try {
     await deps.enqueueActivateRelease(
@@ -355,11 +364,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         deploymentId,
         imageId: imageTag,
         targetPort: project.buildConfiguration?.applicationPort ?? 3000,
-        resourceLimits: {
-          memoryMb: DEFAULT_MEMORY_MB,
-          cpuCores: DEFAULT_CPU_CORES,
-          pidsLimit: DEFAULT_PIDS_LIMIT,
-        },
+        resourceLimits,
       },
       `activate-${deploymentId}`,
     );

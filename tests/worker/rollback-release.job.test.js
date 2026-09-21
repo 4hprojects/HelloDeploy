@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import { Deployment, Project, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, DeploymentTrigger, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
@@ -172,5 +172,21 @@ describe('rollback-release job', () => {
     const { deps, calls } = makeDeps();
     await handleRollbackRelease(makeJob(project, finished, sourceDeployment), deps);
     assert.equal(calls.startedContainers.length, 0);
+  });
+
+  it('preserves the project resource limits on a rollback', async () => {
+    const { project, sourceDeployment, rollbackDeployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      memoryMb: 1024,
+      cpuCores: 2,
+      createdBy: project.ownerId,
+    });
+    const { deps, calls } = makeDeps();
+
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+
+    assert.equal(calls.startedContainers[0].memoryMb, 1024);
   });
 });
