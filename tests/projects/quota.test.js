@@ -12,7 +12,7 @@ describe('getPlanDefaults', () => {
     assert.equal(defaults.cpuCores, 0.25);
     assert.equal(defaults.storageMb, 500);
     assert.equal(defaults.deploymentsPerMonth, 10);
-    assert.equal(defaults.buildTimeoutSeconds, 300);
+    assert.equal(defaults.buildTimeoutSeconds, 600);
     assert.equal(defaults.maxCustomDomains, 1);
     assert.equal(defaults.maxRollbackReleases, 3);
     assert.equal(defaults.logRetentionDays, 7);

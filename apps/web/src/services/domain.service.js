@@ -1,6 +1,6 @@
 import { randomBytes, createHash } from 'node:crypto';
 import { resolveTxt } from 'node:dns/promises';
-import { Domain, Project } from '@hellodeploy/database';
+import { Domain, Project, resolveProjectQuota } from '@hellodeploy/database';
 import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -103,6 +103,26 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
     return { success: false, error: 'This domain is already claimed.' };
   }
   // If REMOVED, allow re-adding (upsert below handles it)
+
+  // Re-activating a REMOVED record does not add a domain, so it is not gated.
+  if (!existing) {
+    const project = await Project.findById(projectId).select('ownerId').lean();
+    if (!project) {
+      return { success: false, error: 'Project not found.' };
+    }
+
+    const [quota, claimed] = await Promise.all([
+      resolveProjectQuota(projectId, project.ownerId),
+      Domain.countDocuments({ projectId, status: { $ne: DomainStatus.REMOVED } }),
+    ]);
+
+    if (claimed >= quota.maxCustomDomains) {
+      return {
+        success: false,
+        error: `This project has reached its limit of ${quota.maxCustomDomains} custom ${quota.maxCustomDomains === 1 ? 'domain' : 'domains'}. Remove one before adding another.`,
+      };
+    }
+  }
 
   // Generate a random verification token
   const token = randomBytes(32).toString('hex');

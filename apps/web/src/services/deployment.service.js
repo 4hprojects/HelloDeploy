@@ -1,4 +1,4 @@
-import { Project, Repository, Deployment } from '@hellodeploy/database';
+import { Project, Repository, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import {
   DeploymentMode,
   DeploymentStatus,
@@ -34,6 +34,66 @@ const REPOSITORY_ACCESS_INACTIVE_COPY =
 function deploymentInProgressCopy(status) {
   const suffix = status ? ` (${status.toLowerCase()})` : '';
   return `A deployment is already in progress${suffix}. Wait for it to finish, or cancel it from Deployments before starting another.`;
+}
+
+/**
+ * Quota gate shared by the create and retry paths.
+ *
+ * Both build their own payloads, so a check placed only on create would be
+ * bypassable by retrying a failed deployment.
+ *
+ * @returns {Promise<{ ok: true } | { ok: false, error: string }>}
+ */
+async function checkDeploymentQuota(project) {
+  const quota = await resolveProjectQuota(project._id, project.ownerId);
+
+  const monthStart = new Date();
+  monthStart.setUTCDate(1);
+  monthStart.setUTCHours(0, 0, 0, 0);
+
+  const thisMonth = await Deployment.countDocuments({
+    projectId: project._id,
+    createdAt: { $gte: monthStart },
+  });
+
+  if (thisMonth >= quota.deploymentsPerMonth) {
+    return {
+      ok: false,
+      error: `This project has used all ${quota.deploymentsPerMonth} of its deployments this month. The limit resets at the start of next month.`,
+    };
+  }
+
+  // A project that is already running does not consume another app slot by
+  // redeploying, so only a project with no live release is gated here.
+  const alreadyRunning = await Deployment.countDocuments({
+    projectId: project._id,
+    status: DeploymentStatus.HEALTHY,
+    activeContainerId: { $ne: null },
+  });
+
+  if (alreadyRunning === 0) {
+    const ownedProjects = await Project.find({
+      ownerId: project.ownerId,
+      status: { $ne: ProjectStatus.ARCHIVED },
+    })
+      .select('_id')
+      .lean();
+
+    const runningApps = await Deployment.countDocuments({
+      projectId: { $in: ownedProjects.map((owned) => owned._id) },
+      status: DeploymentStatus.HEALTHY,
+      activeContainerId: { $ne: null },
+    });
+
+    if (runningApps >= quota.maxRunningApps) {
+      return {
+        ok: false,
+        error: `You already have ${quota.maxRunningApps === 1 ? 'an app' : `${quota.maxRunningApps} apps`} running. Archive or stop another project before deploying this one.`,
+      };
+    }
+  }
+
+  return { ok: true };
 }
 
 // ─── Create deployment ─────────────────────────────────────────────────────────
@@ -227,6 +287,11 @@ export async function createDeployment({
     };
   }
 
+  const quotaCheck = await checkDeploymentQuota(project);
+  if (!quotaCheck.ok) {
+    return { success: false, error: quotaCheck.error };
+  }
+
   // ── Create deployment record ────────────────────────────────────────────────
   const seqNum = await nextSequenceNumber(Deployment, projectId);
 
@@ -370,6 +435,11 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   const active = await findInFlightDeployment(original.projectId);
   if (active) {
     return { success: false, error: deploymentInProgressCopy(active.status) };
+  }
+
+  const retryQuotaCheck = await checkDeploymentQuota(project);
+  if (!retryQuotaCheck.ok) {
+    return { success: false, error: retryQuotaCheck.error };
   }
 
   const seqNum = await nextSequenceNumber(Deployment, original.projectId);

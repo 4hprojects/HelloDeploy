@@ -229,9 +229,13 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     return;
   }
 
+  // Per-project limits, resolved once and used for the context size cap, the
+  // build timeout and the container's resources.
+  const quota = await resolveProjectQuota(projectId, project.ownerId);
+
   // ── Prepare build context ───────────────────────────────────────────────────
   try {
-    await deps.prepareBuildContext(workDir);
+    await deps.prepareBuildContext(workDir, { maxBytes: quota.storageMb * 1024 * 1024 });
     await logEvent(deploymentId, 'VALIDATE', 'INFO', 'Build context validated.', correlationId);
   } catch (err) {
     await logEvent(
@@ -299,7 +303,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     await deps.buildDockerImage({
       contextDir: workDir,
       imageTag,
-      buildTimeoutMs: env.BUILD_TIMEOUT_MS,
+      buildTimeoutMs: Math.min(quota.buildTimeoutSeconds * 1000, env.BUILD_TIMEOUT_MS),
       noCache: noCache === true,
       onLogLine: async (line, stream) => {
         await logEvent(
@@ -343,9 +347,6 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   // Cleanup build workspace before activation — image is in the Docker daemon
   await deps.cleanupBuildWorkspace(workDir);
 
-  // Per-project limits, falling back to the pipeline defaults. An admin raising
-  // a project's memory has to reach the container, not just the settings page.
-  const quota = await resolveProjectQuota(projectId, project.ownerId);
   const resourceLimits = {
     memoryMb: quota.memoryMb ?? DEFAULT_MEMORY_MB,
     cpuCores: quota.cpuCores ?? DEFAULT_CPU_CORES,

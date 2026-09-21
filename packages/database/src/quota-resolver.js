@@ -18,7 +18,10 @@ const PLAN_DEFAULTS = Object.freeze({
   cpuCores: 0.25,
   storageMb: 500,
   deploymentsPerMonth: 10,
-  buildTimeoutSeconds: 300,
+  // Matches the BUILD_TIMEOUT_MS default that has actually been in force. The
+  // previous 300 was never enforced anywhere, so lowering projects to it now
+  // would be a silent regression rather than a policy change.
+  buildTimeoutSeconds: 600,
   maxCustomDomains: 1,
   maxRollbackReleases: 3,
   logRetentionDays: 7,

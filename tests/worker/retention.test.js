@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus } from '@hellodeploy/contracts';
+import { Deployment, Project, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
@@ -143,5 +143,21 @@ describe('retention — cleanupOldReleases', () => {
     const stub = makeDockerStub();
     await cleanupOldReleases(project._id, stub.deps);
     assert.equal(stub.removedImages.length, 0);
+  });
+
+  it('keeps the number of releases the project quota allows', async () => {
+    const project = await createProject();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      maxRollbackReleases: 1,
+      createdBy: project.ownerId,
+    });
+    await seedHealthyReleases(project._id, 3);
+    const { deps, removedContainers } = makeDockerStub();
+
+    await cleanupOldReleases(project._id, deps);
+
+    assert.equal(removedContainers.length, 2);
   });
 });

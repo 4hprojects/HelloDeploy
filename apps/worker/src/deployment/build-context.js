@@ -106,9 +106,10 @@ async function getDirectorySize(dir, depth = 0) {
  * - Enforces a maximum context size
  *
  * @param {string} contextDir - Absolute path to the cloned source directory
+ * @param {{ maxBytes?: number }} [options] - Per-project size limit from quota
  * @returns {Promise<{ sizeBytes: number }>}
  */
-export async function prepareBuildContext(contextDir) {
+export async function prepareBuildContext(contextDir, { maxBytes = MAX_CONTEXT_BYTES } = {}) {
   const resolvedRoot = resolve(contextDir);
 
   // ── Validate all top-level filenames ──────────────────────────────────────
@@ -135,9 +136,9 @@ export async function prepareBuildContext(contextDir) {
 
   // ── Size check ─────────────────────────────────────────────────────────────
   const sizeBytes = await getDirectorySize(resolvedRoot);
-  if (sizeBytes > MAX_CONTEXT_BYTES) {
+  if (sizeBytes > maxBytes) {
     throw new Error(
-      `Build context is too large: ${Math.round(sizeBytes / 1024 / 1024)} MB (max 500 MB)`,
+      `Build context is too large: ${Math.round(sizeBytes / 1024 / 1024)} MB (max ${Math.round(maxBytes / 1024 / 1024)} MB)`,
     );
   }
 

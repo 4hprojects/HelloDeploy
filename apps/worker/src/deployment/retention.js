@@ -1,9 +1,10 @@
-import { Project, Deployment } from '@hellodeploy/database';
+import { Project, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from './container.js';
 import { removeDockerImage } from './build.js';
 
+// Fallback when no quota is resolvable; the plan default matches it.
 const MAX_HEALTHY_RELEASES = 3;
 
 // Statuses whose records may still need their image (running, about to run,
@@ -55,13 +56,16 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
     })
       .sort({ sequenceNumber: -1 })
       .lean(),
-    Project.findById(projectId).select('activeDeploymentId').lean(),
+    Project.findById(projectId).select('activeDeploymentId ownerId').lean(),
   ]);
 
+  // How many releases stay rollback-eligible is a per-project quota, not a
+  // platform constant.
+  const quota = project ? await resolveProjectQuota(projectId, project.ownerId) : null;
+  const keep = quota?.maxRollbackReleases ?? MAX_HEALTHY_RELEASES;
+
   const activeDeploymentId = project?.activeDeploymentId?.toString();
-  const toClean = healthy
-    .slice(MAX_HEALTHY_RELEASES)
-    .filter((dep) => dep._id.toString() !== activeDeploymentId);
+  const toClean = healthy.slice(keep).filter((dep) => dep._id.toString() !== activeDeploymentId);
 
   if (toClean.length === 0) {
     return;
@@ -72,7 +76,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
 
   logger.info('Retention: cleaning up old releases', {
     projectId,
-    keeping: MAX_HEALTHY_RELEASES,
+    keeping: keep,
     removing: toClean.length,
   });
 
