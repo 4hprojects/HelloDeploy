@@ -2,14 +2,14 @@ import { Project, Deployment } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
-import { generateMaintenanceBlock } from '../nginx/template.js';
-import { activateRoute } from '../nginx/helper-client.js';
-import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
+import { activateRoutes } from '../nginx/helper-client.js';
+import { buildMaintenanceRouteSet, listActiveCustomDomains } from '../nginx/project-routes.js';
 import { env } from '../config/env.js';
 
 const defaultDeps = {
   stopAndRemoveContainer,
-  activateRoute,
+  activateRoutes,
+  listActiveCustomDomains,
 };
 
 /**
@@ -29,6 +29,8 @@ export async function handleStopProject(job, deps = defaultDeps) {
     logger.warn('StopProject: project not found', { projectId });
     return;
   }
+
+  const customDomains = env.NGINX_ENABLED ? await deps.listActiveCustomDomains(projectId) : [];
 
   // ── Stop active container ───────────────────────────────────────────────────
   if (project.activeDeploymentId) {
@@ -62,29 +64,23 @@ export async function handleStopProject(job, deps = defaultDeps) {
 
   // ── Replace nginx with maintenance block ────────────────────────────────────
   if (env.NGINX_ENABLED) {
-    const subdomain = project.platformSubdomain ?? project.slug;
-
-    if (isValidSubdomainLabel(subdomain)) {
-      const maintenanceConfig = generateMaintenanceBlock({
-        subdomain,
-        domain: env.DEPLOYMENT_DOMAIN,
+    const routes = buildMaintenanceRouteSet({
+      project,
+      customDomains,
+      deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    });
+    try {
+      await deps.activateRoutes({ routes });
+      logger.info('StopProject: nginx maintenance routes activated', {
+        projectId,
+        routeCount: routes.length,
       });
-
-      try {
-        await deps.activateRoute({
-          configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-          slug: subdomain,
-          configContent: maintenanceConfig,
-          nginxBinary: env.NGINX_BINARY_PATH,
-        });
-        logger.info('StopProject: nginx maintenance block activated', { projectId, subdomain });
-      } catch (err) {
-        logger.error('StopProject: failed to activate maintenance block', {
-          projectId,
-          subdomain,
-          error: err.message,
-        });
-      }
+    } catch (err) {
+      logger.error('StopProject: failed to activate maintenance routes', {
+        projectId,
+        error: err.message,
+      });
+      throw err;
     }
   }
 

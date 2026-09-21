@@ -48,8 +48,16 @@ export async function activateRoute({ slug, configContent }) {
   await requestHelper({ action: 'activate', slug, configContent });
 }
 
+export async function activateRoutes({ routes }, socketPath = env.NGINX_HELPER_SOCKET) {
+  await requestHelper({ action: 'activate_many', routes }, socketPath);
+}
+
 export async function removeRoute({ slug }) {
   await requestHelper({ action: 'remove', slug });
+}
+
+export async function removeRoutes({ routes }, socketPath = env.NGINX_HELPER_SOCKET) {
+  await requestHelper({ action: 'remove_many', routes }, socketPath);
 }
 
 export async function validateNginxConfig() {

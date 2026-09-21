@@ -10,7 +10,8 @@ import {
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
-import { activateRoute } from '../nginx/helper-client.js';
+import { activateRoutes } from '../nginx/helper-client.js';
+import { listActiveCustomDomains } from '../nginx/project-routes.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import {
   runReleasePipeline,
@@ -27,7 +28,8 @@ const defaultDeps = {
   stopAndRemoveContainer,
   httpHealthCheck,
   getProjectEnvVars,
-  activateRoute,
+  activateRoutes,
+  listActiveCustomDomains,
   notifyDeploymentResult,
   startupDelayMs: STARTUP_DELAY_MS,
 };
@@ -111,7 +113,6 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     deps,
     opts: {
       removeImageOnFailure: false,
-      failOnInvalidSubdomain: false,
       persistSubdomain: false,
       markPreviousRolledBack: true,
       recordImageTagOnStart: true,

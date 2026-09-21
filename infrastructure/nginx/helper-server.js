@@ -7,7 +7,9 @@ import { dirname } from 'node:path';
 
 import {
   activateRoute,
+  activateRoutes,
   removeRoute,
+  removeRoutes,
   validateNginxConfig,
 } from '../../apps/worker/src/nginx/route-manager.js';
 
@@ -38,11 +40,23 @@ async function handleRequest(request) {
         nginxBinary,
       });
       return;
+    case 'activate_many':
+      if (!Array.isArray(request.routes)) {
+        throw new Error('Activate many requires a routes array.');
+      }
+      await activateRoutes({ configDir, routes: request.routes, nginxBinary });
+      return;
     case 'remove':
       if (typeof request.slug !== 'string') {
         throw new Error('Remove requires a string slug field.');
       }
       await removeRoute({ configDir, slug: request.slug, nginxBinary });
+      return;
+    case 'remove_many':
+      if (!Array.isArray(request.routes)) {
+        throw new Error('Remove many requires a routes array.');
+      }
+      await removeRoutes({ configDir, routes: request.routes, nginxBinary });
       return;
     case 'validate':
       await validateNginxConfig(nginxBinary);

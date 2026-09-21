@@ -91,6 +91,9 @@ const VALIDATORS = {
       requireStringArray(data, 'containerIds', JobType.DELETE_PROJECT);
       requireStringArray(data, 'imageTags', JobType.DELETE_PROJECT);
     }
+    if (data.version >= 3) {
+      requireStringArray(data, 'customDomainHostnames', JobType.DELETE_PROJECT);
+    }
   },
   [JobType.SET_PROJECT_MAINTENANCE](data) {
     requireString(data, 'projectId', JobType.SET_PROJECT_MAINTENANCE);

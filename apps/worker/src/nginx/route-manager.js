@@ -1,6 +1,7 @@
 import { spawn } from 'node:child_process';
 import { promises as fs } from 'node:fs';
 import { join, basename } from 'node:path';
+import { randomUUID } from 'node:crypto';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { isValidSubdomainLabel } from './reserved-subdomains.js';
@@ -56,17 +57,7 @@ function assertSafeSlug(slug) {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /**
- * Atomically write a new Nginx route for a project subdomain.
- *
- * Steps:
- *   1. Validate slug (path traversal guard)
- *   2. Backup existing config (if any) to {slug}.conf.bak
- *   3. Write new config to {slug}.conf.tmp
- *   4. Rename .tmp → .conf  (atomic on same filesystem)
- *   5. Run nginx -t to validate entire config
- *   6. On failure: restore backup and re-throw
- *   7. Run nginx -s reload
- *   8. On success: remove backup
+ * Activate one Nginx route through the atomic batch implementation.
  *
  * SECURITY: slug is validated before use as a filename component.
  * All nginx invocations use command arrays — no shell interpolation.
@@ -87,63 +78,139 @@ export async function activateRoute({
   nginxBinary = 'nginx',
   commandRunner = runCommand,
 }) {
-  assertSafeSlug(slug);
+  return activateRoutes({
+    configDir,
+    routes: [{ slug, configContent }],
+    nginxBinary,
+    commandRunner,
+  });
+}
 
-  const confPath = join(configDir, `${slug}.conf`);
-  const tmpPath = join(configDir, `${slug}.conf.tmp`);
-  const bakPath = join(configDir, `${slug}.conf.bak`);
-
-  const hadExisting = await fileExists(confPath);
-
-  if (hadExisting) {
-    await fs.copyFile(confPath, bakPath);
-    logger.info('NginxRoute: backed up existing config', { slug, bakPath });
+function validateRouteBatch(routes, { requireConfig }) {
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new Error('Nginx route batch must contain at least one route.');
   }
 
+  const slugs = new Set();
+  for (const route of routes) {
+    if (!route || typeof route !== 'object' || Array.isArray(route)) {
+      throw new Error('Each Nginx route must be an object.');
+    }
+    assertSafeSlug(route.slug);
+    if (slugs.has(route.slug)) {
+      throw new Error(`Duplicate Nginx route slug: "${route.slug}"`);
+    }
+    if (requireConfig && typeof route.configContent !== 'string') {
+      throw new Error(`Nginx route "${route.slug}" requires string configContent.`);
+    }
+    slugs.add(route.slug);
+  }
+}
+
+async function restoreRouteBatch(entries, { nginxBinary, commandRunner, activationError }) {
+  const restoreFailures = [];
+
+  for (const entry of entries) {
+    try {
+      if (entry.hadExisting) {
+        await fs.copyFile(entry.bakPath, entry.confPath);
+      } else {
+        await fs.unlink(entry.confPath).catch((err) => {
+          if (err.code !== 'ENOENT') {
+            throw err;
+          }
+        });
+      }
+      await fs.unlink(entry.tmpPath).catch(() => {});
+    } catch (err) {
+      restoreFailures.push({ slug: entry.slug, error: err.message });
+    }
+  }
+
+  if (restoreFailures.length === 0) {
+    try {
+      await commandRunner(nginxBinary, ['-t']);
+      await commandRunner(nginxBinary, ['-s', 'reload']);
+    } catch (err) {
+      restoreFailures.push({ slug: 'nginx-reload', error: err.message });
+    }
+  }
+
+  if (restoreFailures.length > 0) {
+    logger.error('NginxRoute: CRITICAL — batch route restoration failed', {
+      activationError: activationError.message,
+      failures: restoreFailures,
+    });
+    writeAuditEvent({
+      action: 'nginx.route_restore_failed',
+      outcome: AuditOutcome.FAILURE,
+      targetType: 'nginx_route_batch',
+      targetId: entries.map((entry) => entry.slug).join(','),
+      metadata: { activationError: activationError.message, restoreFailures },
+    }).catch(() => {});
+  }
+  return restoreFailures.length === 0;
+}
+
+/** Atomically activate a complete set of Nginx route files with one validation and reload. */
+export async function activateRoutes({
+  configDir,
+  routes,
+  nginxBinary = 'nginx',
+  commandRunner = runCommand,
+}) {
+  validateRouteBatch(routes, { requireConfig: true });
+  const transactionId = randomUUID();
+  const entries = [];
   try {
-    // Write to temp first, then rename atomically
-    await fs.writeFile(tmpPath, configContent, { encoding: 'utf8', mode: 0o640 });
-    await fs.rename(tmpPath, confPath);
-    logger.info('NginxRoute: wrote new config', { slug, confPath });
-
-    // Validate the full nginx config (includes our new file)
-    await commandRunner(nginxBinary, ['-t']);
-    logger.info('NginxRoute: nginx -t passed', { slug });
-
-    // Reload nginx to activate the new route
-    await commandRunner(nginxBinary, ['-s', 'reload']);
-    logger.info('NginxRoute: nginx reloaded', { slug });
-
-    // Clean up backup on success
-    if (hadExisting) {
-      await fs.unlink(bakPath).catch(() => {});
+    for (const { slug, configContent } of routes) {
+      const confPath = join(configDir, `${slug}.conf`);
+      const entry = {
+        slug,
+        configContent,
+        confPath,
+        tmpPath: join(configDir, `${slug}.conf.${transactionId}.tmp`),
+        bakPath: join(configDir, `${slug}.conf.${transactionId}.bak`),
+        hadExisting: await fileExists(confPath),
+      };
+      entries.push(entry);
+      if (entry.hadExisting) {
+        await fs.copyFile(confPath, entry.bakPath);
+      }
     }
   } catch (err) {
-    logger.error('NginxRoute: activation failed, restoring backup', { slug, error: err.message });
-
-    // Restore previous state
-    if (hadExisting) {
-      await fs.rename(bakPath, confPath).catch((restoreErr) => {
-        logger.error('NginxRoute: CRITICAL — failed to restore backup', {
-          slug,
-          error: restoreErr.message,
-        });
-        writeAuditEvent({
-          action: 'nginx.route_restore_failed',
-          outcome: AuditOutcome.FAILURE,
-          targetType: 'nginx_route',
-          targetId: slug,
-          metadata: { activationError: err.message, restoreError: restoreErr.message },
-        }).catch(() => {});
-      });
-    } else {
-      await fs.unlink(confPath).catch(() => {});
-    }
-
-    // Clean up temp if it still exists
-    await fs.unlink(tmpPath).catch(() => {});
-
+    await Promise.all(entries.map((entry) => fs.unlink(entry.bakPath).catch(() => {})));
     throw err;
+  }
+
+  let cleanupBackups = false;
+  try {
+    for (const entry of entries) {
+      await fs.writeFile(entry.tmpPath, entry.configContent, { encoding: 'utf8', mode: 0o640 });
+    }
+    for (const entry of entries) {
+      await fs.rename(entry.tmpPath, entry.confPath);
+    }
+    await commandRunner(nginxBinary, ['-t']);
+    await commandRunner(nginxBinary, ['-s', 'reload']);
+    logger.info('NginxRoute: activated route batch', { slugs: entries.map((entry) => entry.slug) });
+    cleanupBackups = true;
+  } catch (err) {
+    logger.error('NginxRoute: batch activation failed, restoring all routes', {
+      slugs: entries.map((entry) => entry.slug),
+      error: err.message,
+    });
+    cleanupBackups = await restoreRouteBatch(entries, {
+      nginxBinary,
+      commandRunner,
+      activationError: err,
+    });
+    throw err;
+  } finally {
+    await Promise.all(entries.map((entry) => fs.unlink(entry.tmpPath).catch(() => {})));
+    if (cleanupBackups) {
+      await Promise.all(entries.map((entry) => fs.unlink(entry.bakPath).catch(() => {})));
+    }
   }
 }
 
@@ -163,35 +230,63 @@ export async function removeRoute({
   nginxBinary = 'nginx',
   commandRunner = runCommand,
 }) {
-  assertSafeSlug(slug);
+  return removeRoutes({ configDir, routes: [{ slug }], nginxBinary, commandRunner });
+}
 
-  const confPath = join(configDir, `${slug}.conf`);
-
-  const exists = await fileExists(confPath);
-  if (!exists) {
-    logger.info('NginxRoute: no config to remove', { slug });
+/** Atomically remove a complete set of Nginx route files with one validation and reload. */
+export async function removeRoutes({
+  configDir,
+  routes,
+  nginxBinary = 'nginx',
+  commandRunner = runCommand,
+}) {
+  validateRouteBatch(routes, { requireConfig: false });
+  const transactionId = randomUUID();
+  const entries = [];
+  try {
+    for (const { slug } of routes) {
+      const confPath = join(configDir, `${slug}.conf`);
+      if (!(await fileExists(confPath))) {
+        continue;
+      }
+      const entry = {
+        slug,
+        confPath,
+        tmpPath: join(configDir, `${slug}.conf.${transactionId}.tmp`),
+        bakPath: join(configDir, `${slug}.conf.${transactionId}.bak`),
+        hadExisting: true,
+      };
+      entries.push(entry);
+      await fs.copyFile(confPath, entry.bakPath);
+    }
+  } catch (err) {
+    await Promise.all(entries.map((entry) => fs.unlink(entry.bakPath).catch(() => {})));
+    throw err;
+  }
+  if (entries.length === 0) {
     return;
   }
 
-  const bakPath = join(configDir, `${slug}.conf.bak`);
-  // A successful backup is a precondition for deletion. If this fails, leave
-  // the live route untouched rather than entering a state we cannot roll back.
-  await fs.copyFile(confPath, bakPath);
-  await fs.unlink(confPath);
-
+  let cleanupBackups = false;
   try {
+    for (const entry of entries) {
+      await fs.unlink(entry.confPath);
+    }
     await commandRunner(nginxBinary, ['-t']);
     await commandRunner(nginxBinary, ['-s', 'reload']);
-    logger.info('NginxRoute: removed route and reloaded', { slug });
-    await fs.unlink(bakPath).catch(() => {});
+    logger.info('NginxRoute: removed route batch', { slugs: entries.map((entry) => entry.slug) });
+    cleanupBackups = true;
   } catch (err) {
-    // Restore on failure (unlikely but safe)
-    logger.error('NginxRoute: reload after removal failed, restoring', {
-      slug,
-      error: err.message,
+    cleanupBackups = await restoreRouteBatch(entries, {
+      nginxBinary,
+      commandRunner,
+      activationError: err,
     });
-    await fs.rename(bakPath, confPath).catch(() => {});
     throw err;
+  } finally {
+    if (cleanupBackups) {
+      await Promise.all(entries.map((entry) => fs.unlink(entry.bakPath).catch(() => {})));
+    }
   }
 }
 

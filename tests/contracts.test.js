@@ -135,6 +135,30 @@ describe('contracts — validateJobPayload', () => {
       JobPayloadValidationError,
     );
   });
+
+  it('requires custom-domain inventory for version-3 project deletion jobs', () => {
+    assert.doesNotThrow(() =>
+      validateJobPayload(JobType.DELETE_PROJECT, {
+        version: 3,
+        projectId: 'p1',
+        projectSlug: 'my-project',
+        containerIds: [],
+        imageTags: [],
+        customDomainHostnames: ['app.example.com'],
+      }),
+    );
+    assert.throws(
+      () =>
+        validateJobPayload(JobType.DELETE_PROJECT, {
+          version: 3,
+          projectId: 'p1',
+          projectSlug: 'my-project',
+          containerIds: [],
+          imageTags: [],
+        }),
+      JobPayloadValidationError,
+    );
+  });
 });
 
 describe('contracts — getFailureCopy', () => {

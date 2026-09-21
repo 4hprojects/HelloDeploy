@@ -41,7 +41,8 @@ function makeDeps(overrides = {}) {
       return Promise.resolve();
     },
     getProjectEnvVars: async () => ({ APP_SECRET: 'shhh' }),
-    activateRoute: async (opts) => calls.activatedRoutes.push(opts),
+    activateRoutes: async ({ routes }) => calls.activatedRoutes.push(...routes),
+    listActiveCustomDomains: async () => [],
     notifyDeploymentResult: async () => {},
     cleanupOldReleases: async (projectId) => calls.retentionRuns.push(projectId),
     startupDelayMs: 0,
@@ -102,6 +103,25 @@ describe('activate-release job', () => {
     const { deps, calls } = makeDeps();
     await handleActivateRelease(makeJob(project, deployment), deps);
     assert.equal(calls.activatedRoutes[0]?.slug, project.slug);
+  });
+
+  it('atomically routes the platform hostname and every active custom domain', async () => {
+    const { project, deployment } = await seed({ platformSubdomain: 'my-app' });
+    const { deps, calls } = makeDeps({
+      listActiveCustomDomains: async () => [
+        { hostnameNormalized: 'app.example.com' },
+        { hostnameNormalized: 'portal.example.com' },
+      ],
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+
+    assert.equal(calls.activatedRoutes.length, 3);
+    assert.match(calls.activatedRoutes[0].configContent, /server_name my-app\.hellodeploy\.online/);
+    assert.match(calls.activatedRoutes[1].configContent, /server_name app\.example\.com/);
+    assert.match(calls.activatedRoutes[2].configContent, /server_name portal\.example\.com/);
+    for (const route of calls.activatedRoutes) {
+      assert.match(route.configContent, /127\.0\.0\.1:10001/);
+    }
   });
 
   it('stops the previous active container after a successful swap', async () => {
@@ -255,7 +275,7 @@ describe('activate-release job', () => {
   it('fails with NGINX_ROUTE_FAILED and stops the candidate when routing fails', async () => {
     const { project, deployment } = await seed();
     const { deps, calls } = makeDeps({
-      activateRoute: async () => {
+      activateRoutes: async () => {
         throw new Error('nginx -t failed');
       },
     });
@@ -287,6 +307,39 @@ describe('activate-release job', () => {
     await handleActivateRelease(makeJob(project, deployment), deps);
     const oldFresh = await Deployment.findById(oldDeployment._id).lean();
     assert.equal(oldFresh.status, DeploymentStatus.HEALTHY);
+    assert.ok(!calls.stoppedContainers.includes('container-id-old'));
+  });
+
+  it('preserves the old pointer and container when atomic route activation fails', async () => {
+    const project = await createProject({ platformSubdomain: 'route-failure' });
+    const oldDeployment = await createDeployment(project._id, {
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-old',
+      activeContainerId: 'container-id-old',
+    });
+    await Project.updateOne(
+      { _id: project._id },
+      { $set: { activeDeploymentId: oldDeployment._id } },
+    );
+    const freshProject = await Project.findById(project._id);
+    const deployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      status: DeploymentStatus.DEPLOYING,
+      imageTag: 'img-new',
+    });
+    const { deps, calls } = makeDeps({
+      listActiveCustomDomains: async () => [{ hostnameNormalized: 'app.example.com' }],
+      activateRoutes: async () => {
+        throw new Error('batch rejected');
+      },
+    });
+
+    await handleActivateRelease(makeJob(freshProject, deployment), deps);
+
+    const after = await Project.findById(project._id).lean();
+    const failed = await Deployment.findById(deployment._id).lean();
+    assert.equal(after.activeDeploymentId.toString(), oldDeployment._id.toString());
+    assert.equal(failed.failureCode, 'NGINX_ROUTE_FAILED');
     assert.ok(!calls.stoppedContainers.includes('container-id-old'));
   });
 

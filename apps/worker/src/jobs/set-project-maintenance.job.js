@@ -1,9 +1,14 @@
 import { Project, Deployment } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
-import { generateServerBlock, generateMaintenanceBlock } from '../nginx/template.js';
-import { activateRoute } from '../nginx/helper-client.js';
-import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
+import { activateRoutes } from '../nginx/helper-client.js';
+import {
+  buildApplicationRouteSet,
+  buildMaintenanceRouteSet,
+  listActiveCustomDomains,
+} from '../nginx/project-routes.js';
 import { env } from '../config/env.js';
+
+const defaultDeps = { activateRoutes, listActiveCustomDomains };
 
 /**
  * SET_PROJECT_MAINTENANCE job handler.
@@ -15,7 +20,7 @@ import { env } from '../config/env.js';
  *
  * Payload: { projectId, enabled, message }
  */
-export async function handleSetProjectMaintenance(job) {
+export async function handleSetProjectMaintenance(job, deps = defaultDeps) {
   const { projectId, enabled, message } = job.data;
 
   if (!env.NGINX_ENABLED) {
@@ -29,27 +34,21 @@ export async function handleSetProjectMaintenance(job) {
     return;
   }
 
-  const subdomain = project.platformSubdomain ?? project.slug;
-  if (!isValidSubdomainLabel(subdomain) || isReservedSubdomain(subdomain)) {
-    logger.warn('SetProjectMaintenance: invalid subdomain, skipping', { projectId, subdomain });
-    return;
-  }
+  const customDomains = await deps.listActiveCustomDomains(projectId);
 
   if (enabled) {
-    const maintenanceConfig = generateMaintenanceBlock({
-      subdomain,
-      domain: env.DEPLOYMENT_DOMAIN,
+    const routes = buildMaintenanceRouteSet({
+      project,
       message,
+      customDomains,
+      deploymentDomain: env.DEPLOYMENT_DOMAIN,
     });
+    await deps.activateRoutes({ routes });
 
-    await activateRoute({
-      configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-      slug: subdomain,
-      configContent: maintenanceConfig,
-      nginxBinary: env.NGINX_BINARY_PATH,
+    logger.info('SetProjectMaintenance: maintenance enabled', {
+      projectId,
+      routeCount: routes.length,
     });
-
-    logger.info('SetProjectMaintenance: maintenance enabled', { projectId, subdomain });
     return;
   }
 
@@ -70,23 +69,18 @@ export async function handleSetProjectMaintenance(job) {
     return;
   }
 
-  const appConfig = generateServerBlock({
-    subdomain,
-    domain: env.DEPLOYMENT_DOMAIN,
+  const routes = buildApplicationRouteSet({
+    project,
     port: activeDeployment.containerPort,
     deploymentId: activeDeployment._id.toString(),
+    customDomains,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
   });
-
-  await activateRoute({
-    configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-    slug: subdomain,
-    configContent: appConfig,
-    nginxBinary: env.NGINX_BINARY_PATH,
-  });
+  await deps.activateRoutes({ routes });
 
   logger.info('SetProjectMaintenance: maintenance disabled, route restored', {
     projectId,
-    subdomain,
+    routeCount: routes.length,
     port: activeDeployment.containerPort,
   });
 }

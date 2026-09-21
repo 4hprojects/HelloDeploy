@@ -2,8 +2,9 @@ import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { networkName, removeNetwork, stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
-import { removeRoute } from '../nginx/helper-client.js';
+import { removeRoutes } from '../nginx/helper-client.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
+import { customDomainRouteSlug } from '../nginx/project-routes.js';
 import { env } from '../config/env.js';
 
 /**
@@ -19,7 +20,7 @@ import { env } from '../config/env.js';
  * etc.) is handled synchronously by the web app before this job is enqueued —
  * this job only tears down infrastructure the web app cannot reach directly.
  */
-const defaultDeps = { stopAndRemoveContainer, removeDockerImage, removeNetwork, removeRoute };
+const defaultDeps = { stopAndRemoveContainer, removeDockerImage, removeNetwork, removeRoutes };
 
 export async function handleDeleteProject(job, deps = defaultDeps) {
   const { projectId, subdomain, projectSlug } = job.data;
@@ -70,19 +71,27 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
     }
   }
 
-  if (env.NGINX_ENABLED && subdomain && isValidSubdomainLabel(subdomain)) {
+  const routeSlugs = [];
+  if (subdomain && isValidSubdomainLabel(subdomain)) {
+    routeSlugs.push(subdomain);
+  }
+  if (job.data.version >= 3) {
+    for (const hostname of job.data.customDomainHostnames ?? []) {
+      routeSlugs.push(customDomainRouteSlug(hostname));
+    }
+  }
+
+  if (env.NGINX_ENABLED && routeSlugs.length > 0) {
     try {
-      await deps.removeRoute({
-        configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-        slug: subdomain,
-        nginxBinary: env.NGINX_BINARY_PATH,
-      });
-      logger.info('DeleteProject: nginx route removed', { projectId, subdomain });
-    } catch (err) {
-      failures.push(`route:${subdomain}`);
-      logger.error('DeleteProject: failed to remove nginx route', {
+      await deps.removeRoutes({ routes: routeSlugs.map((slug) => ({ slug })) });
+      logger.info('DeleteProject: nginx routes removed', {
         projectId,
-        subdomain,
+        routeCount: routeSlugs.length,
+      });
+    } catch (err) {
+      failures.push(...routeSlugs.map((slug) => `route:${slug}`));
+      logger.error('DeleteProject: failed to remove nginx routes', {
+        projectId,
         error: err.message,
       });
     }

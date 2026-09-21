@@ -3,7 +3,8 @@ import { createHash } from 'node:crypto';
 import { Domain, Project, Deployment } from '@hellodeploy/database';
 import { DomainStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
-import { generateServerBlock } from '../nginx/template.js';
+import { generateHostnameServerBlock } from '../nginx/template.js';
+import { customDomainRouteSlug } from '../nginx/project-routes.js';
 import { activateRoute, removeRoute } from '../nginx/helper-client.js';
 import { env } from '../config/env.js';
 
@@ -132,10 +133,7 @@ export async function handleVerifyDomainWithDependencies(
 
 // ─── Internal helpers ─────────────────────────────────────────────────────────
 
-export function customDomainRouteSlug(hostname) {
-  const hash = createHash('sha256').update(hostname).digest('hex').slice(0, 16);
-  return `custom-${hash}`;
-}
+export { customDomainRouteSlug } from '../nginx/project-routes.js';
 
 async function activateNginxRoute(
   domain,
@@ -172,15 +170,11 @@ async function activateNginxRoute(
     return;
   }
 
-  const configContent = generateServerBlock({
-    subdomain: hostname, // use full hostname as "subdomain" key (route-manager accepts FQDNs)
-    domain: '', // empty domain: server_name will be just `hostname`
+  const customConfig = generateHostnameServerBlock({
+    hostname,
     port: deployment.containerPort,
     deploymentId: deployment._id.toString(),
   });
-
-  // Override: for custom domains, server_name = full hostname (not subdomain.domain)
-  const customConfig = configContent.replace(/server_name .+;/, `server_name ${hostname};`);
 
   const slug = customDomainRouteSlug(hostname);
 

@@ -5,8 +5,7 @@ import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
-import { generateServerBlock } from '../nginx/template.js';
-import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
+import { buildApplicationRouteSet } from '../nginx/project-routes.js';
 import { env } from '../config/env.js';
 
 /**
@@ -142,7 +141,6 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
  *   resourceLimits?: { memoryMb?: number, cpuCores?: number, pidsLimit?: number },
  *   opts: {
  *     removeImageOnFailure: boolean,   // activate: true (unique tag); rollback: false (shared image)
- *     failOnInvalidSubdomain: boolean, // activate: fail the deploy; rollback: skip nginx silently
  *     persistSubdomain: boolean,       // activate assigns platformSubdomain on first deploy
  *     markPreviousRolledBack: boolean, // rollback marks the replaced release ROLLED_BACK
  *     recordImageTagOnStart: boolean,  // rollback stamps the source imageTag on its record
@@ -358,58 +356,38 @@ export async function runReleasePipeline({
   // ── Nginx route activation ──────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {
     const subdomain = project.platformSubdomain ?? project.slug;
-    const subdomainUsable = isValidSubdomainLabel(subdomain) && !isReservedSubdomain(subdomain);
-
-    if (!subdomainUsable && opts.failOnInvalidSubdomain) {
+    try {
+      const customDomains = await deps.listActiveCustomDomains(projectId);
+      const routes = buildApplicationRouteSet({
+        project,
+        port: hostPort,
+        deploymentId: deploymentId.toString(),
+        customDomains,
+        deploymentDomain: env.DEPLOYMENT_DOMAIN,
+      });
+      await deps.activateRoutes({ routes });
       await logEvent(
         deploymentId,
         'DEPLOY',
-        'ERROR',
-        `Subdomain "${subdomain}" is invalid or reserved.`,
+        'INFO',
+        `Nginx routes active: ${subdomain}.${env.DEPLOYMENT_DOMAIN} and ${customDomains.length} custom domain(s).`,
         correlationId,
       );
-      await deps.stopAndRemoveContainer(cName);
-      return fail('SUBDOMAIN_INVALID', `Subdomain "${subdomain}" cannot be used.`);
-    }
-
-    if (subdomainUsable) {
-      const nginxConfig = generateServerBlock({
-        subdomain,
-        domain: env.DEPLOYMENT_DOMAIN,
-        port: hostPort,
-        deploymentId: deploymentId.toString(),
-      });
-
-      try {
-        await deps.activateRoute({
-          configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-          slug: subdomain,
-          configContent: nginxConfig,
-          nginxBinary: env.NGINX_BINARY_PATH,
-        });
-        await logEvent(
-          deploymentId,
-          'DEPLOY',
-          'INFO',
-          `Nginx route active: ${subdomain}.${env.DEPLOYMENT_DOMAIN}`,
-          correlationId,
-        );
-      } catch (err) {
-        await logEvent(
-          deploymentId,
-          'DEPLOY',
-          'ERROR',
-          `Nginx route activation failed: ${err.message}`,
-          correlationId,
-        );
-        await deps.stopAndRemoveContainer(cName);
-        return fail('NGINX_ROUTE_FAILED', `Nginx configuration failed: ${err.message}`);
-      }
 
       // Persist subdomain assignment on first-time deployment
       if (opts.persistSubdomain && !project.platformSubdomain) {
         await Project.updateOne({ _id: projectId }, { $set: { platformSubdomain: subdomain } });
       }
+    } catch (err) {
+      await logEvent(
+        deploymentId,
+        'DEPLOY',
+        'ERROR',
+        `Nginx route activation failed: ${err.message}`,
+        correlationId,
+      );
+      await deps.stopAndRemoveContainer(cName);
+      return fail('NGINX_ROUTE_FAILED', `Nginx configuration failed: ${err.message}`);
     }
   } else {
     await logEvent(

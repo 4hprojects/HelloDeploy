@@ -5,7 +5,8 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, it } from 'node:test';
 
-const { requestHelper } = await import('../../apps/worker/src/nginx/helper-client.js');
+const { activateRoutes, removeRoutes, requestHelper } =
+  await import('../../apps/worker/src/nginx/helper-client.js');
 
 const cleanup = [];
 
@@ -42,6 +43,20 @@ describe('Nginx helper client', () => {
     const helper = await startHelper({ ok: true });
     await requestHelper({ action: 'validate' }, helper.socketPath);
     assert.deepEqual(helper.received(), { action: 'validate' });
+  });
+
+  it('sends batch activation and removal requests', async () => {
+    const activationHelper = await startHelper({ ok: true });
+    const routes = [{ slug: 'my-app', configContent: 'server {}' }];
+    await activateRoutes({ routes }, activationHelper.socketPath);
+    assert.deepEqual(activationHelper.received(), { action: 'activate_many', routes });
+
+    const removalHelper = await startHelper({ ok: true });
+    await removeRoutes({ routes: [{ slug: 'my-app' }] }, removalHelper.socketPath);
+    assert.deepEqual(removalHelper.received(), {
+      action: 'remove_many',
+      routes: [{ slug: 'my-app' }],
+    });
   });
 
   it('propagates a rejected helper operation without exposing a stack', async () => {

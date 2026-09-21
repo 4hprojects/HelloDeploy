@@ -11,7 +11,8 @@ import {
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
-import { activateRoute } from '../nginx/helper-client.js';
+import { activateRoutes } from '../nginx/helper-client.js';
+import { listActiveCustomDomains } from '../nginx/project-routes.js';
 import { cleanupOldReleases } from '../deployment/retention.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import {
@@ -30,7 +31,8 @@ const defaultDeps = {
   httpHealthCheck,
   removeDockerImage,
   getProjectEnvVars,
-  activateRoute,
+  activateRoutes,
+  listActiveCustomDomains,
   notifyDeploymentResult,
   cleanupOldReleases,
   startupDelayMs: STARTUP_DELAY_MS,
@@ -87,7 +89,6 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
     resourceLimits: job.data.resourceLimits,
     opts: {
       removeImageOnFailure: true,
-      failOnInvalidSubdomain: true,
       persistSubdomain: true,
       markPreviousRolledBack: false,
       recordImageTagOnStart: false,

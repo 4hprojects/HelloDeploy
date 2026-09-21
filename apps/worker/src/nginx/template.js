@@ -27,17 +27,51 @@ export function generateServerBlock({
   deploymentId,
   generatedAt = new Date(),
 }) {
-  const fqdn = `${subdomain}.${domain}`;
+  return generateHostnameServerBlock({
+    hostname: `${subdomain}.${domain}`,
+    managedLabel: subdomain,
+    port,
+    deploymentId,
+    generatedAt,
+  });
+}
+
+export function isValidRouteHostname(hostname) {
+  if (typeof hostname !== 'string' || hostname.length > 253 || !hostname.includes('.')) {
+    return false;
+  }
+  return hostname.split('.').every((label) => {
+    return (
+      label.length >= 1 &&
+      label.length <= 63 &&
+      /^[a-z0-9-]+$/.test(label) &&
+      !label.startsWith('-') &&
+      !label.endsWith('-')
+    );
+  });
+}
+
+/** Generate a server block for an already-normalized full hostname. */
+export function generateHostnameServerBlock({
+  hostname,
+  managedLabel = hostname,
+  port,
+  deploymentId,
+  generatedAt = new Date(),
+}) {
+  if (!isValidRouteHostname(hostname)) {
+    throw new Error(`Invalid Nginx route hostname: "${hostname}"`);
+  }
   const ts = generatedAt.toISOString();
 
-  return `# hellodeploy-managed: ${subdomain}
+  return `# hellodeploy-managed: ${managedLabel}
 # generated: ${ts}
 # deployment: ${deploymentId}
 # WARNING: This file is auto-generated. Manual edits will be overwritten.
 
 server {
     listen 80;
-    server_name ${fqdn};
+    server_name ${hostname};
 
     # Request limits
     client_max_body_size 10m;
@@ -102,13 +136,24 @@ export function sanitizeMaintenanceMessage(message) {
  * @returns {string}
  */
 export function generateMaintenanceBlock({ subdomain, domain, message }) {
-  const fqdn = `${subdomain}.${domain}`;
+  return generateHostnameMaintenanceBlock({
+    hostname: `${subdomain}.${domain}`,
+    managedLabel: subdomain,
+    message,
+  });
+}
+
+/** Generate a maintenance server block for an already-normalized full hostname. */
+export function generateHostnameMaintenanceBlock({ hostname, managedLabel = hostname, message }) {
+  if (!isValidRouteHostname(hostname)) {
+    throw new Error(`Invalid Nginx route hostname: "${hostname}"`);
+  }
   const safeMessage = sanitizeMaintenanceMessage(message);
 
-  return `# hellodeploy-maintenance: ${subdomain}
+  return `# hellodeploy-maintenance: ${managedLabel}
 server {
     listen 80;
-    server_name ${fqdn};
+    server_name ${hostname};
 
     location / {
         add_header Retry-After 300 always;

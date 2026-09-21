@@ -11,7 +11,7 @@ function setup(data = {}) {
     stopAndRemoveContainer: async (value) => void calls.containers.push(value),
     removeDockerImage: async (value) => void calls.images.push(value),
     removeNetwork: async (value) => void calls.networks.push(value),
-    removeRoute: async (value) => calls.routes.push(value),
+    removeRoutes: async ({ routes }) => calls.routes.push(...routes),
   };
   const job = {
     data: {
@@ -51,6 +51,19 @@ describe('delete-project job', () => {
     assert.deepEqual(calls.containers, ['legacy-container']);
     assert.deepEqual(calls.images, []);
     assert.deepEqual(calls.networks, []);
+  });
+
+  it('removes custom-domain routes from version-3 payloads', async () => {
+    const { calls, deps, job } = setup({
+      version: 3,
+      customDomainHostnames: ['app.example.com', 'portal.example.com'],
+    });
+    await handleDeleteProject(job, deps);
+    assert.equal(calls.routes.length, 3);
+    assert.equal(calls.routes[0].slug, 'my-project');
+    assert.match(calls.routes[1].slug, /^custom-[a-f0-9]{16}$/);
+    assert.match(calls.routes[2].slug, /^custom-[a-f0-9]{16}$/);
+    assert.notEqual(calls.routes[1].slug, calls.routes[2].slug);
   });
 
   it('continues teardown before failing the job so BullMQ retries cleanup', async () => {

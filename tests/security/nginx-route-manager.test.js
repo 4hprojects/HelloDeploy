@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const { activateRoute, removeRoute, readRouteConfig } =
+const { activateRoute, activateRoutes, removeRoute, removeRoutes, readRouteConfig } =
   await import('../../apps/worker/src/nginx/route-manager.js');
 
 async function withConfigDir(fn) {
@@ -112,6 +112,78 @@ describe('safe slugs pass slug validation without throwing', () => {
 });
 
 describe('route file transactions', () => {
+  it('activates multiple routes with one validation and reload', async () => {
+    await withConfigDir(async (configDir) => {
+      const commands = recordingRunner();
+      await activateRoutes({
+        configDir,
+        routes: [
+          { slug: 'my-app', configContent: 'new platform route' },
+          { slug: 'custom-1234', configContent: 'new custom route' },
+        ],
+        commandRunner: commands.runner,
+      });
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'new platform route');
+      assert.equal(await readFile(join(configDir, 'custom-1234.conf'), 'utf8'), 'new custom route');
+      assert.deepEqual(commands.calls, [
+        ['nginx', '-t'],
+        ['nginx', '-s', 'reload'],
+      ]);
+    });
+  });
+
+  it('rejects duplicate batch slugs before writing', async () => {
+    await withConfigDir(async (configDir) => {
+      await assert.rejects(
+        () =>
+          activateRoutes({
+            configDir,
+            routes: [
+              { slug: 'same-route', configContent: 'one' },
+              { slug: 'same-route', configContent: 'two' },
+            ],
+          }),
+        /Duplicate Nginx route slug/,
+      );
+      assert.deepEqual(await readdir(configDir), []);
+    });
+  });
+
+  it('restores every route when batch validation fails', async () => {
+    await withConfigDir(async (configDir) => {
+      await writeFile(join(configDir, 'my-app.conf'), 'old platform route');
+      await writeFile(join(configDir, 'custom-1234.conf'), 'old custom route');
+      let validationCalls = 0;
+      const commands = recordingRunner({
+        failOn: (args) => args[0] === '-t' && validationCalls++ === 0,
+      });
+
+      await assert.rejects(
+        () =>
+          activateRoutes({
+            configDir,
+            routes: [
+              { slug: 'my-app', configContent: 'new platform route' },
+              { slug: 'custom-1234', configContent: 'new custom route' },
+              { slug: 'custom-new', configContent: 'brand new route' },
+            ],
+            commandRunner: commands.runner,
+          }),
+        /simulated nginx -t failure/,
+      );
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'old platform route');
+      assert.equal(await readFile(join(configDir, 'custom-1234.conf'), 'utf8'), 'old custom route');
+      assert.equal(await readRouteConfig({ configDir, slug: 'custom-new' }), null);
+      assert.deepEqual((await readdir(configDir)).sort(), ['custom-1234.conf', 'my-app.conf']);
+      assert.deepEqual(commands.calls.slice(-2), [
+        ['nginx', '-t'],
+        ['nginx', '-s', 'reload'],
+      ]);
+    });
+  });
+
   it('atomically activates a new route and removes transaction files', async () => {
     await withConfigDir(async (configDir) => {
       const commands = recordingRunner();
@@ -135,7 +207,10 @@ describe('route file transactions', () => {
     await withConfigDir(async (configDir) => {
       const confPath = join(configDir, 'my-app.conf');
       await writeFile(confPath, 'old route');
-      const commands = recordingRunner({ failOn: (args) => args[0] === '-t' });
+      let validationCalls = 0;
+      const commands = recordingRunner({
+        failOn: (args) => args[0] === '-t' && validationCalls++ === 0,
+      });
 
       await assert.rejects(
         () =>
@@ -157,7 +232,10 @@ describe('route file transactions', () => {
     await withConfigDir(async (configDir) => {
       const confPath = join(configDir, 'my-app.conf');
       await writeFile(confPath, 'old route');
-      const commands = recordingRunner({ failOn: (args) => args[0] === '-s' });
+      let reloadCalls = 0;
+      const commands = recordingRunner({
+        failOn: (args) => args[0] === '-s' && reloadCalls++ === 0,
+      });
 
       await assert.rejects(
         () =>
@@ -194,7 +272,10 @@ describe('route file transactions', () => {
     await withConfigDir(async (configDir) => {
       const confPath = join(configDir, 'my-app.conf');
       await writeFile(confPath, 'old route');
-      const commands = recordingRunner({ failOn: (args) => args[0] === '-s' });
+      let reloadCalls = 0;
+      const commands = recordingRunner({
+        failOn: (args) => args[0] === '-s' && reloadCalls++ === 0,
+      });
 
       await assert.rejects(
         () => removeRoute({ configDir, slug: 'my-app', commandRunner: commands.runner }),
@@ -203,6 +284,31 @@ describe('route file transactions', () => {
 
       assert.equal(await readFile(confPath, 'utf8'), 'old route');
       assert.deepEqual(await readdir(configDir), ['my-app.conf']);
+    });
+  });
+
+  it('restores every removed route when a batch reload fails', async () => {
+    await withConfigDir(async (configDir) => {
+      await writeFile(join(configDir, 'my-app.conf'), 'old platform route');
+      await writeFile(join(configDir, 'custom-1234.conf'), 'old custom route');
+      let reloadCalls = 0;
+      const commands = recordingRunner({
+        failOn: (args) => args[0] === '-s' && reloadCalls++ === 0,
+      });
+
+      await assert.rejects(
+        () =>
+          removeRoutes({
+            configDir,
+            routes: [{ slug: 'my-app' }, { slug: 'custom-1234' }],
+            commandRunner: commands.runner,
+          }),
+        /simulated nginx -s reload failure/,
+      );
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'old platform route');
+      assert.equal(await readFile(join(configDir, 'custom-1234.conf'), 'utf8'), 'old custom route');
+      assert.deepEqual((await readdir(configDir)).sort(), ['custom-1234.conf', 'my-app.conf']);
     });
   });
 });

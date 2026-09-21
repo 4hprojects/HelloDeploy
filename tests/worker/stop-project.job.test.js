@@ -14,7 +14,8 @@ function makeDeps(overrides = {}) {
   const calls = { stoppedContainers: [], activatedRoutes: [] };
   const deps = {
     stopAndRemoveContainer: async (id) => calls.stoppedContainers.push(id),
-    activateRoute: async (opts) => calls.activatedRoutes.push(opts),
+    activateRoutes: async ({ routes }) => calls.activatedRoutes.push(...routes),
+    listActiveCustomDomains: async () => [],
     ...overrides,
   };
   return { deps, calls };
@@ -71,6 +72,17 @@ describe('stop-project job', () => {
     await handleStopProject(makeJob(project), deps);
 
     assert.equal(calls.activatedRoutes[0]?.slug, 'my-app');
+  });
+
+  it('activates maintenance routes for active custom domains too', async () => {
+    const project = await createProject({ platformSubdomain: 'my-app' });
+    const { deps, calls } = makeDeps({
+      listActiveCustomDomains: async () => [{ hostnameNormalized: 'app.example.com' }],
+    });
+    await handleStopProject(makeJob(project), deps);
+    assert.equal(calls.activatedRoutes.length, 2);
+    assert.match(calls.activatedRoutes[1].configContent, /server_name app\.example\.com/);
+    assert.match(calls.activatedRoutes[1].configContent, /return 503/);
   });
 
   it('clears the project active deployment reference', async () => {

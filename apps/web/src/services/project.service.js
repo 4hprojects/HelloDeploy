@@ -16,6 +16,7 @@ import {
   ProjectStatus,
   ApprovalStatus,
   AuditOutcome,
+  DomainStatus,
   JobType,
 } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -436,6 +437,11 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
   const imageTags = [
     ...new Set(deployments.map((deployment) => deployment.imageTag).filter(Boolean)),
   ];
+  const activeDomains = await Domain.find(
+    { projectId, status: DomainStatus.ACTIVE },
+    'hostnameNormalized',
+  ).lean();
+  const customDomainHostnames = activeDomains.map((domain) => domain.hostnameNormalized);
 
   const queue = getDeploymentQueue();
   if (!queue) {
@@ -451,7 +457,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
       queue,
       JobType.DELETE_PROJECT,
       {
-        version: 2,
+        version: 3,
         correlationId,
         actorId: actorId.toString(),
         actorRole: 'OWNER',
@@ -460,6 +466,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
         containerIds,
         imageTags,
         projectSlug: project.slug,
+        customDomainHostnames,
       },
       { jobId: `delete-${projectId}` },
     );

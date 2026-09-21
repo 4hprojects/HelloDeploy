@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
+process.env.NGINX_ENABLED = 'true';
+
 import { Deployment, Project } from '@hellodeploy/database';
 import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
@@ -10,7 +12,7 @@ const { handleRollbackRelease } =
   await import('../../apps/worker/src/jobs/rollback-release.job.js');
 
 function makeDeps(overrides = {}) {
-  const calls = { startedContainers: [], stoppedContainers: [] };
+  const calls = { startedContainers: [], stoppedContainers: [], activatedRoutes: [] };
   const deps = {
     allocatePort: async () => 10002,
     ensureNetwork: async () => {},
@@ -27,7 +29,8 @@ function makeDeps(overrides = {}) {
     stopAndRemoveContainer: async (id) => calls.stoppedContainers.push(id),
     httpHealthCheck: async () => ({ healthy: true, finalStatus: 200 }),
     getProjectEnvVars: async () => ({}),
-    activateRoute: async () => {},
+    activateRoutes: async ({ routes }) => calls.activatedRoutes.push(...routes),
+    listActiveCustomDomains: async () => [],
     notifyDeploymentResult: async () => {},
     startupDelayMs: 0,
     ...overrides,
@@ -115,6 +118,17 @@ describe('rollback-release job', () => {
     await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
     const freshProject = await Project.findById(project._id).lean();
     assert.equal(freshProject.activeDeploymentId.toString(), rollbackDeployment._id.toString());
+  });
+
+  it('switches managed and custom domains to the rollback container together', async () => {
+    const { project, sourceDeployment, rollbackDeployment } = await seed();
+    const { deps, calls } = makeDeps({
+      listActiveCustomDomains: async () => [{ hostnameNormalized: 'app.example.com' }],
+    });
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    assert.equal(calls.activatedRoutes.length, 2);
+    assert.match(calls.activatedRoutes[1].configContent, /server_name app\.example\.com/);
+    assert.match(calls.activatedRoutes[1].configContent, /127\.0\.0\.1:10002/);
   });
 
   it('fails with ROLLBACK_SOURCE_INVALID when the source is not HEALTHY', async () => {

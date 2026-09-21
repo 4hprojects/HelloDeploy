@@ -1,18 +1,34 @@
 # Implementation Batch Tracker
 
-Updated: 2026-09-02
+Updated: 2026-09-03
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
-| Release progress | Production runs `c8806013588e93bdc08314ea51868f5d826842ea`; managed-route WebSocket map correction passes locally                    |
-| Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
-| Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
-| Release state    | NO-GO for customer application hosting                                                                                               |
+| Field            | Value                                                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status   | HelloUniversity is healthy on managed and custom hostnames; atomic multi-route release switching passes locally                  |
+| Release progress | Production runs `e732476551f8900ad7f496d7dc6cf250361cd1d3`; the queue remains paused during route-switch release qualification   |
+| Current batch    | Atomic managed/custom-domain lifecycle routing is implemented and locally verified; release is blocked on an upstream audit gate |
+| Next action      | Resolve the Express 4 / `qs` audit gate without an unapproved framework migration, then complete PR/CodeQL and rollout proof     |
+| Release state    | Pilot healthy; normal deployment queue operation remains paused pending atomic route-switch rollout                              |
+
+**2026-09-03 atomic project-route switching:** The worker now constructs one
+project-wide route set containing the managed hostname and only ACTIVE custom
+domains. Deployment, retained-image rollback, maintenance, and suspension use one
+batch helper transaction; project deletion captures custom hostnames in a compatible
+version-3 payload and removes all captured routes. The helper validates every unique
+slug before mutation, stages the entire batch, runs one `nginx -t`, reloads once, and
+restores the complete prior set on validation or reload failure. The compatible
+single-route operations delegate to the same implementation. The expanded focused
+suite passes 106 tests; configuration validation, lint, formatting, all 1,004 tests,
+coverage (78.63% statements, 89.32% branches, 86.56% functions), and diff validation
+pass. Production and Cloudflare remain unchanged and the queue is still paused. The
+production dependency audit is newly blocked by moderate advisories affecting
+`qs` through Express 4.22.2/body-parser 1.20.6. The registry reports no compatible
+Express 4 fix; `npm audit` identifies Express 5.2.1 as a breaking remediation, so no
+framework-major change or audit bypass has been added to this release.
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did

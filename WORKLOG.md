@@ -2068,6 +2068,36 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - The platform ingress template now defines the standard bounded WebSocket upgrade
   map in the Nginx `http` context. Seventeen focused Nginx tests pass.
 
+### Atomic managed and custom-domain route switching
+
+- Status: implementation and local functional verification pass; release audit gate blocked upstream
+- Updated: 2026-09-03T00:30:00+08:00
+- Starting release: `e732476551f8900ad7f496d7dc6cf250361cd1d3` on
+  `fix/atomic-custom-domain-routes`; production and Cloudflare were not changed and
+  the empty deployment queue remains paused.
+- Added atomic Nginx-helper batch activation/removal with up-front unique safe-slug
+  validation, transaction-specific staging/backups, one configuration validation,
+  one reload, and complete prior-route restoration on write, validation, or reload
+  failure. Existing single-route calls remain compatible wrappers.
+- Centralized the managed hostname and ACTIVE custom-domain route set, using
+  validated full hostnames and stable SHA-256-derived route slugs. Deployment,
+  retained-image rollback, maintenance, and suspension now move the full set
+  together. Route construction/lookup failures fail closed before the active pointer
+  or prior container is changed.
+- Project deletion now captures ACTIVE custom hostnames before database deletion in
+  a version-3 job payload and removes their routes with the managed route. Worker and
+  contract validation continue accepting versions 1 and 2.
+- Focused Nginx-helper, route-manager, lifecycle, domain, security, and job-contract
+  verification passes 106 tests. `npm run config:check`, `npm run lint`,
+  `npm run format:check`, all 1,004 repository tests, coverage at 78.63% statements,
+  89.32% branches, and 86.56% functions, and `git diff --check` pass.
+- `npm audit --omit=dev --audit-level=moderate` now reports three moderate findings
+  from two newly published `qs` advisories through Express 4.22.2 and body-parser
+  1.20.6. No compatible Express 4 release is available; npm's supported remediation
+  is Express 5.2.1, a breaking framework-major upgrade outside this change without
+  explicit approval. No forced dependency override or CI exception remains in the
+  diff. PR, merge, and production rollout are held at this gate.
+
 ## Reboot Persistence Regression and Public Dashboard Outage
 
 - Status: Local correction and full repository gate pass; protected host recovery blocked on backup/recovery inputs
