@@ -10,6 +10,10 @@ const { allocatePort } = await import('../../apps/worker/src/deployment/port-all
 
 const PORT_RANGE_START = 10000;
 
+// The OS probe is a system boundary: without a stub these assertions depend on
+// whatever happens to be listening on the host running the suite.
+const ALL_PORTS_FREE = { probePortFree: async () => true };
+
 describe('port allocator', () => {
   before(async () => {
     await startTestDb();
@@ -31,12 +35,12 @@ describe('port allocator', () => {
 
   it('returns the first port in range when nothing is allocated', async () => {
     const { deployment } = await seedClaimant();
-    assert.equal(await allocatePort(deployment._id), PORT_RANGE_START);
+    assert.equal(await allocatePort(deployment._id, ALL_PORTS_FREE), PORT_RANGE_START);
   });
 
   it('records the claimed port on the deployment document', async () => {
     const { deployment } = await seedClaimant();
-    const port = await allocatePort(deployment._id);
+    const port = await allocatePort(deployment._id, ALL_PORTS_FREE);
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.containerPort, port);
   });
@@ -53,7 +57,7 @@ describe('port allocator', () => {
       status: DeploymentStatus.DEPLOYING,
       containerPort: PORT_RANGE_START + 1,
     });
-    assert.equal(await allocatePort(deployment._id), PORT_RANGE_START + 2);
+    assert.equal(await allocatePort(deployment._id, ALL_PORTS_FREE), PORT_RANGE_START + 2);
   });
 
   it('ignores the claimant’s own previously assigned port', async () => {
@@ -62,7 +66,7 @@ describe('port allocator', () => {
       { _id: deployment._id },
       { $set: { containerPort: PORT_RANGE_START } },
     );
-    assert.equal(await allocatePort(deployment._id), PORT_RANGE_START);
+    assert.equal(await allocatePort(deployment._id, ALL_PORTS_FREE), PORT_RANGE_START);
   });
 
   it('reuses ports from terminal (FAILED) deployments', async () => {
@@ -72,7 +76,7 @@ describe('port allocator', () => {
       status: DeploymentStatus.FAILED,
       containerPort: PORT_RANGE_START,
     });
-    assert.equal(await allocatePort(deployment._id), PORT_RANGE_START);
+    assert.equal(await allocatePort(deployment._id, ALL_PORTS_FREE), PORT_RANGE_START);
   });
 
   it('fills gaps left between allocated ports', async () => {
@@ -87,7 +91,7 @@ describe('port allocator', () => {
       status: DeploymentStatus.HEALTHY,
       containerPort: PORT_RANGE_START + 2,
     });
-    assert.equal(await allocatePort(deployment._id), PORT_RANGE_START + 1);
+    assert.equal(await allocatePort(deployment._id, ALL_PORTS_FREE), PORT_RANGE_START + 1);
   });
 
   it('skips a DB-free port that is busy at the OS level', async () => {
