@@ -5,6 +5,7 @@ import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage, pruneDanglingImages } from '../deployment/build.js';
 import { isImageTagInUse } from '../deployment/retention.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
+import { sweepStuckDeployments } from '../deployment/stuck-sweeper.js';
 import { env } from '../config/env.js';
 
 const HEALTHY_KEEP = 3; // retain this many HEALTHY releases per project
@@ -14,6 +15,7 @@ const defaultDeps = {
   removeDockerImage,
   cleanupAbandonedBuildWorkspaces,
   pruneDanglingImages,
+  sweepStuckDeployments,
 };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
@@ -28,6 +30,7 @@ export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
  *   2. Abandoned build workspaces older than BUILD_WORKSPACE_MAX_AGE_MS
  *   3. Old DeploymentEvent records (supplemental cleanup beyond TTL index)
  *   4. Dangling (untagged) Docker images left by interrupted/superseded builds
+ *   5. Deployments abandoned in a non-terminal status by a dead worker
  *
  * Payload:
  *   - projectId? — limit to a specific project, else clean all
@@ -142,12 +145,20 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
 
   const removedDanglingImages = await deps.pruneDanglingImages();
 
+  // Resolve deployments orphaned by a worker that died mid-job. Scoped to the
+  // whole platform because an orphan is not tied to the project being swept.
+  // Resolved against the module default so a partial deps override - the
+  // pattern every existing caller uses - does not silently skip the sweep.
+  const sweep = deps.sweepStuckDeployments ?? sweepStuckDeployments;
+  const resolvedStuck = await sweep();
+
   logger.info('CleanupReleases: complete', {
     removedContainers,
     removedImages,
     removedAbandonedImages,
     removedDanglingImages,
     removedWorkspaces,
+    resolvedStuck,
     projectId: projectId ?? 'all',
   });
 }

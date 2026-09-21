@@ -18,6 +18,10 @@ const ASK_BUILDER_ACTION = 'Share the technical details below with the person wh
 
 /** @type {Record<string, { message: string, action: string }>} */
 export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
+  DEPLOYMENT_ABANDONED: {
+    message: 'This deployment stopped responding and was closed out automatically.',
+    action: TRY_AGAIN_ACTION,
+  },
   PORT_ALLOCATION_FAILED: {
     message: "HelloDeploy couldn't find a free slot to run your app right now.",
     action: TRY_AGAIN_ACTION,
