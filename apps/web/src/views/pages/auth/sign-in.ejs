@@ -8,6 +8,12 @@
   </div>
   <% } %>
 
+  <% if (typeof notice !== 'undefined' && notice) { %>
+  <div class="alert alert--warning mt-4" role="status">
+    <%= notice %>
+  </div>
+  <% } %>
+
   <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
 
   <% if (typeof needsVerification !== 'undefined' && needsVerification) { %>

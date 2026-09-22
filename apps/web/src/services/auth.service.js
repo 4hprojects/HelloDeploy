@@ -2,7 +2,7 @@ import { randomInt, createHash } from 'node:crypto';
 import { User } from '@hellodeploy/database';
 import { hashPassword, verifyPassword, generateToken, hashToken } from '@hellodeploy/auth';
 import { AuditOutcome, UserStatus, PlatformRole } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import {
   sendVerificationEmail,
   sendPasswordResetEmail,
@@ -40,6 +40,7 @@ export async function registerUser({
   password,
   sourceIp,
   correlationId,
+  deps = { sendVerificationEmail },
 }) {
   const existing = await User.findOne({ email: email.toLowerCase() });
   if (existing) {
@@ -67,7 +68,26 @@ export async function registerUser({
   });
 
   const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({ to: user.email, firstName: user.firstName, verificationUrl });
+
+  // The account row is already committed, so a provider failure here must not
+  // take down the request. It previously did: the caller got a generic 500,
+  // and every retry hit the duplicate-email branch above and appeared to
+  // succeed, leaving the person no way to ever receive the email.
+  let verificationEmailSent = true;
+  try {
+    await deps.sendVerificationEmail({
+      to: user.email,
+      firstName: user.firstName,
+      verificationUrl,
+    });
+  } catch (err) {
+    verificationEmailSent = false;
+    logger.error('registerUser: verification email could not be sent', {
+      userId: user._id.toString(),
+      error: err.message,
+      correlationId,
+    });
+  }
 
   await writeAuditEvent({
     action: 'auth.register',
@@ -80,7 +100,7 @@ export async function registerUser({
     correlationId,
   });
 
-  return { user };
+  return { user, verificationEmailSent };
 }
 
 // ─── Email verification ────────────────────────────────────────────────────────
@@ -135,7 +155,21 @@ export async function resendVerificationEmail({ email, sourceIp, correlationId }
   await user.save();
 
   const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({ to: user.email, firstName: user.firstName, verificationUrl });
+
+  // A failed resend must not 500 either, and must not then claim success:
+  // the caller redirects to the undelivered state instead.
+
+  let verificationEmailSent = true;
+  try {
+    await sendVerificationEmail({ to: user.email, firstName: user.firstName, verificationUrl });
+  } catch (err) {
+    verificationEmailSent = false;
+    logger.error('resendVerificationEmail: verification email could not be sent', {
+      userId: user._id.toString(),
+      error: err.message,
+      correlationId,
+    });
+  }
 
   await writeAuditEvent({
     action: 'auth.verification_resent',
@@ -146,6 +180,8 @@ export async function resendVerificationEmail({ email, sourceIp, correlationId }
     sourceIp,
     correlationId,
   });
+
+  return { verificationEmailSent };
 }
 
 // ─── Sign in ──────────────────────────────────────────────────────────────────

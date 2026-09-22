@@ -22,6 +22,30 @@
       <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Resend Verification Email</button>
     </form>
 
+  <% } else if (typeof undelivered !== 'undefined' && undelivered) { %>
+    <div class="alert alert--warning" role="status">
+      <strong>Your account was created, but the verification email could not be sent.</strong><br />
+      This is a problem on our side, not with your details. Nothing is wrong with your account.
+    </div>
+    <p class="mt-4">Enter your email address to try sending it again:</p>
+    <form method="POST" action="/auth/verify-email/resend" class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <%- include('../../partials/form-field', {
+        fieldId: 'email',
+        label: 'Email Address',
+        type: 'email',
+        name: 'email',
+        value: '',
+        autocomplete: 'email',
+        required: true,
+        error: null
+      }) %>
+      <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Resend Verification Email</button>
+    </form>
+    <p class="mt-4 text-muted text-sm">
+      If it still does not arrive, contact the administrator of this HelloDeploy instance.
+    </p>
+
   <% } else if (typeof resent !== 'undefined' && resent) { %>
     <div class="alert alert--success" role="status">
       Verification email sent. Please check your inbox.

@@ -117,7 +117,7 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
     );
   }
 
-  await registerUser({
+  const result = await registerUser({
     firstName: req.body.firstName.trim(),
     lastName: req.body.lastName.trim(),
     email: req.body.email.trim().toLowerCase(),
@@ -126,19 +126,32 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
     correlationId: req.correlationId,
   });
 
-  // Always show "check your email" — never confirm or deny whether email exists
+  // Always show "check your email" — never confirm or deny whether email exists.
+  // The one exception is a delivery failure we already know about: telling the
+  // person to watch an inbox nothing was sent to is a dead end, and the flag
+  // says nothing about whether the address was already registered.
+  if (result?.verificationEmailSent === false) {
+    return res.redirect('/auth/verify-email?undelivered=1');
+  }
   res.redirect('/auth/verify-email?submitted=1');
 });
 
 // ─── Verify Email ──────────────────────────────────────────────────────────────
 
 export const getVerifyEmail = asyncHandler(async (req, res) => {
-  const { token, submitted, resent, rateLimited } = req.query;
+  const { token, submitted, resent, rateLimited, undelivered } = req.query;
 
   if (submitted) {
     return res.render(
       'pages/auth/verify-email',
       authRenderOpts({ title: 'Verify Email', submitted: true }),
+    );
+  }
+
+  if (undelivered) {
+    return res.render(
+      'pages/auth/verify-email',
+      authRenderOpts({ title: 'Verify Email', undelivered: true }),
     );
   }
 
@@ -190,12 +203,20 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
 export const postResendVerification = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
+  let result = null;
   if (email) {
-    await resendVerificationEmail({
+    result = await resendVerificationEmail({
       email: email.trim().toLowerCase(),
       sourceIp: req.ip,
       correlationId: req.correlationId,
     });
+  }
+
+  // A known delivery failure must not report success. An unknown or already
+  // verified address still reports success, which is the existing deliberate
+  // anti-enumeration behaviour.
+  if (result?.verificationEmailSent === false) {
+    return res.redirect('/auth/verify-email?undelivered=1');
   }
 
   res.redirect('/auth/verify-email?resent=1');
@@ -203,12 +224,29 @@ export const postResendVerification = asyncHandler(async (req, res) => {
 
 // ─── Sign In ───────────────────────────────────────────────────────────────────
 
+const SUSPENDED_SIGN_OUT_COPY =
+  'You were signed out because this account is no longer active. Contact an administrator if you think this is wrong.';
+
 export function getSignIn(req, res) {
   if (req.session?.user) {
     return res.redirect(redirectByRole(req.session.user.platformRole));
   }
   const flashSuccess = res.locals.flash?.success ?? null;
-  res.render('pages/auth/sign-in', authRenderOpts({ title: 'Sign In', success: flashSuccess }));
+
+  // requireAuth sends both of these; without passing them through, a deep link
+  // was silently downgraded to /dashboard and a suspended account was signed
+  // out with no explanation at all.
+  const returnTo = safeRedirect(req, '');
+
+  res.render(
+    'pages/auth/sign-in',
+    authRenderOpts({
+      title: 'Sign In',
+      success: flashSuccess,
+      returnTo,
+      notice: req.query.reason === 'account_suspended' ? SUSPENDED_SIGN_OUT_COPY : null,
+    }),
+  );
 }
 
 export const postSignIn = asyncHandler(async (req, res) => {
@@ -221,6 +259,7 @@ export const postSignIn = asyncHandler(async (req, res) => {
         title: 'Sign In',
         errors,
         values: { email: req.body.email ?? '' },
+        returnTo: safeRedirect(req, ''),
       }),
     );
   }
@@ -243,6 +282,7 @@ export const postSignIn = asyncHandler(async (req, res) => {
         title: 'Sign In',
         errors: { form: result.error },
         values: { email: req.body.email ?? '' },
+        returnTo: safeRedirect(req, ''),
         ...extra,
       }),
     );
