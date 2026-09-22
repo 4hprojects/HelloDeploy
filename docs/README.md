@@ -33,6 +33,7 @@ Use this index as the starting point for repository documentation. The top-level
 
 Five focused audits run back-to-back across the platform's major surfaces, each with its own resolved backlog tracked in [Priorities](PRIORITIES.md).
 
+- [User Workflow Audit](USER_WORKFLOW_AUDIT.md) - end-to-end journey audit from landing page to a deployed app on a custom domain (findings W1-W13), and the standing caveat that a fix in this repository is not a fix for users until the release path works.
 - [Admin UX Audit](ADMIN_UX_AUDIT.md) - admin-side efficiency/intuitiveness audit (Track D, resolved).
 - [Guest Experience Audit](GUEST_EXPERIENCE_AUDIT.md) - guest-facing landing/marketing audit (Track E, resolved).
 - [System Analysis](SYSTEM_ANALYSIS.md) - platform-wide user-friendliness, functionality, and intuitivity audit (Track F, resolved).

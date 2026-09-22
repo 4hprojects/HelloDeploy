@@ -1,5 +1,7 @@
 # HelloDeploy FAQ
 
+Updated: 2026-09-22
+
 ## General
 
 ### What is HelloDeploy?
@@ -134,7 +136,7 @@ No. Secret values should be encrypted before storage and not displayed again. Re
 
 ### Do environment variable changes affect the running release immediately?
 
-No. A redeployment or restart is required for changes to affect the running application.
+No. A running container keeps the values it started with. Use **Redeploy Live Commit** on the Deployments page — it restarts the release that is already live without picking up newer commits. HelloDeploy shows a reminder on the environment page after you change a secret.
 
 ### What files are considered high risk?
 
@@ -184,7 +186,7 @@ Yes. Generate a deploy hook on the project's Deploy Hook page and POST to the sh
 
 ### Can I stop pushes to certain paths from triggering builds?
 
-Yes. Build filters (Detection page) take included and ignored glob patterns, one per line. If a push only touches filtered-out paths, the build is skipped.
+Yes. Build filters (Detection or Project Settings page) take included and ignored glob patterns, one per line. If a push only touches filtered-out paths, the build is skipped. You can also skip a single push by putting `[skip deploy]` in the commit message.
 
 ### What is maintenance mode?
 
@@ -200,7 +202,7 @@ It runs the image build with `--no-cache`, ignoring Docker layer caches. Use it 
 
 ### What is the health check path for?
 
-After each deploy, HelloDeploy polls this HTTP path (default `/`) on your app until it responds successfully; the release only goes live after the check passes. Set it on the Detection page if your app serves a dedicated endpoint like `/healthz`.
+After each deploy, HelloDeploy polls this HTTP path (default `/`) on your app until it responds successfully; the release only goes live after the check passes. Set it on the Detection page if your app serves a dedicated endpoint like `/healthz`. The check runs during the release only — it is not an ongoing uptime monitor, so an app that stops responding later will still be listed as healthy.
 
 ## Support
 

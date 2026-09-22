@@ -1,5 +1,7 @@
 # HelloDeploy User Guide
 
+Updated: 2026-09-22
+
 This guide explains the normal user flow for deploying a web application with HelloDeploy.
 
 ## What HelloDeploy Does
@@ -27,8 +29,8 @@ Version 1 does not support Python, PHP, Java, Docker Compose submitted by users,
 2. Select **Create Account** or go to `/auth/create-account`.
 3. Enter your name, email address, and password.
 4. Review and accept the required legal policies.
-5. Verify your email when the verification message arrives.
-6. Sign in at `/auth/sign-in`.
+5. Verify your email when the verification message arrives. Clicking the link signs you in and takes you straight to your dashboard — there is no separate sign-in step.
+6. If the verification email does not arrive, use the resend form on the verification page. If HelloDeploy could not send it at all, that page says so explicitly; your account still exists, so do not create a second one.
 
 If you forget your password, use `/auth/forgot-password`. Password recovery uses three steps: email address, verification code, and new password.
 
@@ -93,7 +95,7 @@ Detection fills in recommended values, which usually do not need changes. Owners
 - **Build command** and **Start command**: Replace the auto-detected commands.
 - **Output directory**: For static builds, where the built files are produced.
 - **Application port**: The port your app listens on inside the container.
-- **Health check path**: The HTTP path HelloDeploy polls after each deploy to confirm the app is healthy. Defaults to `/`. If your app has a dedicated endpoint such as `/healthz`, set it here — a deployment is only marked healthy after this path responds successfully.
+- **Health check path**: The HTTP path HelloDeploy polls after each deploy to confirm the app is healthy. Defaults to `/`. If your app has a dedicated endpoint such as `/healthz`, set it here — a deployment is only marked healthy after this path responds successfully. Note that this check runs during a release, not continuously afterwards: if the application stops responding later, the dashboard will still show the release as healthy.
 
 Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 
@@ -105,6 +107,8 @@ Build filters control which pushes trigger a build when automatic deployment is 
 - **Ignored paths**: Changes matching these patterns never trigger a build (for example `docs/**` or `*.md`).
 
 If a push only touches ignored or non-included paths, HelloDeploy skips the build entirely. Leave both lists empty to build on every push.
+
+You can also skip a single push regardless of the filters by including `[skip deploy]` anywhere in the commit message. `[skip hellodeploy]` and `[hellodeploy skip]` work the same way. This is useful for documentation or comment-only commits.
 
 ## Configure Environment Variables
 
@@ -155,7 +159,10 @@ After approval:
 
 1. Open the project.
 2. Go to **Deployments**.
-3. Select a deployment action, such as deploying the latest commit or redeploying the current commit.
+3. Select a deployment action:
+   - **Deploy Latest** builds the newest commit on your production branch.
+   - **Deploy (no cache)** does the same without reusing cached build layers.
+   - **Redeploy Live Commit** restarts the release that is already live, without picking up newer commits. This is the action to use after changing environment secrets, because a running container keeps its old values until it is replaced.
 4. Confirm the action if prompted.
 5. Watch the deployment status and logs.
 
