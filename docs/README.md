@@ -43,6 +43,7 @@ Five focused audits run back-to-back across the platform's major surfaces, each 
 
 - [Improvements](IMPROVEMENTS.md) - the Round 1 and Round 2 code-quality/security review backlog and its resolution status.
 - [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) - usability, efficiency, mobile, confirmation, tooltip, form, and accessibility improvements, including accessibility verification evidence.
+- [Render.com Feature Comparison](RENDER_COMPARISON.md) - parity study against a comparable commercial platform, the practices adopted from it, and the gaps deliberately left open. A study, not a roadmap.
 - [Project Settings Deferred Capability Evaluations](PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md) - product, architecture, security, operations, evidence, and approval gates for settings capabilities that remain explicitly deferred.
 - [Public Git Repository Connection Specification](PUBLIC_GIT_REPOSITORY_SPEC.md) - accepted two-path repository UX, source model, security boundaries, implementation contract, and acceptance criteria; implemented locally with live worker validation pending.
 
