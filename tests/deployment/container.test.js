@@ -37,3 +37,28 @@ describe('managed container runtime limits', () => {
     assert.match(source, /'--log-opt',\s*'max-file=3'/);
   });
 });
+describe('container stop grace', () => {
+  it('defaults to 30 seconds, matching common platform behaviour', async () => {
+    const { env } = await import('../../apps/worker/src/config/env.js');
+    assert.equal(env.CONTAINER_STOP_GRACE_SECONDS, 30);
+  });
+
+  // runDocker is private and not injectable, so the argument itself is
+  // asserted against the source - the same approach this file already uses for
+  // the log-driver flags.
+  it('passes the configured grace to docker stop rather than a literal', async () => {
+    const source = await readFile(
+      new URL('../../apps/worker/src/deployment/container.js', import.meta.url),
+      'utf8',
+    );
+    assert.match(source, /String\(env\.CONTAINER_STOP_GRACE_SECONDS\)/);
+  });
+
+  it('no longer hardcodes the previous 15 second grace', async () => {
+    const source = await readFile(
+      new URL('../../apps/worker/src/deployment/container.js', import.meta.url),
+      'utf8',
+    );
+    assert.doesNotMatch(source, /'--time',\s*'15'/);
+  });
+});

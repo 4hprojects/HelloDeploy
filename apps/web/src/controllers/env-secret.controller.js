@@ -75,6 +75,21 @@ function normalizeBulkRows(body) {
   }));
 }
 
+/**
+ * Secrets reach a container only when it starts, so editing one changes
+ * nothing about the release already running. Say so, and point at the action
+ * that fixes it, rather than letting the owner assume it took effect.
+ */
+function notifySecretsPendingRedeploy(req, project) {
+  if (!project.activeDeploymentId) {
+    return;
+  }
+  req.flash(
+    'info',
+    'The live release is still using the previous values. Use Redeploy Live Commit on the Deployments page to apply them.',
+  );
+}
+
 export const postSetSecret = asyncHandler(async (req, res) => {
   const project = req.project;
   const { name, value } = req.body;
@@ -105,6 +120,7 @@ export const postSetSecret = asyncHandler(async (req, res) => {
   }
 
   req.flash('success', `Secret ${normalizedName} saved.`);
+  notifySecretsPendingRedeploy(req, project);
   res.redirect(`/projects/${project.slug}/environment`);
 });
 
@@ -123,6 +139,7 @@ export const postImportEnvFile = asyncHandler(async (req, res) => {
     'success',
     `${result.count} environment variable${result.count === 1 ? '' : 's'} imported.`,
   );
+  notifySecretsPendingRedeploy(req, project);
   res.redirect(`/projects/${project.slug}/environment`);
 });
 
@@ -149,6 +166,7 @@ export const postBulkUpdateSecrets = asyncHandler(async (req, res) => {
   }
 
   req.flash('success', `${result.count} secret${result.count === 1 ? '' : 's'} updated.`);
+  notifySecretsPendingRedeploy(req, project);
   res.redirect(`/projects/${project.slug}/environment`);
 });
 
@@ -184,6 +202,7 @@ export const postDeleteSecret = asyncHandler(async (req, res) => {
     req.flash('error', result.error);
   } else {
     req.flash('success', `Secret ${name} deleted.`);
+    notifySecretsPendingRedeploy(req, project);
   }
 
   res.redirect(`/projects/${project.slug}/environment`);

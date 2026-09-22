@@ -17,6 +17,12 @@
       <input type="hidden" name="noCache" value="true">
       <button type="submit" class="button button--secondary button--sm" data-pending-label="Deploying..." data-tooltip="Rebuild without using cached build layers.">Deploy (no cache)</button>
     </form>
+    <% if (project.activeDeploymentId) { %>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments/redeploy">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--secondary button--sm" data-pending-label="Redeploying..." data-tooltip="Redeploy the commit that is currently live, without picking up newer commits. Use this after changing environment secrets.">Redeploy Live Commit</button>
+    </form>
+    <% } %>
   </div>
   <% } %>
 </div>

@@ -40,6 +40,11 @@ const cloneDownloadTimeoutMs = parseIntegerEnv(
   optional('CLONE_DOWNLOAD_TIMEOUT_MS', '300000'),
   { min: 30000, max: 1800000 },
 );
+const containerStopGraceSeconds = parseIntegerEnv(
+  'CONTAINER_STOP_GRACE_SECONDS',
+  optional('CONTAINER_STOP_GRACE_SECONDS', '30'),
+  { min: 1, max: 300 },
+);
 const maintenanceIntervalMs = parseIntegerEnv(
   'MAINTENANCE_INTERVAL_MS',
   optional('MAINTENANCE_INTERVAL_MS', '86400000'),
@@ -117,6 +122,7 @@ export const env = {
   BUILD_TIMEOUT_MS: buildTimeoutMs,
   CLONE_DOWNLOAD_TIMEOUT_MS: cloneDownloadTimeoutMs,
   MAINTENANCE_INTERVAL_MS: maintenanceIntervalMs,
+  CONTAINER_STOP_GRACE_SECONDS: containerStopGraceSeconds,
   PORT_RANGE_START: portRangeStart,
   PORT_RANGE_END: portRangeEnd,
 

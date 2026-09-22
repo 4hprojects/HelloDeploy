@@ -14,6 +14,7 @@ import {
   getRollbackTargets,
   getDeployment,
   getDeploymentEvents,
+  redeployActiveRelease,
 } from '../services/deployment.service.js';
 
 const DEPLOYMENTS_PER_PAGE = 20;
@@ -93,6 +94,28 @@ export const postCreateDeployment = asyncHandler(async (req, res) => {
   }
 
   req.flash('success', `Deployment #${result.deployment.sequenceNumber} queued.`);
+  res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
+});
+
+export const postRedeployActiveRelease = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const result = await redeployActiveRelease({
+    projectId: project._id,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+    return res.redirect(`/projects/${project.slug}/deployments`);
+  }
+
+  req.flash(
+    'success',
+    `Deployment #${result.deployment.sequenceNumber} queued — redeploying the live commit.`,
+  );
   res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
 });
 

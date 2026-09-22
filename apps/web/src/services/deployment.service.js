@@ -373,6 +373,45 @@ export async function createDeployment({
 /**
  * Cancel a deployment that is in a cancellable state (QUEUED or BUILDING).
  */
+export const NO_ACTIVE_RELEASE_COPY =
+  'This project has no live release to redeploy yet. Deploy it once first.';
+
+/**
+ * Redeploy the commit that is currently live.
+ *
+ * Distinct from a plain deploy, which takes whatever is newest on the
+ * production branch. When an owner changes an environment secret they want the
+ * running code restarted with the new values - not to also pick up whatever
+ * else has landed since. This is the only way to do that without guessing a SHA.
+ *
+ * @returns {Promise<{ success: boolean, deployment?: object, error?: string }>}
+ */
+export async function redeployActiveRelease({ projectId, actorId, sourceIp, correlationId }) {
+  const project = await Project.findById(projectId).select('activeDeploymentId').lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+  if (!project.activeDeploymentId) {
+    return { success: false, error: NO_ACTIVE_RELEASE_COPY };
+  }
+
+  const active = await Deployment.findById(project.activeDeploymentId).select('commitSha').lean();
+  if (!active?.commitSha) {
+    return { success: false, error: NO_ACTIVE_RELEASE_COPY };
+  }
+
+  // Routed through createDeployment so eligibility, in-flight and quota checks
+  // all apply exactly as they do to any other deployment.
+  return createDeployment({
+    projectId,
+    actorId,
+    triggerType: DeploymentTrigger.MANUAL,
+    commitSha: active.commitSha,
+    sourceIp,
+    correlationId,
+  });
+}
+
 export async function cancelDeployment(deploymentId, projectId, actorId, opts = {}) {
   const deployment = await Deployment.findOne({ _id: deploymentId, projectId });
   if (!deployment) {

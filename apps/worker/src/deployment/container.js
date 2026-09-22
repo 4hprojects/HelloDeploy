@@ -2,6 +2,8 @@ import { spawn } from 'node:child_process';
 import { logger } from '@hellodeploy/observability';
 import { RuntimeType } from '@hellodeploy/contracts';
 
+import { env } from '../config/env.js';
+
 // ─── Docker runner (command arrays only — no shell) ───────────────────────────
 
 function runDocker(args) {
@@ -200,7 +202,15 @@ export async function inspectContainer(containerIdOrName) {
  */
 export async function stopAndRemoveContainer(containerIdOrName) {
   try {
-    await runDocker(['stop', '--time', '15', containerIdOrName]);
+    // An application still draining requests needs time to finish them. Docker
+    // sends SIGKILL once this elapses, so too short a grace cuts off in-flight
+    // work rather than shedding it.
+    await runDocker([
+      'stop',
+      '--time',
+      String(env.CONTAINER_STOP_GRACE_SECONDS),
+      containerIdOrName,
+    ]);
   } catch {
     // container may already be stopped
   }

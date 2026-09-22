@@ -59,6 +59,7 @@ import {
   getDeploymentList,
   getDeploymentDetail,
   postCreateDeployment,
+  postRedeployActiveRelease,
   postCancelDeployment,
   postRetryDeployment,
   postRollback,
@@ -228,6 +229,13 @@ router.post(
   deployActionLimiter,
   ownerOrMaintainer,
   postCreateDeployment,
+);
+router.post(
+  '/:slug/deployments/redeploy',
+  requireAuth,
+  deployActionLimiter,
+  ownerOrMaintainer,
+  postRedeployActiveRelease,
 );
 router.post('/:slug/rollback', requireAuth, deployActionLimiter, ownerOrMaintainer, postRollback);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);

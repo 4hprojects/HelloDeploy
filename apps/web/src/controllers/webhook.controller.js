@@ -94,6 +94,19 @@ function collectChangedPaths(commits) {
   return [...paths];
 }
 
+// Markers an author can put in a commit message to land a change without
+// deploying it — docs, comments, a README fix. Matched case-insensitively
+// anywhere in the first line, which is what repoRecord already stores.
+const DEPLOY_SKIP_MARKERS = ['[skip deploy]', '[skip hellodeploy]', '[hellodeploy skip]'];
+
+export function hasDeploySkipMarker(commitMessage) {
+  if (!commitMessage) {
+    return false;
+  }
+  const normalized = commitMessage.toLowerCase();
+  return DEPLOY_SKIP_MARKERS.some((marker) => normalized.includes(marker));
+}
+
 function hasHighRiskChanges(commits) {
   return collectChangedPaths(commits).some((f) => HIGH_RISK_PATTERNS.some((p) => p.test(f)));
 }
@@ -224,6 +237,17 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
       });
     }
 
+    return;
+  }
+
+  // An explicit marker in the commit message wins over every other trigger
+  // rule: the author has said this change should not ship.
+  if (hasDeploySkipMarker(commitMessage)) {
+    logger.info('Webhook: deploy skipped — commit message carries a skip marker', {
+      projectId: project._id.toString(),
+      repoFullName,
+      branch,
+    });
     return;
   }
 
