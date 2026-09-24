@@ -37,6 +37,16 @@ describe('generateDockerfile — REACT', () => {
     assert.ok(df.includes('npm run build'));
     assert.ok(df.includes('/app/dist /usr/share/nginx/html'));
   });
+  it('resolves a build command that calls a locally installed binary', () => {
+    const df = generateDockerfile({
+      runtimeType: 'REACT',
+      buildCommand: 'vite build',
+      startCommand: null,
+      outputDirectory: 'dist',
+      applicationPort: null,
+    });
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN vite build/);
+  });
   it('defaults outputDirectory to dist when null', () => {
     const df = generateDockerfile({
       runtimeType: 'REACT',
@@ -76,6 +86,16 @@ describe('generateDockerfile — NEXTJS', () => {
     assert.ok(df.includes('AS builder'));
     assert.ok(df.includes('standalone'));
     assert.ok(df.includes('EXPOSE 3000'));
+  });
+  it('resolves a build command that calls a locally installed binary', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'next build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+    });
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN next build/);
   });
 });
 
