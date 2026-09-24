@@ -62,8 +62,28 @@ describe('fatal process handling', () => {
     harness.handlers.uninstall();
   });
 
+  it('withholds the message of an error it did not author', () => {
+    const harness = createHarness();
+
+    harness.processRef.emit('uncaughtException', new Error('mongodb://admin:hunter2@db:27017'));
+
+    assert.equal(harness.logs[0].metadata.message, undefined);
+    harness.handlers.uninstall();
+  });
+
+  it('logs the message of a ConfigurationError so the fault is identifiable', () => {
+    const harness = createHarness();
+    const error = new Error('NGINX_ENABLED must be true in production.');
+    error.name = 'ConfigurationError';
+
+    harness.processRef.emit('uncaughtException', error);
+
+    assert.equal(harness.logs[0].metadata.message, 'NGINX_ENABLED must be true in production.');
+    harness.handlers.uninstall();
+  });
+
   for (const entrypoint of ['apps/web/src/server.js', 'apps/worker/src/worker.js']) {
-    it(`sanitizes configuration-time startup failures in ${entrypoint}`, () => {
+    it(`names the missing configuration on startup failure in ${entrypoint}`, () => {
       const result = spawnSync(process.execPath, [entrypoint], {
         cwd: repositoryRoot,
         encoding: 'utf8',
@@ -79,7 +99,8 @@ describe('fatal process handling', () => {
       assert.equal(result.status, 1);
       assert.match(output, /fatal process failure/);
       assert.match(output, /"event":"startup"/);
-      assert.doesNotMatch(output, /Missing required|env-validation\.js|at file:/);
+      assert.match(output, /Missing required environment variable: [A-Z0-9_]+/);
+      assert.doesNotMatch(output, /env-validation\.js|at file:/);
     });
   }
 });
