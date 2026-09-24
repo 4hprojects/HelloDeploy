@@ -328,6 +328,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       contextDir: workDir,
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
+      buildMemoryMb: env.BUILD_MEMORY_MB,
       noCache: noCache === true,
       buildArgs: publicBuildEnv,
       onLogLine: async (line, stream) => {

@@ -36,6 +36,14 @@ const buildTimeoutMs = parseIntegerEnv('BUILD_TIMEOUT_MS', optional('BUILD_TIMEO
   min: 1000,
   max: 86400000,
 });
+const buildMemoryMb = parseIntegerEnv('BUILD_MEMORY_MB', optional('BUILD_MEMORY_MB', '1024'), {
+  min: 256,
+  max: 65536,
+});
+const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
+  min: 128,
+  max: 32768,
+});
 const helperTimeoutMs = parseIntegerEnv(
   'NGINX_HELPER_TIMEOUT_MS',
   optional('NGINX_HELPER_TIMEOUT_MS', '15000'),
@@ -108,6 +116,8 @@ export const env = {
 
   WORKER_CONCURRENCY: workerConcurrency,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
+  BUILD_MEMORY_MB: buildMemoryMb,
+  RUNTIME_MEMORY_MB: runtimeMemoryMb,
   PORT_RANGE_START: portRangeStart,
   PORT_RANGE_END: portRangeEnd,
 
