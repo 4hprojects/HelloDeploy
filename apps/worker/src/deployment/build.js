@@ -1,4 +1,4 @@
-import { publicEnvironment } from '@hellodeploy/deployment-core';
+import { selectPublicBuildEnv } from './public-build-env.js';
 import { spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -27,6 +27,7 @@ export async function writeDockerfile(contextDir, dockerfileContent) {
  *   imageTag: string,
  *   buildTimeoutMs: number,
  *   noCache?: boolean,
+ *   buildArgs?: Record<string, string>,
  *   onLogLine: (line: string, stream: 'stdout'|'stderr') => void,
  * }} params
  * @returns {Promise<{ imageId: string }>}
@@ -36,7 +37,7 @@ export async function buildDockerImage({
   imageTag,
   buildTimeoutMs,
   noCache = false,
-  publicBuildEnvironment = {},
+  buildArgs = {},
   onLogLine,
 }) {
   return new Promise((resolve, reject) => {
@@ -51,6 +52,10 @@ export async function buildDockerImage({
       `hellodeploy.image=true`,
       '--label',
       `hellodeploy.tag=${imageTag}`,
+      // SECURITY: only values a framework compiles into its client bundle reach
+      // this list — see selectPublicBuildEnv. `docker history` exposes build
+      // arguments, so anything secret must stay out and arrive at container
+      // start instead. Values are never logged.
       // Resource limits on the build process itself
       '--memory',
       '1g',
@@ -64,9 +69,14 @@ export async function buildDockerImage({
       contextDir,
     ];
 
-    logger.info('Docker: starting build', { imageTag });
+    logger.info('Docker: starting build', {
+      imageTag,
+      // Names only. The values are public to browsers but there is no reason
+      // to write them to the platform's own logs.
+      buildArgNames: Object.keys(buildArgs),
+    });
 
-    const publicValues = publicEnvironment(publicBuildEnvironment);
+    const publicValues = selectPublicBuildEnv(buildArgs);
     for (const name of Object.keys(publicValues)) {
       args.splice(args.length - 1, 0, '--build-arg', name);
     }

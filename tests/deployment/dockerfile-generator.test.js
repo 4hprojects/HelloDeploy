@@ -37,6 +37,16 @@ describe('generateDockerfile — REACT', () => {
     assert.ok(df.includes('npm run build'));
     assert.ok(df.includes('/app/dist /usr/share/nginx/html'));
   });
+  it('resolves a build command that calls a locally installed binary', () => {
+    const df = generateDockerfile({
+      runtimeType: 'REACT',
+      buildCommand: 'vite build',
+      startCommand: null,
+      outputDirectory: 'dist',
+      applicationPort: null,
+    });
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN --network=none vite build/);
+  });
   it('defaults outputDirectory to dist when null', () => {
     const df = generateDockerfile({
       runtimeType: 'REACT',
@@ -76,6 +86,69 @@ describe('generateDockerfile — NEXTJS', () => {
     assert.ok(df.includes('AS builder'));
     assert.ok(df.includes('standalone'));
     assert.ok(df.includes('EXPOSE 3000'));
+  });
+  it('resolves a build command that calls a locally installed binary', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'next build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+    });
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN --network=none next build/);
+  });
+  it('exposes a declared build argument to the build command', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'npm run build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+      buildArgNames: ['NEXT_PUBLIC_SUPABASE_URL'],
+    });
+    assert.match(
+      df,
+      /ARG NEXT_PUBLIC_SUPABASE_URL\nENV NEXT_PUBLIC_SUPABASE_URL=\$NEXT_PUBLIC_SUPABASE_URL/,
+    );
+  });
+  it('declares build arguments in the stage that runs the build', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'npm run build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+      buildArgNames: ['NEXT_PUBLIC_A'],
+    });
+    const builderStage = df.slice(df.indexOf('AS builder'));
+    assert.ok(
+      builderStage.indexOf('ARG NEXT_PUBLIC_A') <
+        builderStage.indexOf('RUN --network=none npm run build'),
+    );
+  });
+  it('emits no ARG line when the project has no public environment', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'npm run build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+    });
+    assert.ok(!df.includes('ARG '));
+  });
+  it('refuses a build argument name that could inject a directive', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          runtimeType: 'NEXTJS',
+          buildCommand: 'npm run build',
+          startCommand: null,
+          outputDirectory: '.next',
+          applicationPort: null,
+          buildArgNames: ['NEXT_PUBLIC_A\nRUN echo pwned'],
+        }),
+      /Invalid build argument name/,
+    );
   });
 });
 

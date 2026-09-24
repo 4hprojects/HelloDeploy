@@ -1,3 +1,4 @@
+import { releaseEnvironment } from '@hellodeploy/deployment-core';
 import { join } from 'node:path';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
 import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
@@ -9,6 +10,8 @@ import { cloneExactCommit, clonePublicExactCommit } from '../git/clone.js';
 import { prepareBuildContext } from '../deployment/build-context.js';
 import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
+import { getProjectEnvVars } from '../deployment/secrets.js';
+import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
 import {
   logEvent,
@@ -72,6 +75,7 @@ const defaultDeps = {
   prepareBuildContext,
   writeDockerfile,
   buildDockerImage,
+  getProjectEnvVars,
   removeDockerImage,
   cleanupBuildWorkspace,
   enqueueActivateRelease,
@@ -251,15 +255,44 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   // ── Generate Dockerfile ─────────────────────────────────────────────────────
+  // Frontend frameworks compile their public configuration into the bundle at
+  // build time, so those values have to be present now — at container start is
+  // too late, and the app ships with `undefined` in place of them. Only the
+  // public subset is eligible; the rest is injected when the container starts.
+  let publicBuildEnv = {};
+  try {
+    publicBuildEnv = selectPublicBuildEnv(
+      releaseEnvironment(
+        await deps.getProjectEnvVars(project._id),
+        deployment.publicBuildEnvironment,
+      ),
+    );
+  } catch (err) {
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      `Could not read project environment: ${err.message}`,
+      correlationId,
+    );
+    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+      failureCode: 'BUILD_FAILED',
+      failureSummary: 'Could not read project environment.',
+      completedAt: new Date(),
+    });
+    await deps.cleanupBuildWorkspace(workDir);
+    return;
+  }
+
   let dockerfileContent;
   try {
     dockerfileContent = generateDockerfile({
       runtimeType,
-      publicBuildEnvironment: deployment.publicBuildEnvironment ?? {},
       buildCommand: project.buildConfiguration?.buildCommand ?? null,
       startCommand: project.buildConfiguration?.startCommand ?? null,
       outputDirectory: project.buildConfiguration?.outputDirectory ?? null,
       applicationPort: project.buildConfiguration?.applicationPort ?? null,
+      buildArgNames: Object.keys(publicBuildEnv),
     });
     await deps.writeDockerfile(workDir, dockerfileContent);
     await logEvent(
@@ -299,10 +332,10 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   try {
     await deps.buildDockerImage({
       contextDir: workDir,
-      publicBuildEnvironment: deployment.publicBuildEnvironment ?? {},
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
       noCache: noCache === true,
+      buildArgs: publicBuildEnv,
       onLogLine: async (line, stream) => {
         await logEvent(
           deploymentId,

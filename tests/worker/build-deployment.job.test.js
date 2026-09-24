@@ -27,6 +27,7 @@ function makeDeps(overrides = {}) {
     cloneExactCommit: async () => {},
     clonePublicExactCommit: async (opts) => calls.publicClones.push(opts),
     prepareBuildContext: async () => {},
+    getProjectEnvVars: async () => ({}),
     writeDockerfile: async () => {},
     buildDockerImage: async (opts) => calls.builds.push(opts),
     removeDockerImage: async (tag) => calls.removedImages.push(tag),
@@ -106,13 +107,18 @@ describe('build-deployment job', () => {
     assert.equal(calls.cleanedWorkspaces.length, 1);
   });
 
-  it('passes the queued public snapshot to Docker without fetching current secrets', async () => {
+  it('passes the queued public snapshot to Docker despite changed current settings', async () => {
     const { project, repo, deployment } = await seed();
     deployment.publicBuildEnvironment = { NEXT_PUBLIC_APP_URL: 'https://snapshot.test' };
     await deployment.save();
     const { deps, calls } = makeDeps();
+    deps.getProjectEnvVars = async () => ({
+      NEXT_PUBLIC_APP_URL: 'https://changed.test',
+      NEXT_PUBLIC_ADDED: 'new',
+      SUPABASE_SECRET_KEY: 'private',
+    });
     await handleBuildDeployment(makeJob(project, repo, deployment), deps);
-    assert.deepEqual(calls.builds[0].publicBuildEnvironment, {
+    assert.deepEqual(calls.builds[0].buildArgs, {
       NEXT_PUBLIC_APP_URL: 'https://snapshot.test',
     });
   });
@@ -129,6 +135,24 @@ describe('build-deployment job', () => {
     const { deps, calls } = makeDeps();
     await handleBuildDeployment(makeJob(project, repo, deployment), deps);
     assert.equal(calls.builds[0]?.noCache, false);
+  });
+
+  it('passes a public environment variable to the docker build', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      getProjectEnvVars: async () => ({ NEXT_PUBLIC_APP_NAME: 'HelloPera' }),
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.builds[0]?.buildArgs, { NEXT_PUBLIC_APP_NAME: 'HelloPera' });
+  });
+
+  it('withholds a private environment variable from the docker build', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      getProjectEnvVars: async () => ({ RESEND_API_KEY: 'private' }),
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.builds[0]?.buildArgs, {});
   });
 
   it('marks BUILD_FAILED and removes the partial image when the build throws', async () => {

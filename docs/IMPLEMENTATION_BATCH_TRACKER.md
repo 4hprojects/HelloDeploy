@@ -679,3 +679,11 @@ Draft PR #49 has passed remote test/coverage checks. Audit findings in the exist
 lockfile are addressed with compatible patch updates; a CodeQL test-only URL
 assertion was replaced by an equivalent plain sentinel assertion. Final remote
 checks must pass before review/merge; this does not authorize a host upgrade.
+
+PRs #45–#48 merged while #49 was under verification. Their main SHA `0ff8872`
+is now integrated into the release branch; the build overlap is resolved using
+the merged framework build-argument path plus release snapshots. Revalidate #49
+on that combined revision before any host upgrade.
+
+Combined current-main validation: 1,022 tests pass, zero skipped; development
+configuration and production dependency audit pass.

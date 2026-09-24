@@ -5,13 +5,25 @@ function safeErrorDetails(error) {
       ? error.code
       : undefined;
 
-  return code ? { errorType: name, errorCode: code } : { errorType: name };
+  const details = code ? { errorType: name, errorCode: code } : { errorType: name };
+
+  // ConfigurationError messages are authored by our own startup validation from
+  // env var names and platform constants, so they carry no credentials. Every
+  // other message may (a driver reporting a failed `redis://user:pass@host`),
+  // and stacks leak topology, so both stay out. Without this, a misconfigured
+  // worker exits with nothing but `{"errorType":"Error"}` and crash-loops
+  // invisibly — which it did, for days.
+  if (name === 'ConfigurationError' && typeof error.message === 'string') {
+    details.message = error.message;
+  }
+
+  return details;
 }
 
 /**
  * Install last-resort handlers that log only safe error classifications before
- * terminating. Error messages and stacks may contain credentials or topology,
- * so they are intentionally excluded.
+ * terminating. Messages and stacks are excluded unless the error is a
+ * ConfigurationError — see `safeErrorDetails`.
  */
 export function installFatalProcessHandlers({ service, logger, processRef = process }) {
   let terminating = false;

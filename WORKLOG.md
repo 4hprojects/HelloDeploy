@@ -2201,3 +2201,18 @@ instead of a URL. No security rule or test coverage was disabled.
 
 The corrected lockfile passes a clean install, both full and production dependency
 audits (zero vulnerabilities), and all 1,000 tests with four workers and no skips.
+
+### Reconcile concurrently merged platform fixes
+
+During PR verification, main advanced to
+`0ff887222b32d0298315f03dd9c6d99d00f5ed7c` with PRs #45–#48. Merged that main
+into the release branch and resolved the build overlap using the existing
+`buildArgs` transport and framework selector. Next.js snapshot values replace
+current Next.js public settings before selection; Vite/React/Vue behavior is
+preserved. Build arguments still use names in the command array and values in
+the subprocess environment. Kept build PATH, startup diagnostics and scoped
+domain-token changes. The strengthened worker regression changes current settings
+and proves the queued snapshot wins, including removal of newly added public keys.
+
+The combined revision passes all 1,022 tests with four workers and no skips,
+development configuration validation, and the zero-vulnerability production audit.

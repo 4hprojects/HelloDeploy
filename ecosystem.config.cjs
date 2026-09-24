@@ -9,6 +9,26 @@
  */
 'use strict';
 
+// PM2 creates these files as the invoking user. They were hardcoded under
+// /var/log/hellodeploy, which belongs to the systemd service account and is
+// mode 0750 — so a developer running this file unprivileged cannot start it at
+// all, and the practical fallback is `pm2 start npm -- start`. That collapses
+// web and worker into a single PM2 entry where concurrently survives on the web
+// half, leaving PM2 reporting `online` while the worker crash-loops unseen.
+// Default to PM2's own log directory; let a provisioned host opt into the
+// shared one via HELLODEPLOY_LOG_DIR.
+const logDir = process.env.HELLODEPLOY_LOG_DIR;
+
+function logFiles(name) {
+  if (!logDir) {
+    return {};
+  }
+  return {
+    error_file: `${logDir}/${name}-error.log`,
+    out_file: `${logDir}/${name}-out.log`,
+  };
+}
+
 module.exports = {
   apps: [
     {
@@ -26,8 +46,7 @@ module.exports = {
       },
       env_file: '.env',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/var/log/hellodeploy/web-error.log',
-      out_file: '/var/log/hellodeploy/web-out.log',
+      ...logFiles('web'),
       merge_logs: true,
     },
     {
@@ -44,8 +63,7 @@ module.exports = {
       },
       env_file: '.env',
       log_date_format: 'YYYY-MM-DD HH:mm:ss',
-      error_file: '/var/log/hellodeploy/worker-error.log',
-      out_file: '/var/log/hellodeploy/worker-out.log',
+      ...logFiles('worker'),
       merge_logs: true,
     },
   ],
