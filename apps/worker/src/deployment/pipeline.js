@@ -1,12 +1,17 @@
-import { Project, Deployment, DeploymentEvent } from '@hellodeploy/database';
-import { DeploymentStatus, RuntimeType, AuditOutcome } from '@hellodeploy/contracts';
+import { Project, Deployment, DeploymentEvent, Domain } from '@hellodeploy/database';
+import { DeploymentStatus, RuntimeType, AuditOutcome, DomainStatus } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
-import { generateServerBlock } from '../nginx/template.js';
+import {
+  generateServerBlock,
+  generateCustomDomainServerBlock,
+  customDomainRouteSlug,
+} from '../nginx/template.js';
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
+import { withProjectRouteLock } from '../nginx/project-route-lock.js';
 import { env } from '../config/env.js';
 
 /**
@@ -373,25 +378,91 @@ export async function runReleasePipeline({
     }
 
     if (subdomainUsable) {
-      const nginxConfig = generateServerBlock({
-        subdomain,
-        domain: env.DEPLOYMENT_DOMAIN,
-        port: hostPort,
-        deploymentId: deploymentId.toString(),
-      });
-
       try {
-        await deps.activateRoute({
-          configDir: env.NGINX_HELLODEPLOY_CONFIG_DIR,
-          slug: subdomain,
-          configContent: nginxConfig,
-          nginxBinary: env.NGINX_BINARY_PATH,
+        await withProjectRouteLock(projectId, async () => {
+          const customDomains = await Domain.find({
+            projectId,
+            status: {
+              $in: [DomainStatus.VERIFIED, DomainStatus.ACTIVATING, DomainStatus.ACTIVE],
+            },
+          }).lean();
+          const routes = [
+            {
+              slug: subdomain,
+              configContent: generateServerBlock({
+                subdomain,
+                domain: env.DEPLOYMENT_DOMAIN,
+                port: hostPort,
+                deploymentId: deploymentId.toString(),
+              }),
+            },
+            ...customDomains.map((domain) => ({
+              slug: customDomainRouteSlug(domain.hostnameNormalized),
+              configContent: generateCustomDomainServerBlock({
+                hostname: domain.hostnameNormalized,
+                port: hostPort,
+                deploymentId: deploymentId.toString(),
+              }),
+            })),
+          ];
+
+          if (deps.activateRoutes) {
+            await deps.activateRoutes({ routes });
+          } else {
+            for (const route of routes) {
+              await deps.activateRoute(route);
+            }
+          }
+
+          const newlyActiveIds = customDomains
+            .filter((domain) => domain.status !== DomainStatus.ACTIVE)
+            .map((domain) => domain._id);
+          if (newlyActiveIds.length > 0) {
+            try {
+              for (const domain of customDomains.filter(
+                (candidate) => candidate.status !== DomainStatus.ACTIVE,
+              )) {
+                const transitioned = await Domain.updateOne(
+                  { _id: domain._id, status: domain.status },
+                  {
+                    $set: {
+                      status: DomainStatus.ACTIVE,
+                      activatedAt: new Date(),
+                      operationError: null,
+                      operationCompletedAt: new Date(),
+                    },
+                  },
+                );
+                if (transitioned.modifiedCount > 0) {
+                  await writeAuditEvent({
+                    action: 'domain.activated',
+                    outcome: AuditOutcome.SUCCESS,
+                    actorId: null,
+                    targetType: 'domain',
+                    targetId: domain._id.toString(),
+                    correlationId,
+                    metadata: {
+                      projectId: projectId.toString(),
+                      hostname: domain.hostnameNormalized,
+                      activatedByDeployment: deploymentId.toString(),
+                    },
+                  });
+                }
+              }
+            } catch (err) {
+              logger.warn('ReleasePipeline: custom-domain state reconciliation deferred', {
+                deploymentId: deploymentId.toString(),
+                projectId: projectId.toString(),
+                error: err.message,
+              });
+            }
+          }
         });
         await logEvent(
           deploymentId,
           'DEPLOY',
           'INFO',
-          `Nginx route active: ${subdomain}.${env.DEPLOYMENT_DOMAIN}`,
+          `Nginx routes active for the platform hostname and verified custom domains.`,
           correlationId,
         );
       } catch (err) {

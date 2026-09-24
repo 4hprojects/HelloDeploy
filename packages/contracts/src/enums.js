@@ -86,9 +86,12 @@ export const ContainerStatus = Object.freeze({
 /** Custom domain verification and activation state */
 export const DomainStatus = Object.freeze({
   PENDING_VERIFICATION: 'PENDING_VERIFICATION',
+  VERIFYING: 'VERIFYING',
   VERIFIED: 'VERIFIED',
   PENDING_ADMIN_APPROVAL: 'PENDING_ADMIN_APPROVAL',
+  ACTIVATING: 'ACTIVATING',
   ACTIVE: 'ACTIVE',
+  REMOVING: 'REMOVING',
   FAILED: 'FAILED',
   REMOVED: 'REMOVED',
 });

@@ -2136,3 +2136,36 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Production remains unchanged while the correction proceeds through review. The
   next release gate is a passing PR/CodeQL review and the resulting merged full SHA;
   protected host recovery must still precede the immutable upgrade.
+
+## 2026-09-25 — Custom-Domain Lifecycle Hardening
+
+- Investigated the `hellouniversity.online` default Nginx page. Its TXT ownership
+  proof resolves, but verification and activation reused retained BullMQ job IDs;
+  no new attempt was created. Release activation also updated only the platform
+  hostname, allowing a custom route to retain an obsolete container port.
+- Replaced domain operations with unique attempt IDs, lifecycle fencing, explicit
+  `VERIFYING`, `ACTIVATING`, and `REMOVING` states, dedicated activation/removal jobs,
+  retryable errors, and legacy v1 job compatibility. Existing domain documents are
+  assigned lifecycle version 1 on first use without a destructive migration.
+- Successful ownership checks now activate automatically against a healthy active
+  deployment or remain `VERIFIED` for the next healthy release. Legacy pending
+  approvals remain available but are no longer produced for new checks.
+- Added per-project routing serialization and an Nginx route-batch transaction so a
+  release moves the platform hostname and all active or verified custom domains
+  before retiring the previous container. Validation or reload failure restores all
+  prior route files.
+- Added the authenticated, project-scoped status signature endpoint, bounded
+  two-second polling, new status/error copy, and sanitized lifecycle audit events.
+- Focused verification passes 105 tests, with an additional 54-test lifecycle and UI
+  rerun and a 26-test post-review rerun passing. Lint, configuration validation, and
+  diff validation pass. The full suite initially reported 1,030 passes and two
+  failures; the obsolete administrator-copy assertion was corrected and its focused
+  suite passes. The final full run reports 1,033 passes and one failure. That remaining
+  unrelated port-allocation test assumes `10001` is free, while a live host process
+  occupies it; with the test's database claim on `10002`, the allocator correctly
+  selects `10003`. Its isolated rerun reports seven passes and the same single
+  failure. Formatting of all changed files passes; the repository-wide check still
+  reports the pre-existing malformed wrap in `docs/PRIORITIES.md`.
+- Production was not changed. Release and live-domain evidence require a reviewed
+  immutable commit, existing upgrade controls, resubmission of the current domain,
+  HTTPS checks for both hostnames, and one controlled redeployment.

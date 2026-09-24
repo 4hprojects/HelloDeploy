@@ -198,19 +198,22 @@
 
 ### Tasks
 
-| Status  | Task                                             | Notes                                                                                            |
-| ------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ |
-| Done    | Implement hostname normalization and uniqueness. | Covered by domain service validation, unique hostname index, and focused tests.                  |
-| Done    | Implement ownership-verification records.        | Verification tokens are generated for DNS TXT proof and stored hashed.                           |
-| Done    | Generate provider-neutral DNS instructions.      | Project domain UI shows TXT record instructions for domain owners.                               |
-| Done    | Implement Admin approval.                        | Verified domains require administrator approval before route activation is queued.               |
-| Done    | Activate routing only after verification.        | Worker marks domains active only after approved route activation succeeds when Nginx is enabled. |
-| Blocked | Verify HTTPS and canonical-domain behavior.      | Requires target-host ingress, TLS, and canonical-domain checks.                                  |
+| Status  | Task                                             | Notes                                                                                                          |
+| ------- | ------------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
+| Done    | Implement hostname normalization and uniqueness. | Covered by domain service validation, unique hostname index, and focused tests.                                |
+| Done    | Implement ownership-verification records.        | Verification tokens are generated for DNS TXT proof and stored hashed.                                         |
+| Done    | Generate provider-neutral DNS instructions.      | Project domain UI shows TXT record instructions for domain owners.                                             |
+| Done    | Implement attempt-based domain operations.       | Verification, activation, and removal use unique jobs with lifecycle fencing and observable processing states. |
+| Done    | Activate routing only after verification.        | New records activate automatically against a healthy release; legacy pending approvals remain supported.       |
+| Done    | Keep routes synchronized during deployments.     | Platform and eligible custom-domain routes change in one validated Nginx transaction before container swap.    |
+| Blocked | Verify HTTPS and canonical-domain behavior.      | Requires target-host ingress, TLS, and canonical-domain checks.                                                |
 
 ### Acceptance Criteria
 
 - A domain cannot be claimed by two projects.
 - Unverified domains never receive active routing.
+- Failed or stale jobs cannot overwrite a newer domain lifecycle attempt.
+- A route-batch failure restores every previous route before the candidate deployment can become active.
 
 ## Phase 10: Administration and Operations
 

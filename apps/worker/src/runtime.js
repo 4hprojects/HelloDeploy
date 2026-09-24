@@ -16,6 +16,8 @@ import { handleBuildDeployment } from './jobs/build-deployment.job.js';
 import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
 import { handleVerifyDomain } from './jobs/verify-domain.job.js';
+import { handleActivateDomain } from './jobs/activate-domain.job.js';
+import { handleRemoveDomain } from './jobs/remove-domain.job.js';
 import { handleStopProject } from './jobs/stop-project.job.js';
 import { handleDeleteProject } from './jobs/delete-project.job.js';
 import { handleSetProjectMaintenance } from './jobs/set-project-maintenance.job.js';
@@ -80,6 +82,12 @@ async function processJob(job) {
       break;
     case JobType.VERIFY_DOMAIN:
       await handleVerifyDomain(job);
+      break;
+    case JobType.ACTIVATE_DOMAIN:
+      await handleActivateDomain(job);
+      break;
+    case JobType.REMOVE_DOMAIN:
+      await handleRemoveDomain(job);
       break;
     case JobType.STOP_PROJECT:
       await handleStopProject(job);

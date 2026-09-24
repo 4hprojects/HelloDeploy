@@ -6,8 +6,10 @@ import {
 import {
   addDomain,
   requestVerification,
+  requestDomainActivation,
   removeDomain,
   getProjectDomains,
+  getProjectDomainStatuses,
   getPendingApprovalDomains,
   approveDomain,
   rejectDomain,
@@ -81,11 +83,38 @@ export const postVerifyDomain = asyncHandler(async (req, res) => {
   } else {
     req.flash(
       'success',
-      'Verification check queued. DNS can take 1-30 minutes to propagate; if it is not approved after the check finishes, confirm the TXT record name/value and try again.',
+      'DNS verification started. This page will update automatically when the check finishes.',
     );
   }
 
   res.redirect(`/projects/${project.slug}/domains`);
+});
+
+export const postActivateDomain = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+  const project = req.project;
+  const result = await requestDomainActivation(domainId, project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  req.flash(
+    result.success ? 'success' : 'error',
+    result.success
+      ? 'Domain activation started. This page will update automatically.'
+      : result.error,
+  );
+  res.redirect(`/projects/${project.slug}/domains`);
+});
+
+export const getDomainStatuses = asyncHandler(async (req, res) => {
+  const domains = await getProjectDomainStatuses(req.project._id);
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    signature: domains
+      .map((domain) => `${domain._id}:${domain.status}:${new Date(domain.updatedAt).getTime()}`)
+      .join('|'),
+  });
 });
 
 export const postRemoveDomain = asyncHandler(async (req, res) => {
@@ -100,7 +129,12 @@ export const postRemoveDomain = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', 'Domain removed.');
+    req.flash(
+      'success',
+      result.queued
+        ? 'Domain removal started. This page will update automatically.'
+        : 'Domain removed.',
+    );
   }
 
   res.redirect(`/projects/${project.slug}/domains`);

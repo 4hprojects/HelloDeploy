@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto';
+
 /**
  * Nginx configuration template generator for HelloDeploy platform subdomains.
  *
@@ -71,6 +73,21 @@ server {
     }
 }
 `;
+}
+
+export function customDomainRouteSlug(hostname) {
+  const hash = createHash('sha256').update(hostname).digest('hex').slice(0, 16);
+  return `custom-${hash}`;
+}
+
+export function generateCustomDomainServerBlock({ hostname, port, deploymentId, generatedAt }) {
+  return generateServerBlock({
+    subdomain: hostname,
+    domain: '',
+    port,
+    deploymentId,
+    generatedAt,
+  }).replace(/server_name .+;/, `server_name ${hostname};`);
 }
 
 const DEFAULT_MAINTENANCE_MESSAGE = 'Service temporarily unavailable.';

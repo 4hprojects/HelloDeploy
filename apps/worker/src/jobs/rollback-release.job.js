@@ -10,7 +10,7 @@ import {
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
-import { activateRoute } from '../nginx/helper-client.js';
+import { activateRoute, activateRoutes } from '../nginx/helper-client.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import {
   runReleasePipeline,
@@ -28,6 +28,7 @@ const defaultDeps = {
   httpHealthCheck,
   getProjectEnvVars,
   activateRoute,
+  activateRoutes,
   notifyDeploymentResult,
   startupDelayMs: STARTUP_DELAY_MS,
 };

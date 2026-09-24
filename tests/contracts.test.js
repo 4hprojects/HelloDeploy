@@ -50,9 +50,9 @@ describe('contracts — enums', () => {
 });
 
 describe('contracts — JobType', () => {
-  it('has all 12 job types', () => {
+  it('has all 14 job types', () => {
     const types = Object.values(JobType);
-    assert.equal(types.length, 12);
+    assert.equal(types.length, 14);
   });
 
   it('all job types are strings', () => {
@@ -63,6 +63,34 @@ describe('contracts — JobType', () => {
 });
 
 describe('contracts — validateJobPayload', () => {
+  it('accepts version-2 custom-domain operation payloads', () => {
+    for (const jobType of [JobType.VERIFY_DOMAIN, JobType.ACTIVATE_DOMAIN, JobType.REMOVE_DOMAIN]) {
+      assert.doesNotThrow(() =>
+        validateJobPayload(jobType, {
+          version: 2,
+          domainId: 'domain-1',
+          projectId: 'project-1',
+          hostname: 'app.example.com',
+          lifecycleVersion: 2,
+          operationId: 'operation-1',
+        }),
+      );
+    }
+  });
+
+  it('rejects version-2 custom-domain payloads without attempt fencing', () => {
+    assert.throws(
+      () =>
+        validateJobPayload(JobType.ACTIVATE_DOMAIN, {
+          version: 2,
+          domainId: 'domain-1',
+          projectId: 'project-1',
+          hostname: 'app.example.com',
+        }),
+      JobPayloadValidationError,
+    );
+  });
+
   it('accepts a well-formed BUILD_DEPLOYMENT payload', () => {
     assert.doesNotThrow(() =>
       validateJobPayload(JobType.BUILD_DEPLOYMENT, {

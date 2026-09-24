@@ -1140,6 +1140,44 @@
     });
   }
 
+  function initDomainStatusPolling() {
+    const root = document.querySelector('[data-domain-status-url]');
+    if (!root) {
+      return;
+    }
+
+    const url = root.dataset.domainStatusUrl;
+    const initialSignature = root.dataset.domainStatusSignature || '';
+    const startedAt = Number(root.dataset.domainOperationStartedAt) || Date.now();
+    const deadline = startedAt + 90_000;
+
+    async function poll() {
+      if (Date.now() >= deadline) {
+        return;
+      }
+      try {
+        const response = await fetch(url, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          throw new Error('Domain status request failed.');
+        }
+        const payload = await response.json();
+        if (payload.signature !== initialSignature) {
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // A transient polling failure should not replace the server-rendered page.
+      }
+      window.setTimeout(poll, 2000);
+    }
+
+    window.setTimeout(poll, 2000);
+  }
+
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1156,6 +1194,7 @@
     initSettingsSectionNavigation();
     initSettingsEditGroups();
     initDnsCopyButtons();
+    initDomainStatusPolling();
   }
 
   if (document.readyState === 'loading') {

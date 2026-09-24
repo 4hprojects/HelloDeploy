@@ -1,4 +1,4 @@
-import { randomBytes, createHash } from 'node:crypto';
+import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { resolveTxt } from 'node:dns/promises';
 import { Domain, Project } from '@hellodeploy/database';
 import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
@@ -13,11 +13,38 @@ const PLATFORM_DOMAINS = new Set(['hellodeploy.online', 'hellodeploy.com', 'loca
 const DOMAIN_QUEUE_UNAVAILABLE_COPY =
   'Domain verification queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
 const DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY =
-  'Could not queue domain route activation. Ask an administrator to check Redis and worker health, then approve the domain again.';
+  'Could not queue the domain routing change. Ask an administrator to check Redis and worker health, then try again.';
+const DOMAIN_OPERATION_IN_PROGRESS_COPY =
+  'A domain operation is already in progress. Wait for it to finish, then try again.';
+
+function createDomainOperationId() {
+  return randomUUID();
+}
+
+function domainJobId(action, domainId, operationId) {
+  return `${action}-domain-${domainId}-${operationId}`;
+}
+
+async function ensureLifecycleVersion(domain) {
+  const lifecycleVersion = domain.lifecycleVersion ?? 1;
+  if (domain.lifecycleVersion === undefined || domain.lifecycleVersion === null) {
+    await Domain.updateOne(
+      { _id: domain._id, lifecycleVersion: null },
+      { $set: { lifecycleVersion } },
+    );
+  }
+  return lifecycleVersion;
+}
 
 function domainVerificationStateCopy(status) {
   if (status === DomainStatus.PENDING_ADMIN_APPROVAL) {
     return 'DNS is already verified and this domain is awaiting admin approval.';
+  }
+  if ([DomainStatus.VERIFYING, DomainStatus.ACTIVATING, DomainStatus.REMOVING].includes(status)) {
+    return DOMAIN_OPERATION_IN_PROGRESS_COPY;
+  }
+  if (status === DomainStatus.VERIFIED) {
+    return 'DNS is already verified. Routing can now be activated.';
   }
   if (status === DomainStatus.ACTIVE) {
     return 'This domain is already active.';
@@ -111,8 +138,8 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
   let domain;
   if (existing) {
     // Re-activate a previously removed domain
-    await Domain.updateOne(
-      { _id: existing._id },
+    const reclaimed = await Domain.updateOne(
+      { _id: existing._id, status: DomainStatus.REMOVED },
       {
         $set: {
           projectId,
@@ -125,9 +152,17 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
           rejectionReason: null,
           addedBy: actorId,
           removedAt: null,
+          lifecycleVersion: (existing.lifecycleVersion ?? 1) + 1,
+          operationId: null,
+          operationError: null,
+          operationStartedAt: null,
+          operationCompletedAt: null,
         },
       },
     );
+    if (reclaimed.modifiedCount === 0) {
+      return { success: false, error: 'This domain is already claimed.' };
+    }
     domain = await Domain.findById(existing._id).lean();
   } else {
     domain = await Domain.create({
@@ -161,36 +196,92 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
  * Enqueue a VERIFY_DOMAIN job to check the TXT record.
  */
 export async function requestVerification(domainId, projectId, actorId, opts = {}) {
-  const domain = await Domain.findOne({ _id: domainId, projectId }).lean();
+  const operationId = createDomainOperationId();
+  const startedAt = new Date();
+  const domain = await Domain.findOneAndUpdate(
+    { _id: domainId, projectId, status: DomainStatus.PENDING_VERIFICATION },
+    {
+      $set: {
+        status: DomainStatus.VERIFYING,
+        operationId,
+        operationError: null,
+        operationStartedAt: startedAt,
+        operationCompletedAt: null,
+      },
+    },
+    { new: true },
+  ).lean();
   if (!domain) {
-    return { success: false, error: 'Domain not found.' };
+    const existing = await Domain.findOne({ _id: domainId, projectId }).lean();
+    return {
+      success: false,
+      error: existing ? domainVerificationStateCopy(existing.status) : 'Domain not found.',
+    };
   }
+  const lifecycleVersion = await ensureLifecycleVersion(domain);
 
-  if (domain.status !== DomainStatus.PENDING_VERIFICATION) {
-    return { success: false, error: domainVerificationStateCopy(domain.status) };
-  }
-
-  const queue = getDeploymentQueue();
+  const queue = opts.queue === undefined ? getDeploymentQueue() : opts.queue;
   if (!queue) {
+    await Domain.updateOne(
+      { _id: domainId, status: DomainStatus.VERIFYING, operationId },
+      {
+        $set: {
+          status: DomainStatus.PENDING_VERIFICATION,
+          operationError: DOMAIN_QUEUE_UNAVAILABLE_COPY,
+          operationCompletedAt: new Date(),
+        },
+      },
+    );
     return { success: false, error: DOMAIN_QUEUE_UNAVAILABLE_COPY };
   }
 
-  await enqueueJob(
-    queue,
-    JobType.VERIFY_DOMAIN,
-    {
-      version: 1,
-      correlationId: opts.correlationId,
-      actorId,
-      actorRole: 'USER',
+  try {
+    await enqueueJob(
+      queue,
+      JobType.VERIFY_DOMAIN,
+      {
+        version: 2,
+        correlationId: opts.correlationId,
+        actorId,
+        actorRole: 'USER',
+        domainId: domainId.toString(),
+        projectId: domain.projectId.toString(),
+        hostname: domain.hostnameNormalized,
+        lifecycleVersion,
+        operationId,
+      },
+      { jobId: domainJobId('verify', domainId, operationId) },
+    );
+  } catch (err) {
+    logger.warn('Domain: failed to enqueue verification', {
       domainId: domainId.toString(),
-      projectId: domain.projectId.toString(),
-      hostname: domain.hostnameNormalized,
-    },
-    { jobId: `verify-domain-${domainId}` },
-  );
+      error: err.message,
+    });
+    await Domain.updateOne(
+      { _id: domainId, status: DomainStatus.VERIFYING, operationId },
+      {
+        $set: {
+          status: DomainStatus.PENDING_VERIFICATION,
+          operationError: DOMAIN_QUEUE_UNAVAILABLE_COPY,
+          operationCompletedAt: new Date(),
+        },
+      },
+    );
+    return { success: false, error: DOMAIN_QUEUE_UNAVAILABLE_COPY };
+  }
 
-  return { success: true };
+  await writeAuditEvent({
+    action: 'domain.verification_started',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'domain',
+    targetId: domainId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { hostname: domain.hostnameNormalized, projectId: domain.projectId.toString() },
+  });
+
+  return { success: true, operationId };
 }
 
 // ─── Admin approval ────────────────────────────────────────────────────────────
@@ -218,37 +309,50 @@ export async function approveDomain(domainId, adminId, opts = {}) {
     };
   }
 
-  const queue = getDeploymentQueue();
+  const queue = opts.queue === undefined ? getDeploymentQueue() : opts.queue;
   if (!queue) {
     return { success: false, error: DOMAIN_QUEUE_UNAVAILABLE_COPY };
   }
 
-  await Domain.updateOne(
-    { _id: domainId },
+  const operationId = createDomainOperationId();
+  const claimed = await Domain.findOneAndUpdate(
+    { _id: domainId, status: DomainStatus.PENDING_ADMIN_APPROVAL },
     {
       $set: {
+        status: DomainStatus.ACTIVATING,
         approvedBy: adminId,
         approvedAt: new Date(),
         rejectionReason: null,
+        operationId,
+        operationError: null,
+        operationStartedAt: new Date(),
+        operationCompletedAt: null,
       },
     },
-  );
+    { new: true },
+  ).lean();
+  if (!claimed) {
+    return { success: false, error: 'Domain state changed before activation could be queued.' };
+  }
+  const lifecycleVersion = await ensureLifecycleVersion(claimed);
 
   try {
     await enqueueJob(
       queue,
-      JobType.VERIFY_DOMAIN,
+      JobType.ACTIVATE_DOMAIN,
       {
-        version: 1,
+        version: 2,
         correlationId: opts.correlationId,
         actorId: adminId,
         actorRole: 'SUPER_ADMIN',
         domainId: domainId.toString(),
-        projectId: domain.projectId.toString(),
-        hostname: domain.hostnameNormalized,
-        activateRoute: true, // signal to worker to activate nginx route
+        projectId: claimed.projectId.toString(),
+        hostname: claimed.hostnameNormalized,
+        lifecycleVersion,
+        operationId,
+        legacyApproval: true,
       },
-      { jobId: `activate-domain-${domainId}` },
+      { jobId: domainJobId('activate', domainId, operationId) },
     );
   } catch (err) {
     logger.warn('Domain: failed to enqueue route activation, approval reverted', {
@@ -256,11 +360,14 @@ export async function approveDomain(domainId, adminId, opts = {}) {
       error: err.message,
     });
     await Domain.updateOne(
-      { _id: domainId },
+      { _id: domainId, status: DomainStatus.ACTIVATING, operationId },
       {
         $set: {
+          status: DomainStatus.PENDING_ADMIN_APPROVAL,
           approvedBy: null,
           approvedAt: null,
+          operationError: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY,
+          operationCompletedAt: new Date(),
         },
       },
     );
@@ -279,6 +386,98 @@ export async function approveDomain(domainId, adminId, opts = {}) {
   });
 
   return { success: true };
+}
+
+export async function requestDomainActivation(domainId, projectId, actorId, opts = {}) {
+  const project = await Project.findOne({
+    _id: projectId,
+    activeDeploymentId: { $ne: null },
+  }).lean();
+  if (!project) {
+    return { success: false, error: 'Deploy a healthy release before activating this domain.' };
+  }
+
+  const operationId = createDomainOperationId();
+  const domain = await Domain.findOneAndUpdate(
+    { _id: domainId, projectId, status: DomainStatus.VERIFIED },
+    {
+      $set: {
+        status: DomainStatus.ACTIVATING,
+        operationId,
+        operationError: null,
+        operationStartedAt: new Date(),
+        operationCompletedAt: null,
+      },
+    },
+    { new: true },
+  ).lean();
+  if (!domain) {
+    return { success: false, error: 'Domain is not ready for activation.' };
+  }
+  const lifecycleVersion = await ensureLifecycleVersion(domain);
+
+  const queue = opts.queue === undefined ? getDeploymentQueue() : opts.queue;
+  if (!queue) {
+    await Domain.updateOne(
+      { _id: domainId, operationId },
+      {
+        $set: {
+          status: DomainStatus.VERIFIED,
+          operationError: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY,
+          operationCompletedAt: new Date(),
+        },
+      },
+    );
+    return { success: false, error: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY };
+  }
+
+  try {
+    await enqueueJob(
+      queue,
+      JobType.ACTIVATE_DOMAIN,
+      {
+        version: 2,
+        correlationId: opts.correlationId,
+        actorId,
+        actorRole: 'USER',
+        domainId: domainId.toString(),
+        projectId: domain.projectId.toString(),
+        hostname: domain.hostnameNormalized,
+        lifecycleVersion,
+        operationId,
+      },
+      { jobId: domainJobId('activate', domainId, operationId) },
+    );
+  } catch (err) {
+    logger.warn('Domain: failed to enqueue route activation', {
+      domainId: domainId.toString(),
+      error: err.message,
+    });
+    await Domain.updateOne(
+      { _id: domainId, operationId },
+      {
+        $set: {
+          status: DomainStatus.VERIFIED,
+          operationError: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY,
+          operationCompletedAt: new Date(),
+        },
+      },
+    );
+    return { success: false, error: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY };
+  }
+
+  await writeAuditEvent({
+    action: 'domain.activation_started',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'domain',
+    targetId: domainId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { hostname: domain.hostnameNormalized, projectId: domain.projectId.toString() },
+  });
+
+  return { success: true, operationId };
 }
 
 export async function rejectDomain(domainId, adminId, reason, opts = {}) {
@@ -314,31 +513,112 @@ export async function removeDomain(domainId, projectId, actorId, opts = {}) {
     return { success: false, error: 'Domain not found.' };
   }
 
-  // Remove the nginx route if domain was active
-  if (domain.status === DomainStatus.ACTIVE) {
-    const queue = getDeploymentQueue();
-    if (queue) {
+  if (
+    [DomainStatus.VERIFYING, DomainStatus.ACTIVATING, DomainStatus.REMOVING].includes(domain.status)
+  ) {
+    return { success: false, error: DOMAIN_OPERATION_IN_PROGRESS_COPY };
+  }
+
+  // VERIFIED domains may already have been routed by a release whose final
+  // status write failed, so both states use idempotent route cleanup.
+  if ([DomainStatus.VERIFIED, DomainStatus.ACTIVE].includes(domain.status)) {
+    const queue = opts.queue === undefined ? getDeploymentQueue() : opts.queue;
+    if (!queue) {
+      return { success: false, error: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY };
+    }
+
+    const operationId = createDomainOperationId();
+    const claimed = await Domain.findOneAndUpdate(
+      {
+        _id: domainId,
+        projectId,
+        status: { $in: [DomainStatus.VERIFIED, DomainStatus.ACTIVE] },
+      },
+      {
+        $set: {
+          status: DomainStatus.REMOVING,
+          operationId,
+          operationError: null,
+          operationStartedAt: new Date(),
+          operationCompletedAt: null,
+        },
+      },
+      { new: true },
+    ).lean();
+    if (!claimed) {
+      return { success: false, error: 'Domain state changed before removal could be queued.' };
+    }
+    const lifecycleVersion = await ensureLifecycleVersion(claimed);
+
+    try {
       await enqueueJob(
         queue,
-        JobType.VERIFY_DOMAIN,
+        JobType.REMOVE_DOMAIN,
         {
-          version: 1,
+          version: 2,
           correlationId: opts.correlationId,
           actorId,
           actorRole: 'USER',
           domainId: domainId.toString(),
-          projectId: domain.projectId.toString(),
-          hostname: domain.hostnameNormalized,
-          removeRoute: true,
+          projectId: claimed.projectId.toString(),
+          hostname: claimed.hostnameNormalized,
+          lifecycleVersion,
+          operationId,
+          previousStatus: domain.status,
         },
-        { jobId: `remove-domain-${domainId}` },
+        { jobId: domainJobId('remove', domainId, operationId) },
       );
+    } catch (err) {
+      logger.warn('Domain: failed to enqueue route removal', {
+        domainId: domainId.toString(),
+        error: err.message,
+      });
+      await Domain.updateOne(
+        { _id: domainId, status: DomainStatus.REMOVING, operationId },
+        {
+          $set: {
+            status: domain.status,
+            operationError: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY,
+            operationCompletedAt: new Date(),
+          },
+        },
+      );
+      return { success: false, error: DOMAIN_ROUTE_QUEUE_UNAVAILABLE_COPY };
     }
+
+    await writeAuditEvent({
+      action: 'domain.removal_started',
+      outcome: AuditOutcome.SUCCESS,
+      actorId,
+      targetType: 'domain',
+      targetId: domainId.toString(),
+      sourceIp: opts.sourceIp,
+      correlationId: opts.correlationId,
+      metadata: {
+        hostname: claimed.hostnameNormalized,
+        projectId: claimed.projectId.toString(),
+      },
+    }).catch((err) => {
+      logger.warn('Domain: removal-start audit event could not be persisted', {
+        domainId: domainId.toString(),
+        error: err.message,
+      });
+    });
+
+    return { success: true, queued: true };
   }
 
   await Domain.updateOne(
     { _id: domainId },
-    { $set: { status: DomainStatus.REMOVED, removedAt: new Date() } },
+    {
+      $set: {
+        status: DomainStatus.REMOVED,
+        removedAt: new Date(),
+        operationId: null,
+        operationError: null,
+        operationCompletedAt: new Date(),
+      },
+    },
   );
 
   await writeAuditEvent({
@@ -355,7 +635,7 @@ export async function removeDomain(domainId, projectId, actorId, opts = {}) {
     },
   });
 
-  return { success: true };
+  return { success: true, queued: false };
 }
 
 // ─── Query helpers ─────────────────────────────────────────────────────────────
@@ -365,6 +645,13 @@ export async function getProjectDomains(projectId) {
     projectId,
     status: { $ne: DomainStatus.REMOVED },
   })
+    .sort({ createdAt: -1 })
+    .lean();
+}
+
+export async function getProjectDomainStatuses(projectId) {
+  return Domain.find({ projectId, status: { $ne: DomainStatus.REMOVED } })
+    .select('_id status operationStartedAt updatedAt')
     .sort({ createdAt: -1 })
     .lean();
 }

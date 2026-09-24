@@ -80,6 +80,28 @@ const VALIDATORS = {
     for (const field of ['domainId', 'projectId', 'hostname']) {
       requireString(data, field, JobType.VERIFY_DOMAIN);
     }
+    if (data.version >= 2) {
+      requireNumber(data, 'lifecycleVersion', JobType.VERIFY_DOMAIN);
+      requireString(data, 'operationId', JobType.VERIFY_DOMAIN);
+    }
+  },
+  [JobType.ACTIVATE_DOMAIN](data) {
+    if (data.version !== 2) {
+      throw new JobPayloadValidationError(JobType.ACTIVATE_DOMAIN, '"version" must be 2.');
+    }
+    for (const field of ['domainId', 'projectId', 'hostname', 'operationId']) {
+      requireString(data, field, JobType.ACTIVATE_DOMAIN);
+    }
+    requireNumber(data, 'lifecycleVersion', JobType.ACTIVATE_DOMAIN);
+  },
+  [JobType.REMOVE_DOMAIN](data) {
+    if (data.version !== 2) {
+      throw new JobPayloadValidationError(JobType.REMOVE_DOMAIN, '"version" must be 2.');
+    }
+    for (const field of ['domainId', 'projectId', 'hostname', 'operationId']) {
+      requireString(data, field, JobType.REMOVE_DOMAIN);
+    }
+    requireNumber(data, 'lifecycleVersion', JobType.REMOVE_DOMAIN);
   },
   [JobType.STOP_PROJECT](data) {
     requireString(data, 'projectId', JobType.STOP_PROJECT);

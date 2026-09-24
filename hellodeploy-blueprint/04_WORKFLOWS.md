@@ -90,10 +90,10 @@ High-risk file changes include:
 2. System normalizes and checks that it is not already claimed.
 3. System provides DNS instructions and a verification value.
 4. Owner configures DNS.
-5. System verifies ownership and DNS routing.
-6. Admin approves the custom domain.
-7. Nginx and Cloudflare-related routing is applied.
-8. System verifies HTTPS and host routing before marking active.
+5. System starts a uniquely identified ownership-verification attempt and checks the TXT record.
+6. If the project has a healthy active deployment, system atomically activates the custom route; otherwise the domain waits in the verified state for the next healthy deployment.
+7. Each deployment atomically moves the platform route and all active or verified custom-domain routes to the candidate before retiring the prior container.
+8. System marks the domain active only after Nginx validates and reloads successfully. Legacy records already awaiting administrator approval retain that approval path.
 
 ## Environment Variable Change
 

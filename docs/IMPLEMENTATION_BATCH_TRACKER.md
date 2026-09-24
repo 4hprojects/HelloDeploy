@@ -604,7 +604,22 @@ migration is dry-run by default and locally tested; no live database cutover has
 - Run the full Batch 1 quality gate after fixes arising from the pilot.
 
 **Completion gate:** The pilot has no unresolved critical or high-severity defect, recovery matches the runbooks, and all results and follow-ups are recorded.
-**Evidence:** Not recorded.
+**Evidence:** On 2026-09-25, investigation of `hellouniversity.online` found that
+the public TXT proof was present, but retained BullMQ jobs reused deterministic
+domain job IDs and prevented a new verification attempt from being created. The
+same review found that release activation updated only the platform route, which
+could leave active custom-domain routes on the retired container. The local
+correction adds attempt IDs and lifecycle fencing, explicit processing states and
+job types, automatic post-verification activation, project-serialized routing,
+transactional platform/custom route batches, retryable failure states, bounded
+status polling, and sanitized transition audits. Focused domain, worker, Nginx,
+security, contract, and UI tests pass. The live custom-domain checkbox remains open
+until the correction passes the immutable release process, the current domain is
+resubmitted, both hostnames pass HTTPS checks, and one controlled redeployment proves
+that both routes move together. The final full local suite has 1,033 passes and one
+unrelated host-state failure: the port allocator's gap test expects loopback port `10001` to be free, but
+this pilot host has a live listener on `10001`; with the test's database claim on
+`10002`, the allocator correctly selects `10003`.
 
 ## Batch 8 — Final Release Decision
 
