@@ -7,6 +7,7 @@ import {
   parseIntegerEnv,
   required,
   optional,
+  ConfigurationError,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 
@@ -49,7 +50,7 @@ const portRangeEnd = parseIntegerEnv('PORT_RANGE_END', optional('PORT_RANGE_END'
   max: 65535,
 });
 if (portRangeStart > portRangeEnd) {
-  throw new Error('PORT_RANGE_START must be less than or equal to PORT_RANGE_END.');
+  throw new ConfigurationError('PORT_RANGE_START must be less than or equal to PORT_RANGE_END.');
 }
 const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
@@ -68,7 +69,9 @@ const deploymentDomain = production
 if (production) {
   assertProductionSecrets({ masterKey, nextMasterKey });
   if (!nginxEnabled) {
-    throw new Error('NGINX_ENABLED must be true in production for the V1 local Nginx helper.');
+    throw new ConfigurationError(
+      'NGINX_ENABLED must be true in production for the V1 local Nginx helper.',
+    );
   }
   assertAllOrNoneEnvironment(
     [
@@ -84,7 +87,7 @@ if (production) {
     try {
       accessSync(process.env.GITHUB_APP_PRIVATE_KEY_PATH, fsConstants.R_OK);
     } catch {
-      throw new Error('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
+      throw new ConfigurationError('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
     }
   }
 }

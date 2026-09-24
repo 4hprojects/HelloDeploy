@@ -8,6 +8,7 @@ import {
   parseIntegerEnv,
   required,
   optional,
+  ConfigurationError,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 
@@ -52,7 +53,9 @@ const deploymentDomain = production
 
 if (production) {
   if (platformSubdomainSuffix !== `.${deploymentDomain}`) {
-    throw new Error('PLATFORM_SUBDOMAIN_SUFFIX must equal a dot followed by DEPLOYMENT_DOMAIN.');
+    throw new ConfigurationError(
+      'PLATFORM_SUBDOMAIN_SUFFIX must equal a dot followed by DEPLOYMENT_DOMAIN.',
+    );
   }
   assertProductionSecrets({ sessionSecret, masterKey, nextMasterKey });
   assertPairedEnvironment(
@@ -77,7 +80,7 @@ if (production) {
     try {
       accessSync(process.env.GITHUB_APP_PRIVATE_KEY_PATH, fsConstants.R_OK);
     } catch {
-      throw new Error('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
+      throw new ConfigurationError('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
     }
   }
 }
