@@ -45,13 +45,13 @@ it('generates declarations without values and binds the standalone server', () =
   const dockerfile = generateDockerfile({
     runtimeType: 'NEXTJS',
     publicBuildEnvironment: {
-      NEXT_PUBLIC_APP_URL: 'https://example.test',
+      NEXT_PUBLIC_LABEL: 'browser-build-value-sentinel',
       SUPABASE_SECRET_KEY: 'secret',
     },
   });
-  assert.match(dockerfile, /ARG NEXT_PUBLIC_APP_URL/);
+  assert.match(dockerfile, /ARG NEXT_PUBLIC_LABEL/);
   assert.match(dockerfile, /ENV HOSTNAME=0.0.0.0/);
-  assert.ok(!dockerfile.includes('https://example.test'));
+  assert.ok(!dockerfile.includes('browser-build-value-sentinel'));
   assert.ok(!dockerfile.includes('SUPABASE_SECRET_KEY'));
 });
 

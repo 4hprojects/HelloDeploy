@@ -674,3 +674,8 @@ the full-suite process-timeout investigation.
 All 1,000 current-main tests pass with four test workers and no skips; lint,
 formatting and development configuration validation pass. The default parallel
 suite reaches 999 passes plus one process timeout, which passes in isolation.
+
+Draft PR #49 has passed remote test/coverage checks. Audit findings in the existing
+lockfile are addressed with compatible patch updates; a CodeQL test-only URL
+assertion was replaced by an equivalent plain sentinel assertion. Final remote
+checks must pass before review/merge; this does not authorize a host upgrade.

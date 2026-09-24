@@ -2188,3 +2188,16 @@ Current-main result: all 1,000 tests passed with zero skips using
 Lint, full formatting, and development configuration validation pass. The default
 unbounded suite timeout remains documented above; host Docker/Alpine, platform
 upgrade, rollback and live application release evidence are still outstanding.
+
+### Remote CI findings and dependency correction
+
+Draft PR #49 passed remote tests/coverage, lint, formatting and configuration.
+The production audit exposed pre-existing qs advisories; refreshed the existing
+lockfile ranges to Express 4.22.3, body-parser 1.20.8 and qs 6.16.0. Also refreshed
+the affected development parser js-yaml to 4.3.2. No manifest range or framework
+major version changed. CodeQL interpreted a test-only URL absence assertion as
+URL sanitization; the same Dockerfile value-exclusion test now uses a plain sentinel
+instead of a URL. No security rule or test coverage was disabled.
+
+The corrected lockfile passes a clean install, both full and production dependency
+audits (zero vulnerabilities), and all 1,000 tests with four workers and no skips.
