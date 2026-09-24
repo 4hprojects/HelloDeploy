@@ -1,5 +1,9 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import {
+  stashPendingDomainVerification,
+  consumePendingDomainVerification,
+} from '../utils/pending-domain-verification.js';
+import {
   addDomain,
   requestVerification,
   removeDomain,
@@ -15,19 +19,16 @@ import {
 export const getDomains = asyncHandler(async (req, res) => {
   const project = req.project;
   const domains = await getProjectDomains(project._id);
+  const pending = consumePendingDomainVerification(req);
 
   res.render('pages/projects/domains', {
     title: `Custom Domains – ${project.name}`,
     project,
     membership: req.membership,
     domains,
-    verificationToken: req.session.pendingDomainToken ?? null,
-    pendingHostname: req.session.pendingDomainHostname ?? null,
+    verificationToken: pending.token,
+    pendingHostname: pending.hostname,
   });
-
-  // Clear one-time token after rendering
-  delete req.session.pendingDomainToken;
-  delete req.session.pendingDomainHostname;
 });
 
 export const postAddDomain = asyncHandler(async (req, res) => {
@@ -41,21 +42,23 @@ export const postAddDomain = asyncHandler(async (req, res) => {
 
   if (!result.success) {
     const domains = await getProjectDomains(project._id);
+    const pending = consumePendingDomainVerification(req);
     return res.status(400).render('pages/projects/domains', {
       title: `Custom Domains – ${project.name}`,
       project,
       membership: req.membership,
       domains,
-      verificationToken: req.session.pendingDomainToken ?? null,
-      pendingHostname: req.session.pendingDomainHostname ?? null,
+      verificationToken: pending.token,
+      pendingHostname: pending.hostname,
       errors: { hostname: result.error },
       values: { hostname },
     });
   }
 
-  // Store token in session for one-time display on the redirect page
-  req.session.pendingDomainToken = result.verificationToken;
-  req.session.pendingDomainHostname = result.domain.hostnameNormalized;
+  stashPendingDomainVerification(req, {
+    hostname: result.domain.hostnameNormalized,
+    token: result.verificationToken,
+  });
 
   req.flash(
     'success',
