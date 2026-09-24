@@ -4,8 +4,8 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 // Enable the nginx path so route activation/failure behavior is exercised.
 process.env.NGINX_ENABLED = 'true';
 
-import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus } from '@hellodeploy/contracts';
+import { Deployment, Domain, Project } from '@hellodeploy/database';
+import { DeploymentStatus, DomainStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
@@ -102,6 +102,36 @@ describe('activate-release job', () => {
     const { deps, calls } = makeDeps();
     await handleActivateRelease(makeJob(project, deployment), deps);
     assert.equal(calls.activatedRoutes[0]?.slug, project.slug);
+  });
+
+  it('atomically moves active and verified custom domains to the candidate port', async () => {
+    const { project, deployment } = await seed();
+    await Domain.create([
+      {
+        projectId: project._id,
+        hostnameNormalized: 'one.example.com',
+        status: DomainStatus.ACTIVE,
+        verificationTokenHash: 'hash-1',
+        addedBy: project.ownerId,
+      },
+      {
+        projectId: project._id,
+        hostnameNormalized: 'two.example.com',
+        status: DomainStatus.VERIFIED,
+        verificationTokenHash: 'hash-2',
+        addedBy: project.ownerId,
+      },
+    ]);
+    const batches = [];
+    const { deps } = makeDeps({ activateRoutes: async (batch) => batches.push(batch) });
+
+    await handleActivateRelease(makeJob(project, deployment), deps);
+
+    assert.equal(batches.length, 1);
+    assert.equal(batches[0].routes.length, 3);
+    assert.ok(batches[0].routes.every((route) => /127\.0\.0\.1:10001/.test(route.configContent)));
+    const freshDomains = await Domain.find({ projectId: project._id }).lean();
+    assert.ok(freshDomains.every((domain) => domain.status === DomainStatus.ACTIVE));
   });
 
   it('stops the previous active container after a successful swap', async () => {

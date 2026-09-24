@@ -19,6 +19,8 @@ export const JobType = Object.freeze({
   DELETE_PROJECT: 'DELETE_PROJECT',
   SET_PROJECT_MAINTENANCE: 'SET_PROJECT_MAINTENANCE',
   VERIFY_DOMAIN: 'VERIFY_DOMAIN',
+  ACTIVATE_DOMAIN: 'ACTIVATE_DOMAIN',
+  REMOVE_DOMAIN: 'REMOVE_DOMAIN',
   CLEANUP_RELEASES: 'CLEANUP_RELEASES',
   COLLECT_METRICS: 'COLLECT_METRICS',
   CHECK_INACTIVITY: 'CHECK_INACTIVITY',
@@ -114,6 +116,17 @@ export const JobType = Object.freeze({
 
 /**
  * @typedef {BaseJobPayload & {
+ *   version: 2;
+ *   domainId: string;
+ *   projectId: string;
+ *   hostname: string;
+ *   lifecycleVersion: number;
+ *   operationId: string;
+ * }} DomainOperationPayload
+ */
+
+/**
+ * @typedef {BaseJobPayload & {
  *   projectId?: string;
  *   olderThanMs?: number;
  * }} CleanupReleasesPayload
@@ -143,6 +156,8 @@ export const JobRetryPolicy = Object.freeze({
   [JobType.DELETE_PROJECT]: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
   [JobType.SET_PROJECT_MAINTENANCE]: { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
   [JobType.VERIFY_DOMAIN]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+  [JobType.ACTIVATE_DOMAIN]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
+  [JobType.REMOVE_DOMAIN]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   [JobType.CLEANUP_RELEASES]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   [JobType.COLLECT_METRICS]: { attempts: 2, backoff: { type: 'fixed', delay: 1000 } },
   [JobType.CHECK_INACTIVITY]: { attempts: 2, backoff: { type: 'fixed', delay: 5000 } },

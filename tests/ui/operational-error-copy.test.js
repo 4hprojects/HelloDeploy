@@ -29,7 +29,7 @@ describe('operational error copy', () => {
       /DNS is already verified and this domain is awaiting admin approval/,
     );
     assert.match(domainService, /Deploy a healthy release before activating this domain/);
-    assert.match(domainController, /DNS can take 1-30 minutes to propagate/);
-    assert.match(domainController, /confirm the TXT record name\/value and try again/);
+    assert.match(domainController, /DNS verification started/);
+    assert.match(domainController, /update automatically/);
   });
 });

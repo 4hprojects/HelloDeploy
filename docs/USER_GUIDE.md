@@ -252,11 +252,11 @@ Each project can request one custom domain by default.
 4. Keep the resulting page open and copy the one-time TXT record name and value.
 5. Add the TXT record with the provider that manages the domain's nameservers. For example, use Cloudflare when the nameservers are Cloudflare even if the domain was purchased from GoDaddy.
 6. Wait for DNS propagation, then select **Check DNS record**.
-7. After ownership is verified, wait for administrative activation.
+7. HelloDeploy verifies ownership and activates the domain automatically when the project has a healthy active deployment.
 
 The TXT verification value is shown only once and is stored only as a hash afterward. If it is lost, first try **Check DNS record** if the value was already added. Otherwise, use **Remove and restart**, add the domain again, and copy the newly generated value.
 
-Unverified domains do not receive active routing.
+If the project does not yet have a healthy deployment, the domain remains verified and is activated by the next successful deployment. The page refreshes while verification, activation, or removal is running and shows a retryable error when an operation cannot complete. Unverified domains do not receive active routing.
 
 ## Default Free Limits
 

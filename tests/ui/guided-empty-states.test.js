@@ -91,7 +91,7 @@ describe('guided empty states', () => {
     assert.match(environment, /Redeploy after changing secrets/);
     assert.match(domains, /No custom domain yet/);
     assert.match(domains, /Add the DNS record/);
-    assert.match(domains, /an administrator reviews it/);
+    assert.match(domains, /activates routing after verification/);
     assert.match(projectShow, /Repository, app type, deployment preferences/);
     assert.doesNotMatch(projectShow, /Environment variables[\s\S]*project-milestone/);
   });

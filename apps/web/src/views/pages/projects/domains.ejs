@@ -1,18 +1,33 @@
 <%
-  const pendingDomains = domains.filter(domain => domain.status === 'PENDING_VERIFICATION');
+  const pendingDomains = domains.filter(domain =>
+    ['PENDING_VERIFICATION', 'VERIFYING'].includes(domain.status));
   const verifiedDomains = domains.filter(domain =>
-    ['PENDING_ADMIN_APPROVAL', 'ACTIVE'].includes(domain.status));
+    ['VERIFIED', 'PENDING_ADMIN_APPROVAL', 'ACTIVATING', 'ACTIVE'].includes(domain.status));
   const activeDomains = domains.filter(domain => domain.status === 'ACTIVE');
+  const transientStatuses = ['VERIFYING', 'ACTIVATING', 'REMOVING'];
+  const transientDomains = domains.filter(domain => transientStatuses.includes(domain.status));
+  const domainStatusSignature = domains
+    .map(domain => `${domain._id}:${domain.status}:${new Date(domain.updatedAt).getTime()}`)
+    .join('|');
+  const operationStartedAt = transientDomains
+    .map(domain => domain.operationStartedAt ? new Date(domain.operationStartedAt).getTime() : Date.now())
+    .sort((a, b) => a - b)[0] || '';
   const pendingSetupDomain = verificationToken && pendingHostname
     ? domains.find(domain => domain.hostnameNormalized === pendingHostname)
     : null;
   const pendingWithoutToken = pendingDomains.filter(domain =>
-    !verificationToken || domain.hostnameNormalized !== pendingHostname);
+    domain.status === 'PENDING_VERIFICATION' &&
+    (!verificationToken || domain.hostnameNormalized !== pendingHostname));
   const dnsRecordName = pendingHostname ? `_hellodeploy-verify.${pendingHostname}` : '';
   const dnsRecordValue = verificationToken ? `hellodeploy-verify=${verificationToken}` : '';
 %>
 
-<div class="page-header page-header--actions">
+<div class="page-header page-header--actions"
+  <% if (transientDomains.length) { %>
+  data-domain-status-url="/projects/<%= project.slug %>/domains/status"
+  data-domain-status-signature="<%= domainStatusSignature %>"
+  data-domain-operation-started-at="<%= operationStartedAt %>"
+  <% } %>>
   <div>
     <h1 class="page-header__title">Custom Domains</h1>
     <p class="page-header__subtitle text-muted text-sm">
@@ -30,7 +45,7 @@
     <% if (activeDomains.length) { %>
     <span class="status-badge status-badge--active">Connected</span>
     <% } else if (verifiedDomains.length) { %>
-    <span class="status-badge status-badge--pending">Admin review</span>
+    <span class="status-badge status-badge--pending">Routing setup</span>
     <% } else if (pendingDomains.length) { %>
     <span class="status-badge status-badge--pending">DNS setup</span>
     <% } else { %>
@@ -57,14 +72,14 @@
       <span class="domain-step__number" aria-hidden="true"><% if (verifiedDomains.length) { %>&check;<% } else { %>3<% } %></span>
       <div>
         <strong>Check ownership</strong>
-        <span>HelloDeploy checks the TXT record, then an administrator reviews it.</span>
+        <span>HelloDeploy checks the TXT ownership record.</span>
       </div>
     </li>
     <li class="domain-step<%= activeDomains.length ? ' domain-step--complete' : verifiedDomains.length ? ' domain-step--current' : '' %>">
       <span class="domain-step__number" aria-hidden="true"><% if (activeDomains.length) { %>&check;<% } else { %>4<% } %></span>
       <div>
         <strong>Domain goes live</strong>
-        <span>HelloDeploy activates routing after approval.</span>
+        <span>HelloDeploy activates routing after verification.</span>
       </div>
     </li>
   </ol>
@@ -253,16 +268,25 @@
             <p class="form-hint domain-progress-copy">
               <% if (domain.status === 'PENDING_VERIFICATION') { %>
                 Add the TXT record, then check DNS.
+              <% } else if (domain.status === 'VERIFYING') { %>
+                Checking the public TXT record now.
+              <% } else if (domain.status === 'VERIFIED') { %>
+                Ownership verified. Deploy a healthy release or retry routing activation.
               <% } else if (domain.status === 'PENDING_ADMIN_APPROVAL') { %>
-                DNS verified. Waiting for administrator activation.
+                Legacy verification is waiting for administrator activation.
+              <% } else if (domain.status === 'ACTIVATING') { %>
+                Ownership verified. Public routing is being activated.
               <% } else if (domain.status === 'ACTIVE') { %>
                 Connected and ready for visitors.
-              <% } else if (domain.status === 'REJECTED') { %>
-                Review the administrator feedback before trying again.
+              <% } else if (domain.status === 'REMOVING') { %>
+                Public routing is being removed.
               <% } else { %>
                 Contact an administrator if this status does not change.
               <% } %>
             </p>
+            <% if (domain.operationError) { %>
+            <p class="form-error"><%= domain.operationError %></p>
+            <% } %>
             <% if (domain.rejectionReason) { %>
             <p class="form-error">Administrator note: <%= domain.rejectionReason %></p>
             <% } %>
@@ -292,6 +316,17 @@
               <% if (domain.status === 'PENDING_ADMIN_APPROVAL') { %>
               <span class="text-muted text-xs">No action needed</span>
               <% } %>
+              <% if (domain.status === 'VERIFIED') { %>
+              <form method="POST"
+                action="/projects/<%= project.slug %>/domains/<%= domain._id %>/activate">
+                <%- include('../../partials/csrf-field') %>
+                <button type="submit" class="button button--primary button--sm"
+                  data-pending-label="Activating...">Activate routing</button>
+              </form>
+              <% } %>
+              <% if (transientStatuses.includes(domain.status)) { %>
+              <span class="text-muted text-xs" role="status">Working...</span>
+              <% } else { %>
               <form method="POST"
                 action="/projects/<%= project.slug %>/domains/<%= domain._id %>/remove"
                 data-confirm="Remove <%= domain.hostnameNormalized %> from this project?"
@@ -303,6 +338,7 @@
                 <button type="submit" class="button button--danger button--sm"
                   data-tooltip="Remove this custom domain from the project.">Remove</button>
               </form>
+              <% } %>
             </div>
             <% } %>
           </td>

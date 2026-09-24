@@ -25,6 +25,11 @@ const domainSchema = new Schema(
     },
     // SHA-256 hash of the verification token shown to the user
     verificationTokenHash: { type: String, default: null },
+    lifecycleVersion: { type: Number, default: 1, min: 1 },
+    operationId: { type: String, default: null, maxlength: 100 },
+    operationError: { type: String, default: null, maxlength: 500 },
+    operationStartedAt: { type: Date, default: null },
+    operationCompletedAt: { type: Date, default: null },
     verifiedAt: { type: Date, default: null },
     activatedAt: { type: Date, default: null },
     // Admin who approved the domain

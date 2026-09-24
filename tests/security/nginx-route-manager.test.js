@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-const { activateRoute, removeRoute, readRouteConfig } =
+const { activateRoute, activateRoutes, removeRoute, readRouteConfig } =
   await import('../../apps/worker/src/nginx/route-manager.js');
 
 async function withConfigDir(fn) {
@@ -112,6 +112,63 @@ describe('safe slugs pass slug validation without throwing', () => {
 });
 
 describe('route file transactions', () => {
+  it('activates a route batch with one validation and reload', async () => {
+    await withConfigDir(async (configDir) => {
+      const commands = recordingRunner();
+      await activateRoutes({
+        configDir,
+        routes: [
+          { slug: 'my-app', configContent: 'server { listen 80; }' },
+          { slug: 'custom-abc123', configContent: 'server { listen 80; server_name x.test; }' },
+        ],
+        commandRunner: commands.runner,
+      });
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'server { listen 80; }');
+      assert.equal(
+        await readFile(join(configDir, 'custom-abc123.conf'), 'utf8'),
+        'server { listen 80; server_name x.test; }',
+      );
+      assert.deepEqual(commands.calls, [
+        ['nginx', '-t'],
+        ['nginx', '-s', 'reload'],
+      ]);
+    });
+  });
+
+  it('restores every route in a failed batch', async () => {
+    await withConfigDir(async (configDir) => {
+      await writeFile(join(configDir, 'my-app.conf'), 'old platform route');
+      await writeFile(join(configDir, 'custom-abc123.conf'), 'old custom route');
+      let validationCount = 0;
+      const runner = async (_binary, args) => {
+        if (args[0] === '-t' && validationCount++ === 0) {
+          throw new Error('candidate validation failed');
+        }
+      };
+
+      await assert.rejects(
+        () =>
+          activateRoutes({
+            configDir,
+            routes: [
+              { slug: 'my-app', configContent: 'new platform route' },
+              { slug: 'custom-abc123', configContent: 'new custom route' },
+            ],
+            commandRunner: runner,
+          }),
+        /candidate validation failed/,
+      );
+
+      assert.equal(await readFile(join(configDir, 'my-app.conf'), 'utf8'), 'old platform route');
+      assert.equal(
+        await readFile(join(configDir, 'custom-abc123.conf'), 'utf8'),
+        'old custom route',
+      );
+      assert.deepEqual((await readdir(configDir)).sort(), ['custom-abc123.conf', 'my-app.conf']);
+    });
+  });
+
   it('atomically activates a new route and removes transaction files', async () => {
     await withConfigDir(async (configDir) => {
       const commands = recordingRunner();

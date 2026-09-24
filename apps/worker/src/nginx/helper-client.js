@@ -48,6 +48,10 @@ export async function activateRoute({ slug, configContent }) {
   await requestHelper({ action: 'activate', slug, configContent });
 }
 
+export async function activateRoutes({ routes }) {
+  await requestHelper({ action: 'activate-batch', routes });
+}
+
 export async function removeRoute({ slug }) {
   await requestHelper({ action: 'remove', slug });
 }

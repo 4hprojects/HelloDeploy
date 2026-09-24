@@ -89,7 +89,7 @@ describe('guided custom domains', () => {
     assert.match(html, /Cloudflare nameservers mean/);
   });
 
-  it('explains verified and active states without unnecessary owner action', async () => {
+  it('preserves legacy approval guidance and explains active states', async () => {
     const approvalHtml = await renderDomains({
       domains: [
         {
@@ -108,11 +108,30 @@ describe('guided custom domains', () => {
       ],
     });
 
-    assert.match(approvalHtml, /DNS verified\. Waiting for administrator activation/);
+    assert.match(approvalHtml, /Legacy verification is waiting for administrator activation/);
     assert.match(approvalHtml, /No action needed/);
     assert.match(activeHtml, /Connected/);
     assert.match(activeHtml, /Connected and ready for visitors/);
     assert.doesNotMatch(activeHtml, /method="POST"/);
+  });
+
+  it('shows automatic activation progress and polls for state changes', async () => {
+    const html = await renderDomains({
+      domains: [
+        {
+          ...pendingDomain,
+          status: 'ACTIVATING',
+          operationStartedAt: new Date(),
+          updatedAt: new Date(),
+        },
+      ],
+    });
+
+    assert.match(html, /data-domain-status-url="\/projects\/hellorun-e783\/domains\/status"/);
+    assert.match(html, /Public routing is being activated/);
+    assert.match(browser, /function initDomainStatusPolling/);
+    assert.match(browser, /90_000/);
+    assert.match(browser, /window\.setTimeout\(poll, 2000\)/);
   });
 
   it('copies through the Clipboard API and announces the result', () => {

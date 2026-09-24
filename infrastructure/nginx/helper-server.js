@@ -7,6 +7,7 @@ import { dirname } from 'node:path';
 
 import {
   activateRoute,
+  activateRoutes,
   removeRoute,
   validateNginxConfig,
 } from '../../apps/worker/src/nginx/route-manager.js';
@@ -37,6 +38,20 @@ async function handleRequest(request) {
         configContent: request.configContent,
         nginxBinary,
       });
+      return;
+    case 'activate-batch':
+      if (
+        !Array.isArray(request.routes) ||
+        request.routes.length === 0 ||
+        request.routes.length > 100 ||
+        request.routes.some(
+          (route) =>
+            !route || typeof route.slug !== 'string' || typeof route.configContent !== 'string',
+        )
+      ) {
+        throw new Error('Activate batch requires 1-100 routes with string slug and configContent.');
+      }
+      await activateRoutes({ configDir, routes: request.routes, nginxBinary });
       return;
     case 'remove':
       if (typeof request.slug !== 'string') {

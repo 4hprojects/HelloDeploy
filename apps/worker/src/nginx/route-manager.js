@@ -148,6 +148,99 @@ export async function activateRoute({
 }
 
 /**
+ * Replace multiple route files as one validated Nginx transaction.
+ * Every prior file is restored if validation or reload fails.
+ */
+export async function activateRoutes({
+  configDir,
+  routes,
+  nginxBinary = 'nginx',
+  commandRunner = runCommand,
+}) {
+  if (!Array.isArray(routes) || routes.length === 0) {
+    throw new Error('At least one Nginx route is required.');
+  }
+
+  const seen = new Set();
+  const snapshots = [];
+  for (const route of routes) {
+    assertSafeSlug(route.slug);
+    if (seen.has(route.slug)) {
+      throw new Error(`Duplicate Nginx route slug: "${route.slug}"`);
+    }
+    if (typeof route.configContent !== 'string' || route.configContent.length === 0) {
+      throw new Error(`Nginx route "${route.slug}" has no config content.`);
+    }
+    seen.add(route.slug);
+    const confPath = join(configDir, `${route.slug}.conf`);
+    snapshots.push({
+      ...route,
+      confPath,
+      tmpPath: join(configDir, `${route.slug}.conf.batch.tmp`),
+      previousContent: (await fileExists(confPath)) ? await fs.readFile(confPath, 'utf8') : null,
+    });
+  }
+
+  try {
+    for (const route of snapshots) {
+      await fs.writeFile(route.tmpPath, route.configContent, { encoding: 'utf8', mode: 0o640 });
+      await fs.rename(route.tmpPath, route.confPath);
+    }
+    await commandRunner(nginxBinary, ['-t']);
+    await commandRunner(nginxBinary, ['-s', 'reload']);
+    logger.info('NginxRoute: route batch activated', { routeCount: snapshots.length });
+  } catch (err) {
+    logger.error('NginxRoute: batch activation failed, restoring routes', {
+      routeCount: snapshots.length,
+      error: err.message,
+    });
+    const restoreErrors = [];
+    for (const route of snapshots) {
+      try {
+        if (route.previousContent === null) {
+          await fs.unlink(route.confPath).catch(() => {});
+        } else {
+          await fs.writeFile(route.tmpPath, route.previousContent, {
+            encoding: 'utf8',
+            mode: 0o640,
+          });
+          await fs.rename(route.tmpPath, route.confPath);
+        }
+      } catch (restoreErr) {
+        restoreErrors.push(`${route.slug}: ${restoreErr.message}`);
+      }
+      await fs.unlink(route.tmpPath).catch(() => {});
+    }
+
+    if (restoreErrors.length > 0) {
+      writeAuditEvent({
+        action: 'nginx.route_batch_restore_failed',
+        outcome: AuditOutcome.FAILURE,
+        targetType: 'nginx_route_batch',
+        targetId: snapshots.map((route) => route.slug).join(','),
+        metadata: { activationError: err.message, restoreErrors },
+      }).catch(() => {});
+    } else {
+      try {
+        await commandRunner(nginxBinary, ['-t']);
+        await commandRunner(nginxBinary, ['-s', 'reload']);
+      } catch (reloadErr) {
+        writeAuditEvent({
+          action: 'nginx.route_batch_restore_reload_failed',
+          outcome: AuditOutcome.FAILURE,
+          targetType: 'nginx_route_batch',
+          targetId: snapshots.map((route) => route.slug).join(','),
+          metadata: { activationError: err.message, restoreError: reloadErr.message },
+        }).catch(() => {});
+      }
+    }
+    throw err;
+  } finally {
+    await Promise.all(snapshots.map((route) => fs.unlink(route.tmpPath).catch(() => {})));
+  }
+}
+
+/**
  * Remove a project's Nginx route file and reload.
  * Non-fatal if the file doesn't exist.
  *
