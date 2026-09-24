@@ -308,9 +308,10 @@ fetch`'s specific pack-transfer mechanism (the HTTP response body piped
   real fixture archive, mocking only `fetch` as the actual system
   boundary) plus a regression check against the existing
   `build-deployment.job.test.js` — both clean. One property intentionally
-  traded away, documented as a code comment at the change site: `git
-  fetch` independently verifies fetched objects against their expected
-  hash; a tarball download relies on TLS alone for transport integrity,
+  traded away, documented as a code comment at the change site:
+  `git fetch` independently verifies fetched objects against their
+  expected hash; a tarball download relies on TLS alone for transport
+  integrity,
   trusting GitHub's codeload service to serve the right content for a
   given URL (not a materially different trust boundary in practice, since
   GitHub is already the trust anchor either way, but a real property
