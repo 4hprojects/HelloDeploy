@@ -168,3 +168,14 @@ export const repositoryInspectLimiter = rateLimit({
   store: makeStore('repository-inspect'),
   handler: onLimitReached,
 });
+
+/** Read-only CI polling has its own budget and Redis key space. */
+export const deployStatusLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('deploy-status'),
+  handler: onLimitReached,
+});

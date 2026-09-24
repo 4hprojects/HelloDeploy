@@ -45,7 +45,7 @@ describe('generateDockerfile — REACT', () => {
       outputDirectory: 'dist',
       applicationPort: null,
     });
-    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN vite build/);
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN --network=none vite build/);
   });
   it('defaults outputDirectory to dist when null', () => {
     const df = generateDockerfile({
@@ -95,7 +95,7 @@ describe('generateDockerfile — NEXTJS', () => {
       outputDirectory: '.next',
       applicationPort: null,
     });
-    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN next build/);
+    assert.match(df, /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN --network=none next build/);
   });
   it('exposes a declared build argument to the build command', () => {
     const df = generateDockerfile({
@@ -122,7 +122,8 @@ describe('generateDockerfile — NEXTJS', () => {
     });
     const builderStage = df.slice(df.indexOf('AS builder'));
     assert.ok(
-      builderStage.indexOf('ARG NEXT_PUBLIC_A') < builderStage.indexOf('RUN npm run build'),
+      builderStage.indexOf('ARG NEXT_PUBLIC_A') <
+        builderStage.indexOf('RUN --network=none npm run build'),
     );
   });
   it('emits no ARG line when the project has no public environment', () => {

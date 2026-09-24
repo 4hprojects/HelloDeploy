@@ -1,3 +1,4 @@
+import { publicEnvironment } from '@hellodeploy/deployment-core';
 import { RuntimeType } from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 
@@ -21,8 +22,8 @@ const VALID_BUILD_ARG_NAME = /^[A-Z_][A-Z0-9_]*$/;
 
 /**
  * Declare build arguments and re-export them as environment variables so the
- * build command can read them. ARG alone is not enough — it is visible to the
- * Dockerfile, not to the process RUN starts.
+ * build command can read them. These declarations are confined to the builder
+ * stage; runtime public values come from the release snapshot.
  */
 function buildArgDeclarations(names) {
   // Each entry carries its own trailing newline so an empty list contributes
@@ -45,7 +46,7 @@ export function generateDockerfile(config) {
     startCommand,
     outputDirectory,
     applicationPort,
-    buildArgNames = [],
+    buildArgNames = Object.keys(publicEnvironment(config.publicBuildEnvironment ?? {})),
   } = config;
 
   // Names are interpolated into ARG/ENV directives. They reach here from the
@@ -110,13 +111,14 @@ CMD ["nginx", "-g", "daemon off;"]
 }
 
 function generateStaticBuild({ buildCommand, outputDirectory, buildArgNames }) {
-  return `FROM ${NODE_IMAGE} AS builder
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --prefer-offline
+RUN --network=default npm ci --prefer-offline
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
-RUN ${buildCommand}
+RUN --network=none ${buildCommand}
 
 FROM ${NGINX_IMAGE}
 COPY --from=builder /app/${outputDirectory} /usr/share/nginx/html
@@ -126,17 +128,18 @@ CMD ["nginx", "-g", "daemon off;"]
 }
 
 function generateNextjs({ buildCommand, buildArgNames }) {
-  return `FROM ${NODE_IMAGE} AS deps
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --prefer-offline
+RUN --network=default npm ci --prefer-offline
 
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
-RUN ${buildCommand}
+RUN --network=none ${buildCommand}
 
 FROM ${NODE_IMAGE}
 WORKDIR /app
@@ -147,6 +150,7 @@ COPY --from=builder --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
 `;
 }
@@ -157,7 +161,8 @@ function generateNode({ startCommand, applicationPort }) {
   // newline to inject another Dockerfile directive (guarded above).
   const cmdJson = JSON.stringify(['sh', '-c', startCommand]);
 
-  return `FROM ${NODE_IMAGE}
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE}
 WORKDIR /app
 COPY --chown=node:node . .
 RUN npm ci --prefer-offline --omit=dev

@@ -1,3 +1,4 @@
+import { releaseEnvironment } from '@hellodeploy/deployment-core';
 import { Project, Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { DeploymentStatus, RuntimeType, AuditOutcome } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
@@ -213,6 +214,11 @@ export async function runReleasePipeline({
   let envVars = {};
   try {
     envVars = await deps.getProjectEnvVars(projectId);
+    const release = await Deployment.findById(deploymentId).lean();
+    envVars = releaseEnvironment(envVars, release?.publicBuildEnvironment);
+    if (runtimeType === RuntimeType.NEXTJS) {
+      envVars.HOSTNAME = '0.0.0.0';
+    }
     await logEvent(
       deploymentId,
       'DEPLOY',

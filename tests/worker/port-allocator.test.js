@@ -48,7 +48,8 @@ describe('port allocator', () => {
       status: DeploymentStatus.HEALTHY,
       containerPort: PORT_RANGE_START,
     });
-    await createDeployment(project._id, {
+    const otherProject = await createProject({ platformSubdomain: 'other-port-project' });
+    await createDeployment(otherProject._id, {
       sequenceNumber: 3,
       status: DeploymentStatus.DEPLOYING,
       containerPort: PORT_RANGE_START + 1,

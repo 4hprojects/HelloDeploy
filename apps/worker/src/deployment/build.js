@@ -1,3 +1,4 @@
+import { selectPublicBuildEnv } from './public-build-env.js';
 import { spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -55,7 +56,6 @@ export async function buildDockerImage({
       // this list — see selectPublicBuildEnv. `docker history` exposes build
       // arguments, so anything secret must stay out and arrive at container
       // start instead. Values are never logged.
-      ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
       // Resource limits on the build process itself
       '--memory',
       '1g',
@@ -76,7 +76,12 @@ export async function buildDockerImage({
       buildArgNames: Object.keys(buildArgs),
     });
 
+    const publicValues = selectPublicBuildEnv(buildArgs);
+    for (const name of Object.keys(publicValues)) {
+      args.splice(args.length - 1, 0, '--build-arg', name);
+    }
     const proc = spawn('docker', args, {
+      env: { ...process.env, ...publicValues, DOCKER_BUILDKIT: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

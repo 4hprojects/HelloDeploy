@@ -1,3 +1,4 @@
+import { releaseEnvironment } from '@hellodeploy/deployment-core';
 import { join } from 'node:path';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
 import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
@@ -260,7 +261,12 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   // public subset is eligible; the rest is injected when the container starts.
   let publicBuildEnv = {};
   try {
-    publicBuildEnv = selectPublicBuildEnv(await deps.getProjectEnvVars(project._id));
+    publicBuildEnv = selectPublicBuildEnv(
+      releaseEnvironment(
+        await deps.getProjectEnvVars(project._id),
+        deployment.publicBuildEnvironment,
+      ),
+    );
   } catch (err) {
     await logEvent(
       deploymentId,

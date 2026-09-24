@@ -107,6 +107,22 @@ describe('build-deployment job', () => {
     assert.equal(calls.cleanedWorkspaces.length, 1);
   });
 
+  it('passes the queued public snapshot to Docker despite changed current settings', async () => {
+    const { project, repo, deployment } = await seed();
+    deployment.publicBuildEnvironment = { NEXT_PUBLIC_APP_URL: 'https://snapshot.test' };
+    await deployment.save();
+    const { deps, calls } = makeDeps();
+    deps.getProjectEnvVars = async () => ({
+      NEXT_PUBLIC_APP_URL: 'https://changed.test',
+      NEXT_PUBLIC_ADDED: 'new',
+      SUPABASE_SECRET_KEY: 'private',
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.builds[0].buildArgs, {
+      NEXT_PUBLIC_APP_URL: 'https://snapshot.test',
+    });
+  });
+
   it('passes noCache through to the docker build', async () => {
     const { project, repo, deployment } = await seed();
     const { deps, calls } = makeDeps();

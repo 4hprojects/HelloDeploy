@@ -1,3 +1,5 @@
+import { publicEnvironment } from '@hellodeploy/deployment-core';
+
 /**
  * Selection of the environment variables a build is allowed to see.
  *
@@ -39,5 +41,6 @@ export function selectPublicBuildEnv(envVars) {
       selected[name] = value;
     }
   }
+  publicEnvironment(selected); // Reject privileged or malformed Next.js public values.
   return selected;
 }

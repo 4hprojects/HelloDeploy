@@ -148,12 +148,12 @@ describe('Docker build — no shell interpolation in image tag or context path',
     assert.ok(!source.includes('shell: true'));
   });
 
-  it('build.js uses the isolated default build network, never host networking', () => {
-    assert.ok(
-      source.includes("'--network'") && source.includes("'default'"),
-      'Docker build must use the default builder network for locked dependency retrieval',
-    );
-    assert.ok(!source.includes("'host'"), 'Docker build must never use host networking');
+  it('allows registry installation while keeping application build instructions offline', async () => {
+    assert.ok(source.includes('--network') && source.includes("'default'"));
+    const generator = await src('apps/worker/src/deployment/dockerfile-generator.js');
+    assert.ok(generator.includes('RUN --network=default npm ci'));
+    assert.match(generator, /RUN --network=none \$\{buildCommand\}/);
+    assert.ok(!source.includes("'host'"), 'Build must never use host networking');
   });
 
   it('build.js sets a memory limit on the build process', () => {
