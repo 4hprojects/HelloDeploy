@@ -25,6 +25,7 @@ export async function writeDockerfile(contextDir, dockerfileContent) {
  *   contextDir: string,
  *   imageTag: string,
  *   buildTimeoutMs: number,
+ *   buildMemoryMb: number,
  *   noCache?: boolean,
  *   buildArgs?: Record<string, string>,
  *   onLogLine: (line: string, stream: 'stdout'|'stderr') => void,
@@ -35,6 +36,7 @@ export async function buildDockerImage({
   contextDir,
   imageTag,
   buildTimeoutMs,
+  buildMemoryMb,
   noCache = false,
   buildArgs = {},
   onLogLine,
@@ -58,7 +60,7 @@ export async function buildDockerImage({
       ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
       // Resource limits on the build process itself
       '--memory',
-      '1g',
+      `${buildMemoryMb}m`,
       '--network',
       // Generated Node Dockerfiles install the lockfile's dependencies inside
       // the build. Use Docker's isolated builder network so a clean host can

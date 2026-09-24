@@ -61,6 +61,8 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | ----------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
 | `WORKER_CONCURRENCY`    | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
 | `BUILD_TIMEOUT_MS`      | no              | `600000`                        | Hard cap on `docker build` duration                        |
+| `BUILD_MEMORY_MB`       | no              | `1024`                          | Memory ceiling for the `docker build` cgroup               |
+| `RUNTIME_MEMORY_MB`     | no              | `256`                           | Memory ceiling for each deployed application container     |
 | `BUILD_WORKSPACE_ROOT`  | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
 | `RELEASE_METADATA_ROOT` | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
 | `PROJECT_VOLUME_ROOT`   | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |

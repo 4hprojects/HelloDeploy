@@ -17,7 +17,7 @@ import { env } from '../config/env.js';
  * The two jobs differ only in the knobs exposed via `opts`.
  */
 
-export const DEFAULT_MEMORY_MB = 256;
+export const DEFAULT_MEMORY_MB = env.RUNTIME_MEMORY_MB;
 export const DEFAULT_CPU_CORES = 0.25;
 export const DEFAULT_PIDS_LIMIT = 100;
 
