@@ -222,6 +222,7 @@ export async function getInstallationToken(installationId) {
     `https://api.github.com/app/installations/${installationId}/access_tokens`,
     {
       method: 'POST',
+      signal: AbortSignal.timeout(15000),
       headers: {
         Authorization: `Bearer ${jwt}`,
         Accept: 'application/vnd.github+json',
@@ -370,4 +371,37 @@ export function verifyWebhookSignature(rawBody, signatureHeader) {
     });
     return false;
   }
+}
+
+/** A release SHA must be an ancestor of the configured deployment branch. */
+export async function isCommitOnBranch(installationId, fullName, branch, commitSha) {
+  if (
+    !/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(fullName) ||
+    !isSafeBranchName(branch) ||
+    !/^[a-f0-9]{40}$/.test(commitSha)
+  ) {
+    return false;
+  }
+  const path = `/repos/${fullName}/compare/${encodeURIComponent(commitSha)}...${encodeURIComponent(branch)}`;
+  let result;
+  if (!installationId) {
+    result = await fetchPublicGithub(path);
+  } else {
+    const token = await getInstallationToken(installationId);
+    const response = await fetch(`https://api.github.com${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json' },
+      redirect: 'error',
+      signal: AbortSignal.timeout(15000),
+    });
+    if (!response.ok) {
+      if (response.status === 404) {
+        return false;
+      }
+      throw new Error('Could not verify release commit.');
+    }
+    result = await readBoundedJson(response);
+  }
+  return (
+    ['ahead', 'identical'].includes(result.status) && result.merge_base_commit?.sha === commitSha
+  );
 }

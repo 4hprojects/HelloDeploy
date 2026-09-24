@@ -1,3 +1,4 @@
+import { publicEnvironment } from '@hellodeploy/deployment-core';
 import { spawn } from 'node:child_process';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
@@ -35,6 +36,7 @@ export async function buildDockerImage({
   imageTag,
   buildTimeoutMs,
   noCache = false,
+  publicBuildEnvironment = {},
   onLogLine,
 }) {
   return new Promise((resolve, reject) => {
@@ -64,7 +66,12 @@ export async function buildDockerImage({
 
     logger.info('Docker: starting build', { imageTag });
 
+    const publicValues = publicEnvironment(publicBuildEnvironment);
+    for (const name of Object.keys(publicValues)) {
+      args.splice(args.length - 1, 0, '--build-arg', name);
+    }
     const proc = spawn('docker', args, {
+      env: { ...process.env, ...publicValues, DOCKER_BUILDKIT: '1' },
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 

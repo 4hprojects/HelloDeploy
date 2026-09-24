@@ -297,3 +297,40 @@ Do not share secret values in support messages. Share variable names, deployment
 Admins use `/admin` to review users, projects, approval requests, domains, server capacity, queue state, audit events, and quotas.
 
 Admin actions are audited. Routine user deployments should go through the deployment queue, not direct server commands.
+
+## CI releases with pinned commits (24 September 2026)
+
+Deploy hooks now accept an optional JSON body `{ "commitSha": "<full lowercase SHA>" }`.
+The platform verifies that the commit is an ancestor of the project's configured
+production branch in the connected GitHub repository. Without the body, existing
+hooks continue deploying the tracked latest commit. Concurrent enqueue attempts are
+excluded by the `one_inflight_per_project` MongoDB partial unique index; verify this
+index after upgrading an existing installation.
+
+Poll `GET /api/deploy-hooks/<project-id>/deployments/<deployment-id>` with the hook
+token in `Authorization: Bearer <token>`. This endpoint has a separate read-only rate
+limit (120 per five minutes), uses `Cache-Control: no-store`, and returns only the
+release ID, SHA, state, active flag, public-configuration fingerprint and sanitized
+failure information. Invalid tokens and deployments from another project return 404.
+A hook POST returns 202 when queued, not when healthy. Do not blindly retry it after
+a network failure; inspect the dashboard first.
+
+Next.js builds receive validated `NEXT_PUBLIC_*` values as Docker build arguments.
+They are intentionally public and snapshotted when the release is queued; never put
+credentials in these variables. Runtime privileged settings remain encrypted until
+container startup and are not sent to the build. Rollback keeps the original public
+snapshot while using current runtime secrets. Configuration changes require a new
+build. For projects managed by CI, disable independent automatic GitHub deployments.
+
+Generated Node Dockerfiles require BuildKit. Only dependency-install instructions
+use `RUN --network=default`; application build instructions use `RUN --network=none`.
+This permits locked npm installation without requiring application/provider network
+access during compilation. See Docker's [RUN networking reference](https://docs.docker.com/reference/dockerfile/#run---network).
+Drain existing queued releases during the platform upgrade; pre-upgrade images lack
+configuration fingerprints and cannot supply new CI promotion evidence.
+
+Before migrations, CI calls `GET /api/deploy-hooks/<project-id>/capabilities` with
+that same bearer token. This verifies protocol version 1, the concurrency index,
+manual deployment mode, and the expected public application/Supabase configuration.
+Browser settings are compared by fingerprint without returning keys. This avoids
+running migrations before discovering an old platform or the wrong project hook.

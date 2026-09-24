@@ -102,3 +102,5 @@ export function buildImageTag(projectSlug, commitSha, sequenceNumber) {
   const slug = projectSlug.toLowerCase().replace(/[^a-z0-9-]/g, '-');
   return `hellodeploy-${slug}-${shortSha}-${sequenceNumber}`;
 }
+
+export * from './public-environment.js';

@@ -1,3 +1,4 @@
+import { publicEnvironment } from '@hellodeploy/deployment-core';
 import { RuntimeType } from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 
@@ -48,7 +49,10 @@ export function generateDockerfile(config) {
       });
 
     case RuntimeType.NEXTJS:
-      return generateNextjs({ buildCommand: buildCommand ?? 'npm run build' });
+      return generateNextjs({
+        buildCommand: buildCommand ?? 'npm run build',
+        publicBuildEnvironment: config.publicBuildEnvironment ?? {},
+      });
 
     case RuntimeType.EXPRESS:
     case RuntimeType.NODEJS:
@@ -73,12 +77,13 @@ CMD ["nginx", "-g", "daemon off;"]
 }
 
 function generateStaticBuild({ buildCommand, outputDirectory }) {
-  return `FROM ${NODE_IMAGE} AS builder
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --prefer-offline
+RUN --network=default npm ci --prefer-offline
 COPY . .
-RUN ${buildCommand}
+RUN --network=none ${buildCommand}
 
 FROM ${NGINX_IMAGE}
 COPY --from=builder /app/${outputDirectory} /usr/share/nginx/html
@@ -87,17 +92,22 @@ CMD ["nginx", "-g", "daemon off;"]
 `;
 }
 
-function generateNextjs({ buildCommand }) {
-  return `FROM ${NODE_IMAGE} AS deps
+function generateNextjs({ buildCommand, publicBuildEnvironment }) {
+  const declarations = Object.keys(publicEnvironment(publicBuildEnvironment))
+    .map((name) => `ARG ${name}`)
+    .join('\n');
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package*.json ./
-RUN npm ci --prefer-offline
+RUN --network=default npm ci --prefer-offline
 
 FROM ${NODE_IMAGE} AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN ${buildCommand}
+${declarations}
+RUN --network=none ${buildCommand}
 
 FROM ${NODE_IMAGE}
 WORKDIR /app
@@ -108,6 +118,7 @@ COPY --from=builder --chown=node:node /app/public ./public
 USER node
 EXPOSE 3000
 ENV PORT=3000
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
 `;
 }
@@ -118,7 +129,8 @@ function generateNode({ startCommand, applicationPort }) {
   // newline to inject another Dockerfile directive (guarded above).
   const cmdJson = JSON.stringify(['sh', '-c', startCommand]);
 
-  return `FROM ${NODE_IMAGE}
+  return `# syntax=docker/dockerfile:1
+FROM ${NODE_IMAGE}
 WORKDIR /app
 COPY --chown=node:node . .
 RUN npm ci --prefer-offline --omit=dev

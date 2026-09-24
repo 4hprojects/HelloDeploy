@@ -643,3 +643,34 @@ migration is dry-run by default and locally tested; no live database cutover has
 - Link concise evidence here and keep detailed implementation and verification notes in the [Worklog](../WORKLOG.md).
 - Do not mark target-host work complete based only on mocks or local source-level tests.
 - Keep roadmap requirements mapped to the batch summary; add tasks here if the roadmap gains a new release blocker.
+
+## HelloPera release integration — 24 September 2026
+
+Companion application release automation now requires pinned-SHA hooks, scoped status
+polling, public build configuration snapshots, and the `one_inflight_per_project`
+partial unique deployment index. Changes and regression tests are implemented locally.
+This does not complete the existing supported-host or public-release gates.
+
+Upgrade prerequisites: drain queued deployments, verify the new index exists (resolve
+legacy in-flight conflicts before creating it), enable BuildKit, and test dependency
+installation, offline app compilation, active-release status, and snapshot-aware
+rollback on the actual host. See the USER_GUIDE CI release section.
+
+Local verification on 25 September 2026: all 658 tests passed with no skips; lint,
+format checking, and local web/worker configuration validation passed. Capability
+preflight also verifies the installed concurrency index before application migrations.
+Host verification remains blocked on Docker access and an authenticated
+deployment/operator session.
+
+### Current-main reconciliation — 25 September 2026
+
+Release integration is now ported onto `e732476551f8900ad7f496d7dc6cf250361cd1d3`
+in a separate worktree. Public-repository SHA validation, current Node build fixes,
+and platform auditing are preserved. Coordinate overlapping build changes with
+open PRs #45/#47. The original 658-test report is historical, not validation of
+this newer base. Live-host gates remain open. See WORKLOG for current checks and
+the full-suite process-timeout investigation.
+
+All 1,000 current-main tests pass with four test workers and no skips; lint,
+formatting and development configuration validation pass. The default parallel
+suite reaches 999 passes plus one process timeout, which passes in isolation.

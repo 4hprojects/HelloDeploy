@@ -1,3 +1,5 @@
+import { snapshotPublicEnvironment } from './public-build-config.service.js';
+import { publicConfigurationFingerprint } from '@hellodeploy/deployment-core';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
 import {
   DeploymentMode,
@@ -230,6 +232,7 @@ export async function createDeployment({
   // ── Create deployment record ────────────────────────────────────────────────
   const seqNum = await nextSequenceNumber(Deployment, projectId);
 
+  const publicBuildEnvironment = await snapshotPublicEnvironment(projectId);
   const deployment = await Deployment.create({
     projectId,
     sequenceNumber: seqNum,
@@ -238,6 +241,8 @@ export async function createDeployment({
     commitSha: targetCommitSha,
     // The commit message is only known for the tracked latest commit.
     commitMessage: commitShaOverride ? null : repo.lastCommitMessage,
+    publicBuildEnvironment,
+    configurationFingerprint: publicConfigurationFingerprint(publicBuildEnvironment),
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
@@ -375,6 +380,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   const seqNum = await nextSequenceNumber(Deployment, original.projectId);
   const imageTag = buildImageTag(project.slug, original.commitSha, seqNum);
 
+  const publicBuildEnvironment = await snapshotPublicEnvironment(projectId);
   const deployment = await Deployment.create({
     projectId: original.projectId,
     sequenceNumber: seqNum,
@@ -382,6 +388,8 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     requestedBy: actorId,
     commitSha: original.commitSha,
     commitMessage: original.commitMessage,
+    publicBuildEnvironment,
+    configurationFingerprint: publicConfigurationFingerprint(publicBuildEnvironment),
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
@@ -482,7 +490,9 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     requestedBy: actorId,
     commitSha: targetDeployment.commitSha,
     commitMessage: targetDeployment.commitMessage,
-    configurationVersion: project.configurationVersion,
+    publicBuildEnvironment: targetDeployment.publicBuildEnvironment,
+    configurationFingerprint: targetDeployment.configurationFingerprint,
+    configurationVersion: targetDeployment.configurationVersion,
     status: DeploymentStatus.DEPLOYING,
     sourceDeploymentId: targetDeploymentId,
     startedAt: new Date(),

@@ -2136,3 +2136,55 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Production remains unchanged while the correction proceeds through review. The
   next release gate is a passing PR/CodeQL review and the resulting merged full SHA;
   protected host recovery must still precede the immutable upgrade.
+
+## 2026-09-24 — HelloPera release integration
+
+Implemented public Next.js build snapshots and fingerprints, Docker ARG transport
+without privileged runtime variables, rollback snapshot preservation, explicit
+0.0.0.0 binding, branch-validated SHA hook requests, token-scoped status polling,
+separate polling rate limits, and database exclusion of concurrent in-flight releases.
+BuildKit grants network access only to npm install instructions; app builds remain
+offline. Existing deploy hooks without SHA remain compatible.
+
+Added configuration/rollback, branch ancestry, status authorization/redaction,
+concurrent deployment, and worker snapshot tests. Adjusted port-allocation fixtures
+to represent concurrent deployments in distinct projects. Local validation is
+recorded in the tracker. Online platform upgrade, Docker/musl execution, routing,
+and rollback drills remain unverified; local Docker socket access is denied.
+
+Follow-up on 25 September: added authenticated platform capability/configuration
+preflight so CI rejects old platforms or mismatched project hooks before migrations.
+Docker's global build network is default; explicit `RUN --network=none` enforces
+isolation for application compilation. BuildKit treats RUN's default as inherited,
+so a global `none` would incorrectly prevent npm registry access even at install.
+
+Final local verification: `npm run lint`, `npm run format:check`, `npm run config:check`,
+and `npm test` passed (658 tests, zero failures/skips). Network security assertions
+were also checked separately after removing a lint warning. The configuration check
+validates this local environment; it does not certify production configuration.
+
+## 2026-09-25 — Reconcile release integration with current main
+
+GitHub authentication was restored. The original local checkout was 118 commits
+behind `e732476551f8900ad7f496d7dc6cf250361cd1d3`. Ported the release integration in
+an isolated worktree, preserving current Node lifecycle source-copy ordering,
+compound start commands, Redis fail-closed behavior, public repository support,
+and worker secret-access auditing. Pinned hook SHAs now support public repositories
+through the existing bounded GitHub client without an installation token.
+
+Open PR #45 supplies a build-command PATH correction; #47 supplies public build
+variables for several frameworks. This release change overlaps #47's Next.js build
+lane and needs coordinated review before merge. Neither PR nor this worktree is
+assumed to be deployed. The earlier 658-test result above belongs only to the old
+base; current-main validation is recorded separately below.
+
+The standard parallel full suite ran 1,000 tests: 999 passed and one unchanged
+fatal-process startup test exceeded its five-second subprocess timeout. All five
+fatal-process tests passed in isolation; a full run with four test workers is used
+to verify the resource-contention hypothesis without weakening the timeout.
+
+Current-main result: all 1,000 tests passed with zero skips using
+`NODE_ENV=test node --test --test-concurrency=4` over every `tests/**/*.test.js`.
+Lint, full formatting, and development configuration validation pass. The default
+unbounded suite timeout remains documented above; host Docker/Alpine, platform
+upgrade, rollback and live application release evidence are still outstanding.

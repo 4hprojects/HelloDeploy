@@ -255,6 +255,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   try {
     dockerfileContent = generateDockerfile({
       runtimeType,
+      publicBuildEnvironment: deployment.publicBuildEnvironment ?? {},
       buildCommand: project.buildConfiguration?.buildCommand ?? null,
       startCommand: project.buildConfiguration?.startCommand ?? null,
       outputDirectory: project.buildConfiguration?.outputDirectory ?? null,
@@ -298,6 +299,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   try {
     await deps.buildDockerImage({
       contextDir: workDir,
+      publicBuildEnvironment: deployment.publicBuildEnvironment ?? {},
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
       noCache: noCache === true,

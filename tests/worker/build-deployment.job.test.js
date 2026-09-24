@@ -106,6 +106,17 @@ describe('build-deployment job', () => {
     assert.equal(calls.cleanedWorkspaces.length, 1);
   });
 
+  it('passes the queued public snapshot to Docker without fetching current secrets', async () => {
+    const { project, repo, deployment } = await seed();
+    deployment.publicBuildEnvironment = { NEXT_PUBLIC_APP_URL: 'https://snapshot.test' };
+    await deployment.save();
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.builds[0].publicBuildEnvironment, {
+      NEXT_PUBLIC_APP_URL: 'https://snapshot.test',
+    });
+  });
+
   it('passes noCache through to the docker build', async () => {
     const { project, repo, deployment } = await seed();
     const { deps, calls } = makeDeps();

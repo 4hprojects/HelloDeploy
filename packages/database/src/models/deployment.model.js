@@ -15,6 +15,8 @@ const deploymentSchema = new Schema(
     requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     commitSha: { type: String, required: true, maxlength: 40 },
     commitMessage: { type: String, default: null, maxlength: 500 },
+    publicBuildEnvironment: { type: Schema.Types.Mixed, default: null },
+    configurationFingerprint: { type: String, default: null },
     configurationVersion: { type: Number, required: true },
     status: {
       type: String,
@@ -47,6 +49,15 @@ const deploymentSchema = new Schema(
 deploymentSchema.index({ projectId: 1, sequenceNumber: 1 }, { unique: true });
 deploymentSchema.index({ projectId: 1, status: 1 });
 deploymentSchema.index({ status: 1 });
+// Database-enforced exclusion closes concurrent hook/manual enqueue races.
+deploymentSchema.index(
+  { projectId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { status: { $in: ['QUEUED', 'VALIDATING', 'BUILDING', 'DEPLOYING'] } },
+    name: 'one_inflight_per_project',
+  },
+);
 
 export const Deployment =
   mongoose.models.Deployment ?? mongoose.model('Deployment', deploymentSchema);
