@@ -19,6 +19,7 @@ import { createHash } from 'node:crypto';
  *   port: number,           - loopback port the container is listening on
  *   deploymentId: string,   - recorded for auditability
  *   generatedAt?: Date,
+ *   routeHost?: string,    - value advertised in X-HelloDeploy-Route; defaults to the FQDN
  * }} opts
  * @returns {string} nginx config block
  */
@@ -28,6 +29,7 @@ export function generateServerBlock({
   port,
   deploymentId,
   generatedAt = new Date(),
+  routeHost,
 }) {
   const fqdn = `${subdomain}.${domain}`;
   const ts = generatedAt.toISOString();
@@ -40,6 +42,11 @@ export function generateServerBlock({
 server {
     listen 80;
     server_name ${fqdn};
+
+    # Lets the platform prove, from the public internet, that a request for this
+    # hostname reached the block generated for it. Nginx routing being active
+    # says nothing about where the owner's DNS actually points.
+    add_header X-HelloDeploy-Route "${routeHost ?? fqdn}" always;
 
     # Request limits
     client_max_body_size 10m;
@@ -87,6 +94,7 @@ export function generateCustomDomainServerBlock({ hostname, port, deploymentId, 
     port,
     deploymentId,
     generatedAt,
+    routeHost: hostname,
   }).replace(/server_name .+;/, `server_name ${hostname};`);
 }
 

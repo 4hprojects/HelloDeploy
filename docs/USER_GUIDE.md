@@ -252,7 +252,11 @@ Each project can request one custom domain by default.
 4. Keep the resulting page open and copy the one-time TXT record name and value.
 5. Add the TXT record with the provider that manages the domain's nameservers. For example, use Cloudflare when the nameservers are Cloudflare even if the domain was purchased from GoDaddy.
 6. Wait for DNS propagation, then select **Check DNS record**.
-7. HelloDeploy verifies ownership and activates the domain automatically when the project has a healthy active deployment.
+7. HelloDeploy verifies ownership and prepares routing automatically when the project has a healthy active deployment.
+8. Add the **CNAME record** shown under "Send your visitors to HelloDeploy". The TXT record only proves that the address is yours; this second record is what actually sends visitors to your app. It appears once an administrator has prepared the connection for your address.
+9. Select **Check routing**. The page confirms the domain is live, or explains what is still wrong — DNS not pointing here yet, a disconnected connector, or another server answering for the address.
+
+A domain can show as connected inside HelloDeploy while the address still does not open for visitors. That means routing exists here but the CNAME record is missing or points elsewhere; **Check routing** distinguishes the two.
 
 The TXT verification value is shown only once and is stored only as a hash afterward. If it is lost, first try **Check DNS record** if the value was already added. Otherwise, use **Remove and restart**, add the domain again, and copy the newly generated value.
 

@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 import { resolveTxt } from 'node:dns/promises';
 import { Domain, Project } from '@hellodeploy/database';
-import { DomainStatus, DomainType, AuditOutcome } from '@hellodeploy/contracts';
+import { DomainStatus, DomainType, DomainRoutingState, AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
@@ -656,6 +656,29 @@ export async function getProjectDomainStatuses(projectId) {
     .lean();
 }
 
+/**
+ * Domains past ownership verification, for the admin tunnel screen.
+ *
+ * Separate from the approval queue: the current lifecycle activates verified
+ * domains automatically and no longer produces PENDING_ADMIN_APPROVAL, so an
+ * admin would otherwise have nowhere to record a tunnel for them.
+ */
+export async function getRoutableDomains() {
+  return Domain.find({
+    status: {
+      $in: [
+        DomainStatus.VERIFIED,
+        DomainStatus.PENDING_ADMIN_APPROVAL,
+        DomainStatus.ACTIVATING,
+        DomainStatus.ACTIVE,
+      ],
+    },
+  })
+    .populate('projectId', 'name slug')
+    .sort({ createdAt: 1 })
+    .lean();
+}
+
 export async function getPendingApprovalDomains() {
   return Domain.find({ status: DomainStatus.PENDING_ADMIN_APPROVAL })
     .populate('projectId', 'name slug')
@@ -697,4 +720,155 @@ export async function getLiveVerificationTxtRecords(hostname, dnsResolveTxt = re
   } catch {
     return null;
   }
+}
+
+// ─── Tunnel assignment (admin) ─────────────────────────────────────────────────
+
+const TUNNEL_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+
+/**
+ * Record the Cloudflare tunnel that carries a custom domain.
+ *
+ * Creating the tunnel cannot be automated: its DNS route is a proxied CNAME to
+ * <tunnelId>.cfargotunnel.com, which Cloudflare accepts only inside the account
+ * that owns both the tunnel and the zone. An administrator creates it with the
+ * domain owner's credentials and records the id here, which is what lets the
+ * owner see the CNAME they need to publish.
+ */
+export async function setDomainTunnel(domainId, tunnelIdRaw, adminId, opts = {}) {
+  const tunnelId = String(tunnelIdRaw ?? '')
+    .trim()
+    .toLowerCase();
+  if (!TUNNEL_ID_PATTERN.test(tunnelId)) {
+    return { success: false, error: 'Tunnel id must be a UUID, as printed by cloudflared.' };
+  }
+
+  const domain = await Domain.findById(domainId).lean();
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
+
+  // The published CNAME target changes with the tunnel, so any earlier probe
+  // result describes a route that no longer applies.
+  await Domain.updateOne(
+    { _id: domainId },
+    {
+      $set: {
+        tunnelId,
+        routingState: DomainRoutingState.UNKNOWN,
+        routingCheckedAt: null,
+        routingDetail: null,
+      },
+    },
+  );
+
+  await writeAuditEvent({
+    action: 'domain.tunnel_assigned',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: adminId,
+    targetType: 'domain',
+    targetId: domainId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { hostname: domain.hostnameNormalized, tunnelId },
+  });
+
+  return { success: true, tunnelId };
+}
+
+// ─── Routing reachability probe ────────────────────────────────────────────────
+
+const ROUTE_HEADER = 'x-hellodeploy-route';
+const ROUTING_PROBE_TIMEOUT_MS = 15_000;
+
+/**
+ * Turn one probe result into a routing state.
+ *
+ * Comparing DNS records cannot do this job: behind Cloudflare's proxy a
+ * correctly configured domain resolves to Cloudflare's addresses and never to
+ * this platform, so record matching reports working domains as broken. Only
+ * what comes back from the hostname itself distinguishes these cases.
+ *
+ * Exported for tests — it is pure, so every branch is checkable without HTTP.
+ *
+ * @param {{ error?: string, status?: number, routeHeader?: string|null }} observed
+ * @param {string} hostname
+ */
+export function classifyRoutingProbe(observed, hostname) {
+  if (observed.error) {
+    return {
+      state: DomainRoutingState.NOT_POINTED,
+      detail: `Could not reach ${hostname}: ${observed.error}`,
+    };
+  }
+
+  // Cloudflare signals its own edge-to-origin failures in the 52x/530 range,
+  // and those pages never carry our header, so they must be read before
+  // concluding that some other server answered.
+  if (observed.status === 530) {
+    return {
+      state: DomainRoutingState.TUNNEL_DOWN,
+      detail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+    };
+  }
+  if (observed.status >= 521 && observed.status <= 526) {
+    return {
+      state: DomainRoutingState.NOT_POINTED,
+      detail: `Cloudflare could not reach an origin for this hostname (HTTP ${observed.status}).`,
+    };
+  }
+
+  if (observed.routeHeader === hostname) {
+    return { state: DomainRoutingState.LIVE, detail: null };
+  }
+
+  return {
+    state: DomainRoutingState.FOREIGN,
+    detail: observed.routeHeader
+      ? `Another HelloDeploy route answered: ${observed.routeHeader}.`
+      : `A server answered (HTTP ${observed.status}) but it is not this platform.`,
+  };
+}
+
+/**
+ * Probe a domain end to end and store what public traffic actually finds.
+ *
+ * Deliberately user-triggered rather than polled: the domains page refreshes
+ * every two seconds, which is far too often to make outbound requests.
+ *
+ * @param {(url: string, init?: object) => Promise<Response>} [fetchImpl] - injectable for tests
+ */
+export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch) {
+  const domain = await Domain.findOne({ _id: domainId, projectId }).lean();
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
+
+  const hostname = domain.hostnameNormalized;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ROUTING_PROBE_TIMEOUT_MS);
+  let observed;
+  try {
+    const response = await fetchImpl(`https://${hostname}/`, {
+      method: 'GET',
+      redirect: 'manual',
+      signal: controller.signal,
+      headers: { 'User-Agent': 'HelloDeploy-RoutingCheck/1' },
+    });
+    observed = { status: response.status, routeHeader: response.headers.get(ROUTE_HEADER) };
+  } catch (err) {
+    observed = { error: err.name === 'AbortError' ? 'the request timed out' : err.message };
+  } finally {
+    clearTimeout(timer);
+  }
+
+  const { state, detail } = classifyRoutingProbe(observed, hostname);
+  const checkedAt = new Date();
+  await Domain.updateOne(
+    { _id: domainId, projectId },
+    { $set: { routingState: state, routingCheckedAt: checkedAt, routingDetail: detail } },
+  );
+  logger.info('Domain routing checked', { hostname, state });
+
+  return { success: true, state, detail, checkedAt };
 }

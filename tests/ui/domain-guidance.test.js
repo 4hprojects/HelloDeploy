@@ -43,14 +43,15 @@ function renderDomains(overrides = {}) {
 }
 
 describe('guided custom domains', () => {
-  it('guides a new owner through all four setup stages', async () => {
+  it('guides a new owner through all five setup stages', async () => {
     const html = await renderDomains();
 
     assert.match(html, /Connect your domain/);
     assert.match(html, /Add your domain/);
     assert.match(html, /Add the DNS record/);
     assert.match(html, /Check ownership/);
-    assert.match(html, /Domain goes live/);
+    assert.match(html, /Connect routing/);
+    assert.match(html, /Domain is live/);
     assert.match(html, /action="\/projects\/hellorun-e783\/domains"/);
     assert.match(html, /Do not include/);
   });
@@ -111,7 +112,7 @@ describe('guided custom domains', () => {
     assert.match(approvalHtml, /Legacy verification is waiting for administrator activation/);
     assert.match(approvalHtml, /No action needed/);
     assert.match(activeHtml, /Connected/);
-    assert.match(activeHtml, /Connected and ready for visitors/);
+    assert.match(activeHtml, /An administrator is preparing the connection/);
     assert.doesNotMatch(activeHtml, /method="POST"/);
   });
 
@@ -159,5 +160,67 @@ describe('guided custom domains', () => {
       layoutCss,
       /@media \(max-width: 40rem\)[\s\S]*\.dns-record__row[\s\S]*grid-template-columns: minmax\(0, 1fr\) auto/,
     );
+  });
+});
+
+describe('routing record guidance', () => {
+  const verifiedDomain = {
+    _id: '64b7f8e2a1c9d4f5b6a7c8da',
+    hostnameNormalized: 'hellorun.online',
+    status: 'ACTIVE',
+    createdAt: new Date('2026-07-02T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-02T00:00:00.000Z'),
+  };
+  const tunnelId = '79fad542-82f7-4225-b917-4fcdb042e280';
+
+  it('publishes the CNAME target once a tunnel is recorded', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, new RegExp(`${tunnelId}\\.cfargotunnel\\.com`));
+  });
+
+  it('offers a copy control for the CNAME target', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, /data-copy-label="CNAME record target"/);
+  });
+
+  it('explains that the record is what sends visitors to the app', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, /until you add it, the address will not open your app/);
+  });
+
+  it('never invents a target before an administrator records the tunnel', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain] });
+    assert.doesNotMatch(html, /cfargotunnel/);
+  });
+
+  it('says who the owner is waiting on when no tunnel exists yet', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain] });
+    assert.match(html, /administrator is preparing the connection/);
+  });
+
+  it('stops calling a routed domain connected before routing is confirmed', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, /Add the CNAME record above so visitors reach it/);
+  });
+
+  it('reports a confirmed domain as live', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, tunnelId, routingState: 'LIVE' }],
+    });
+    assert.match(html, /visitors reach your app/);
+  });
+
+  it('surfaces the reason a check failed', async () => {
+    const html = await renderDomains({
+      domains: [
+        {
+          ...verifiedDomain,
+          tunnelId,
+          routingState: 'TUNNEL_DOWN',
+          routingDetail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+        },
+      ],
+    });
+    assert.match(html, /no tunnel connector for this hostname/);
   });
 });
