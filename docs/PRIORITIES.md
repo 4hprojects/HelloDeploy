@@ -20,6 +20,93 @@ user onboarding handoff audit behind Track G, see
 [Onboarding Handoff Audit](ONBOARDING_HANDOFF_AUDIT.md). Update this file's
 ordering as priorities shift; don't copy evidence into it.
 
+## Where we are — 2026-09-25 review
+
+Verified by running commands against the live host and `origin/main`, not from memory. Anything
+that could not be verified is marked as such rather than assumed.
+
+### The single most important finding
+
+**Five of six user accounts are unverified, and `email_deliveries` holds zero records.** The only
+verified account dates from 19 June; the newest signup, 7 July, is still unverified. That is the
+exact signature the URGENT item below predicted, now with data behind it: **the platform most
+likely cannot onboard a new user, and has not been able to for months.** Everything else in this
+review is smaller than that.
+
+Partial progress since August: `hellodeploy.online` now publishes DMARC and a Resend DKIM record,
+so the domain was at least partly verified with Resend. **SPF is still absent.** No one has signed
+up since 7 July, so nothing has tested the path end to end.
+
+### Do next
+
+| #   | Item                                                                                                             | Why it matters                                                      | Who                     |
+| --- | ---------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- | ----------------------- |
+| 1   | Send a real signup to a non-owner address and watch Resend                                                       | Decides whether anyone but you can use the platform                 | You                     |
+| 2   | Confirm what is deployed: `sudo git -C /opt/hellodeploy rev-parse HEAD`                                          | Three merged PRs may or may not be live; not checkable from outside | You (sudo)              |
+| 3   | Re-deploy `hellopera` and `hellouniversity`                                                                      | Nothing after PR #53 is observable until route files regenerate     | You                     |
+| 4   | Consolidate tunnel `d2fae729`, which runs twice with different ingress                                           | Three domains resolve through whichever replica Cloudflare picks    | You (sudo + Cloudflare) |
+| 5   | Bump `js-yaml` (4.0.0–4.3.1, high severity)                                                                      | CI audits `--omit=dev`, so dev vulnerabilities are ungated          | Either                  |
+| 6   | Add SPF for `hellodeploy.online`                                                                                 | Completes the email fix once item 1 confirms the cause              | You                     |
+| 7   | Serve `www.hellopera.online`                                                                                     | Resolves today but shows the nginx welcome page                     | Either                  |
+| 8   | Repo hygiene: 2 stale PRs (#7, #49), 12 unmerged branches, stray `hellopera` tunnel, local tree 5 commits behind | Noise that hides real signal                                        | Either                  |
+
+### Deployment state
+
+No upgrade has run since **14:00:16** — service start time and the newest backup agree. No project
+has been redeployed since **03:09:55**, nginx route files are unchanged since **03:13**, and
+`X-HelloDeploy-Route` is absent on both custom domains.
+
+**The deployed commit could not be determined from outside**: `/health` carries no version and
+`/opt/hellodeploy` needs sudo to read. An earlier claim during this session that the PR #54 deploy
+had run was inferred from an unchanged service-start timestamp, which does not support that
+conclusion. Item 2 settles it. Consider adding the release commit to `/health` so this is never
+ambiguous again.
+
+### Healthy — confirmed, not assumed
+
+- 146 test files against 133 source files; CI runs the full suite on a clean install.
+- Zero `TODO`/`FIXME`/`HACK`/`XXX` markers across `apps`, `packages`, `infrastructure`.
+- Production dependencies clean on `main`: `npm audit --omit=dev` reports 0 vulnerabilities.
+- Backups work again: `/var/backups/hellodeploy/20260925_140016/` holds `mongodb-dump.tar.gz` and
+  `CHECKSUMS.sha256`. Installing `mongodb-database-tools` also restored `mongorestore`, without
+  which `restore.sh` had been silently non-functional.
+- Disk is not a concern: 59G of 937G used.
+- **The shared-database problem below appears resolved.** The live database is `hellodeploy_db`
+  with 14 collections and **none** of the six foreign ones (`tasks`, `comments`, `notifications`,
+  `filerecords`, `auditlogs`, `appsettings`). Confirm production's own `.env` agrees with
+  `sudo grep MONGODB_URI /opt/hellodeploy/.env`, then close that item.
+
+### Not verified — stated plainly
+
+- **Nobody has looked at the domain UI.** It was verified by asserting rendered strings. Two
+  stacked DNS-record cards and a five-step tracker may read poorly; that is unknown.
+- **Coverage is unmeasured** this session. Last recorded: 78.13% lines, 2026-08-31.
+- **The restore path has never been exercised**, only made possible again.
+- **Automatic domain connection (PR #55) has never run against Cloudflare.** It is covered by tests
+  driving a stand-in, and stays inert until credentials are set.
+
+### Recently shipped — 2026-09-25
+
+| PR  | What                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------- |
+| #50 | Build and runtime memory ceilings made configurable; a hardcoded 1 GB cap had failed 17 HelloPera builds |
+| #51 | express 4.22.3, clearing two moderate `qs` advisories                                                    |
+| #52 | `provision-custom-domain-tunnel.sh` — one idempotent command instead of six manual steps                 |
+| #53 | Domain lifecycle fenced against retained BullMQ job ids that silently dropped every retry since August   |
+| #54 | Owners shown the CNAME that actually routes traffic, plus an end-to-end routing probe                    |
+| #55 | Open: connect domains with no administrator, via the shared tunnel and the Cloudflare API                |
+
+### Known limits
+
+- One laptop, residential connection, **no reachable inbound port**, dynamic IP. Custom domains
+  work only through Cloudflare tunnels. A stable ingress host would remove the tunnel machinery,
+  the dynamic-IP exposure and the per-account token problem together.
+- Zero-touch domain connection reaches only zones in a Cloudflare account the platform holds a
+  token for. `hellopera.online` lives in another account and stays manual.
+- Six overlapping status documents exist, none newer than 2 September. **This file is the current
+  one**; treat `PROJECT_STATUS_REVIEW`, `DEPLOYMENT_READINESS_ROADMAP`, `UI_UX_IMPROVEMENT_BACKLOG`,
+  `IMPROVEMENTS` and `IMPLEMENTATION_BATCH_TRACKER` as historical unless re-dated.
+
 ## URGENT — email verification likely broken for every new signup
 
 Discovered 2026-08-15, unconfirmed pending a Resend dashboard check (see
