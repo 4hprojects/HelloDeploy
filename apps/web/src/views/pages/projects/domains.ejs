@@ -253,7 +253,9 @@
       <code class="code-inline"><%= domain.hostnameNormalized %></code>
     </h3>
 
-    <% if (!domain.tunnelId) { %>
+    <% if (domain.connectionMode === 'AUTOMATIC') { %>
+    <p class="form-hint">Connected automatically — there is no DNS record for you to add.</p>
+    <% } else if (!domain.tunnelId) { %>
     <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
       this address; the record you need will appear here once it is ready.</p>
     <% } else { %>
@@ -293,6 +295,7 @@
     <p class="form-hint">Some providers ask only for the part before your domain, and write
       <code class="code-inline">@</code> for the domain itself. The finished record must apply to
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
+    <% } %>
 
     <div class="domain-routing-record__actions">
       <% if (membership.role === 'OWNER') { %>
@@ -311,7 +314,6 @@
       <span class="text-muted text-sm">Not checked yet.</span>
       <% } %>
     </div>
-    <% } %>
   </div>
   <% }); %>
 </section>
@@ -366,6 +368,8 @@
               <% } else if (domain.status === 'ACTIVE') { %>
                 <% if (domain.routingState === 'LIVE') { %>
                   Live — visitors reach your app.
+                <% } else if (domain.connectionMode === 'AUTOMATIC') { %>
+                  Connected automatically. Checking that visitors can reach it.
                 <% } else if (domain.tunnelId) { %>
                   Routing is ready here. Add the CNAME record above so visitors reach it.
                 <% } else { %>

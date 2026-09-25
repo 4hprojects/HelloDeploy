@@ -412,7 +412,10 @@ describe('verify domain job', () => {
       },
     );
     assert.equal(routes.length, 1);
-    assert.equal(activationUpdates.at(-1).update.$set.status, DomainStatus.ACTIVE);
+    // Activation now writes again afterwards to record how public routing was
+    // established, so locate the status write rather than assuming it is last.
+    const statusUpdate = activationUpdates.find((entry) => entry.update.$set.status);
+    assert.equal(statusUpdate.update.$set.status, DomainStatus.ACTIVE);
 
     const removalUpdates = [];
     const removalModel = modelReturning(
