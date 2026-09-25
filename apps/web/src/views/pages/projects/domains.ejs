@@ -18,6 +18,8 @@
   const pendingWithoutToken = pendingDomains.filter(domain =>
     domain.status === 'PENDING_VERIFICATION' &&
     (!verificationToken || domain.hostnameNormalized !== pendingHostname));
+  const routableDomains = domains.filter(domain => domain.tunnelId);
+  const liveDomains = domains.filter(domain => domain.routingState === 'LIVE');
   const dnsRecordName = pendingHostname ? `_hellodeploy-verify.${pendingHostname}` : '';
   const dnsRecordValue = verificationToken ? `hellodeploy-verify=${verificationToken}` : '';
 %>
@@ -75,11 +77,18 @@
         <span>HelloDeploy checks the TXT ownership record.</span>
       </div>
     </li>
-    <li class="domain-step<%= activeDomains.length ? ' domain-step--complete' : verifiedDomains.length ? ' domain-step--current' : '' %>">
-      <span class="domain-step__number" aria-hidden="true"><% if (activeDomains.length) { %>&check;<% } else { %>4<% } %></span>
+    <li class="domain-step<%= liveDomains.length ? ' domain-step--complete' : activeDomains.length ? ' domain-step--current' : '' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (liveDomains.length) { %>&check;<% } else { %>4<% } %></span>
       <div>
-        <strong>Domain goes live</strong>
-        <span>HelloDeploy activates routing after verification.</span>
+        <strong>Connect routing</strong>
+        <span>Point your domain at HelloDeploy with the CNAME record shown below.</span>
+      </div>
+    </li>
+    <li class="domain-step<%= liveDomains.length ? ' domain-step--complete' : '' %>">
+      <span class="domain-step__number" aria-hidden="true"><% if (liveDomains.length) { %>&check;<% } else { %>5<% } %></span>
+      <div>
+        <strong>Domain is live</strong>
+        <span>Visitors reach your app. Use Check routing to confirm.</span>
       </div>
     </li>
   </ol>
@@ -230,6 +239,84 @@
 </section>
 <% } %>
 
+<% if (verifiedDomains.length) { %>
+<section class="domain-setup-panel" id="routing-records"
+  aria-labelledby="routing-records-title" tabindex="-1">
+  <p class="domain-setup-panel__eyebrow">Your next step</p>
+  <h2 id="routing-records-title">Send your visitors to HelloDeploy</h2>
+  <p>The TXT record proved you own the address. This second record is what actually sends
+    visitors here — until you add it, the address will not open your app.</p>
+
+  <% verifiedDomains.forEach(function (domain) { %>
+  <div class="domain-routing-record">
+    <h3 class="domain-routing-record__title">
+      <code class="code-inline"><%= domain.hostnameNormalized %></code>
+    </h3>
+
+    <% if (!domain.tunnelId) { %>
+    <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
+      this address; the record you need will appear here once it is ready.</p>
+    <% } else { %>
+    <div class="dns-record" data-dns-record>
+      <div class="dns-record__row dns-record__row--plain">
+        <span class="dns-record__label">Type</span>
+        <code class="dns-record__value">CNAME</code>
+      </div>
+      <div class="dns-record__row">
+        <span class="dns-record__label">Host / Name</span>
+        <code class="dns-record__value"><%= domain.hostnameNormalized %></code>
+        <button type="button" class="button button--secondary button--sm dns-copy-button"
+          data-copy-value="<%= domain.hostnameNormalized %>" data-copy-label="CNAME record name">
+          <%- include('../../partials/icon', { name: 'copy' }) %>
+          <span>Copy</span>
+        </button>
+      </div>
+      <div class="dns-record__row">
+        <span class="dns-record__label">Target / Content</span>
+        <code class="dns-record__value"><%= domain.tunnelId %>.cfargotunnel.com</code>
+        <button type="button" class="button button--secondary button--sm dns-copy-button"
+          data-copy-value="<%= domain.tunnelId %>.cfargotunnel.com"
+          data-copy-label="CNAME record target">
+          <%- include('../../partials/icon', { name: 'copy' }) %>
+          <span>Copy</span>
+        </button>
+      </div>
+      <div class="dns-record__row dns-record__row--plain">
+        <span class="dns-record__label">Proxy</span>
+        <code class="dns-record__value">Proxied (orange cloud)</code>
+      </div>
+      <div class="dns-record__row dns-record__row--plain">
+        <span class="dns-record__label">TTL</span>
+        <code class="dns-record__value">Auto or 300 seconds</code>
+      </div>
+    </div>
+    <p class="form-hint">Some providers ask only for the part before your domain, and write
+      <code class="code-inline">@</code> for the domain itself. The finished record must apply to
+      <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
+
+    <div class="domain-routing-record__actions">
+      <% if (membership.role === 'OWNER') { %>
+      <form method="POST"
+        action="/projects/<%= project.slug %>/domains/<%= domain._id %>/routing-check">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--secondary button--sm"
+          data-pending-label="Checking...">Check routing</button>
+      </form>
+      <% } %>
+      <% if (domain.routingState === 'LIVE') { %>
+      <span class="text-success text-sm" role="status">Live — visitors reach your app.</span>
+      <% } else if (domain.routingDetail) { %>
+      <span class="form-error text-sm" role="status"><%= domain.routingDetail %></span>
+      <% } else { %>
+      <span class="text-muted text-sm">Not checked yet.</span>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+  <% }); %>
+</section>
+<% } %>
+
 <section class="domain-page-section" aria-labelledby="domains-title">
   <header class="domain-page-section__header">
     <h2 id="domains-title">Your domains</h2>
@@ -277,7 +364,13 @@
               <% } else if (domain.status === 'ACTIVATING') { %>
                 Ownership verified. Public routing is being activated.
               <% } else if (domain.status === 'ACTIVE') { %>
-                Connected and ready for visitors.
+                <% if (domain.routingState === 'LIVE') { %>
+                  Live — visitors reach your app.
+                <% } else if (domain.tunnelId) { %>
+                  Routing is ready here. Add the CNAME record above so visitors reach it.
+                <% } else { %>
+                  Routing is ready here. An administrator is preparing the connection.
+                <% } %>
               <% } else if (domain.status === 'REMOVING') { %>
                 Public routing is being removed.
               <% } else { %>

@@ -26,6 +26,7 @@ import {
   getAdminDomains,
   postApproveDomain,
   postRejectDomain,
+  postSetDomainTunnel,
 } from '../../controllers/domain.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 
@@ -53,6 +54,7 @@ router.post('/approval-requests/:requestId/review', postReviewApprovalRequest);
 router.get('/domains', getAdminDomains);
 router.post('/domains/:domainId/approve', postApproveDomain);
 router.post('/domains/:domainId/reject', postRejectDomain);
+router.post('/domains/:domainId/tunnel', postSetDomainTunnel);
 
 router.get('/server', getAdminServer);
 // Queue pause/resume is a platform-wide operational lever (stalls every

@@ -82,3 +82,64 @@
   </div>
 </div>
 <% } %>
+
+<div class="card mt-4">
+  <div class="card__header">
+    <h2 class="card__title">Custom domain tunnels</h2>
+    <p class="card__subtitle">Each custom domain reaches this platform through its own Cloudflare
+      tunnel. Create the tunnel with the domain owner's Cloudflare account, then record its id
+      here so the owner can publish the matching CNAME.</p>
+  </div>
+  <div class="card__body">
+    <% if (!routableDomains.length) { %>
+    <p class="text-muted">No verified domains yet.</p>
+    <% } else { %>
+    <div class="table-wrapper">
+    <table class="table">
+      <thead>
+        <tr>
+          <th scope="col">Hostname</th>
+          <th scope="col">Project</th>
+          <th scope="col">Tunnel</th>
+          <th scope="col"><span class="sr-only">Record tunnel</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% routableDomains.forEach(d => { %>
+        <tr>
+          <td data-label="Hostname"><code class="code-inline"><%= d.hostnameNormalized %></code></td>
+          <td data-label="Project">
+            <% if (d.projectId && d.projectId.name) { %>
+              <a href="/projects/<%= d.projectId.slug %>" class="table-link"><%= d.projectId.name %></a>
+            <% } else { %>
+              <span class="text-muted">Unknown</span>
+            <% } %>
+          </td>
+          <td data-label="Tunnel">
+            <% if (d.tunnelId) { %>
+              <code class="code-inline"><%= d.tunnelId %>.cfargotunnel.com</code>
+              <span class="text-xs d-block text-muted">Routing: <%= d.routingState || 'UNKNOWN' %></span>
+            <% } else { %>
+              <span class="text-muted">Not recorded</span>
+              <span class="text-xs d-block">Run: <code class="code-inline">sudo bash infrastructure/provision-custom-domain-tunnel.sh --hostname <%= d.hostnameNormalized %> --tunnel-id &lt;uuid&gt;</code></span>
+            <% } %>
+          </td>
+          <td class="text-right" data-label="Record tunnel">
+            <form method="POST" action="/admin/domains/<%= d._id %>/tunnel" class="form-inline">
+              <%- include('../../partials/csrf-field') %>
+              <label class="sr-only" for="tunnel-<%= d._id %>">Tunnel id for <%= d.hostnameNormalized %></label>
+              <input type="text" id="tunnel-<%= d._id %>" name="tunnelId" class="form-input form-input--sm"
+                value="<%= d.tunnelId || '' %>" placeholder="00000000-0000-0000-0000-000000000000"
+                pattern="[0-9a-fA-F-]{36}" required>
+              <button type="submit" class="button button--secondary button--sm"
+                data-pending-label="Saving...">Save</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</div>

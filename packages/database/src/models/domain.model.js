@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { DomainStatus, DomainType } from '@hellodeploy/contracts';
+import { DomainRoutingState, DomainStatus, DomainType } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -32,6 +32,19 @@ const domainSchema = new Schema(
     operationCompletedAt: { type: Date, default: null },
     verifiedAt: { type: Date, default: null },
     activatedAt: { type: Date, default: null },
+    // Cloudflare tunnel carrying this hostname. Recorded by an administrator
+    // after `cloudflared tunnel create`; the owner points a CNAME at
+    // <tunnelId>.cfargotunnel.com.
+    tunnelId: { type: String, default: null, maxlength: 100 },
+    // Result of the last end-to-end reachability probe. Nginx routing being
+    // ACTIVE says nothing about whether public DNS reaches this platform.
+    routingState: {
+      type: String,
+      enum: Object.values(DomainRoutingState),
+      default: DomainRoutingState.UNKNOWN,
+    },
+    routingCheckedAt: { type: Date, default: null },
+    routingDetail: { type: String, default: null, maxlength: 200 },
     // Admin who approved the domain
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { generateServerBlock, generateMaintenanceBlock } =
+const { generateServerBlock, generateCustomDomainServerBlock, generateMaintenanceBlock } =
   await import('../../apps/worker/src/nginx/template.js');
 
 const FIXED_DATE = new Date('2024-01-15T12:00:00.000Z');
@@ -137,5 +137,40 @@ describe('generateMaintenanceBlock', () => {
   it('includes Retry-After header', () => {
     const config = generateMaintenanceBlock({ subdomain: 'my-app', domain: 'hellodeploy.online' });
     assert.ok(config.includes('Retry-After'));
+  });
+});
+
+describe('X-HelloDeploy-Route header', () => {
+  it('advertises the platform hostname it serves', () => {
+    const config = generateServerBlock({
+      subdomain: 'my-app',
+      domain: 'hellodeploy.online',
+      port: 10001,
+      deploymentId: 'abc123',
+      generatedAt: FIXED_DATE,
+    });
+    assert.ok(
+      config.includes('add_header X-HelloDeploy-Route "my-app.hellodeploy.online" always;'),
+    );
+  });
+
+  it('advertises the custom hostname it serves', () => {
+    const config = generateCustomDomainServerBlock({
+      hostname: 'hellopera.online',
+      port: 10002,
+      deploymentId: 'abc123',
+      generatedAt: FIXED_DATE,
+    });
+    assert.ok(config.includes('add_header X-HelloDeploy-Route "hellopera.online" always;'));
+  });
+
+  it('never advertises the empty-domain artefact for a custom hostname', () => {
+    const config = generateCustomDomainServerBlock({
+      hostname: 'hellopera.online',
+      port: 10002,
+      deploymentId: 'abc123',
+      generatedAt: FIXED_DATE,
+    });
+    assert.ok(!config.includes('hellopera.online."'));
   });
 });

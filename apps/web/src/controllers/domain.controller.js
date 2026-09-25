@@ -11,9 +11,12 @@ import {
   getProjectDomains,
   getProjectDomainStatuses,
   getPendingApprovalDomains,
+  getRoutableDomains,
   approveDomain,
   rejectDomain,
   getLiveVerificationTxtRecords,
+  setDomainTunnel,
+  checkDomainRouting,
 } from '../services/domain.service.js';
 
 // ─── Project-scoped domain management ─────────────────────────────────────────
@@ -144,6 +147,7 @@ export const postRemoveDomain = asyncHandler(async (req, res) => {
 
 export const getAdminDomains = asyncHandler(async (req, res) => {
   const domains = await getPendingApprovalDomains();
+  const routableDomains = await getRoutableDomains();
 
   // Live re-check, shown alongside the original verification timestamp so
   // an admin can independently confirm the record is still published before
@@ -158,10 +162,45 @@ export const getAdminDomains = asyncHandler(async (req, res) => {
   );
 
   res.render('pages/admin/domains', {
+    routableDomains,
     title: 'Domain Approval Queue',
     domains,
     liveTxtRecordsById,
   });
+});
+
+export const postCheckDomainRouting = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+  const project = req.project;
+
+  const result = await checkDomainRouting(domainId, project._id);
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else if (result.state === 'LIVE') {
+    req.flash('success', 'This domain is live — public traffic reaches your app.');
+  } else {
+    req.flash('error', result.detail);
+  }
+
+  res.redirect(`/projects/${project.slug}/domains`);
+});
+
+export const postSetDomainTunnel = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+
+  const result = await setDomainTunnel(domainId, req.body.tunnelId, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Tunnel recorded. The domain owner can now publish the CNAME.');
+  }
+
+  res.redirect('/admin/domains');
 });
 
 export const postApproveDomain = asyncHandler(async (req, res) => {

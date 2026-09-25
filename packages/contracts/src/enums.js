@@ -96,6 +96,19 @@ export const DomainStatus = Object.freeze({
   REMOVED: 'REMOVED',
 });
 
+/**
+ * Whether public traffic for a custom domain actually reaches this platform.
+ * Independent of DomainStatus: a domain can be ACTIVE — routed inside nginx —
+ * while its DNS still points somewhere else entirely.
+ */
+export const DomainRoutingState = Object.freeze({
+  UNKNOWN: 'UNKNOWN',
+  LIVE: 'LIVE',
+  FOREIGN: 'FOREIGN',
+  TUNNEL_DOWN: 'TUNNEL_DOWN',
+  NOT_POINTED: 'NOT_POINTED',
+});
+
 /** Domain type */
 export const DomainType = Object.freeze({
   PLATFORM_SUBDOMAIN: 'PLATFORM_SUBDOMAIN',
