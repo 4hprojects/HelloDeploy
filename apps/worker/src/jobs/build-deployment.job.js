@@ -1,6 +1,11 @@
 import { join } from 'node:path';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
-import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
+import {
+  DeploymentStage,
+  DeploymentStatus,
+  JobType,
+  RepositorySourceType,
+} from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
@@ -14,6 +19,7 @@ import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
 import {
   logEvent,
+  recordStage,
   updateStatus,
   DEFAULT_MEMORY_MB,
   DEFAULT_CPU_CORES,
@@ -130,6 +136,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   // ── VALIDATE stage ──────────────────────────────────────────────────────────
   await updateStatus(deploymentId, DeploymentStatus.VALIDATING);
+  await recordStage(deploymentId, DeploymentStage.PREPARING);
   await logEvent(deploymentId, 'VALIDATE', 'INFO', 'Deployment validation started.', correlationId);
 
   const project = await Project.findById(projectId);
@@ -315,6 +322,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   // ── BUILD stage ─────────────────────────────────────────────────────────────
   await updateStatus(deploymentId, DeploymentStatus.BUILDING);
+  await recordStage(deploymentId, DeploymentStage.BUILDING);
   await logEvent(
     deploymentId,
     'BUILD',

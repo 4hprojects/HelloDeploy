@@ -181,3 +181,27 @@ export const UiMode = Object.freeze({
   SIMPLE: 'SIMPLE',
   ADVANCED: 'ADVANCED',
 });
+
+/**
+ * Coarse, user-facing deployment stage.
+ *
+ * Each value corresponds to a real boundary in the worker, so a recorded stage
+ * always reflects work that actually started. Install and build are not split:
+ * both run inside a single `docker build`, and separating them would mean
+ * parsing Docker's step output.
+ */
+export const DeploymentStage = Object.freeze({
+  PREPARING: 'PREPARING',
+  BUILDING: 'BUILDING',
+  CONFIGURING: 'CONFIGURING',
+  STARTING: 'STARTING',
+  CHECKING: 'CHECKING',
+  PUBLISHING: 'PUBLISHING',
+});
+
+/** Outcome of a single deployment stage */
+export const DeploymentStageStatus = Object.freeze({
+  ACTIVE: 'ACTIVE',
+  COMPLETE: 'COMPLETE',
+  FAILED: 'FAILED',
+});

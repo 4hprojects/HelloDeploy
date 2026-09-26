@@ -10,6 +10,10 @@ import {
   validateJobPayload,
   JobPayloadValidationError,
   getFailureCopy,
+  DeploymentStage,
+  DEPLOYMENT_STAGE_ORDER,
+  DEPLOYMENT_STAGE_COPY,
+  getStageCopy,
   DEPLOYMENT_FAILURE_COPY,
 } from '@hellodeploy/contracts';
 
@@ -205,5 +209,36 @@ describe('contracts — getFailureCopy', () => {
   it('falls back to a generic message when no code is given', () => {
     const copy = getFailureCopy(undefined);
     assert.equal(copy.message, 'Something went wrong during deployment.');
+  });
+});
+
+describe('deployment stage copy', () => {
+  it('orders every stage in the enum exactly once', () => {
+    assert.deepEqual([...DEPLOYMENT_STAGE_ORDER].sort(), Object.values(DeploymentStage).sort());
+  });
+
+  it('gives every ordered stage plain-language copy', () => {
+    const missing = DEPLOYMENT_STAGE_ORDER.filter((stage) => !DEPLOYMENT_STAGE_COPY[stage]);
+    assert.deepEqual(missing, []);
+  });
+
+  it('describes what each stage is doing', () => {
+    const undescribed = DEPLOYMENT_STAGE_ORDER.filter(
+      (stage) => !DEPLOYMENT_STAGE_COPY[stage].description,
+    );
+    assert.deepEqual(undescribed, []);
+  });
+
+  it('avoids infrastructure vocabulary in stage labels', () => {
+    const leaked = DEPLOYMENT_STAGE_ORDER.filter((stage) =>
+      /nginx|docker|container|port|proxy|pm2/i.test(
+        `${DEPLOYMENT_STAGE_COPY[stage].label} ${DEPLOYMENT_STAGE_COPY[stage].description}`,
+      ),
+    );
+    assert.deepEqual(leaked, []);
+  });
+
+  it('falls back to generic copy for an unrecognized stage', () => {
+    assert.equal(getStageCopy('SOME_FUTURE_STAGE').label, 'Working');
   });
 });

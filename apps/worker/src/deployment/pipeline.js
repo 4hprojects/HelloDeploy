@@ -1,5 +1,12 @@
 import { Project, Deployment, DeploymentEvent, Domain } from '@hellodeploy/database';
-import { DeploymentStatus, RuntimeType, AuditOutcome, DomainStatus } from '@hellodeploy/contracts';
+import {
+  DeploymentStage,
+  DeploymentStageStatus,
+  DeploymentStatus,
+  RuntimeType,
+  AuditOutcome,
+  DomainStatus,
+} from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
@@ -71,16 +78,85 @@ export async function logEvent(deploymentId, stage, level, message, correlationI
 }
 
 /**
+ * Mark a coarse, user-facing stage as started, and close the stage before it.
+ *
+ * Called at real boundaries only, so a recorded stage always means the work
+ * began. Failures are closed by `failCurrentStage` rather than here, which
+ * keeps the progress list honest when a release stops partway.
+ */
+export async function recordStage(deploymentId, stage) {
+  const now = new Date();
+
+  await Deployment.updateOne(
+    { _id: deploymentId, 'stages.status': DeploymentStageStatus.ACTIVE },
+    {
+      $set: {
+        'stages.$[active].status': DeploymentStageStatus.COMPLETE,
+        'stages.$[active].completedAt': now,
+      },
+    },
+    { arrayFilters: [{ 'active.status': DeploymentStageStatus.ACTIVE }] },
+  );
+
+  // Retrying a release re-enters stages it already recorded; keep one row per
+  // stage so the progress list does not grow on every attempt.
+  await Deployment.updateOne({ _id: deploymentId }, { $pull: { stages: { stage } } });
+  await Deployment.updateOne(
+    { _id: deploymentId },
+    {
+      $push: {
+        stages: { stage, status: DeploymentStageStatus.ACTIVE, startedAt: now, completedAt: null },
+      },
+    },
+  );
+
+  publishDeployEvent(deploymentId, { type: 'stage', stage, status: DeploymentStageStatus.ACTIVE });
+}
+
+async function closeCurrentStage(deploymentId, status) {
+  await Deployment.updateOne(
+    { _id: deploymentId, 'stages.status': DeploymentStageStatus.ACTIVE },
+    {
+      $set: {
+        'stages.$[active].status': status,
+        'stages.$[active].completedAt': new Date(),
+      },
+    },
+    { arrayFilters: [{ 'active.status': DeploymentStageStatus.ACTIVE }] },
+  );
+
+  publishDeployEvent(deploymentId, { type: 'stage', status });
+}
+
+/**
+ * Close whichever stage was in progress as FAILED. Leaves later stages absent
+ * rather than marking them skipped — nothing was attempted, so nothing is shown.
+ */
+export async function failCurrentStage(deploymentId) {
+  await closeCurrentStage(deploymentId, DeploymentStageStatus.FAILED);
+}
+
+/** Close the final stage once the release is healthy. */
+export async function completeCurrentStage(deploymentId) {
+  await closeCurrentStage(deploymentId, DeploymentStageStatus.COMPLETE);
+}
+
+/**
  * Transition a deployment and run the terminal-status side effects:
  * image removal on FAILED (when `removeImageOnFailure`) and owner notification.
  */
 export async function updateStatus(deploymentId, toStatus, extra = {}, options = {}) {
   const { project = null, deps = null, removeImageOnFailure = false } = options;
 
-  await Deployment.updateOne(
-    { _id: deploymentId },
-    { $set: { status: toStatus, currentStage: toStatus, ...extra } },
-  );
+  await Deployment.updateOne({ _id: deploymentId }, { $set: { status: toStatus, ...extra } });
+
+  // Close the open stage on both terminal outcomes so the progress list never
+  // leaves a stage stuck mid-flight.
+  if (toStatus === DeploymentStatus.FAILED) {
+    await failCurrentStage(deploymentId);
+  } else if (toStatus === DeploymentStatus.HEALTHY) {
+    await completeCurrentStage(deploymentId);
+  }
 
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
     return;
@@ -186,6 +262,8 @@ export async function runReleasePipeline({
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
+  await recordStage(deploymentId, DeploymentStage.CONFIGURING);
+
   // ── Allocate port ───────────────────────────────────────────────────────────
   let hostPort;
   try {
@@ -235,6 +313,8 @@ export async function runReleasePipeline({
     );
     return fail('SECRET_DECRYPTION_FAILED', 'Could not decrypt environment secrets.');
   }
+
+  await recordStage(deploymentId, DeploymentStage.STARTING);
 
   // ── Start container ─────────────────────────────────────────────────────────
   // A retried job can leave a container from its previous attempt under the
@@ -321,6 +401,8 @@ export async function runReleasePipeline({
     );
   }
 
+  await recordStage(deploymentId, DeploymentStage.CHECKING);
+
   // ── HTTP health check ───────────────────────────────────────────────────────
   const rawHealthCheckPath = project.buildConfiguration?.healthCheckPath || '/';
   const healthCheckPath = rawHealthCheckPath.startsWith('/')
@@ -359,6 +441,8 @@ export async function runReleasePipeline({
     `Health check passed (HTTP ${health.finalStatus}).`,
     correlationId,
   );
+
+  await recordStage(deploymentId, DeploymentStage.PUBLISHING);
 
   // ── Nginx route activation ──────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {
