@@ -2811,3 +2811,76 @@ a.source-choice__card:hover {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+/* ── Guided setup: readiness ──────────────────────────────────────────── */
+.readiness-summary {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  margin: 0;
+}
+
+.readiness-summary__item dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.readiness-summary__item dd {
+  margin: var(--space-1) 0 0;
+  font-weight: var(--font-medium);
+  overflow-wrap: anywhere;
+}
+
+.readiness-checks {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+}
+
+.readiness-check {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  list-style: none;
+}
+
+.readiness-check__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.readiness-check--blocking .readiness-check__marker,
+.readiness-check--warning .readiness-check__marker {
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+}
+
+.readiness-check__body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.readiness-check__label {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+}
+
+.readiness-check__message {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}

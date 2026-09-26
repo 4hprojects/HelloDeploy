@@ -1,0 +1,92 @@
+<%- include('../../../partials/wizard-progress') %>
+
+<div class="page-header">
+  <h1 class="page-header__title">
+    <%= readiness.isReady ? 'Ready to publish' : 'Almost ready' %>
+  </h1>
+  <p class="page-header__subtitle">
+    <% if (readiness.isReady && readiness.summary.needsReview) { %>
+      Everything checks out. Your website needs a quick review before it can go live for the
+      first time.
+    <% } else if (readiness.isReady) { %>
+      Everything checks out. Publishing takes a couple of minutes.
+    <% } else { %>
+      A few things still need your attention.
+    <% } %>
+  </p>
+</div>
+
+<% if (locals.formError) { %>
+<div class="alert alert--error" role="alert"><p><%= formError %></p></div>
+<% } %>
+
+<div class="card">
+  <div class="card__body">
+    <dl class="readiness-summary">
+      <div class="readiness-summary__item">
+        <dt>Website</dt>
+        <dd><%= readiness.summary.name %></dd>
+      </div>
+      <div class="readiness-summary__item">
+        <dt>Address</dt>
+        <dd><%= readiness.summary.address %>.<%= deploymentDomain %></dd>
+      </div>
+      <% if (readiness.summary.source) { %>
+      <div class="readiness-summary__item">
+        <dt>Code</dt>
+        <dd><%= readiness.summary.source %></dd>
+      </div>
+      <% } %>
+      <% if (readiness.summary.branch) { %>
+      <div class="readiness-summary__item">
+        <dt>Branch</dt>
+        <dd><%= readiness.summary.branch %></dd>
+      </div>
+      <% } %>
+    </dl>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__body">
+    <ul class="readiness-checks" role="list">
+      <% readiness.checks.forEach((check) => { %>
+      <li class="readiness-check readiness-check--<%= check.status.toLowerCase() %>">
+        <span class="readiness-check__marker" aria-hidden="true">
+          <% if (check.status === 'PASS') { %>&check;<% } else if (check.status === 'WARNING') { %>!<% } else { %>&times;<% } %>
+        </span>
+        <span class="readiness-check__body">
+          <span class="readiness-check__label">
+            <span class="sr-only">
+              <% if (check.status === 'PASS') { %>Ready:<% } else if (check.status === 'WARNING') { %>Worth knowing:<% } else { %>Needs attention:<% } %>
+            </span>
+            <%= check.label %>
+          </span>
+          <span class="readiness-check__message"><%= check.message %></span>
+        </span>
+        <% if (check.action) { %>
+        <a href="<%= check.action.href %>" class="button button--secondary button--sm">
+          <%= check.action.label %>
+        </a>
+        <% } %>
+      </li>
+      <% }) %>
+    </ul>
+  </div>
+
+  <div class="card__footer">
+    <% if (readiness.isReady) { %>
+    <form method="POST" action="/projects/<%= project.slug %>/setup/publish">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--primary" data-pending-label="Starting...">
+        <%= readiness.summary.needsReview ? 'Send for review' : 'Publish website' %>
+      </button>
+    </form>
+    <% } else { %>
+    <p class="text-sm text-muted">
+      Fix the items above, then come back to this page to publish.
+    </p>
+    <% } %>
+    <a href="/projects/<%= project.slug %>/setup/environment" class="button button--secondary">Back</a>
+  </div>
+</div>

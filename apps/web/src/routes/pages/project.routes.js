@@ -47,6 +47,7 @@ import {
   postSetupIdentity,
   postSetupEnvironment,
   postSetupEnvironmentConfirm,
+  postSetupPublish,
 } from '../../controllers/deploy-wizard.controller.js';
 import {
   getDeployHookSettings,
@@ -262,6 +263,14 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postSetupEnvironmentConfirm,
+);
+router.post(
+  '/:slug/setup/publish',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  deployActionLimiter,
+  postSetupPublish,
 );
 
 // Detection

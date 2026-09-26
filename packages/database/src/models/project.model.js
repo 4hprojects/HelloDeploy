@@ -97,6 +97,13 @@ const setupSchema = new Schema(
   {
     confirmedSteps: { type: [String], default: [] },
     completedAt: { type: Date, default: null },
+    // Last readiness assessment, kept for diagnosing why a website could not
+    // be published rather than for driving the UI, which always recomputes.
+    lastReadiness: {
+      checkedAt: { type: Date, default: null },
+      isReady: { type: Boolean, default: false },
+      blocking: { type: [String], default: [] },
+    },
   },
   { _id: false },
 );

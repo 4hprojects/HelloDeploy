@@ -12,8 +12,10 @@ import { Project, Repository, User } from '@hellodeploy/database';
 import {
   DetectionConfidence,
   DetectionStatus,
+  DeploymentTrigger,
   EnvVarCategory,
   PackageManager,
+  ProjectStatus,
   RuntimeType,
   UiMode,
 } from '@hellodeploy/contracts';
@@ -29,6 +31,8 @@ import { runProjectDetection } from '../services/detection.service.js';
 import { checkAddressAvailability } from '../services/website-address.service.js';
 import { listSecretNames, setSecret } from '../services/env-secret.service.js';
 import { classifyEnvironment, validateEnvValue } from '../services/env-classification.service.js';
+import { assessDeploymentReadiness } from '../services/deployment-readiness.service.js';
+import { createDeployment } from '../services/deployment.service.js';
 import {
   resolveWizardState,
   canEnterStep,
@@ -211,6 +215,10 @@ export const getSetupStep = asyncHandler(async (req, res) => {
 
   if (step === 'environment') {
     return renderEnvironmentStep(req, res, { project, state });
+  }
+
+  if (step === 'readiness') {
+    return renderReadinessStep(req, res, { project, repository, state });
   }
 
   // Remaining steps arrive in later work; until then send the owner onward
@@ -494,4 +502,93 @@ export const postSetupEnvironmentConfirm = asyncHandler(async (req, res) => {
   const fresh = await Project.findById(project._id).lean();
   const next = await loadWizardContext(fresh);
   res.redirect(next.state.nextHref);
+});
+
+// ─── Step 6: ready to publish ─────────────────────────────────────────────────
+
+async function renderReadinessStep(req, res, { project, repository, state, extras = {} }) {
+  const { missingRequired } = await loadEnvironment(project);
+  const readiness = await assessDeploymentReadiness({
+    project,
+    repository,
+    missingEnvKeys: missingRequired,
+  });
+
+  // Kept for diagnosing a failed publish later; the view always recomputes.
+  await Project.updateOne(
+    { _id: project._id },
+    {
+      $set: {
+        'setup.lastReadiness': {
+          checkedAt: new Date(),
+          isReady: readiness.isReady,
+          blocking: readiness.blocking,
+        },
+      },
+    },
+  );
+
+  res.render('pages/projects/wizard/readiness', {
+    title: 'Ready to publish',
+    project,
+    membership: req.membership,
+    repository,
+    wizardSteps: state.steps,
+    readiness,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    ...extras,
+  });
+}
+
+/**
+ * Publish, or ask for review first.
+ *
+ * A project that has never been approved cannot deploy — validateProjectDeployment-
+ * Eligibility refuses anything that is not ACTIVE — so the gate is surfaced here
+ * as part of the funnel instead of as a separate page the owner has to find.
+ */
+export const postSetupPublish = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { repository, state } = await loadWizardContext(project);
+  const { missingRequired } = await loadEnvironment(project);
+
+  const readiness = await assessDeploymentReadiness({
+    project,
+    repository,
+    missingEnvKeys: missingRequired,
+  });
+
+  if (!readiness.isReady) {
+    return renderReadinessStep(req, res, {
+      project,
+      repository,
+      state,
+      extras: {
+        formError: 'Some things still need your attention before this website can be published.',
+      },
+    });
+  }
+
+  if (project.status !== ProjectStatus.ACTIVE) {
+    return res.redirect(`/projects/${project.slug}?review=requested`);
+  }
+
+  const created = await createDeployment({
+    projectId: project._id,
+    requestedBy: req.session.user.id,
+    triggerType: DeploymentTrigger.MANUAL,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!created.success) {
+    return renderReadinessStep(req, res, {
+      project,
+      repository,
+      state,
+      extras: { formError: created.error },
+    });
+  }
+
+  res.redirect(`/projects/${project.slug}/deployments/${created.deployment._id}`);
 });
