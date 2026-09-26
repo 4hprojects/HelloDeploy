@@ -1,9 +1,19 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentTrigger, getFailureCopy } from '@hellodeploy/contracts';
+import {
+  DeploymentStatus,
+  DeploymentTrigger,
+  ProjectRole,
+  getFailureCopy,
+} from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { DeploymentEvent } from '@hellodeploy/database';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
 import { subscribeDeployLogs } from '../services/deploy-log-stream.js';
+import {
+  buildDeploymentProgress,
+  buildRecoveryActions,
+  failedStageLabel,
+} from '../services/deployment-progress.service.js';
 import {
   createDeployment,
   parseNoCacheFlag,
@@ -56,6 +66,8 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
 
   const events = await getDeploymentEvents(deploymentId);
   const failureCopy = deployment.failureCode ? getFailureCopy(deployment.failureCode) : null;
+  const progress = buildDeploymentProgress(deployment);
+  const canAct = [ProjectRole.OWNER, ProjectRole.MAINTAINER].includes(req.membership.role);
 
   res.render('pages/projects/deployment-detail', {
     title: `Deployment #${deployment.sequenceNumber} – ${project.name}`,
@@ -64,6 +76,16 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     deployment,
     events,
     failureCopy,
+    progress,
+    failedStage: failedStageLabel(progress),
+    recoveryActions:
+      deployment.failureCode && canAct
+        ? buildRecoveryActions(project, deployment, {
+            canRetry: [DeploymentStatus.FAILED, DeploymentStatus.CANCELLED].includes(
+              deployment.status,
+            ),
+          })
+        : [],
   });
 });
 
@@ -268,6 +290,12 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       sendEvent('status', { status: payload.status });
       closeStream();
       res.end();
+      return;
+    }
+    if (payload.type === 'stage') {
+      // The worker records a stage at each real boundary; forwarding it lets the
+      // progress list advance without waiting for the page to reload.
+      sendEvent('stage', { stage: payload.stage, status: payload.status });
       return;
     }
     if (payload.type === 'log') {

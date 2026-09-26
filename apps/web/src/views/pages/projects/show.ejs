@@ -18,16 +18,6 @@
     FAILURE_ONLY: 'Failures only',
     NONE: 'None',
   };
-  const deploymentStatusCopy = {
-    QUEUED: 'Waiting to start',
-    VALIDATING: 'Checking setup',
-    BUILDING: 'Building app',
-    DEPLOYING: 'Publishing',
-    HEALTHY: 'Live',
-    FAILED: 'Failed',
-    CANCELLED: 'Cancelled',
-    ROLLED_BACK: 'Replaced',
-  };
 %>
 
 <div class="page-header page-header--actions">
@@ -191,7 +181,7 @@
     <li class="project-activity">
       <div class="project-activity__main">
         <span class="project-activity__title">Deployment #<%= deployment.sequenceNumber %></span>
-        <span class="project-activity__status"><%= deploymentStatusCopy[deployment.status] || deployment.status %></span>
+        <span class="project-activity__status"><%- include('../../partials/status-badge', { status: deployment.status }) %></span>
         <% if (deployment.failureCopy) { %>
         <p class="project-activity__message"><%= deployment.failureCopy.message %></p>
         <% } else if (deployment.commitMessage) { %>

@@ -786,39 +786,53 @@
 
     const indicator = document.getElementById('live-indicator');
     const reconnectButton = document.getElementById('log-reconnect-button');
-    const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
 
-    function updateTimeline(ev) {
-      const statusKey = eventStageToStatus[ev.stage];
-      if (!statusKey) {
+    // Words as well as glyphs, matching what the server rendered, so a stage
+    // advancing live stays readable to a screen reader.
+    const STAGE_STATUS_WORD = {
+      COMPLETE: 'Done',
+      ACTIVE: 'Working on it',
+      FAILED: 'Stopped here',
+    };
+    const STAGE_GLYPH = { COMPLETE: '\u2713', ACTIVE: '\u2022', FAILED: '\u00d7' };
+
+    function applyStage(stage, status) {
+      const row = document.querySelector('[data-progress-stage="' + stage + '"]');
+      if (!row) {
         return;
       }
 
-      const stage = document.querySelector('[data-stage-key="' + statusKey + '"]');
-      if (!stage) {
+      row.className =
+        'deploy-progress__step deploy-progress__step--' + String(status).toLowerCase();
+
+      const marker = row.querySelector('.deploy-progress__marker');
+      if (marker && STAGE_GLYPH[status]) {
+        marker.textContent = STAGE_GLYPH[status];
+      }
+
+      const hidden = row.querySelector('.deploy-progress__label .sr-only');
+      if (hidden && STAGE_STATUS_WORD[status]) {
+        hidden.textContent = ' \u2014 ' + STAGE_STATUS_WORD[status];
+      }
+    }
+
+    /**
+     * A new stage starting means the one before it finished. The server already
+     * closed it in the database; this keeps the page in step without a reload.
+     */
+    function advanceTo(stage) {
+      const rows = Array.prototype.slice.call(document.querySelectorAll('[data-progress-stage]'));
+      const index = rows.findIndex((row) => row.dataset.progressStage === stage);
+      if (index === -1) {
         return;
       }
 
-      stage.classList.remove('deployment-stage--pending', 'deployment-stage--complete');
-      stage.classList.add('deployment-stage--active');
-
-      const status = stage.querySelector('[data-stage-status]');
-      const message = stage.querySelector('[data-stage-message]');
-      const time = stage.querySelector('[data-stage-time]');
-      if (status) {
-        status.textContent = 'In progress';
-      }
-      if (message) {
-        message.textContent = ev.message || '';
-      }
-      if (time && ev.timestamp) {
-        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      }
+      rows.slice(0, index).forEach((row) => {
+        if (row.classList.contains('deploy-progress__step--active')) {
+          applyStage(row.dataset.progressStage, 'COMPLETE');
+        }
+      });
+      applyStage(stage, 'ACTIVE');
     }
 
     function appendLog(ev) {
@@ -833,7 +847,6 @@
       line.append(stage, message);
       output.appendChild(line);
       output.scrollTop = output.scrollHeight;
-      updateTimeline(ev);
     }
 
     let source = null;
@@ -861,6 +874,19 @@
           appendLog(JSON.parse(e.data));
         } catch {
           // Ignore malformed SSE payloads and wait for the next event.
+        }
+      });
+
+      source.addEventListener('stage', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.status === 'ACTIVE' && data.stage) {
+            advanceTo(data.stage);
+          } else if (data.stage) {
+            applyStage(data.stage, data.status);
+          }
+        } catch {
+          // Ignore malformed stage payloads; the page still reloads when done.
         }
       });
 

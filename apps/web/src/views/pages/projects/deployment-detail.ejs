@@ -68,87 +68,83 @@
   </div>
 </div>
 
-<!-- Stage timeline -->
+<!-- Progress -->
 <div class="card mb-6">
   <div class="card__header">
-    <h2 class="card__title text-sm">Deployment Timeline</h2>
+    <h2 class="card__title text-sm">
+      <% if (progress.isFinished) { %>Your website is published<% } else if (progress.failedStage) { %>Publishing stopped<% } else { %>Publishing your website<% } %>
+    </h2>
   </div>
   <div class="card__body">
-    <%
-      const terminalStatuses = ['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'];
-      const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
-      const statusOrder = { QUEUED: 0, VALIDATING: 1, BUILDING: 2, DEPLOYING: 3, HEALTHY: 4, FAILED: 4, CANCELLED: 4, ROLLED_BACK: 4 };
-      const timelineStages = [
-        { key: 'QUEUED', label: 'Queued', detail: 'Waiting for a deployment worker.', eventStages: [] },
-        { key: 'VALIDATING', label: 'Validate', detail: 'Repository, build context, and Dockerfile checks.', eventStages: ['VALIDATE'] },
-        { key: 'BUILDING', label: 'Build', detail: 'Container image build and artifact preparation.', eventStages: ['BUILD'] },
-        { key: 'DEPLOYING', label: 'Deploy', detail: 'Container startup, health checks, and routing.', eventStages: ['DEPLOY'] },
-        { key: 'HEALTHY', label: 'Healthy', detail: 'Release is live and serving traffic.', eventStages: ['DEPLOY'] },
-      ];
-      const eventsForStage = (stage) => events.filter((ev) => stage.eventStages.includes(ev.stage));
-      const firstEventForStage = (stage) => eventsForStage(stage)[0] ?? null;
-      const latestEventForStage = (stage) => eventsForStage(stage).slice(-1)[0] ?? null;
-      const latestErrorEvent = events.filter((ev) => ev.level === 'ERROR').slice(-1)[0] ?? null;
-      const failedStageKey = latestErrorEvent ? eventStageToStatus[latestErrorEvent.stage] : deployment.status;
-      const currentOrder = statusOrder[deployment.status] ?? 0;
-      const isTerminalStatus = terminalStatuses.includes(deployment.status);
-      const failedStageOrder = statusOrder[failedStageKey] ?? currentOrder;
-      const stageTime = (stage, firstEvent) => {
-        if (stage.key === 'QUEUED') return deployment.startedAt;
-        if (stage.key === 'HEALTHY' && deployment.completedAt && deployment.status === 'HEALTHY') return deployment.completedAt;
-        return firstEvent?.createdAt ?? null;
-      };
-      const stageState = (stage) => {
-        const order = statusOrder[stage.key] ?? 0;
-        if (['FAILED','CANCELLED','ROLLED_BACK'].includes(deployment.status)) {
-          if (stage.key === failedStageKey) return 'failed';
-          return order < failedStageOrder ? 'complete' : 'pending';
-        }
-        if (deployment.status === 'HEALTHY' && stage.key === 'HEALTHY') return 'complete';
-        if (!isTerminalStatus && stage.key === deployment.status) return 'active';
-        if (order < currentOrder) return 'complete';
-        return 'pending';
-      };
-    %>
-    <div class="deployment-timeline">
-      <% timelineStages.forEach((stage, i) => { %>
-        <%
-          const state = stageState(stage);
-          const firstEvent = firstEventForStage(stage);
-          const latestEvent = latestEventForStage(stage);
-          const startedAt = stageTime(stage, firstEvent);
-          const statusText = state === 'active' ? 'In progress' : state === 'complete' ? 'Complete' : state === 'failed' ? deployment.status.replace('_', ' ') : 'Pending';
-          const message = state === 'failed' && failureCopy ? failureCopy.message : latestEvent?.messageRedacted ?? stage.detail;
-        %>
-        <div class="deployment-stage deployment-stage--<%= state %>" data-stage-key="<%= stage.key %>">
-          <div class="deployment-stage__marker" aria-hidden="true">
-            <span class="deployment-stage__dot"></span>
-          </div>
-          <div class="deployment-stage__content">
-            <div class="deployment-stage__heading">
-              <span class="deployment-stage__label"><%= stage.label %></span>
-              <span class="deployment-stage__status" data-stage-status><%= statusText %></span>
-            </div>
-            <p class="deployment-stage__message" data-stage-message><%= message %></p>
-            <p class="deployment-stage__time text-muted" data-stage-time>
-              <% if (startedAt) { %>
-                <%= new Date(startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
-              <% } else { %>
-                —
-              <% } %>
-            </p>
-          </div>
-        </div>
-        <% if (i < timelineStages.length - 1) { %>
-          <div class="deployment-stage__connector <%= stageState(timelineStages[i + 1]) !== 'pending' ? 'connector--complete' : '' %>"></div>
-        <% } %>
+    <ol class="deploy-progress" role="list" aria-live="polite" data-deploy-progress>
+      <% progress.steps.forEach((step) => { %>
+      <li
+        class="deploy-progress__step deploy-progress__step--<%= step.status.toLowerCase() %>"
+        data-progress-stage="<%= step.stage %>"
+      >
+        <span class="deploy-progress__marker" aria-hidden="true">
+          <% if (step.status === 'COMPLETE') { %>&check;<% } else if (step.status === 'ACTIVE') { %>&bull;<% } else if (step.status === 'FAILED') { %>&times;<% } else if (step.status === 'STOPPED') { %>&ndash;<% } else { %>&#9675;<% } %>
+        </span>
+        <span class="deploy-progress__body">
+          <span class="deploy-progress__label">
+            <%= step.label %>
+            <span class="sr-only"> — <%= step.statusWord %></span>
+          </span>
+          <span class="deploy-progress__description"><%= step.description %></span>
+        </span>
+        <span class="deploy-progress__time text-muted">
+          <% if (step.completedAt) { %>
+            <%= new Date(step.completedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) %>
+          <% } else if (step.startedAt) { %>
+            <%= new Date(step.startedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) %>
+          <% } %>
+        </span>
+      </li>
       <% }) %>
+    </ol>
+
+    <% if (progress.isFinished) { %>
+    <div class="button-group mt-6">
+      <a href="/projects/<%= project.slug %>/setup/published" class="button button--primary button--sm">
+        See your live website
+      </a>
     </div>
+    <% } %>
+
     <% if (deployment.failureCode && failureCopy) { %>
-    <div class="alert alert--error mt-4">
+    <div class="alert alert--error mt-6" role="alert">
       <strong><%= failureCopy.message %></strong>
       <p class="text-sm mt-1"><%= failureCopy.action %></p>
     </div>
+
+    <div class="button-group mt-4">
+      <%# Gated here as well as in the controller: a viewer must never be shown
+          an action they cannot perform, whatever the caller passes in. %>
+      <% if (canAct) { %>
+        <% recoveryActions.forEach((action) => { %>
+          <% if (action.method === 'POST') { %>
+          <form method="POST" action="<%= action.href %>">
+            <%- include('../../partials/csrf-field') %>
+            <button type="submit" class="button button--primary button--sm" data-pending-label="Starting...">
+              <%= action.label %>
+            </button>
+          </form>
+          <% } else { %>
+          <a href="<%= action.href %>" class="button button--secondary button--sm"><%= action.label %></a>
+          <% } %>
+        <% }) %>
+      <% } %>
+      <a href="#log-card" class="button button--ghost button--sm">View technical logs</a>
+    </div>
+
+    <% if (uiMode === 'ADVANCED') { %>
+    <div class="deploy-technical mt-4">
+      <p class="text-sm"><strong><%= deployment.failureCode %></strong></p>
+      <% if (deployment.failureSummary) { %>
+      <p class="text-sm mt-1"><%= deployment.failureSummary %></p>
+      <% } %>
+    </div>
+    <% } else { %>
     <details class="guided-disclosure mt-4">
       <summary class="guided-disclosure__summary">
         <span>
@@ -167,30 +163,31 @@
       </div>
     </details>
     <% } %>
+    <% } %>
   </div>
 </div>
 
-<!-- Log viewer -->
-<div class="card" id="log-card">
-  <div class="card__header">
-    <h2 class="card__title text-sm">Deployment Logs</h2>
-    <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
-    <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
+<!-- Technical logs: available, but not the default reading -->
+<% const isStreaming = !['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status); %>
+<details class="card log-disclosure" id="log-card" <%= isStreaming ? 'open' : '' %>>
+  <summary class="card__header log-disclosure__summary">
+    <h2 class="card__title text-sm">View technical logs</h2>
+    <% if (isStreaming) { %>
+    <span class="badge badge--building text-xs" id="live-indicator">&bull; Live</span>
     <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>
     <% } %>
-  </div>
+  </summary>
   <div class="card__body p-0">
     <div
       class="log-viewer"
       id="log-output"
-      aria-live="polite"
       aria-label="Deployment logs"
-      <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
+      <% if (isStreaming) { %>
       data-stream-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs"
       <% } %>
     >
       <% if (events.length === 0 && ['QUEUED','VALIDATING'].includes(deployment.status)) { %>
-      <div class="log-line log-line--info">Waiting for worker to pick up job…</div>
+      <div class="log-line log-line--info">Waiting for a worker to pick this up…</div>
       <% } %>
       <% events.forEach(ev => { %>
       <div class="log-line log-line--<%= ev.level.toLowerCase() %>">
@@ -200,4 +197,4 @@
       <% }) %>
     </div>
   </div>
-</div>
+</details>

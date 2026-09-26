@@ -8,10 +8,12 @@
  * from persisted state.
  */
 
-import { Project, Repository, User } from '@hellodeploy/database';
+import { Deployment, Project, Repository, User } from '@hellodeploy/database';
 import {
   DetectionConfidence,
   DetectionStatus,
+  DeploymentMode,
+  DeploymentStatus,
   DeploymentTrigger,
   EnvVarCategory,
   PackageManager,
@@ -33,6 +35,7 @@ import { listSecretNames, setSecret } from '../services/env-secret.service.js';
 import { classifyEnvironment, validateEnvValue } from '../services/env-classification.service.js';
 import { assessDeploymentReadiness } from '../services/deployment-readiness.service.js';
 import { createDeployment } from '../services/deployment.service.js';
+import { buildApplicationUrl } from '../services/project-overview.service.js';
 import {
   resolveWizardState,
   canEnterStep,
@@ -591,4 +594,46 @@ export const postSetupPublish = asyncHandler(async (req, res) => {
   }
 
   res.redirect(`/projects/${project.slug}/deployments/${created.deployment._id}`);
+});
+
+// ─── After publishing: your website is live ───────────────────────────────────
+
+/**
+ * The success screen.
+ *
+ * Only shown once the project actually has a healthy release — otherwise the
+ * owner is sent to the deployment they are waiting on, so the page can never
+ * claim a website is live when it is not.
+ */
+export const getPublished = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const active = project.activeDeploymentId
+    ? await Deployment.findById(project.activeDeploymentId).lean()
+    : null;
+
+  if (!active || active.status !== DeploymentStatus.HEALTHY) {
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  // Guided setup is over once a website is live; stop resuming into it.
+  if (!project.setup?.completedAt) {
+    await Project.updateOne({ _id: project._id }, { $set: { 'setup.completedAt': new Date() } });
+  }
+
+  const repository = project.repositoryId
+    ? await Repository.findById(project.repositoryId).lean()
+    : null;
+
+  res.render('pages/projects/wizard/published', {
+    title: `${project.name} is live`,
+    project,
+    membership: req.membership,
+    appUrl: buildApplicationUrl({
+      subdomain: project.platformSubdomain ?? project.slug,
+      deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    }),
+    autoPublishEnabled: project.deploymentMode === DeploymentMode.AUTOMATIC,
+    branch: project.productionBranch ?? repository?.defaultBranch ?? 'your branch',
+  });
 });
