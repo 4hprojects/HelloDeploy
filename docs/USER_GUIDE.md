@@ -256,6 +256,25 @@ Each project can request one custom domain by default.
 8. Add the **CNAME record** shown under "Send your visitors to HelloDeploy". The TXT record only proves that the address is yours; this second record is what actually sends visitors to your app. It appears once an administrator has prepared the connection for your address.
 9. Select **Check routing**. The page confirms the domain is live, or explains what is still wrong — DNS not pointing here yet, a disconnected connector, or another server answering for the address.
 
+### Root and www addresses
+
+Each domain you add covers exactly the address you typed and nothing else. `example.com` and
+`www.example.com` are two separate addresses: adding one does not serve the other, and HelloDeploy
+does not redirect between them.
+
+To serve both, add each as its own domain and create the CNAME record for each. Visitors who type
+the form you did not add will not reach your website.
+
+### Where the record goes
+
+The Domains page detects which service manages your DNS and names it, so you do not have to work
+out whether to edit records at your registrar or elsewhere. Detection reads your domain's
+authoritative nameservers; it never changes anything on your behalf. If the provider is not
+recognised, the page falls back to generic guidance and the records shown are still correct.
+
+In Advanced mode the page also shows the zone that answered, its nameservers, the last routing
+check and the raw probe result.
+
 A domain can show as connected inside HelloDeploy while the address still does not open for visitors. That means routing exists here but the CNAME record is missing or points elsewhere; **Check routing** distinguishes the two.
 
 The TXT verification value is shown only once and is stored only as a hash afterward. If it is lost, first try **Check DNS record** if the value was already added. Otherwise, use **Remove and restart**, add the domain again, and copy the newly generated value.

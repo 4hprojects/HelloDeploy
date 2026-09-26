@@ -71,6 +71,7 @@ import {
   postActivateDomain,
   postRemoveDomain,
   getDomainStatuses,
+  getDomainProvider,
   postCheckDomainRouting,
 } from '../../controllers/domain.controller.js';
 import {
@@ -357,6 +358,7 @@ router.post(
 // Custom domains
 router.get('/:slug/domains', requireAuth, anyRole, getDomains);
 router.get('/:slug/domains/status', requireAuth, anyRole, getDomainStatuses);
+router.get('/:slug/domains/:domainId/provider', requireAuth, anyRole, getDomainProvider);
 router.post('/:slug/domains', requireAuth, ownerOnly, requireEditableProject, postAddDomain);
 router.post(
   '/:slug/domains/:domainId/verify',

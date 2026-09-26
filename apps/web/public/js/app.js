@@ -1339,6 +1339,59 @@
       timer = window.setTimeout(check, 350);
     });
   }
+
+  /**
+   * Ask who manages this domain's DNS, and say so.
+   *
+   * Runs after the page has rendered because a nameserver lookup can take
+   * seconds. The panel already contains usable generic wording, so a failed or
+   * slow lookup simply leaves that in place.
+   */
+  function initDomainProviderHint() {
+    const panel = document.querySelector('[data-domain-provider]');
+    const url = panel && panel.getAttribute('data-domain-provider-url');
+    if (!panel || !url) {
+      return;
+    }
+
+    const headline = panel.querySelector('[data-domain-provider-headline]');
+    const detail = panel.querySelector('[data-domain-provider-detail]');
+
+    const showDiagnostics = (result) => {
+      const diagnostics = panel.querySelector('[data-domain-diagnostics]');
+      if (!diagnostics) {
+        return;
+      }
+      const zone = panel.querySelector('[data-domain-diagnostics-zone]');
+      const nameservers = panel.querySelector('[data-domain-diagnostics-nameservers]');
+      if (zone) {
+        zone.textContent = result.zone || 'None found';
+      }
+      if (nameservers) {
+        nameservers.textContent = (result.nameservers || []).join(', ') || 'None found';
+      }
+      diagnostics.hidden = false;
+    };
+
+    (async () => {
+      try {
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+          return;
+        }
+        const result = await response.json();
+        if (headline && result.headline) {
+          headline.textContent = result.headline;
+        }
+        if (detail && result.detail) {
+          detail.textContent = result.detail;
+        }
+        showDiagnostics(result);
+      } catch {
+        // Leave the generic guidance in place.
+      }
+    })();
+  }
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1358,6 +1411,7 @@
     initSettingsEditGroups();
     initDnsCopyButtons();
     initDomainStatusPolling();
+    initDomainProviderHint();
   }
 
   if (document.readyState === 'loading') {
