@@ -2875,3 +2875,230 @@ a.source-choice__card:hover {
   padding: 0;
   list-style: none;
 }
+
+/* ── Website-first overview header ────────────────────────────────────── */
+.website-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--space-6);
+}
+
+.website-header__name {
+  margin: 0;
+  font-size: var(--text-2xl, 1.5rem);
+}
+
+.website-header__state {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-sm);
+}
+
+.website-header__dot--online {
+  color: var(--color-status-healthy);
+}
+
+.website-header__dot--offline {
+  color: var(--color-text-subtle);
+}
+
+.website-header__addresses {
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.website-header__addresses li {
+  overflow-wrap: anywhere;
+}
+
+.website-header__addresses-secondary {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+}
+
+.website-header__published {
+  margin: var(--space-2) 0 0;
+}
+
+.website-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* ── Overview cards ──────────────────────────────────────────────────── */
+.overview-cards {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin: 0 0 var(--space-6);
+  padding: 0;
+  list-style: none;
+}
+
+.overview-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+
+.overview-card__label {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.overview-card__value {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  font-weight: var(--font-medium);
+  overflow-wrap: anywhere;
+}
+
+/* Each card names its condition for screen readers, so the glyph and its colour
+   are never the only signal. */
+.overview-card__marker {
+  flex-shrink: 0;
+  font-weight: var(--font-semibold);
+}
+
+.overview-card--good .overview-card__marker {
+  color: var(--color-status-healthy);
+}
+
+.overview-card--working .overview-card__marker,
+.overview-card--attention .overview-card__marker {
+  color: var(--color-orange);
+}
+
+.overview-card--neutral .overview-card__marker {
+  color: var(--color-text-subtle);
+}
+
+.overview-card__detail {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+/* ── Deployment history ───────────────────────────────────────────────── */
+.deployment-row--live {
+  background: var(--color-bg-subtle);
+}
+
+/* The live release is named in text, not marked by shading alone. */
+.deployment-row__live-tag {
+  display: inline-block;
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+/* ── Usage ────────────────────────────────────────────────────────────── */
+.usage-rows {
+  display: grid;
+  gap: var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.usage-row__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.usage-row__label {
+  font-weight: var(--font-medium);
+}
+
+.usage-row__summary {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Reaching a limit is stated in words as well as shown on the meter. */
+.usage-row__flag {
+  margin-left: var(--space-2);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+/* A <progress> needs its default appearance removed, then the track and the
+   value styled separately per engine. */
+.usage-row__meter {
+  display: block;
+  width: 100%;
+  height: 0.5rem;
+  margin-top: var(--space-2);
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-orange);
+  overflow: hidden;
+}
+
+.usage-row__meter::-webkit-progress-bar {
+  background: var(--color-bg-muted);
+  border-radius: var(--radius-full);
+}
+
+.usage-row__meter::-webkit-progress-value {
+  background: var(--color-orange);
+  border-radius: var(--radius-full);
+}
+
+.usage-row__meter::-moz-progress-bar {
+  background: var(--color-orange);
+  border-radius: var(--radius-full);
+}
+
+.usage-row__explain {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.usage-allocation {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  margin: var(--space-4) 0 0;
+}
+
+.usage-allocation dt {
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.usage-allocation dd {
+  margin: var(--space-1) 0 0;
+  font-weight: var(--font-medium);
+}

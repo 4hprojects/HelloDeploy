@@ -6,22 +6,27 @@
     </p>
   </div>
   <% const canDeploy = membership.role === 'OWNER' || membership.role === 'MAINTAINER'; %>
+  <% const isAdvanced = (locals.uiMode || 'SIMPLE') === 'ADVANCED'; %>
+  <% const liveDeploymentId = project.activeDeploymentId ? String(project.activeDeploymentId) : null; %>
+  <% const restorableIds = new Set((locals.rollbackTargets || []).map((target) => String(target._id))); %>
   <% if (canDeploy) { %>
   <div class="button-group">
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--primary" data-pending-label="Deploying..." data-tooltip="Deploy the latest commit from the production branch.">Deploy Latest</button>
+      <button type="submit" class="button button--primary" data-pending-label="Publishing..." data-tooltip="Publish the latest changes from your branch.">Publish again</button>
     </form>
+    <% if (isAdvanced) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments">
       <%- include('../../partials/csrf-field') %>
       <input type="hidden" name="noCache" value="true">
       <button type="submit" class="button button--secondary button--sm" data-pending-label="Deploying..." data-tooltip="Rebuild without using cached build layers.">Deploy (no cache)</button>
     </form>
+    <% } %>
   </div>
   <% } %>
 </div>
 
-<% if (canDeploy) { %>
+<% if (canDeploy && isAdvanced) { %>
 <div class="card mb-4">
   <div class="card__header">
     <h2 class="card__title text-sm">Deploy a Specific Commit</h2>
@@ -58,34 +63,14 @@
 </div>
 <% } %>
 
-<% if (rollbackTargets && rollbackTargets.length > 0 && canDeploy) { %>
+<% if (restorableIds.size > 0 && canDeploy) { %>
 <div class="card mb-4">
-  <div class="card__header">
-    <h2 class="card__title text-sm">Rollback</h2>
-  </div>
   <div class="card__body">
-    <p class="text-sm text-muted mb-3">
-      Switch live traffic back to a previous working version. Only the most recent
-      healthy releases stay available here — older ones are cleaned up automatically.
+    <p class="text-sm text-muted">
+      Published a version that did not work? Restore any earlier one from the list below —
+      your visitors move back to it without waiting for a rebuild. Only the most recent
+      working versions stay available.
     </p>
-    <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
-          data-confirm="Switch live traffic to the selected previous version?"
-          data-confirm-title="Roll back deployment"
-          data-confirm-accept-label="Roll Back"
-          data-confirm-pending-label="Rolling back..."
-          data-confirm-variant="warning">
-      <%- include('../../partials/csrf-field') %>
-      <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
-      <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
-        <% rollbackTargets.forEach(d => { %>
-        <option value="<%= d._id %>">
-          #<%= d.sequenceNumber %> — <%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %>
-          <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
-        </option>
-        <% }) %>
-      </select>
-      <button type="submit" class="button button--warning button--sm" data-tooltip="Switch live traffic to this previous version.">Roll Back</button>
-    </form>
   </div>
 </div>
 <% } %>
@@ -134,11 +119,15 @@
       </thead>
       <tbody>
         <% deployments.forEach(d => { %>
-        <tr>
+        <% const isLive = liveDeploymentId === String(d._id); %>
+        <tr<%= isLive ? ' class="deployment-row--live"' : '' %>>
           <td class="text-muted text-sm" data-label="#">
             <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="table-link">
               #<%= d.sequenceNumber %>
             </a>
+            <% if (isLive) { %>
+            <span class="deployment-row__live-tag">Live now</span>
+            <% } %>
           </td>
           <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
           <td data-label="Commit">
@@ -163,7 +152,7 @@
           </td>
           <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">
-              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="Open build and runtime logs for this deployment.">Logs</a>
+              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="See what happened when this version was published.">Details</a>
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
@@ -179,7 +168,21 @@
               <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
               <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying..." data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
+                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying..." data-tooltip="Try publishing this version again.">Try again</button>
+              </form>
+              <% } %>
+              <%# Restoring is offered per version rather than through a dropdown, so
+                  the owner acts on the row they are already reading. %>
+              <% if (!isLive && restorableIds.has(String(d._id)) && canDeploy) { %>
+              <form method="POST" action="/projects/<%= project.slug %>/rollback"
+                    data-confirm="Send your visitors back to version #<%= d.sequenceNumber %>?"
+                    data-confirm-title="Restore this version"
+                    data-confirm-accept-label="Restore Version"
+                    data-confirm-pending-label="Restoring..."
+                    data-confirm-variant="warning">
+                <%- include('../../partials/csrf-field') %>
+                <input type="hidden" name="targetDeploymentId" value="<%= d._id %>">
+                <button type="submit" class="button button--secondary button--sm" data-tooltip="Send visitors back to this version.">Restore this version</button>
               </form>
               <% } %>
             </div>

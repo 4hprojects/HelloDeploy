@@ -36,6 +36,7 @@ import {
   postUpdateBuildConfiguration,
   postUpdateBuildFilters,
 } from '../../controllers/detection.controller.js';
+import { getUsage } from '../../controllers/usage.controller.js';
 import {
   getDeploySource,
   getDeployRepository,
@@ -274,6 +275,9 @@ router.post(
   deployActionLimiter,
   postSetupPublish,
 );
+
+// Usage
+router.get('/:slug/usage', requireAuth, anyRole, getUsage);
 
 // Detection
 router.get('/:slug/detection', requireAuth, anyRole, getDetection);

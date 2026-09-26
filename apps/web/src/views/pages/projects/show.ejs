@@ -20,15 +20,85 @@
   };
 %>
 
-<div class="page-header page-header--actions">
-  <div>
-    <h1 class="page-header__title"><%= project.name %></h1>
-    <p class="page-header__subtitle text-muted text-sm"><%= project.slug %></p>
+<%
+  const _customDomain = (locals.domains || []).find((domain) => domain.status === 'ACTIVE');
+  const _isOnline = locals.activeDeployment?.status === 'HEALTHY';
+  const _canDeploy = ['OWNER', 'MAINTAINER'].includes(membership.role);
+%>
+
+<div class="website-header">
+  <div class="website-header__identity">
+    <h1 class="website-header__name"><%= project.name %></h1>
+    <p class="website-header__state">
+      <span class="website-header__dot website-header__dot--<%= _isOnline ? 'online' : 'offline' %>" aria-hidden="true">&bull;</span>
+      <%= _isOnline ? 'Live' : 'Not published yet' %>
+    </p>
+
+    <ul class="website-header__addresses" role="list">
+      <% if (_customDomain) { %>
+      <li>
+        <a href="https://<%= _customDomain.hostnameNormalized %>" target="_blank" rel="noopener noreferrer">
+          <%= _customDomain.hostnameNormalized %>
+        </a>
+      </li>
+      <% } %>
+      <% if (overviewState.appUrl) { %>
+      <li class="website-header__addresses-secondary">
+        <a href="<%= overviewState.appUrl %>" target="_blank" rel="noopener noreferrer">
+          <%= overviewState.appUrl.replace(/^https:\/\//, '') %>
+        </a>
+      </li>
+      <% } %>
+    </ul>
+
+    <% if (locals.lastPublishedRelative) { %>
+    <p class="website-header__published text-sm text-muted">
+      Last published <%= lastPublishedRelative %><% if (project.productionBranch) { %> from <%= project.productionBranch %><% } %>
+    </p>
+    <% } %>
   </div>
-  <% if (membership.role === 'OWNER') { %>
-  <a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a>
-  <% } %>
+
+  <div class="website-header__actions">
+    <% if (_isOnline && overviewState.appUrl) { %>
+    <a href="<%= overviewState.appUrl %>" class="button button--primary" target="_blank" rel="noopener noreferrer">
+      Open website
+    </a>
+    <% } %>
+    <% if (_isOnline && _canDeploy) { %>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--secondary" data-pending-label="Publishing...">
+        Publish again
+      </button>
+    </form>
+    <% } %>
+    <% if (membership.role === 'OWNER') { %>
+    <a href="/projects/<%= project.slug %>/settings" class="button button--ghost">Settings</a>
+    <% } %>
+  </div>
 </div>
+
+<% if ((locals.overviewCards || []).length > 0 && _isOnline) { %>
+<ul class="overview-cards" role="list">
+  <% overviewCards.forEach((item) => { %>
+  <li class="overview-card overview-card--<%= item.state.toLowerCase() %>">
+    <span class="overview-card__label"><%= item.label %></span>
+    <span class="overview-card__value">
+      <span class="overview-card__marker" aria-hidden="true">
+        <% if (item.state === 'GOOD') { %>&check;<% } else if (item.state === 'WORKING') { %>&bull;<% } else if (item.state === 'ATTENTION') { %>!<% } else { %>&#9675;<% } %>
+      </span>
+      <span class="sr-only">
+        <% if (item.state === 'GOOD') { %>Good:<% } else if (item.state === 'WORKING') { %>In progress:<% } else if (item.state === 'ATTENTION') { %>Needs attention:<% } else { %>Not set up:<% } %>
+      </span>
+      <%= item.value %>
+    </span>
+    <% if (item.detail) { %>
+    <span class="overview-card__detail"><%= item.detail %></span>
+    <% } %>
+  </li>
+  <% }) %>
+</ul>
+<% } %>
 
 <section class="project-home-summary project-home-summary--<%= overviewState.tone %><%= overviewState.appLive ? ' project-home-summary--single' : '' %>"
   aria-labelledby="project-home-title" data-overview-phase="<%= overviewState.phase %>">
@@ -202,6 +272,9 @@
 </section>
 <% } %>
 
+<%# The cards above answer these questions in plain language. The raw values
+    stay available in Advanced mode rather than being removed. %>
+<% if ((locals.uiMode || 'SIMPLE') === 'ADVANCED' || !_isOnline) { %>
 <details class="project-details-disclosure">
   <summary>
     <span>
@@ -224,12 +297,13 @@
     <div class="project-details-actions">
       <a href="/projects/<%= project.slug %>/detection" class="button button--secondary button--sm">App setup</a>
       <% if (membership.role === 'OWNER') { %>
-      <a href="/projects/<%= project.slug %>/environment" class="button button--secondary button--sm">Environment variables</a>
+      <a href="/projects/<%= project.slug %>/environment" class="button button--secondary button--sm">Environment settings</a>
       <a href="/projects/<%= project.slug %>/settings" class="button button--secondary button--sm">Project settings</a>
       <% } %>
     </div>
   </div>
 </details>
+<% } %>
 
 <% if (membership.role === 'OWNER' && project.status !== 'ARCHIVED') { %>
 <details class="project-details-disclosure mt-6" id="maintenance-mode">

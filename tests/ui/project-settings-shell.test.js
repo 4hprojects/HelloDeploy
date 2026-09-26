@@ -62,6 +62,7 @@ describe('project settings shell', () => {
         'deploy-hook',
         'environment',
         'members',
+        'usage',
         'settings',
       ],
     );
@@ -88,7 +89,7 @@ describe('project settings shell', () => {
 
     assert.deepEqual(
       viewerNavigation.map((item) => item.key),
-      ['overview', 'deployments', 'detection', 'domains'],
+      ['overview', 'deployments', 'detection', 'domains', 'usage'],
     );
   });
 

@@ -47,6 +47,7 @@ const PROJECT_NAVIGATION = Object.freeze([
     roles: [ProjectRole.OWNER],
     modes: ADVANCED_ONLY,
   },
+  { key: 'usage', label: 'Usage', path: '/usage', icon: 'activity' },
   {
     key: 'settings',
     label: 'Settings',

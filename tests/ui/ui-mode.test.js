@@ -31,6 +31,7 @@ describe('interface mode navigation', () => {
       'deployments',
       'domains',
       'environment',
+      'usage',
       'settings',
     ]);
   });
@@ -45,6 +46,7 @@ describe('interface mode navigation', () => {
       'deploy-hook',
       'environment',
       'members',
+      'usage',
       'settings',
     ]);
   });

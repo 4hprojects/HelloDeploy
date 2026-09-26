@@ -81,7 +81,7 @@ describe('destructive and risky action UX', () => {
   });
 
   it('standardizes project destructive actions through the shared confirmation contract', () => {
-    assert.match(files.deployments, /data-confirm-title="Roll back deployment"/);
+    assert.match(files.deployments, /data-confirm-title="Restore this version"/);
     assert.match(files.deployments, /data-confirm-title="Cancel deployment"/);
     assert.match(files.deploymentDetail, /data-confirm-title="Cancel deployment"/);
     assert.match(files.repository, /data-confirm-title="Disconnect repository"/);

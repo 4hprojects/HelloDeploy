@@ -32,7 +32,6 @@ import {
   validateInviteMember,
 } from '../validators/project.validator.js';
 import { buildSettingsSections } from '../config/project-navigation.js';
-import { getProjectDomains } from '../services/domain.service.js';
 import { resolveProjectQuota } from '../services/quota.service.js';
 import { projectReturnTarget } from '../utils/project-return-target.js';
 import { assessInitialApprovalReadiness } from '../services/approval-readiness.service.js';
@@ -41,6 +40,8 @@ import {
   buildProjectOverviewState,
 } from '../services/project-overview.service.js';
 import { buildProjectSettingsView } from '../services/project-settings-view.service.js';
+import { buildOverviewCards, relativeTime } from '../services/project-overview-cards.service.js';
+import { getProjectDomains } from '../services/domain.service.js';
 import { env } from '../config/env.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
@@ -98,11 +99,12 @@ export const postNewProject = asyncHandler(async (req, res) => {
 async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
 
-  const [repository, deployments, latestApproval, activeDeployment] = await Promise.all([
+  const [repository, deployments, latestApproval, activeDeployment, domains] = await Promise.all([
     project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
     getDeployments(project._id, 5),
     getLatestApprovalRequest(project._id),
     project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
+    getProjectDomains(project._id),
   ]);
 
   // Attach translated failure copy so the overview never shows a raw
@@ -111,6 +113,14 @@ async function renderProjectOverview(req, res, extras = {}) {
     ...deployment,
     failureCopy: deployment.failureCode ? getFailureCopy(deployment.failureCode) : null,
   }));
+
+  const overviewCards = buildOverviewCards({
+    project,
+    repository,
+    activeDeployment,
+    latestDeployment: deployments[0] ?? null,
+    domains,
+  });
 
   const approvalReadiness = assessInitialApprovalReadiness({ project, repository });
   const appUrl = buildApplicationUrl({
@@ -135,6 +145,10 @@ async function renderProjectOverview(req, res, extras = {}) {
     repository,
     deployments: deploymentsForView,
     activeDeployment,
+    domains,
+    overviewCards,
+    lastPublishedAt: activeDeployment?.completedAt ?? null,
+    lastPublishedRelative: relativeTime(activeDeployment?.completedAt ?? null),
     latestApproval,
     approvalReadiness,
     overviewState,

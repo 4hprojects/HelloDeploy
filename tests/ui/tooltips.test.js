@@ -72,8 +72,8 @@ describe('accessible tooltip UI', () => {
   it('adds tooltips to high-value admin, deployment, and quota controls', () => {
     assert.match(adminServer, /data-tooltip="Pause user write actions/);
     assert.match(adminServer, /data-tooltip="Stop new deployment jobs/);
-    assert.match(deployments, /data-tooltip="Deploy the latest commit/);
-    assert.match(deployments, /data-tooltip="Switch live traffic to this previous version/);
+    assert.match(deployments, /data-tooltip="Publish the latest changes/);
+    assert.match(deployments, /data-tooltip="Send visitors back to this version/);
     assert.match(quota, /'memoryMb', 'Memory \(MB\)', 'Runtime memory limit in megabytes\.'/);
     assert.match(quota, /data-tooltip="<%= tooltip %>"/);
   });
