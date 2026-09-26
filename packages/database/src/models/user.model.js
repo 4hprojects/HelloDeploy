@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { PlatformRole, UserStatus } from '@hellodeploy/contracts';
+import { PlatformRole, UiMode, UserStatus } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -93,6 +93,14 @@ const userSchema = new Schema(
       default: 1,
     },
 
+    // Interface complexity preference. Drives which navigation items and
+    // controls render; never changes what the account is allowed to do.
+    uiMode: {
+      type: String,
+      enum: Object.values(UiMode),
+      default: UiMode.SIMPLE,
+    },
+
     // GitHub App installation — numeric installation ID, null until user connects GitHub
     githubInstallationId: {
       type: Number,
@@ -122,6 +130,7 @@ userSchema.methods.toSessionUser = function () {
     platformRole: this.platformRole,
     status: this.status,
     configVersion: this.configVersion,
+    uiMode: this.uiMode,
   };
 };
 

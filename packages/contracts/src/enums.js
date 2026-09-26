@@ -170,3 +170,14 @@ export const RuntimeType = Object.freeze({
   NEXTJS: 'NEXTJS',
   UNKNOWN: 'UNKNOWN',
 });
+
+/**
+ * Interface complexity preference.
+ * SIMPLE hides infrastructure controls (ports, runtime config, deploy hooks);
+ * ADVANCED exposes them. Hiding is presentation-only — nothing is removed, and
+ * every SIMPLE-hidden control stays reachable in ADVANCED.
+ */
+export const UiMode = Object.freeze({
+  SIMPLE: 'SIMPLE',
+  ADVANCED: 'ADVANCED',
+});

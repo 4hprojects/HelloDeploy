@@ -12,6 +12,7 @@ import { maintenanceModeMiddleware } from './middleware/maintenance-mode.js';
 import { generalLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/require-auth.js';
 import authRoutes from './routes/pages/auth.routes.js';
+import accountRoutes from './routes/pages/account.routes.js';
 import projectRoutes from './routes/pages/project.routes.js';
 import adminRoutes from './routes/pages/admin.routes.js';
 import githubRoutes from './routes/pages/github.routes.js';
@@ -122,6 +123,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
 
   // ── Routes ─────────────────────────────────────────────────────────────────
   app.use('/auth', authRoutes);
+  app.use('/account', accountRoutes);
   app.use('/projects', projectRoutes);
   app.use('/admin', adminRoutes);
   app.use('/github', githubRoutes);

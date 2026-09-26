@@ -1,5 +1,6 @@
 <% var _path = locals.currentPath || ''; %>
 <% var _user = locals.user || null; %>
+<% var _uiMode = locals.uiMode || 'SIMPLE'; %>
 <nav class="sidebar" id="sidebar" aria-label="Application navigation">
   <ul class="sidebar__nav" role="list">
     <li>
@@ -107,6 +108,43 @@
         </a>
       </li>
     </ul>
+  </div>
+  <% } %>
+
+  <% if (_user) { %>
+  <div class="sidebar__section">
+    <p class="sidebar__section-title" id="ui-mode-label">Interface</p>
+    <form method="POST" action="/account/ui-mode" class="ui-mode-switch">
+      <%- include('csrf-field') %>
+      <input type="hidden" name="returnTo" value="<%= _path %>" />
+      <div class="ui-mode-switch__group" role="group" aria-labelledby="ui-mode-label">
+        <button
+          type="submit"
+          name="uiMode"
+          value="SIMPLE"
+          class="ui-mode-switch__option"
+          aria-pressed="<%= _uiMode === 'SIMPLE' ? 'true' : 'false' %>"
+        >
+          Simple<% if (_uiMode === 'SIMPLE') { %><span class="sr-only"> (current)</span><% } %>
+        </button>
+        <button
+          type="submit"
+          name="uiMode"
+          value="ADVANCED"
+          class="ui-mode-switch__option"
+          aria-pressed="<%= _uiMode === 'ADVANCED' ? 'true' : 'false' %>"
+        >
+          Advanced<% if (_uiMode === 'ADVANCED') { %><span class="sr-only"> (current)</span><% } %>
+        </button>
+      </div>
+      <p class="ui-mode-switch__hint">
+        <% if (_uiMode === 'ADVANCED') { %>
+          Build commands, ports and deploy hooks are visible.
+        <% } else { %>
+          Technical settings are hidden. Nothing is changed or removed.
+        <% } %>
+      </p>
+    </form>
   </div>
   <% } %>
 

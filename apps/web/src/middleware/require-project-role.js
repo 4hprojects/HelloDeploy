@@ -54,6 +54,7 @@ export function requireProjectRole(...allowedRoles) {
       project.slug,
       membership.role,
       req.originalUrl.split('?')[0],
+      res.locals.uiMode,
     );
     next();
   };
