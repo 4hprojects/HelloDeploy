@@ -280,3 +280,46 @@
 - A clean supported Ubuntu machine can install HelloDeploy using documented steps.
 - Installation contains no credentials or identifiers from the original server.
 - Backup and restore succeed on a second test machine.
+
+## Phase 13: Guided Workflow Redesign
+
+Turns the deployment experience from a set of infrastructure-oriented pages into a
+guided path a non-technical website owner can follow. The platform still uses
+containers, nginx, ports and health checks; those move behind the interface rather
+than being removed. Specified in `docs/HELLODEPLOY_WORKFLOW_UI_REDESIGN_SPEC.md`.
+
+The spec proposed a new normalized data model (Website, SourceConnection,
+RuntimeConfiguration). That was **not** adopted: the existing Project, Repository and
+`project.buildConfiguration` already carry those concepts, and renaming them would
+have meant a migration touching every controller, worker job and test for no
+behavioural gain. Only genuinely missing structures were added.
+
+### Tasks
+
+| Status | Task                                                  | Notes                                                                                     |
+| ------ | ----------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Done   | Per-account Simple/Advanced interface mode.           | `User.uiMode`; navigation and controls filter on it. Hiding is presentational only.       |
+| Done   | Record coarse deployment stages.                      | `Deployment.stages`, six real boundaries. Replaced `currentStage`, which was never read.  |
+| Done   | Make failure codes an enum with enforced copy.        | `FailureCode`; contract tests keep the copy table in step.                                |
+| Done   | Record detection confidence per field.                | `DetectionConfidence`; legacy projects are never given a score after the fact.            |
+| Done   | Guided setup step machine.                            | Current step derived from persisted state, so the flow is refresh-safe.                   |
+| Done   | Deploy a Website funnel, six steps.                   | Source, repository, analyse, identity, settings, readiness.                               |
+| Done   | Human-readable deployment progress.                   | Stages are the default content; logs move behind a disclosure.                            |
+| Done   | Per-failure recovery actions.                         | Driven by failure code; no failure is a dead end.                                         |
+| Done   | Website-first dashboard, history and Usage page.      | Usage shows only limits that are actually enforced.                                       |
+| Done   | Domain provider detection and mode-aware diagnostics. | Advisory nameserver lookup; no provider credential is held.                               |
+| Done   | Automatic publishing as a plain choice, with proof.   | A failed automatic publish cannot replace a working release; tested against the pipeline. |
+| Done   | Accessibility and phone layout for the guided flow.   | States named in text, not colour; priority mobile flows covered.                          |
+| Done   | Funnel measurement.                                   | Audit events plus `docs/WORKFLOW_METRICS.md`. No analytics service is used.               |
+| Open   | Record the branch a deployment was built from.        | `Deployment` has no `branch` field, so history cannot label older releases truthfully.    |
+| Open   | Install with the project's own package manager.       | Builds run `npm ci`; pnpm and Yarn projects fail. Detection warns and names the fix.      |
+| Open   | Exercise the guided flow in a browser.                | Everything is verified by asserting rendered output. No page has been opened by a person. |
+
+### Acceptance Criteria
+
+- A supported GitHub project reaches "Ready to publish" without the owner seeing a
+  port, a runtime dropdown or a proxy.
+- A failed publish explains itself in plain language and offers at least one action.
+- A failed publish never replaces the release currently serving visitors.
+- Every control hidden in Simple mode remains reachable in Advanced mode.
+- No claim is made about anything the platform does not measure.

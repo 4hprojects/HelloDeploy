@@ -2169,3 +2169,72 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Production was not changed. Release and live-domain evidence require a reviewed
   immutable commit, existing upgrade controls, resubmission of the current domain,
   HTTPS checks for both hostnames, and one controlled redeployment.
+
+## 2026-09-27 — Guided Workflow Redesign (Phases 1-9)
+
+Implemented `docs/HELLODEPLOY_WORKFLOW_UI_REDESIGN_SPEC.md` across nine phases on
+`feat/ui-mode-foundation`. The deployment experience is now a guided path rather
+than a set of infrastructure-oriented pages, with every technical control retained
+behind a per-account Advanced mode.
+
+### Before starting
+
+The working tree held 36 modified and 8 untracked files that looked like in-flight
+custom-domain work. It was a stale snapshot: 30 files were byte-identical to
+`origin/main` (PRs #50, #52, #53) and 12 were **behind** it, missing PR #54's routing
+guidance. Committing that tree would have silently reverted `DomainRoutingState`,
+`Domain.tunnelId` and the routing probe. Everything was backed up, the tree was reset
+and fast-forwarded to `2aa6791`, and the one piece of genuine local work — 87 lines of
+PRIORITIES.md review notes — was preserved on `docs/priorities-2026-09-25-review`.
+
+### What was rejected from the spec
+
+- **The normalized data model** (Website, SourceConnection, RuntimeConfiguration).
+  Project, Repository and `project.buildConfiguration` already carry those concepts;
+  renaming would mean a migration touching every controller, worker job and test for
+  no behavioural gain.
+- **A separate INSTALLING deployment stage.** Install and build both run inside one
+  `docker build`; reporting them separately would mean parsing build output.
+- **A "server capacity" readiness check.** Nothing measures capacity. A green tick
+  against an unmeasured thing is worse than no line, and a test pins its absence.
+- **Build minute, storage and data-transfer meters on the Usage page.** Those quota
+  fields exist and admins can edit them, but nothing enforces them.
+- **Loading skeletons.** The guided steps render server-side with their data present.
+- **A checkbox for automatic publishing.** An unchecked checkbox submits nothing,
+  which would read silently as "manual"; two radios always submit one value.
+
+### Bugs found and fixed along the way
+
+- The project overview rendered the raw `failureSummary` — a Docker or Node string
+  such as `ECONNREFUSED 127.0.0.1:3000` — as its primary failure message, although
+  the translation layer already existed and the detail page used it.
+- `aria-current` had never worked anywhere. Eleven sites emitted it through `<%= %>`,
+  producing `aria-current=&#34;page&#34;`, so no screen reader had ever announced the
+  current page in the sidebar, project navigation, admin navigation or settings.
+- `runProjectDetection()` bypassed `persistDetectionResult()` through its own inline
+  update, resetting detection confidence to `LEGACY` on every real run.
+- `importEnvFile()` ignored `setSecret()`'s result, so a rejected assignment was
+  dropped silently while the reported count still claimed success.
+- The domain step tracker told every reader to "Use Check routing to confirm",
+  including viewers, who have no such button.
+- Cancelling a deployment never closed its open stage, leaving a finished deployment
+  showing work in progress. Handled at display level rather than importing worker
+  code into web.
+
+### Verified, not assumed
+
+- A failed automatic publish cannot replace a working release. Tested against the
+  real pipeline helpers and database, because the guarantee rests on which write
+  happens when — a mock would assert the mock.
+- A failure is fully reconstructible from the stored record: code, raw summary, finish
+  time, which stage stopped, which completed, and that no later stage is claimed.
+- The overlap guard genuinely refuses a second push. An early version of that test
+  passed twice on the _wrong_ refusal before the fixture was made deploy-ready.
+
+### Still open
+
+- `Deployment` records no branch, so publish history cannot label older releases.
+- Builds install with `npm ci`; pnpm and Yarn projects fail. Detection now warns and
+  names the fix, but teaching the builder is a separate, testable change.
+- **Nothing has been opened in a browser.** Every screen is verified by asserting
+  rendered output, which cannot catch a page that reads badly.

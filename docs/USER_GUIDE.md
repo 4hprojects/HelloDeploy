@@ -34,27 +34,75 @@ If you forget your password, use `/auth/forgot-password`. Password recovery uses
 
 The legal policy bundle is available at `/legal`. It links to the Terms of Service, Privacy Policy, Cookie Policy, Acceptable Use Policy, Service Limits, Data Processing Terms, Copyright Policy, and Security Policy.
 
-## Create a Project
+## Deploy a Website
 
-1. Go to **Projects**.
-2. Select **New Project** or open `/projects/new`.
-3. Enter a project name and slug.
-4. Submit the project draft.
+The guided path is the default way to publish. From **Projects** or your dashboard,
+select **Deploy a Website**.
 
-The slug is used for the platform subdomain. For example, a project with slug `my-app` is expected to use a platform-managed hostname such as `my-app.hellodeploy.online` after approval and routing.
+1. **Where is your website?** Choose GitHub. Uploading a folder and starting from a
+   template are listed but not yet available.
+2. **Choose your website.** Search your GitHub projects and pick one. The branch is
+   taken from the repository's default; changing it is under **Advanced options**.
+   HelloDeploy only lists repositories your GitHub App installation can reach — if
+   one is missing, grant access to it and return to the page.
+3. **Check your project.** HelloDeploy analyses the code as soon as it is connected
+   and reports what it found in plain language. When it is confident, continue.
+   When it had to guess, it asks you to glance at the settings first. When something
+   blocks it, the step says what and offers no way past until it is fixed.
+4. **Name your website.** Both the name and the web address are suggested from the
+   repository and both are editable. Availability is checked as you type. The name
+   can change later; the address is fixed once you publish.
+5. **Add your settings.** HelloDeploy reads your project's `.env.example` to work
+   out which values it needs. Anything required and missing blocks publishing and is
+   named. `PORT`, `NODE_ENV`, `HOST` and `HOSTNAME` are set by HelloDeploy and cannot
+   be entered here — Advanced mode can override that if your app genuinely needs to.
+6. **Publish.** The last step lists what was checked. Every item that is not ready
+   links straight to the field that fixes it. If your website has never been
+   reviewed, this step sends it for review instead of publishing.
 
-New projects start as drafts. A draft must be configured and submitted for review before it can deploy.
+The project is created when you pick a repository, so abandoning the flow part-way
+leaves nothing behind but an unfinished website you can return to. Progress is
+stored against the project, not your browser session: closing the page, refreshing,
+or returning on another device resumes at the same step.
+
+### Setting up a project by hand
+
+`/projects/new/manual` creates an empty website with just a name. Use it when you
+need to connect a public Git URL, which the guided path does not cover. It is
+reachable from **Set it up myself** on the first guided screen.
+
+## Simple and Advanced mode
+
+Every account is in Simple mode by default. The switch is at the bottom of the
+sidebar.
+
+Simple mode shows Overview, Deployments, Domain, Environment, Usage and Settings.
+Advanced mode adds Repository, Detection, Deploy Hook and Members, and reveals the
+build command, start command, internal port, health-check path, deploy hook, raw
+failure codes, DNS diagnostics and resource allocation.
+
+Hiding is presentation only. Nothing is removed, no page stops working, and your
+role still decides what you are allowed to do. A control hidden in Simple mode is
+always reachable in Advanced mode.
 
 ## Use the Project Overview
 
-The project overview presents the most important next step at the top of the page.
+The overview leads with your website: its name, whether it is live, your own domain
+above the HelloDeploy address, when it was last published and from which branch,
+and buttons to open it or publish again.
 
-- During setup, it guides the Owner through connecting the source, checking the app, completing initial approval, and publishing the first deployment.
-- While approval or deployment is in progress, it links to the current review or deployment details.
-- After a healthy deployment, it shows the application address, the live release, recent deployment activity, and whether a newer source commit is available.
-- If setup or a deployment needs attention, it shows the blocking item or recommendation and the relevant action. Successful technical checks stay out of the way.
+Below that, cards answer the questions you are most likely to have — whether the
+website is online, whether the last publish worked, where the code comes from,
+whether automatic publishing is on, whether your domain is connected, and whether
+the connection is secure.
 
-Repository, branch, app type, deployment mode, and notification values are available under **Project details**. Owners make configuration changes from **Project Settings**. Maintainers can deploy and retry releases, while Viewers receive read-only status and deployment links.
+In Advanced mode the overview also keeps the raw **Project details** block:
+repository, branch, app type, deployment mode, notification preference and the
+current source version. Those values stay visible in Simple mode too while a
+website is still being set up, when the cards have little to say.
+
+Owners make configuration changes from **Project Settings**. Maintainers can publish
+and retry releases; Viewers get read-only status and links.
 
 ## Use Project Settings
 
@@ -77,12 +125,20 @@ HelloDeploy stores canonical source metadata. GitHub App sources retain installa
 
 ## Run Detection
 
-After connecting a repository:
+Detection runs by itself the moment a repository is connected through the guided
+path, and its result is what the **Check your project** step shows. You do not have
+to trigger it.
 
-1. Open the project.
-2. Go to **Detection**.
-3. Select **Check my app**.
-4. Review the detected runtime, commands, output directory, port, and warnings.
+To run it again — after changing build settings by hand, for example — open the
+project and go to **Detection** (Advanced mode), then select **Check my app**. The
+guided step also has a **Check again** button.
+
+Each detected setting records how much evidence it rests on. A framework listed as
+a dependency, or a script the project declares, is treated as certain and applied
+without asking. A value filled in from a framework's convention, or a runtime
+inferred only from the presence of a `start` script, is treated as a guess and the
+guided step asks you to confirm it. Projects detected before HelloDeploy tracked
+this are marked `LEGACY` and are never given a score after the fact.
 
 Detection checks whether the project appears deployable. Unsupported runtimes, missing scripts, invalid package metadata, risky files, or unclear configuration can block deployment until corrected.
 
@@ -138,12 +194,21 @@ The first deployment requires administrative review.
 
 An Admin can **Approve** or **Request changes**. Requested changes and the administrator note appear on the project overview. Fix the reported issues, run the app check again, and resubmit. Repository commits or configuration changes after submission require a fresh submission before approval.
 
-## Deployment Modes
+## Automatic publishing
 
-HelloDeploy supports two deployment modes for new selections:
+In Simple mode, **Project Settings** offers a straight choice: publish updates from
+GitHub, or only when you choose. In Advanced mode the same setting appears as
+Manual and Automatic deployment modes.
 
-- **Manual**: Default mode. GitHub pushes do not deploy automatically. An Owner or Maintainer starts deployments manually.
-- **Automatic**: Pushes to the configured production branch can trigger deployment.
+- **Only when I choose** (Manual) is the default. Pushing to GitHub changes nothing
+  until you press **Publish again**.
+- **Publish updates from GitHub** (Automatic) publishes every change you push to
+  your chosen branch.
+
+With automatic publishing on: a repeated delivery of the same push is ignored, each
+publish records the commit and its message so you can tell which change caused what,
+a second push while one is still publishing is refused rather than run alongside it,
+and a change that fails to build never replaces your working website.
 
 Only the project Owner can change deployment mode.
 
@@ -184,28 +249,52 @@ Keep the URL secret: anyone who has it can deploy your project. **Regenerate** r
 
 ## Read Deployment Status
 
-Deployment statuses explain where the release is in the pipeline:
+Opening a deployment shows an ordered list of what is happening, not a wall of logs:
 
-- **Queued**: Waiting for the worker.
-- **Validating**: Checking repository and project configuration.
-- **Building**: Creating the application image.
-- **Deploying**: Starting and checking the candidate release.
-- **Healthy**: Running successfully.
-- **Failed**: Deployment failed and the previous release was preserved.
-- **Cancelled**: Deployment was cancelled.
-- **Rolled Back**: A rollback deployment restored a retained release.
+1. **Prepare your files** — downloading your code and checking it is safe to build.
+2. **Install and build** — fetching the packages your website needs, then building it.
+3. **Set up your website** — reserving a slot and loading your settings.
+4. **Start your website** — launching it for the first time.
+5. **Check it responds** — confirming it answers before visitors are sent to it.
+6. **Publish** — pointing your web address at the new version.
 
-Open an individual deployment to view timeline events and logs.
+Install and build are one step because both happen inside a single build, and
+separating them would mean guessing from build output.
+
+Each step shows its state in words as well as a symbol, so nothing depends on
+colour. A step that was never reached shows as not started rather than skipped,
+because nothing was attempted. Technical logs are available under **View technical
+logs** — open while a publish is running, collapsed once it has finished.
+
+Status names differ by mode. Simple mode says Waiting to start, Checking setup,
+Building, Publishing, Live, Did not publish, Cancelled and Replaced. Advanced mode
+uses the platform's own terms: Queued, Validating, Building, Deploying, Healthy,
+Failed, Cancelled and Rolled Back.
+
+When a publish fails, the page leads with a plain-language explanation and offers
+the steps that fit that particular failure — a lost GitHub connection sends you to
+the repository, a missing value to your settings, a build error to the logs. No
+failure is left without something to do. The failure code and the raw error stay
+available: behind **Technical details** in Simple mode, shown directly in Advanced.
 
 ## Cancel, Retry, and Roll Back
 
 Owners and Maintainers can:
 
-- Cancel queued or active deployments when cancellation is available.
-- Retry failed or cancelled deployments.
-- Roll back to a retained healthy release.
+- Cancel a publish that is still running.
+- Try a failed or cancelled publish again.
+- Restore an earlier working version.
 
-HelloDeploy retains three healthy rollback releases by default. Rollback still runs health checks before replacing the active route.
+Restoring is offered on each row of the publish history, next to the version you are
+reading about, and the version currently serving visitors is marked **Live now**.
+
+HelloDeploy keeps three working versions by default. Restoring one still runs the
+health check before visitors are moved across, and the version being replaced stays
+in the history.
+
+A failed publish never replaces a working website. The live version only changes
+after the new one has started and answered, so a broken change leaves your visitors
+where they were.
 
 ## Deployment Notifications
 
@@ -282,6 +371,14 @@ The TXT verification value is shown only once and is stored only as a hash after
 If the project does not yet have a healthy deployment, the domain remains verified and is activated by the next successful deployment. The page refreshes while verification, activation, or removal is running and shows a retryable error when an operation cannot complete. Unverified domains do not receive active routing.
 
 ## Default Free Limits
+
+The **Usage** page shows what you are using against your allowance, and warns you
+before you reach a limit.
+
+It deliberately shows only the limits HelloDeploy enforces today: websites, custom
+domains and people per website. The other values below are configurable by an
+administrator but are not currently checked, so the Usage page does not show a meter
+for them — a meter would imply something happens when you reach the limit.
 
 Default limits may be adjusted by an Admin or Super Admin.
 
