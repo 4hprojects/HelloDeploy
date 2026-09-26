@@ -1,0 +1,54 @@
+<div class="page-header">
+  <h1 class="page-header__title">Where is your website?</h1>
+  <p class="page-header__subtitle">
+    Pick where your website lives. HelloDeploy works out how to build it from there.
+  </p>
+</div>
+
+<ul class="source-choice" role="list">
+  <% sources.forEach((source) => { %>
+  <li class="source-choice__item">
+    <% if (source.available) { %>
+    <a href="<%= source.href %>" class="source-choice__card">
+      <span class="source-choice__icon" aria-hidden="true">
+        <%- include('../../../partials/icon', { name: source.icon, className: 'source-choice__glyph' }) %>
+      </span>
+      <span class="source-choice__body">
+        <span class="source-choice__label"><%= source.label %></span>
+        <span class="source-choice__description"><%= source.description %></span>
+      </span>
+    </a>
+    <% } else { %>
+    <div class="source-choice__card source-choice__card--unavailable" aria-disabled="true">
+      <span class="source-choice__icon" aria-hidden="true">
+        <%- include('../../../partials/icon', { name: source.icon, className: 'source-choice__glyph' }) %>
+      </span>
+      <span class="source-choice__body">
+        <span class="source-choice__label">
+          <%= source.label %>
+          <span class="source-choice__badge">Not yet available</span>
+        </span>
+        <span class="source-choice__description"><%= source.description %></span>
+      </span>
+    </div>
+    <% } %>
+  </li>
+  <% }) %>
+</ul>
+
+<details class="guided-disclosure mt-6">
+  <summary class="guided-disclosure__toggle">Set it up myself</summary>
+  <p class="text-sm text-muted mt-4">
+    Create an empty website and connect a Git address by hand. Use this for a repository
+    HelloDeploy cannot reach through GitHub.
+  </p>
+  <p class="mt-2">
+    <a href="/projects/new/manual" class="button button--secondary button--sm">
+      Create an empty website
+    </a>
+  </p>
+</details>
+
+<p class="text-sm text-muted mt-6">
+  <a href="/projects">Back to your websites</a>
+</p>

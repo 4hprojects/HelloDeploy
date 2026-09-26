@@ -1178,6 +1178,73 @@
     window.setTimeout(poll, 2000);
   }
 
+  /**
+   * Filter the guided-setup repository list as the owner types, and keep the
+   * branch field showing the selected project's default branch.
+   *
+   * Filtering is client-side because the whole list is already on the page —
+   * there is nothing to fetch, and it keeps working if scripting is slow.
+   */
+  function initRepositoryPicker() {
+    const picker = document.querySelector('[data-repo-picker]');
+    if (!picker) {
+      return;
+    }
+
+    const search = picker.querySelector('[data-repo-search]');
+    const items = Array.prototype.slice.call(picker.querySelectorAll('[data-repo-item]'));
+    const empty = picker.querySelector('[data-repo-empty]');
+    const branch = picker.querySelector('[data-repo-branch]');
+
+    function syncBranchPlaceholder() {
+      if (!branch) {
+        return;
+      }
+      const selected = picker.querySelector('[data-repo-radio]:checked');
+      branch.placeholder = selected ? selected.getAttribute('data-default-branch') || '' : '';
+    }
+
+    if (search) {
+      search.addEventListener('input', () => {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+
+        items.forEach((item) => {
+          const match = !term || (item.getAttribute('data-repo-name') || '').indexOf(term) !== -1;
+          item.hidden = !match;
+          if (match) {
+            visible += 1;
+          }
+        });
+
+        if (empty) {
+          empty.hidden = visible !== 0;
+        }
+
+        // Keep a hidden row from staying selected, which would submit a project
+        // the owner can no longer see.
+        const selected = picker.querySelector('[data-repo-radio]:checked');
+        if (selected && selected.closest('[data-repo-item]').hidden) {
+          selected.checked = false;
+          const firstVisible = items.filter((item) => {
+            return !item.hidden;
+          })[0];
+          if (firstVisible) {
+            firstVisible.querySelector('[data-repo-radio]').checked = true;
+          }
+          syncBranchPlaceholder();
+        }
+      });
+    }
+
+    picker.addEventListener('change', (event) => {
+      if (event.target.matches('[data-repo-radio]')) {
+        syncBranchPlaceholder();
+      }
+    });
+
+    syncBranchPlaceholder();
+  }
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1189,6 +1256,7 @@
     initPasswordToggles();
     initPasswordRequirements();
     initRepositoryBranchLoader();
+    initRepositoryPicker();
     initDeploymentLiveLogs();
     initEnvFileImport();
     initSettingsSectionNavigation();

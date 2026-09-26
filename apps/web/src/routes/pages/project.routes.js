@@ -37,6 +37,11 @@ import {
   postUpdateBuildFilters,
 } from '../../controllers/detection.controller.js';
 import {
+  getDeploySource,
+  getDeployRepository,
+  postDeployRepository,
+} from '../../controllers/deploy-wizard.controller.js';
+import {
   getDeployHookSettings,
   postGenerateDeployHook,
   postRevokeDeployHook,
@@ -82,7 +87,13 @@ for (const param of ['userId', 'deploymentId', 'domainId']) {
 
 // Project list and creation
 router.get('/', requireAuth, getProjectIndex);
-router.get('/new', requireAuth, getNewProject);
+
+// Guided setup. `/new` is the funnel; the name-only form stays reachable at
+// `/new/manual` because it is the only way to set up a public Git URL.
+router.get('/new', requireAuth, getDeploySource);
+router.get('/new/github', requireAuth, getDeployRepository);
+router.post('/new/github', requireAuth, postDeployRepository);
+router.get('/new/manual', requireAuth, getNewProject);
 router.post('/', requireAuth, postNewProject);
 
 // Project-scoped routes (require resolved project + membership)

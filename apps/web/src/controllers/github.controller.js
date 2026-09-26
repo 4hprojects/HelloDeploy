@@ -3,7 +3,6 @@ import { User, Project, Repository } from '@hellodeploy/database';
 import {
   AuditOutcome,
   DeploymentMode,
-  RepositoryProvider,
   RepositorySourceError,
   RepositorySourceType,
 } from '@hellodeploy/contracts';
@@ -13,11 +12,11 @@ import {
   getInstallationUrl,
   listInstallationRepos,
   listBranches,
-  getLatestCommit,
   inspectPublicGithubRepository,
   listPublicGithubBranches,
   getPublicGithubLatestCommit,
 } from '../services/github.service.js';
+import { connectGithubRepository } from '../services/repository-connect.service.js';
 
 // ─── GitHub App installation flow ─────────────────────────────────────────────
 
@@ -186,116 +185,27 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
   }
 
   const user = await User.findById(req.session.user.id).lean();
-  if (!user.githubInstallationId) {
-    req.flash('error', 'You need to connect your GitHub account first.');
-    return res.redirect(`/projects/${project.slug}/repository`);
-  }
 
-  const {
-    fullName,
-    githubRepoId,
-    nodeId,
-    ownerLogin,
-    defaultBranch,
-    visibility,
-    productionBranch,
-  } = req.body;
-
-  if (!fullName || !githubRepoId || !productionBranch) {
-    req.flash('error', 'Repository and branch selection are required.');
-    return res.redirect(`/projects/${project.slug}/repository`);
-  }
-
-  // Verify this repo is actually accessible to the user's installation
-  let repos;
-  try {
-    repos = await listInstallationRepos(user.githubInstallationId);
-  } catch {
-    req.flash('error', 'Could not verify repository access. Please try again.');
-    return res.redirect(`/projects/${project.slug}/repository`);
-  }
-
-  const authorizedRepo = repos.find((r) => r.fullName === fullName);
-  if (!authorizedRepo) {
-    req.flash('error', 'This repository is not authorized for your GitHub App installation.');
-    return res.redirect(`/projects/${project.slug}/repository`);
-  }
-
-  // Verify the selected branch still exists on GitHub and fetch its latest commit
-  let latestCommit;
-  try {
-    latestCommit = await getLatestCommit(user.githubInstallationId, fullName, productionBranch);
-  } catch (err) {
-    if (err.status === 404) {
-      req.flash('error', `Branch "${productionBranch}" no longer exists on ${fullName}.`);
-    } else {
-      req.flash('error', 'Could not verify the selected branch. Please try again.');
-    }
-    return res.redirect(`/projects/${project.slug}/repository`);
-  }
-
-  // Create or update Repository record
-  const repoData = {
-    sourceType: RepositorySourceType.GITHUB_APP,
-    provider: RepositoryProvider.GITHUB,
-    canonicalCloneUrl: null,
-    projectId: project._id,
+  const result = await connectGithubRepository({
+    project,
     installationId: user.githubInstallationId,
-    githubRepoId: parseInt(githubRepoId, 10),
-    nodeId: nodeId ?? authorizedRepo.nodeId,
-    fullName,
-    name: fullName.split('/')[1],
-    ownerLogin: ownerLogin ?? authorizedRepo.ownerLogin,
-    defaultBranch: defaultBranch ?? authorizedRepo.defaultBranch,
-    visibility: visibility ?? (authorizedRepo.private ? 'private' : 'public'),
-    accessStatus: 'ACTIVE',
-    lastCommitSha: latestCommit?.sha ?? null,
-    lastCommitMessage: latestCommit?.message ?? null,
-    lastCommitAt: latestCommit ? new Date() : null,
-    connectedAt: new Date(),
-    revokedAt: null,
-  };
-
-  let repo;
-  const existing = await Repository.findOne({ projectId: project._id });
-  if (existing) {
-    Object.assign(existing, repoData);
-    repo = await existing.save();
-  } else {
-    repo = await Repository.create(repoData);
-  }
-
-  // Update project with repository reference and production branch
-  await Project.updateOne(
-    { _id: project._id },
-    {
-      $set: {
-        repositoryId: repo._id,
-        productionBranch,
-        runtimeType: null,
-        detection: {
-          status: 'NOT_RUN',
-          issues: [],
-          checkedCommitSha: null,
-          checkedAt: null,
-        },
-        configurationVersion: project.configurationVersion + 1,
-      },
+    selection: { fullName: req.body.fullName, branch: req.body.productionBranch },
+    actor: {
+      id: req.session.user.id,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
     },
-  );
-
-  await writeAuditEvent({
-    action: 'project.repository_connected',
-    outcome: AuditOutcome.SUCCESS,
-    actorId: req.session.user.id,
-    targetType: 'project',
-    targetId: project._id.toString(),
-    sourceIp: req.ip,
-    correlationId: req.correlationId,
-    metadata: { fullName, productionBranch },
   });
 
-  req.flash('success', `Repository ${fullName} connected on branch ${productionBranch}.`);
+  if (!result.success) {
+    req.flash('error', result.error);
+    return res.redirect(`/projects/${project.slug}/repository`);
+  }
+
+  req.flash(
+    'success',
+    `Repository ${result.repository.fullName} connected on branch ${result.repository.defaultBranch}.`,
+  );
   res.redirect(`/projects/${project.slug}`);
 });
 
