@@ -3157,3 +3157,84 @@ a.source-choice__card:hover {
   font-size: var(--text-xs);
   color: var(--color-text-muted);
 }
+
+/* ── Guided workflow on small screens ─────────────────────────────────── */
+/* The flows that matter most on a phone, per the redesign spec: checking a
+   publish, retrying it, editing a setting, checking a domain, opening the
+   website, and reading the history. */
+@media (max-width: 48rem) {
+  .website-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .website-header__actions {
+    width: 100%;
+  }
+
+  /* Touch targets stay full width rather than crowding onto one line. */
+  .website-header__actions > *,
+  .website-header__actions form,
+  .website-header__actions form button {
+    width: 100%;
+  }
+
+  /* The timestamp moves under the stage instead of squeezing its label. */
+  .deploy-progress__step {
+    grid-template-columns: 1.5rem 1fr;
+  }
+
+  .deploy-progress__time {
+    grid-column: 2;
+  }
+
+  .readiness-check {
+    flex-wrap: wrap;
+  }
+
+  .readiness-check .button {
+    width: 100%;
+    margin-left: calc(1.25rem + var(--space-3));
+  }
+
+  .publish-choice__option {
+    align-items: flex-start;
+  }
+
+  .repo-list {
+    max-height: 18rem;
+  }
+
+  .wizard-progress__list {
+    gap: var(--space-2);
+  }
+
+  /* Only the current step keeps its wording; the rest stay as numbered markers
+     so the row does not wrap into an unreadable block. */
+  .wizard-progress__step:not(.wizard-progress__step--current) .wizard-progress__label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .domain-diagnostics {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 30rem) {
+  .overview-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .source-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .readiness-summary {
+    grid-template-columns: 1fr;
+  }
+}

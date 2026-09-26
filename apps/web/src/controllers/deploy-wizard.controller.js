@@ -14,6 +14,7 @@ import {
   DetectionStatus,
   DeploymentMode,
   DeploymentStatus,
+  AuditOutcome,
   DeploymentTrigger,
   EnvVarCategory,
   PackageManager,
@@ -22,7 +23,7 @@ import {
   UiMode,
 } from '@hellodeploy/contracts';
 
-import { logger } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 
 import { asyncHandler } from '../utils/async-handler.js';
 import { env } from '../config/env.js';
@@ -174,6 +175,27 @@ export const postDeployRepository = asyncHandler(async (req, res) => {
 
   return res.redirect(`/projects/${created.project.slug}/setup/analyze`);
 });
+
+/**
+ * Record that a guided-setup step was completed.
+ *
+ * HelloDeploy has no analytics sink, so funnel measurement rides on audit
+ * events. Project creation and deployment outcomes are already audited, which
+ * gives the headline metric — time from "Deploy a Website" to a live URL. These
+ * add the per-step drop-off in between, which nothing else records.
+ */
+async function auditSetupStep(req, project, step) {
+  await writeAuditEvent({
+    action: 'project.setup_step_completed',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { step },
+  });
+}
 
 // ─── Shared setup shell ───────────────────────────────────────────────────────
 
@@ -334,6 +356,8 @@ export const postSetupAnalyzeConfirm = asyncHandler(async (req, res) => {
     { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'analyze') } },
   );
 
+  await auditSetupStep(req, project, 'analyze');
+
   const fresh = await Project.findById(project._id).lean();
   const { state } = await loadWizardContext(fresh);
   res.redirect(state.nextHref);
@@ -409,6 +433,8 @@ export const postSetupIdentity = asyncHandler(async (req, res) => {
       },
     },
   );
+
+  await auditSetupStep(req, project, 'identity');
 
   const fresh = await Project.findById(project._id).lean();
   const next = await loadWizardContext(fresh);
@@ -502,6 +528,8 @@ export const postSetupEnvironmentConfirm = asyncHandler(async (req, res) => {
     { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'environment') } },
   );
 
+  await auditSetupStep(req, project, 'environment');
+
   const fresh = await Project.findById(project._id).lean();
   const next = await loadWizardContext(fresh);
   res.redirect(next.state.nextHref);
@@ -515,6 +543,19 @@ async function renderReadinessStep(req, res, { project, repository, state, extra
     project,
     repository,
     missingEnvKeys: missingRequired,
+  });
+
+  // Which checks block, and how often, is a listed metric and is not derivable
+  // from anything else — a failing check leaves no other trace.
+  await writeAuditEvent({
+    action: 'project.readiness_checked',
+    outcome: readiness.isReady ? AuditOutcome.SUCCESS : AuditOutcome.FAILURE,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { ready: readiness.isReady, blocking: readiness.blocking },
   });
 
   // Kept for diagnosing a failed publish later; the view always recomputes.
