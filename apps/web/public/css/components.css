@@ -3128,3 +3128,32 @@ a.source-choice__card:hover {
   font-size: var(--text-xs);
   overflow-wrap: anywhere;
 }
+
+/* ── Automatic publishing choice ──────────────────────────────────────── */
+.publish-choice {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  border: none;
+}
+
+.publish-choice__option {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  min-height: 44px;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.publish-choice__option input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.publish-choice__detail {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}

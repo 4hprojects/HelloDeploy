@@ -13,6 +13,7 @@
   const applicationPortValue = bcValues ? (bcValues.applicationPort ?? '') : (bc.applicationPort ?? '');
   const healthCheckPathValue = bcValues ? (bcValues.healthCheckPath ?? '') : (bc.healthCheckPath || '/');
   const deploymentModes = repository?.sourceType === 'PUBLIC_GIT' ? ['MANUAL'] : ['MANUAL', 'AUTOMATIC'];
+  const isAdvancedMode = (locals.uiMode || 'SIMPLE') === 'ADVANCED';
 %>
 
 <div class="page-header page-header--actions">
@@ -327,8 +328,19 @@
         <div class="settings-edit-group" data-settings-edit-group>
           <div class="settings-field-row" data-settings-display>
             <div>
+              <% if (isAdvancedMode) { %>
               <span class="form-label">How deployments start</span>
               <p class="form-hint">Manual waits for you; Automatic publishes production-branch changes.</p>
+              <% } else { %>
+              <span class="form-label">Automatic publishing</span>
+              <p class="form-hint">
+                <% if (project.deploymentMode === 'AUTOMATIC') { %>
+                  Changes you push to <%= project.productionBranch || 'your branch' %> publish by themselves.
+                <% } else { %>
+                  You publish each change yourself.
+                <% } %>
+              </p>
+              <% } %>
               <% if (project.deploymentMode === 'APPROVAL_REQUIRED') { %>
               <p class="form-error mt-2" role="alert">
                 Approval Required is no longer supported as a per-deployment mode — the one-time
@@ -338,7 +350,13 @@
               <% } %>
             </div>
             <div class="settings-display-row">
-              <strong><%= settingsState.deploymentModeLabel %></strong>
+              <strong>
+                <% if (isAdvancedMode) { %>
+                  <%= settingsState.deploymentModeLabel %>
+                <% } else { %>
+                  <%= project.deploymentMode === 'AUTOMATIC' ? 'On' : 'Off' %>
+                <% } %>
+              </strong>
               <% if (!settingsState.readOnly) { %>
               <button type="button" class="button button--secondary button--sm"
                 data-settings-edit aria-label="Edit how deployments start">Edit</button>
@@ -353,6 +371,7 @@
               value="/projects/<%= project.slug %>/settings#deployment">
             <div class="settings-field-row">
               <div>
+                <% if (isAdvancedMode) { %>
                 <label class="form-label" for="settings-deployment-mode">How deployments start</label>
                 <p class="form-hint">
                   <%= repository?.sourceType === 'PUBLIC_GIT'
@@ -361,8 +380,13 @@
                       ? 'Automatic deployments start after production-branch changes.'
                       : 'Automatic deployments become available after initial approval.' %>
                 </p>
+                <% } else { %>
+                <span class="form-label">Automatic publishing</span>
+                <p class="form-hint">Choose whether your changes go live on their own.</p>
+                <% } %>
               </div>
               <div>
+                <% if (isAdvancedMode) { %>
                 <select class="form-select" id="settings-deployment-mode" name="deploymentMode">
                   <% deploymentModes.forEach(mode => { %>
                   <option value="<%= mode %>"
@@ -372,6 +396,40 @@
                   </option>
                   <% }) %>
                 </select>
+                <% } else { %>
+                <%# Radios rather than a checkbox: an unchecked checkbox submits
+                    nothing, which would need a fallback field and a change to the
+                    endpoint. A pair of radios always submits exactly one value. %>
+                <fieldset class="publish-choice">
+                  <legend class="sr-only">Automatic publishing</legend>
+                  <label class="publish-choice__option">
+                    <input type="radio" name="deploymentMode" value="AUTOMATIC"
+                      <%= project.deploymentMode === 'AUTOMATIC' ? 'checked' : '' %>
+                      <%= project.status !== 'ACTIVE' || !deploymentModes.includes('AUTOMATIC') ? 'disabled' : '' %>>
+                    <span>
+                      Publish updates from GitHub
+                      <span class="publish-choice__detail">
+                        Every change you push to <%= project.productionBranch || 'your branch' %> goes live on its own.
+                      </span>
+                    </span>
+                  </label>
+                  <label class="publish-choice__option">
+                    <input type="radio" name="deploymentMode" value="MANUAL"
+                      <%= project.deploymentMode !== 'AUTOMATIC' ? 'checked' : '' %>>
+                    <span>
+                      Only when I choose
+                      <span class="publish-choice__detail">
+                        You press Publish again when you are ready.
+                      </span>
+                    </span>
+                  </label>
+                </fieldset>
+                <% if (project.status !== 'ACTIVE') { %>
+                <p class="form-hint mt-2">Automatic publishing becomes available once your website has been reviewed.</p>
+                <% } else if (!deploymentModes.includes('AUTOMATIC')) { %>
+                <p class="form-hint mt-2">Automatic publishing needs a GitHub connection.</p>
+                <% } %>
+                <% } %>
                 <div class="form-actions mt-2">
                   <button type="button" class="button button--ghost button--sm"
                     data-settings-cancel>Cancel</button>
@@ -384,6 +442,7 @@
           <% } %>
         </div>
 
+        <% if (isAdvancedMode) { %>
         <div class="settings-field-row">
           <div>
             <span class="form-label">Deploy hook</span>
@@ -397,6 +456,7 @@
             <% } %>
           </div>
         </div>
+        <% } %>
       </div>
     </section>
 

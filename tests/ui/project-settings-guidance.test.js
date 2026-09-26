@@ -62,6 +62,7 @@ function renderSettings(overrides = {}) {
   return renderFile(settingsPath, {
     project,
     membership: { role: 'OWNER' },
+    uiMode: overrides.uiMode ?? 'ADVANCED',
     settingsSections: buildSettingsSections(project.slug),
     repository,
     domains,
@@ -191,5 +192,43 @@ describe('simplified project settings', () => {
     assert.match(componentsCss, /\.settings-advanced-disclosure > summary:focus-visible/);
     assert.match(componentsCss, /@media \(max-width: 48rem\)[\s\S]*\.settings-section__header/);
     assert.match(componentsCss, /@media \(max-width: 30rem\)[\s\S]*\.settings-display-row/);
+  });
+});
+
+describe('automatic publishing in simple mode', () => {
+  it('describes it as publishing updates from GitHub', async () => {
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.match(html, /Publish updates from GitHub/);
+  });
+
+  it('names the branch changes are taken from', async () => {
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.match(html, /push to main goes live on its own/);
+  });
+
+  it('offers the alternative in the owner’s terms', async () => {
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.match(html, /Only when I choose/);
+  });
+
+  it('uses no webhook or deployment-mode vocabulary', async () => {
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.doesNotMatch(html, /webhook|Manual deployments|Automatic deployments/);
+  });
+
+  it('keeps the deploy hook out of simple mode', async () => {
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.doesNotMatch(html, /Deploy hook/);
+  });
+
+  it('still offers the deploy hook in advanced mode', async () => {
+    const html = await renderSettings({ uiMode: 'ADVANCED' });
+    assert.match(html, /Deploy hook/);
+  });
+
+  it('always submits exactly one publishing choice', async () => {
+    // An unchecked checkbox submits nothing, which would silently mean "manual".
+    const html = await renderSettings({ uiMode: 'SIMPLE' });
+    assert.equal((html.match(/name="deploymentMode"/g) ?? []).length, 2);
   });
 });
