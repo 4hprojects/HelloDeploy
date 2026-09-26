@@ -10,11 +10,12 @@ import {
   validateJobPayload,
   JobPayloadValidationError,
   getFailureCopy,
+  FailureCode,
+  DEPLOYMENT_FAILURE_COPY,
   DeploymentStage,
   DEPLOYMENT_STAGE_ORDER,
   DEPLOYMENT_STAGE_COPY,
   getStageCopy,
-  DEPLOYMENT_FAILURE_COPY,
 } from '@hellodeploy/contracts';
 
 describe('contracts — enums', () => {
@@ -240,5 +241,25 @@ describe('deployment stage copy', () => {
 
   it('falls back to generic copy for an unrecognized stage', () => {
     assert.equal(getStageCopy('SOME_FUTURE_STAGE').label, 'Working');
+  });
+});
+
+describe('failure code coverage', () => {
+  it('gives every code in the enum plain-language copy', () => {
+    const missing = Object.values(FailureCode).filter((code) => !DEPLOYMENT_FAILURE_COPY[code]);
+    assert.deepEqual(missing, []);
+  });
+
+  it('has no copy for a code outside the enum', () => {
+    const codes = Object.values(FailureCode);
+    const orphaned = Object.keys(DEPLOYMENT_FAILURE_COPY).filter((key) => !codes.includes(key));
+    assert.deepEqual(orphaned, []);
+  });
+
+  it('offers a next action for every code', () => {
+    const actionless = Object.values(FailureCode).filter(
+      (code) => !DEPLOYMENT_FAILURE_COPY[code].action,
+    );
+    assert.deepEqual(actionless, []);
   });
 });

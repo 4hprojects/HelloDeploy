@@ -1,5 +1,6 @@
 import {
   ApprovalStatus,
+  getFailureCopy,
   DeploymentMode,
   DeploymentStatus,
   DetectionStatus,
@@ -353,9 +354,11 @@ export function buildProjectOverviewState({
       tone: 'attention',
       eyebrow: 'Deployment failed',
       title: 'Your app could not be published',
-      description:
-        latestDeployment.failureSummary ??
-        'Open the deployment details to see what needs to be fixed.',
+      // failureSummary is a raw Docker/Node message. Lead with the translated
+      // copy and leave the raw text to the deployment detail page.
+      description: latestDeployment.failureCode
+        ? getFailureCopy(latestDeployment.failureCode).message
+        : 'Open the deployment details to see what needs to be fixed.',
       primaryAction: canDeploy(membershipRole)
         ? getAction('Retry deployment', `${base}/deployments/${latestDeployment._id}/retry`, {
             method: 'POST',

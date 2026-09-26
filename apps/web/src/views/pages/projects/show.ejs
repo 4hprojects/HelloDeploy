@@ -192,8 +192,8 @@
       <div class="project-activity__main">
         <span class="project-activity__title">Deployment #<%= deployment.sequenceNumber %></span>
         <span class="project-activity__status"><%= deploymentStatusCopy[deployment.status] || deployment.status %></span>
-        <% if (deployment.failureSummary) { %>
-        <p class="project-activity__message"><%= deployment.failureSummary %></p>
+        <% if (deployment.failureCopy) { %>
+        <p class="project-activity__message"><%= deployment.failureCopy.message %></p>
         <% } else if (deployment.commitMessage) { %>
         <p class="project-activity__message"><%= deployment.commitMessage %></p>
         <% } %>

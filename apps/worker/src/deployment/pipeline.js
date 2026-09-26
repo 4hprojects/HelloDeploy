@@ -6,6 +6,7 @@ import {
   RuntimeType,
   AuditOutcome,
   DomainStatus,
+  FailureCode,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
@@ -275,7 +276,7 @@ export async function runReleasePipeline({
     await logEvent(deploymentId, 'DEPLOY', 'INFO', `Allocated port ${hostPort}.`, correlationId);
   } catch (err) {
     await logEvent(deploymentId, 'DEPLOY', 'ERROR', err.message, correlationId);
-    return fail('PORT_ALLOCATION_FAILED', err.message);
+    return fail(FailureCode.PORT_ALLOCATION_FAILED, err.message);
   }
 
   // ── Ensure network ──────────────────────────────────────────────────────────
@@ -289,7 +290,7 @@ export async function runReleasePipeline({
       `Network setup failed: ${err.message}`,
       correlationId,
     );
-    return fail('NETWORK_SETUP_FAILED', err.message);
+    return fail(FailureCode.NETWORK_SETUP_FAILED, err.message);
   }
 
   // ── Decrypt env vars ────────────────────────────────────────────────────────
@@ -311,7 +312,7 @@ export async function runReleasePipeline({
       'Failed to decrypt environment secrets.',
       correlationId,
     );
-    return fail('SECRET_DECRYPTION_FAILED', 'Could not decrypt environment secrets.');
+    return fail(FailureCode.SECRET_DECRYPTION_FAILED, 'Could not decrypt environment secrets.');
   }
 
   await recordStage(deploymentId, DeploymentStage.STARTING);
@@ -374,7 +375,7 @@ export async function runReleasePipeline({
       `Failed to start container: ${err.message}`,
       correlationId,
     );
-    return fail('CONTAINER_START_FAILED', err.message);
+    return fail(FailureCode.CONTAINER_START_FAILED, err.message);
   }
 
   // ── Startup stabilization + crash-loop detection ────────────────────────────
@@ -458,7 +459,7 @@ export async function runReleasePipeline({
         correlationId,
       );
       await deps.stopAndRemoveContainer(cName);
-      return fail('SUBDOMAIN_INVALID', `Subdomain "${subdomain}" cannot be used.`);
+      return fail(FailureCode.SUBDOMAIN_INVALID, `Subdomain "${subdomain}" cannot be used.`);
     }
 
     if (subdomainUsable) {
@@ -558,7 +559,7 @@ export async function runReleasePipeline({
           correlationId,
         );
         await deps.stopAndRemoveContainer(cName);
-        return fail('NGINX_ROUTE_FAILED', `Nginx configuration failed: ${err.message}`);
+        return fail(FailureCode.NGINX_ROUTE_FAILED, `Nginx configuration failed: ${err.message}`);
       }
 
       // Persist subdomain assignment on first-time deployment

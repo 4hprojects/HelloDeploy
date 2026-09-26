@@ -7,6 +7,7 @@ import {
   AuditOutcome,
   ProjectStatus,
   RepositorySourceType,
+  FailureCode,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -252,7 +253,7 @@ export async function createDeployment({
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           failureSummary: 'Deployment queue is not available.',
           completedAt: new Date(),
         },
@@ -394,7 +395,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           completedAt: new Date(),
         },
       },
@@ -495,7 +496,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           completedAt: new Date(),
         },
       },

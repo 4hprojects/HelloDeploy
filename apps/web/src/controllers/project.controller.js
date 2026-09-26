@@ -1,5 +1,11 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  DeploymentMode,
+  ProjectRole,
+  ProjectStatus,
+  AuditOutcome,
+  getFailureCopy,
+} from '@hellodeploy/contracts';
 import { Deployment, Project, Repository } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
@@ -99,6 +105,13 @@ async function renderProjectOverview(req, res, extras = {}) {
     project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
   ]);
 
+  // Attach translated failure copy so the overview never shows a raw
+  // Docker/Node error as its primary message.
+  const deploymentsForView = deployments.map((deployment) => ({
+    ...deployment,
+    failureCopy: deployment.failureCode ? getFailureCopy(deployment.failureCode) : null,
+  }));
+
   const approvalReadiness = assessInitialApprovalReadiness({ project, repository });
   const appUrl = buildApplicationUrl({
     subdomain: project.platformSubdomain ?? project.slug,
@@ -120,7 +133,7 @@ async function renderProjectOverview(req, res, extras = {}) {
     project,
     membership: req.membership,
     repository,
-    deployments,
+    deployments: deploymentsForView,
     activeDeployment,
     latestApproval,
     approvalReadiness,

@@ -5,6 +5,7 @@ import {
   DeploymentStatus,
   JobType,
   RepositorySourceType,
+  FailureCode,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -144,7 +145,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   if (!project || !repo) {
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'PROJECT_NOT_FOUND',
+      failureCode: FailureCode.PROJECT_NOT_FOUND,
       failureSummary: 'Project or repository record not found.',
       completedAt: new Date(),
     });
@@ -153,7 +154,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   if (repo.accessStatus !== 'ACTIVE') {
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'REPO_ACCESS_REVOKED',
+      failureCode: FailureCode.REPO_ACCESS_REVOKED,
       failureSummary: 'Repository access has been revoked.',
       completedAt: new Date(),
     });
@@ -196,7 +197,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
           correlationId,
         );
         await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-          failureCode: 'GITHUB_TOKEN_FAILED',
+          failureCode: FailureCode.GITHUB_TOKEN_FAILED,
           failureSummary: 'Could not obtain GitHub installation token.',
           completedAt: new Date(),
         });
@@ -231,7 +232,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'CLONE_FAILED',
+      failureCode: FailureCode.CLONE_FAILED,
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
@@ -252,7 +253,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'BUILD_CONTEXT_INVALID',
+      failureCode: FailureCode.BUILD_CONTEXT_INVALID,
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
@@ -277,7 +278,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'BUILD_FAILED',
+      failureCode: FailureCode.BUILD_FAILED,
       failureSummary: 'Could not read project environment.',
       completedAt: new Date(),
     });
@@ -312,7 +313,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'DOCKERFILE_GENERATION_FAILED',
+      failureCode: FailureCode.DOCKERFILE_GENERATION_FAILED,
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
@@ -359,7 +360,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   } catch (err) {
     await logEvent(deploymentId, 'BUILD', 'ERROR', `Build failed: ${err.message}`, correlationId);
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'BUILD_FAILED',
+      failureCode: FailureCode.BUILD_FAILED,
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
     });
@@ -410,7 +411,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await updateStatus(deploymentId, DeploymentStatus.FAILED, {
-      failureCode: 'ACTIVATION_ENQUEUE_FAILED',
+      failureCode: FailureCode.ACTIVATION_ENQUEUE_FAILED,
       failureSummary: `Could not enqueue release activation: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
