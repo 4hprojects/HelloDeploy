@@ -512,6 +512,9 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
         detection: {
           status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
           issues: safeDetectionIssues(result.issues),
+          confidence: result.confidence ?? DetectionConfidence.LOW,
+          fieldConfidence: result.fieldConfidence ?? {},
+          packageManager: result.packageManager ?? PackageManager.UNKNOWN,
           checkedCommitSha: repo.lastCommitSha,
           checkedAt: new Date(),
         },

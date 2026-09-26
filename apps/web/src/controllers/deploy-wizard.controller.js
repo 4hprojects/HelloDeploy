@@ -8,13 +8,27 @@
  * from persisted state.
  */
 
-import { User } from '@hellodeploy/database';
+import { Project, Repository, User } from '@hellodeploy/database';
+import {
+  DetectionConfidence,
+  DetectionStatus,
+  PackageManager,
+  RuntimeType,
+} from '@hellodeploy/contracts';
+
+import { logger } from '@hellodeploy/observability';
 
 import { asyncHandler } from '../utils/async-handler.js';
 import { env } from '../config/env.js';
 import { createProject } from '../services/project.service.js';
 import { listInstallationRepos, getInstallationUrl } from '../services/github.service.js';
 import { connectGithubRepository } from '../services/repository-connect.service.js';
+import { runProjectDetection } from '../services/detection.service.js';
+import {
+  resolveWizardState,
+  canEnterStep,
+  withConfirmedStep,
+} from '../services/deploy-wizard.service.js';
 
 /**
  * Sources a website can come from. A registry rather than hard-coded markup, so
@@ -131,5 +145,168 @@ export const postDeployRepository = asyncHandler(async (req, res) => {
     return res.redirect(`/projects/${created.project.slug}/setup/repository`);
   }
 
+  // Analyse straight away rather than making the owner press "Check my app".
+  // A failure here is not fatal — the analyse step shows what happened and
+  // offers a retry, so it must not strand a project that is already connected.
+  try {
+    await runProjectDetection(created.project._id, req.session.user.id, {
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+  } catch (err) {
+    logger.warn('Guided setup: automatic analysis failed', {
+      projectId: created.project._id.toString(),
+      error: err.message,
+    });
+  }
+
   return res.redirect(`/projects/${created.project.slug}/setup/analyze`);
+});
+
+// ─── Shared setup shell ───────────────────────────────────────────────────────
+
+/**
+ * Load the facts the step machine needs. Kept in one place so every step sees
+ * the same picture of the project.
+ */
+async function loadWizardContext(project) {
+  const repository = project.repositoryId
+    ? await Repository.findById(project.repositoryId).lean()
+    : null;
+
+  const state = resolveWizardState({ project, repository, missingEnvKeys: [] });
+  return { repository, state };
+}
+
+/**
+ * Render a step, or redirect if the owner has jumped ahead of their progress.
+ * A deep link to a step that depends on decisions not yet made would otherwise
+ * render a form over missing data.
+ */
+export const getSetupStep = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const step = req.params.step;
+  const { repository, state } = await loadWizardContext(project);
+
+  if (!canEnterStep(step, state)) {
+    return res.redirect(state.nextHref);
+  }
+
+  if (step === 'analyze') {
+    return renderAnalyzeStep(req, res, { project, repository, state });
+  }
+
+  // Remaining steps arrive in later work; until then send the owner onward
+  // rather than rendering a placeholder.
+  return res.redirect(`/projects/${project.slug}`);
+});
+
+// ─── Step 3: check your project ───────────────────────────────────────────────
+
+async function renderAnalyzeStep(req, res, { project, repository, state }) {
+  const detection = project.detection ?? {};
+  const fieldConfidence =
+    detection.fieldConfidence instanceof Map
+      ? Object.fromEntries(detection.fieldConfidence)
+      : (detection.fieldConfidence ?? {});
+
+  res.render('pages/projects/wizard/analyze', {
+    title: 'Check your project',
+    project,
+    membership: req.membership,
+    repository,
+    wizardSteps: state.steps,
+    detection,
+    fieldConfidence,
+    findings: buildAnalysisFindings(project, detection),
+    needsReview: detection.confidence === DetectionConfidence.LOW,
+    hasRun: detection.status !== DetectionStatus.NOT_RUN,
+    isReady: detection.status === DetectionStatus.READY,
+  });
+}
+
+/**
+ * Turn a detection result into the checklist the owner reads.
+ *
+ * Only states what was actually established — no line is emitted for a value
+ * detection did not produce, so the list never implies more certainty than
+ * the evidence supports.
+ */
+export function buildAnalysisFindings(project, detection) {
+  const findings = [];
+  const runtimeLabel = RUNTIME_LABELS[project.runtimeType];
+
+  if (runtimeLabel) {
+    findings.push({ key: 'runtime', label: `${runtimeLabel} detected`, status: 'OK' });
+  }
+
+  const build = project.buildConfiguration ?? {};
+  if (build.buildCommand) {
+    findings.push({ key: 'build', label: 'Build settings found', status: 'OK' });
+  }
+  if (build.startCommand) {
+    findings.push({ key: 'start', label: 'Start settings found', status: 'OK' });
+  }
+  if (build.outputDirectory) {
+    findings.push({ key: 'output', label: 'Published folder found', status: 'OK' });
+  }
+
+  if (detection.packageManager && detection.packageManager !== PackageManager.UNKNOWN) {
+    findings.push({
+      key: 'packageManager',
+      label: `Packages managed with ${PACKAGE_MANAGER_LABELS[detection.packageManager]}`,
+      status: 'OK',
+    });
+  }
+
+  (detection.issues ?? []).forEach((issue, index) => {
+    findings.push({
+      key: `issue-${index}`,
+      label: issue.message,
+      status: issue.level === 'ERROR' ? 'BLOCKED' : 'WARNING',
+    });
+  });
+
+  return findings;
+}
+
+const RUNTIME_LABELS = Object.freeze({
+  [RuntimeType.STATIC]: 'A plain HTML website',
+  [RuntimeType.NODEJS]: 'A Node.js app',
+  [RuntimeType.EXPRESS]: 'An Express app',
+  [RuntimeType.REACT]: 'A React website',
+  [RuntimeType.VUE]: 'A Vue website',
+  [RuntimeType.NEXTJS]: 'A Next.js website',
+});
+
+const PACKAGE_MANAGER_LABELS = Object.freeze({
+  [PackageManager.NPM]: 'npm',
+  [PackageManager.PNPM]: 'pnpm',
+  [PackageManager.YARN]: 'Yarn',
+});
+
+/** Re-run detection, then land back on the step so the result is visible. */
+export const postSetupAnalyze = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  await runProjectDetection(project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  res.redirect(`/projects/${project.slug}/setup/analyze`);
+});
+
+/** Accept weakly-evidenced detection and move on. */
+export const postSetupAnalyzeConfirm = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  await Project.updateOne(
+    { _id: project._id },
+    { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'analyze') } },
+  );
+
+  const fresh = await Project.findById(project._id).lean();
+  const { state } = await loadWizardContext(fresh);
+  res.redirect(state.nextHref);
 });

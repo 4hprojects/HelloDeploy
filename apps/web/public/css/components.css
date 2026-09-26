@@ -2620,3 +2620,112 @@ a.source-choice__card:hover {
   font-size: var(--text-sm);
   color: var(--color-text-muted);
 }
+
+/* ── Guided setup: progress ───────────────────────────────────────────── */
+.wizard-progress {
+  margin-bottom: var(--space-6);
+}
+
+.wizard-progress__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+}
+
+.wizard-progress__step {
+  list-style: none;
+}
+
+.wizard-progress__link {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  text-decoration: none;
+}
+
+.wizard-progress__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+}
+
+/* State is carried by the marker's fill and the label weight, not colour
+   alone, and each step also names its state for screen readers. */
+.wizard-progress__step--complete .wizard-progress__link {
+  color: var(--color-text);
+}
+
+.wizard-progress__step--complete .wizard-progress__marker {
+  border-color: var(--color-orange);
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+}
+
+.wizard-progress__step--current .wizard-progress__link {
+  color: var(--color-text);
+  font-weight: var(--font-semibold);
+}
+
+.wizard-progress__step--current .wizard-progress__marker {
+  border-color: var(--color-orange);
+  border-width: 2px;
+  color: var(--color-orange);
+}
+
+/* ── Guided setup: analysis findings ──────────────────────────────────── */
+.analysis-findings {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.analysis-finding {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+/* Each row also carries a hidden word naming its state, so the glyph and its
+   colour are never the only signal. */
+.analysis-finding__marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.analysis-finding--ok .analysis-finding__marker {
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+}
+
+.analysis-finding--warning .analysis-finding__marker {
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+}
+
+.analysis-finding--blocked .analysis-finding__marker {
+  background: var(--color-orange-light);
+  color: var(--color-orange);
+}
+
+.analysis-finding--blocked .analysis-finding__text {
+  font-weight: var(--font-medium);
+}

@@ -40,6 +40,9 @@ import {
   getDeploySource,
   getDeployRepository,
   postDeployRepository,
+  getSetupStep,
+  postSetupAnalyze,
+  postSetupAnalyzeConfirm,
 } from '../../controllers/deploy-wizard.controller.js';
 import {
   getDeployHookSettings,
@@ -214,6 +217,23 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postRevokeDeployHook,
+);
+
+// Guided setup steps. Owner-only: every step writes project configuration.
+router.get('/:slug/setup/:step', requireAuth, ownerOnly, getSetupStep);
+router.post(
+  '/:slug/setup/analyze',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupAnalyze,
+);
+router.post(
+  '/:slug/setup/analyze/confirm',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupAnalyzeConfirm,
 );
 
 // Detection

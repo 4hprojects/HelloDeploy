@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFile } from 'node:fs/promises';
 import { DetectionConfidence, PackageManager } from '@hellodeploy/contracts';
 
 // Set GitHub env vars so the module loads without throwing
@@ -191,5 +192,23 @@ describe('package manager detection', () => {
     );
 
     assert.equal(result.issues.filter((issue) => /npm|pnpm|Yarn/.test(issue.message)).length, 0);
+  });
+});
+
+describe('detection confidence is persisted, not dropped', () => {
+  it('writes confidence on every path that stores a detection result', async () => {
+    const source = await readFile(
+      new URL('../../apps/web/src/services/detection.service.js', import.meta.url),
+      'utf8',
+    );
+
+    // Two places persist `detection`: persistDetectionResult() and the inline
+    // update in runProjectDetection(). Both must carry confidence, or the
+    // wizard's confidence gate silently sees LEGACY and asks the owner to
+    // review settings it was actually sure about.
+    const writes = source.match(/detection: \{\s*\n\s*status:/g) ?? [];
+    const withConfidence = source.match(/confidence: result\.confidence/g) ?? [];
+
+    assert.equal(withConfidence.length, writes.length);
   });
 });
