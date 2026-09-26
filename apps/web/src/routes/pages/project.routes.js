@@ -43,6 +43,8 @@ import {
   getSetupStep,
   postSetupAnalyze,
   postSetupAnalyzeConfirm,
+  getAddressAvailability,
+  postSetupIdentity,
 } from '../../controllers/deploy-wizard.controller.js';
 import {
   getDeployHookSettings,
@@ -220,6 +222,9 @@ router.post(
 );
 
 // Guided setup steps. Owner-only: every step writes project configuration.
+// Owner-scoped, not public: the answer reveals whether an address is in use.
+router.get('/:slug/setup/address-available', requireAuth, ownerOnly, getAddressAvailability);
+
 router.get('/:slug/setup/:step', requireAuth, ownerOnly, getSetupStep);
 router.post(
   '/:slug/setup/analyze',
@@ -234,6 +239,13 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postSetupAnalyzeConfirm,
+);
+router.post(
+  '/:slug/setup/identity',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupIdentity,
 );
 
 // Detection

@@ -2729,3 +2729,33 @@ a.source-choice__card:hover {
 .analysis-finding--blocked .analysis-finding__text {
   font-weight: var(--font-medium);
 }
+
+/* ── Guided setup: website address ────────────────────────────────────── */
+.address-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.address-input .form-input {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.address-input__suffix {
+  font-size: var(--text-sm);
+  color: var(--color-text-muted);
+  overflow-wrap: anywhere;
+}
+
+/* Availability is stated in words; the colour only reinforces it. */
+.address-status--available {
+  color: var(--color-status-healthy, var(--color-text));
+  font-weight: var(--font-medium);
+}
+
+.address-status--unavailable {
+  color: var(--color-orange);
+  font-weight: var(--font-medium);
+}

@@ -1245,6 +1245,74 @@
 
     syncBranchPlaceholder();
   }
+
+  /**
+   * Check the website address as the owner types.
+   *
+   * The form re-checks server-side on submit, so this is only to save a failed
+   * round trip — if the request fails the hint stays neutral and submitting
+   * still works.
+   */
+  function initAddressAvailability() {
+    const field = document.querySelector('[data-address-field]');
+    if (!field) {
+      return;
+    }
+
+    const input = field.querySelector('[data-address-input]');
+    const status = field.querySelector('[data-address-status]');
+    const checkUrl = input && input.getAttribute('data-address-check-url');
+    if (!input || !status || !checkUrl) {
+      return;
+    }
+
+    const neutralText = status.textContent.trim();
+    let timer = null;
+    let sequence = 0;
+
+    function setStatus(text, state) {
+      status.textContent = text;
+      status.classList.remove('address-status--available', 'address-status--unavailable');
+      if (state) {
+        status.classList.add('address-status--' + state);
+      }
+    }
+
+    async function check() {
+      const value = input.value.trim();
+      if (!value) {
+        setStatus(neutralText, null);
+        return;
+      }
+
+      // Ignore a response that arrives after a newer keystroke.
+      sequence += 1;
+      const ticket = sequence;
+
+      try {
+        const response = await fetch(checkUrl + '?address=' + encodeURIComponent(value), {
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) {
+          throw new Error('check failed');
+        }
+        const result = await response.json();
+        if (ticket !== sequence) {
+          return;
+        }
+        setStatus(result.message, result.isAvailable ? 'available' : 'unavailable');
+      } catch {
+        if (ticket === sequence) {
+          setStatus(neutralText, null);
+        }
+      }
+    }
+
+    input.addEventListener('input', () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(check, 350);
+    });
+  }
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1257,6 +1325,7 @@
     initPasswordRequirements();
     initRepositoryBranchLoader();
     initRepositoryPicker();
+    initAddressAvailability();
     initDeploymentLiveLogs();
     initEnvFileImport();
     initSettingsSectionNavigation();

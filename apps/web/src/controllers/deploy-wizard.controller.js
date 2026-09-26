@@ -24,6 +24,7 @@ import { createProject } from '../services/project.service.js';
 import { listInstallationRepos, getInstallationUrl } from '../services/github.service.js';
 import { connectGithubRepository } from '../services/repository-connect.service.js';
 import { runProjectDetection } from '../services/detection.service.js';
+import { checkAddressAvailability } from '../services/website-address.service.js';
 import {
   resolveWizardState,
   canEnterStep,
@@ -196,6 +197,10 @@ export const getSetupStep = asyncHandler(async (req, res) => {
     return renderAnalyzeStep(req, res, { project, repository, state });
   }
 
+  if (step === 'identity') {
+    return renderIdentityStep(req, res, { project, state, extras: { repository } });
+  }
+
   // Remaining steps arrive in later work; until then send the owner onward
   // rather than rendering a placeholder.
   return res.redirect(`/projects/${project.slug}`);
@@ -309,4 +314,80 @@ export const postSetupAnalyzeConfirm = asyncHandler(async (req, res) => {
   const fresh = await Project.findById(project._id).lean();
   const { state } = await loadWizardContext(fresh);
   res.redirect(state.nextHref);
+});
+
+// ─── Step 4: name your website ────────────────────────────────────────────────
+
+function renderIdentityStep(req, res, { project, state, extras = {} }) {
+  res.render('pages/projects/wizard/identity', {
+    title: 'Name your website',
+    project,
+    membership: req.membership,
+    wizardSteps: state.steps,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    values: {
+      name: project.name,
+      address: project.platformSubdomain ?? project.slug,
+    },
+    errors: {},
+    ...extras,
+  });
+}
+
+/**
+ * Live availability for the address field.
+ *
+ * Owner-scoped rather than public: the response reveals whether a given address
+ * is in use, which is not something an unauthenticated caller should be able to
+ * enumerate.
+ */
+export const getAddressAvailability = asyncHandler(async (req, res) => {
+  const result = await checkAddressAvailability(req.query.address, {
+    excludeProjectId: req.project._id,
+  });
+
+  res.set('Cache-Control', 'no-store');
+  res.json(result);
+});
+
+export const postSetupIdentity = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { repository, state } = await loadWizardContext(project);
+  const name = String(req.body.name ?? '').trim();
+  const address = String(req.body.address ?? '').trim();
+
+  const errors = {};
+  if (name.length < 2 || name.length > 100) {
+    errors.name = 'Give your website a name between 2 and 100 characters.';
+  }
+
+  const availability = await checkAddressAvailability(address, {
+    excludeProjectId: project._id,
+  });
+  if (!availability.isAvailable) {
+    errors.address = availability.message;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return renderIdentityStep(req, res, {
+      project: { ...project, name: name || project.name },
+      state,
+      extras: { errors, values: { name, address }, repository },
+    });
+  }
+
+  await Project.updateOne(
+    { _id: project._id },
+    {
+      $set: {
+        name,
+        platformSubdomain: availability.label,
+        'setup.confirmedSteps': withConfirmedStep(project, 'identity'),
+      },
+    },
+  );
+
+  const fresh = await Project.findById(project._id).lean();
+  const next = await loadWizardContext(fresh);
+  res.redirect(next.state.nextHref);
 });

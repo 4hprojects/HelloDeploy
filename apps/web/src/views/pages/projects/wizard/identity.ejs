@@ -1,0 +1,70 @@
+<%- include('../../../partials/wizard-progress') %>
+
+<div class="page-header">
+  <h1 class="page-header__title">Name your website</h1>
+  <p class="page-header__subtitle">
+    We suggested these from your GitHub project. Change them if you like — you can rename the
+    website later, but the address is fixed once you publish.
+  </p>
+</div>
+
+<form method="POST" action="/projects/<%= project.slug %>/setup/identity" class="card" novalidate>
+  <div class="card__body">
+    <%- include('../../../partials/csrf-field') %>
+
+    <div class="form-field">
+      <label for="name" class="form-label form-label--required">Website name</label>
+      <input
+        type="text"
+        id="name"
+        name="name"
+        class="form-input<%= errors.name ? ' form-input--error' : '' %>"
+        value="<%= values.name %>"
+        maxlength="100"
+        autocomplete="off"
+        required
+        aria-describedby="<%= errors.name ? 'name-error' : 'name-hint' %>"
+      />
+      <% if (errors.name) { %>
+      <span id="name-error" class="form-error" role="alert"><%= errors.name %></span>
+      <% } else { %>
+      <span id="name-hint" class="form-hint">Only you and your team see this name.</span>
+      <% } %>
+    </div>
+
+    <div class="form-field" data-address-field>
+      <label for="address" class="form-label form-label--required">Website address</label>
+      <div class="address-input">
+        <input
+          type="text"
+          id="address"
+          name="address"
+          class="form-input<%= errors.address ? ' form-input--error' : '' %>"
+          value="<%= values.address %>"
+          maxlength="63"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          data-address-input
+          data-address-check-url="/projects/<%= project.slug %>/setup/address-available"
+          aria-describedby="address-status"
+        />
+        <span class="address-input__suffix">.<%= deploymentDomain %></span>
+      </div>
+      <p id="address-status" class="form-hint" role="status" aria-live="polite" data-address-status>
+        <% if (errors.address) { %>
+        <span class="form-error"><%= errors.address %></span>
+        <% } else { %>
+        This is where visitors will find your website.
+        <% } %>
+      </p>
+    </div>
+  </div>
+
+  <div class="card__footer">
+    <button type="submit" class="button button--primary" data-pending-label="Saving...">
+      Continue
+    </button>
+    <a href="/projects/<%= project.slug %>/setup/analyze" class="button button--secondary">Back</a>
+  </div>
+</form>
