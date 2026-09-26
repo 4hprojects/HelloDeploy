@@ -6,6 +6,7 @@ import {
   DetectionStatus,
   DetectionConfidence,
   PackageManager,
+  isPlatformManagedEnv,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
@@ -288,6 +289,60 @@ export function detectRuntime(files) {
   };
 }
 
+/**
+ * Environment variable names a project expects, read from its own `.env.example`.
+ *
+ * Only the example file is used, never a scan of the source. A grep for
+ * `process.env.X` across a repository picks up dependencies' variables and
+ * anything behind a feature flag, which would present the owner with a list of
+ * required settings their website does not actually need. An example file is a
+ * deliberate statement by whoever wrote the project.
+ *
+ * A name with a value after the `=` is treated as having a usable default, so
+ * it is optional rather than required.
+ *
+ * @param {{ [filename: string]: string | null }} files
+ * @returns {{ required: string[], optional: string[] }}
+ */
+export function detectEnvironmentKeys(files) {
+  const example = files['.env.example'] ?? files['.env.sample'] ?? null;
+  if (!example) {
+    return { required: [], optional: [] };
+  }
+
+  const required = [];
+  const optional = [];
+
+  example.split(/\r?\n/).forEach((rawLine) => {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) {
+      return;
+    }
+
+    const separator = line.indexOf('=');
+    if (separator < 1) {
+      return;
+    }
+
+    const name = line
+      .slice(0, separator)
+      .trim()
+      .replace(/^export\s+/, '');
+    if (!/^[A-Z_][A-Z0-9_]*$/.test(name) || isPlatformManagedEnv(name)) {
+      return;
+    }
+
+    const value = line.slice(separator + 1).trim();
+    if (value) {
+      optional.push(name);
+    } else {
+      required.push(name);
+    }
+  });
+
+  return { required: [...new Set(required)], optional: [...new Set(optional)] };
+}
+
 // ─── GitHub file fetching ─────────────────────────────────────────────────────
 
 const FILES_TO_FETCH = [
@@ -306,6 +361,8 @@ const FILES_TO_FETCH = [
   'astro.config.mjs',
   'nuxt.config.ts',
   'Procfile',
+  '.env.example',
+  '.env.sample',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -498,6 +555,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
   }
 
   const result = detectRuntime(files);
+  const envKeys = detectEnvironmentKeys(files);
 
   // Persist detected config to project
   await Project.updateOne(
@@ -515,6 +573,8 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
           confidence: result.confidence ?? DetectionConfidence.LOW,
           fieldConfidence: result.fieldConfidence ?? {},
           packageManager: result.packageManager ?? PackageManager.UNKNOWN,
+          requiredEnvKeys: envKeys.required,
+          optionalEnvKeys: envKeys.optional,
           checkedCommitSha: repo.lastCommitSha,
           checkedAt: new Date(),
         },

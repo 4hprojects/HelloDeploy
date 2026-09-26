@@ -79,6 +79,10 @@ const detectionSchema = new Schema(
       enum: Object.values(PackageManager),
       default: PackageManager.UNKNOWN,
     },
+    // Names the project's own .env.example declares. Required ones have no
+    // default there and block publishing until supplied.
+    requiredEnvKeys: { type: [String], default: [] },
+    optionalEnvKeys: { type: [String], default: [] },
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
   },

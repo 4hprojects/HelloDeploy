@@ -234,3 +234,24 @@ export const PackageManager = Object.freeze({
   YARN: 'YARN',
   UNKNOWN: 'UNKNOWN',
 });
+
+/**
+ * What kind of environment value a variable is, from the owner's point of view.
+ *
+ * PLATFORM_MANAGED   — HelloDeploy sets this at run time (PORT, NODE_ENV, HOST).
+ *                      Setting it by hand usually breaks the website, so Simple
+ *                      mode refuses it and Advanced mode warns.
+ * REQUIRED_USER_INPUT— referenced by the project and not yet supplied. Blocks
+ *                      publishing.
+ * OPTIONAL_USER_INPUT— referenced with a fallback, or supplied already.
+ * DETECTED_EXISTING  — stored by the owner and not referenced by the code we
+ *                      could see. Kept, never removed on our own initiative.
+ * UNKNOWN            — nothing could be established about it.
+ */
+export const EnvVarCategory = Object.freeze({
+  PLATFORM_MANAGED: 'PLATFORM_MANAGED',
+  REQUIRED_USER_INPUT: 'REQUIRED_USER_INPUT',
+  OPTIONAL_USER_INPUT: 'OPTIONAL_USER_INPUT',
+  DETECTED_EXISTING: 'DETECTED_EXISTING',
+  UNKNOWN: 'UNKNOWN',
+});

@@ -12,8 +12,10 @@ import { Project, Repository, User } from '@hellodeploy/database';
 import {
   DetectionConfidence,
   DetectionStatus,
+  EnvVarCategory,
   PackageManager,
   RuntimeType,
+  UiMode,
 } from '@hellodeploy/contracts';
 
 import { logger } from '@hellodeploy/observability';
@@ -25,6 +27,8 @@ import { listInstallationRepos, getInstallationUrl } from '../services/github.se
 import { connectGithubRepository } from '../services/repository-connect.service.js';
 import { runProjectDetection } from '../services/detection.service.js';
 import { checkAddressAvailability } from '../services/website-address.service.js';
+import { listSecretNames, setSecret } from '../services/env-secret.service.js';
+import { classifyEnvironment, validateEnvValue } from '../services/env-classification.service.js';
 import {
   resolveWizardState,
   canEnterStep,
@@ -175,7 +179,11 @@ async function loadWizardContext(project) {
     ? await Repository.findById(project.repositoryId).lean()
     : null;
 
-  const state = resolveWizardState({ project, repository, missingEnvKeys: [] });
+  // Missing required values gate the environment step, so they must be part of
+  // the picture every step is judged against, not just that step's own view.
+  const { missingRequired } = await loadEnvironment(project);
+
+  const state = resolveWizardState({ project, repository, missingEnvKeys: missingRequired });
   return { repository, state };
 }
 
@@ -199,6 +207,10 @@ export const getSetupStep = asyncHandler(async (req, res) => {
 
   if (step === 'identity') {
     return renderIdentityStep(req, res, { project, state, extras: { repository } });
+  }
+
+  if (step === 'environment') {
+    return renderEnvironmentStep(req, res, { project, state });
   }
 
   // Remaining steps arrive in later work; until then send the owner onward
@@ -385,6 +397,98 @@ export const postSetupIdentity = asyncHandler(async (req, res) => {
         'setup.confirmedSteps': withConfirmedStep(project, 'identity'),
       },
     },
+  );
+
+  const fresh = await Project.findById(project._id).lean();
+  const next = await loadWizardContext(fresh);
+  res.redirect(next.state.nextHref);
+});
+
+// ─── Step 5: add your settings ────────────────────────────────────────────────
+
+/** Load the classified environment rows for a project. */
+async function loadEnvironment(project) {
+  const stored = await listSecretNames(project._id);
+  return classifyEnvironment({
+    requiredKeys: project.detection?.requiredEnvKeys ?? [],
+    optionalKeys: project.detection?.optionalEnvKeys ?? [],
+    storedNames: stored.map((secret) => secret.name),
+  });
+}
+
+async function renderEnvironmentStep(req, res, { project, state, extras = {} }) {
+  const { rows, missingRequired } = await loadEnvironment(project);
+
+  res.render('pages/projects/wizard/environment', {
+    title: 'Add your settings',
+    project,
+    membership: req.membership,
+    wizardSteps: state.steps,
+    rows,
+    missingRequired,
+    hasDetectedKeys: rows.some((row) => row.category !== EnvVarCategory.PLATFORM_MANAGED),
+    errors: {},
+    values: { name: '', value: '' },
+    ...extras,
+  });
+}
+
+/** Store one value supplied from the guided step. */
+export const postSetupEnvironment = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { state } = await loadWizardContext(project);
+  const name = String(req.body.name ?? '')
+    .trim()
+    .toUpperCase();
+  const value = String(req.body.value ?? '');
+
+  const formatError = validateEnvValue(name, value);
+  if (formatError) {
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: { errors: { value: formatError }, values: { name, value: '' } },
+    });
+  }
+
+  const result = await setSecret(project._id, name, value, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    allowPlatformManaged: res.locals.uiMode === UiMode.ADVANCED,
+  });
+
+  if (!result.success) {
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: { errors: { form: result.error }, values: { name, value: '' } },
+    });
+  }
+
+  res.redirect(`/projects/${project.slug}/setup/environment`);
+});
+
+/** Move on, once nothing required is still missing. */
+export const postSetupEnvironmentConfirm = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { missingRequired } = await loadEnvironment(project);
+
+  if (missingRequired.length > 0) {
+    const { state } = await loadWizardContext(project);
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: {
+        errors: {
+          form: `${missingRequired.join(', ')} still ${missingRequired.length === 1 ? 'needs' : 'need'} a value before your website can start.`,
+        },
+      },
+    });
+  }
+
+  await Project.updateOne(
+    { _id: project._id },
+    { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'environment') } },
   );
 
   const fresh = await Project.findById(project._id).lean();

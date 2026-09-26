@@ -67,7 +67,7 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    const first = await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    const first = await importEnvFile(projectId, 'API_KEY=first\nSERVICE_TOKEN=abc123', actorId);
     const second = await importEnvFile(projectId, 'API_KEY=rotated', actorId);
 
     assert.deepEqual(first, { success: true, count: 2 });
@@ -75,7 +75,7 @@ describe('.env file import', () => {
     assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 2);
     assert.deepEqual(await getDecryptedSecrets(projectId), {
       API_KEY: 'rotated',
-      PORT: '3000',
+      SERVICE_TOKEN: 'abc123',
     });
 
     const stored = await EnvironmentSecret.findOne({ projectId, name: 'API_KEY' }).lean();
@@ -98,13 +98,13 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nSERVICE_TOKEN=abc123', actorId);
 
     const result = await bulkUpdateSecrets(
       projectId,
       [
         { name: 'API_KEY', value: 'rotated' },
-        { name: 'PORT', value: '' },
+        { name: 'SERVICE_TOKEN', value: '' },
       ],
       actorId,
     );
@@ -112,7 +112,7 @@ describe('.env file import', () => {
     assert.deepEqual(result, { success: true, count: 1 });
     assert.deepEqual(await getDecryptedSecrets(projectId), {
       API_KEY: 'rotated',
-      PORT: '3000',
+      SERVICE_TOKEN: 'abc123',
     });
   });
 
@@ -120,13 +120,13 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nSERVICE_TOKEN=abc123', actorId);
 
     const blankResult = await bulkUpdateSecrets(
       projectId,
       [
         { name: 'API_KEY', value: '' },
-        { name: 'PORT', value: '' },
+        { name: 'SERVICE_TOKEN', value: '' },
       ],
       actorId,
     );
@@ -157,7 +157,7 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nSERVICE_TOKEN=abc123', actorId);
 
     const revealed = await revealSecretValue(projectId, 'api_key', actorId);
     assert.deepEqual(revealed, {

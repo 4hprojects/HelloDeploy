@@ -45,6 +45,8 @@ import {
   postSetupAnalyzeConfirm,
   getAddressAvailability,
   postSetupIdentity,
+  postSetupEnvironment,
+  postSetupEnvironmentConfirm,
 } from '../../controllers/deploy-wizard.controller.js';
 import {
   getDeployHookSettings,
@@ -246,6 +248,20 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postSetupIdentity,
+);
+router.post(
+  '/:slug/setup/environment',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupEnvironment,
+);
+router.post(
+  '/:slug/setup/environment/confirm',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupEnvironmentConfirm,
 );
 
 // Detection
