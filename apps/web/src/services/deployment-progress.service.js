@@ -8,6 +8,8 @@
 
 import {
   DeploymentStageStatus,
+  RecoveryAction,
+  getFailureCopy,
   DeploymentStatus,
   DEPLOYMENT_STAGE_ORDER,
   getStageCopy,
@@ -104,31 +106,74 @@ function resolveStatus(row, isTerminal) {
 }
 
 /**
- * Where a failed deployment's recovery actions should send the owner.
+ * Where each recovery step sends the owner, and what the button says.
  *
- * Every failure offers at least one thing to do, per the spec's rule that no
- * error is a dead end.
+ * Contracts names the steps a failure offers; this turns them into links for a
+ * particular project. Kept here rather than in contracts so routes stay in the
+ * web app.
+ */
+const RECOVERY_TARGETS = Object.freeze({
+  [RecoveryAction.RETRY]: (base, deployment) => ({
+    label: 'Try again',
+    href: `${base}/deployments/${deployment._id}/retry`,
+    method: 'POST',
+  }),
+  [RecoveryAction.ENVIRONMENT]: (base) => ({
+    label: 'Review your settings',
+    href: `${base}/environment`,
+    method: 'GET',
+  }),
+  [RecoveryAction.LOGS]: () => ({
+    label: 'View technical logs',
+    href: '#log-card',
+    method: 'GET',
+  }),
+  [RecoveryAction.REPOSITORY]: (base) => ({
+    label: 'Check your GitHub connection',
+    href: `${base}/repository`,
+    method: 'GET',
+  }),
+  [RecoveryAction.ADDRESS]: (base) => ({
+    label: 'Choose another address',
+    href: `${base}/setup/identity`,
+    method: 'GET',
+  }),
+  [RecoveryAction.BUILD_SETTINGS]: (base) => ({
+    label: 'Review build settings',
+    href: `${base}/detection`,
+    method: 'GET',
+  }),
+});
+
+/**
+ * What a project owner can do about a failed deployment.
+ *
+ * Driven by the failure code, so the first thing offered is the most likely fix
+ * rather than the same generic pair every time. Never returns an empty list —
+ * the spec's rule is that no error is a dead end.
  *
  * @param {object} project
- * @param {{ status: string, _id: any }} deployment
+ * @param {{ status: string, _id: any, failureCode?: string|null }} deployment
  * @param {{ canRetry: boolean }} options
  * @returns {Array<{ label: string, href: string, method: string }>}
  */
 export function buildRecoveryActions(project, deployment, { canRetry }) {
   const base = `/projects/${project.slug}`;
-  const actions = [];
+  const copy = getFailureCopy(deployment.failureCode);
 
-  if (canRetry) {
-    actions.push({
-      label: 'Try again',
-      href: `${base}/deployments/${deployment._id}/retry`,
-      method: 'POST',
-    });
+  const actions = (copy.actions ?? [])
+    // A retry that would be refused is worse than no button at all.
+    .filter((key) => key !== RecoveryAction.RETRY || canRetry)
+    .map((key) => RECOVERY_TARGETS[key]?.(base, deployment))
+    .filter(Boolean);
+
+  if (actions.length > 0) {
+    return actions;
   }
 
-  actions.push({ label: 'Review your settings', href: `${base}/environment`, method: 'GET' });
-
-  return actions;
+  // Some failures have no specific fix — a rollback source that is gone, for
+  // instance. The history is still somewhere to go.
+  return [{ label: 'See your published versions', href: `${base}/deployments`, method: 'GET' }];
 }
 
 /**

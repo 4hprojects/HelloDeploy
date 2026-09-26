@@ -325,7 +325,7 @@ export function buildProjectOverviewState({
               })
             : appUrl
               ? getAction('Open app', appUrl, { external: true })
-              : getAction('View deployment', `${base}/deployments/${activeDeployment._id}`),
+              : getAction('See what happened', `${base}/deployments/${activeDeployment._id}`),
       showMilestones: false,
       canSubmit: false,
     };
@@ -360,11 +360,11 @@ export function buildProjectOverviewState({
         ? getFailureCopy(latestDeployment.failureCode).message
         : 'Open the deployment details to see what needs to be fixed.',
       primaryAction: canDeploy(membershipRole)
-        ? getAction('Retry deployment', `${base}/deployments/${latestDeployment._id}/retry`, {
+        ? getAction('Try again', `${base}/deployments/${latestDeployment._id}/retry`, {
             method: 'POST',
-            pendingLabel: 'Retrying...',
+            pendingLabel: 'Starting...',
           })
-        : getAction('View deployment', `${base}/deployments/${latestDeployment._id}`),
+        : getAction('See what happened', `${base}/deployments/${latestDeployment._id}`),
       canSubmit: false,
     };
   }
@@ -399,7 +399,7 @@ export function buildProjectOverviewState({
           method: 'POST',
           pendingLabel: 'Deploying...',
         })
-      : getAction('View deployments', `${base}/deployments`),
+      : getAction('See your published versions', `${base}/deployments`),
     canSubmit: false,
   };
 }

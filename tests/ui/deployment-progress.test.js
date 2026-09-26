@@ -158,12 +158,19 @@ describe('deployment failure in simple mode', () => {
     assert.match(await renderDetail(failed), /Try again/);
   });
 
-  it('offers a way to review settings', async () => {
-    assert.match(await renderDetail(failed), /Review your settings/);
-  });
-
   it('offers a way to reach the logs', async () => {
     assert.match(await renderDetail(failed), /View technical logs/);
+  });
+
+  it('does not suggest reviewing settings for a build failure', async () => {
+    // A build failure is a problem in the code, not in the owner's settings.
+    const html = await renderDetail(failed);
+    assert.doesNotMatch(html, /Review your settings/);
+  });
+
+  it('suggests reviewing settings when the app did not respond', async () => {
+    const unhealthy = { ...failed, failureCode: 'HEALTH_CHECK_FAILED' };
+    assert.match(await renderDetail(unhealthy), /Review your settings/);
   });
 
   it('keeps the raw error reachable behind a disclosure', async () => {

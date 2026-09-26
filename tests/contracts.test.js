@@ -11,6 +11,7 @@ import {
   JobPayloadValidationError,
   getFailureCopy,
   FailureCode,
+  RecoveryAction,
   DEPLOYMENT_FAILURE_COPY,
   DeploymentStage,
   DEPLOYMENT_STAGE_ORDER,
@@ -261,5 +262,58 @@ describe('failure code coverage', () => {
       (code) => !DEPLOYMENT_FAILURE_COPY[code].action,
     );
     assert.deepEqual(actionless, []);
+  });
+});
+
+describe('every failure offers a way forward', () => {
+  it('names recovery steps for every code', () => {
+    const missing = Object.values(FailureCode).filter(
+      (code) => !Array.isArray(DEPLOYMENT_FAILURE_COPY[code].actions),
+    );
+    assert.deepEqual(missing, []);
+  });
+
+  it('uses only known recovery steps', () => {
+    const known = new Set(Object.values(RecoveryAction));
+    const unknown = Object.values(FailureCode).flatMap((code) =>
+      DEPLOYMENT_FAILURE_COPY[code].actions.filter((action) => !known.has(action)),
+    );
+
+    assert.deepEqual(unknown, []);
+  });
+
+  it('gives an unrecognised code somewhere to go', () => {
+    assert.ok(getFailureCopy('SOME_FUTURE_CODE').actions.length > 0);
+  });
+
+  it('does not offer a retry for a failure a retry cannot fix', () => {
+    // The source release is gone; retrying the rollback would fail the same way.
+    assert.ok(
+      !DEPLOYMENT_FAILURE_COPY[FailureCode.ROLLBACK_SOURCE_INVALID].actions.includes(
+        RecoveryAction.RETRY,
+      ),
+    );
+  });
+
+  it('sends a lost GitHub connection to the repository, not to a retry alone', () => {
+    assert.equal(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.REPO_ACCESS_REVOKED].actions[0],
+      RecoveryAction.REPOSITORY,
+    );
+  });
+
+  it('sends a missing secret to the settings first', () => {
+    assert.equal(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.SECRET_DECRYPTION_FAILED].actions[0],
+      RecoveryAction.ENVIRONMENT,
+    );
+  });
+
+  it('sends an unusable address to the address field', () => {
+    assert.ok(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.SUBDOMAIN_INVALID].actions.includes(
+        RecoveryAction.ADDRESS,
+      ),
+    );
   });
 });

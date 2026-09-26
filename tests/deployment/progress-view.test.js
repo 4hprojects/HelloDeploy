@@ -124,30 +124,65 @@ describe('deployment progress', () => {
 
 describe('failure recovery actions', () => {
   const project = { slug: 'hellouniversity' };
-  const deployment = { _id: 'd1', status: DeploymentStatus.FAILED };
+  const failed = (failureCode) => ({ _id: 'd1', status: DeploymentStatus.FAILED, failureCode });
 
   it('always offers at least one thing to do', () => {
-    const actions = buildRecoveryActions(project, deployment, { canRetry: false });
+    const actions = buildRecoveryActions(project, failed('BUILD_FAILED'), { canRetry: false });
     assert.ok(actions.length >= 1);
   });
 
-  it('offers a retry when the deployment can be retried', () => {
-    const actions = buildRecoveryActions(project, deployment, { canRetry: true });
-    assert.ok(actions.some((action) => action.label === 'Try again'));
+  it('leads with the most likely fix for the code', () => {
+    const actions = buildRecoveryActions(project, failed('HEALTH_CHECK_FAILED'), {
+      canRetry: true,
+    });
+
+    assert.equal(actions[0].label, 'Review your settings');
   });
 
-  it('omits retry when the deployment cannot be retried', () => {
-    const actions = buildRecoveryActions(project, deployment, { canRetry: false });
+  it('sends a lost GitHub connection to the repository page', () => {
+    const actions = buildRecoveryActions(project, failed('REPO_ACCESS_REVOKED'), {
+      canRetry: true,
+    });
+
+    assert.equal(actions[0].href, '/projects/hellouniversity/repository');
+  });
+
+  it('sends an unusable address to the address field', () => {
+    const actions = buildRecoveryActions(project, failed('SUBDOMAIN_INVALID'), { canRetry: true });
+    assert.equal(actions[0].href, '/projects/hellouniversity/setup/identity');
+  });
+
+  it('omits a retry the deployment cannot accept', () => {
+    const actions = buildRecoveryActions(project, failed('BUILD_FAILED'), { canRetry: false });
     assert.ok(!actions.some((action) => action.label === 'Try again'));
   });
 
-  it('sends a retry as a POST so it cannot be triggered by a link', () => {
-    const actions = buildRecoveryActions(project, deployment, { canRetry: true });
+  it('offers a retry when the deployment can accept one', () => {
+    const actions = buildRecoveryActions(project, failed('BUILD_FAILED'), { canRetry: true });
+    assert.ok(actions.some((action) => action.label === 'Try again'));
+  });
+
+  it('sends a retry as a POST so a link cannot trigger it', () => {
+    const actions = buildRecoveryActions(project, failed('BUILD_FAILED'), { canRetry: true });
     assert.equal(actions.find((action) => action.label === 'Try again').method, 'POST');
   });
 
-  it('points at the settings a missing value would be added to', () => {
-    const actions = buildRecoveryActions(project, deployment, { canRetry: true });
-    assert.ok(actions.some((action) => action.href === '/projects/hellouniversity/environment'));
+  it('does not suggest settings for a failure settings cannot fix', () => {
+    const actions = buildRecoveryActions(project, failed('BUILD_FAILED'), { canRetry: true });
+    assert.ok(!actions.some((action) => /Review your settings/.test(action.label)));
+  });
+
+  it('still offers somewhere to go when no step fits', () => {
+    // A rollback source that no longer exists has no specific fix.
+    const actions = buildRecoveryActions(project, failed('ROLLBACK_SOURCE_INVALID'), {
+      canRetry: false,
+    });
+
+    assert.equal(actions[0].href, '/projects/hellouniversity/deployments');
+  });
+
+  it('gives an unrecognised code the logs', () => {
+    const actions = buildRecoveryActions(project, failed('SOMETHING_NEW'), { canRetry: false });
+    assert.ok(actions.some((action) => /technical logs/.test(action.label)));
   });
 });
