@@ -4,6 +4,8 @@ import {
   DeploymentMode,
   RuntimeType,
   DetectionStatus,
+  DetectionConfidence,
+  PackageManager,
 } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
@@ -61,6 +63,22 @@ const detectionSchema = new Schema(
       default: DetectionStatus.NOT_RUN,
     },
     issues: { type: [detectionIssueSchema], default: [] },
+    // Overall strength of the evidence behind the detected settings. Projects
+    // detected before this existed stay LEGACY rather than being given a score
+    // after the fact.
+    confidence: {
+      type: String,
+      enum: Object.values(DetectionConfidence),
+      default: DetectionConfidence.LEGACY,
+    },
+    // Per-field confidence, keyed by buildConfiguration field name, so the UI
+    // can ask about only the settings that were guessed.
+    fieldConfidence: { type: Map, of: String, default: () => new Map() },
+    packageManager: {
+      type: String,
+      enum: Object.values(PackageManager),
+      default: PackageManager.UNKNOWN,
+    },
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
   },

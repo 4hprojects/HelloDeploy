@@ -4,6 +4,8 @@ import {
   AuditOutcome,
   RepositorySourceType,
   DetectionStatus,
+  DetectionConfidence,
+  PackageManager,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
@@ -24,10 +26,45 @@ import { getInstallationToken } from './github.service.js';
  *   startCommand: string | null,
  *   outputDirectory: string | null,
  *   applicationPort: number | null,
+ *   packageManager: string,
+ *   confidence: string,
+ *   fieldConfidence: { [field: string]: string },
  *   issues: Array<{ level: 'ERROR' | 'WARNING', message: string }>,
  *   isValid: boolean,
  * }}
  */
+// Order matters: the weakest evidence for any single field decides the overall
+// confidence, so a strong framework match cannot mask a guessed port.
+const CONFIDENCE_RANK = {
+  [DetectionConfidence.HIGH]: 3,
+  [DetectionConfidence.MEDIUM]: 2,
+  [DetectionConfidence.LOW]: 1,
+};
+
+function lowestConfidence(fieldConfidence) {
+  const scored = Object.values(fieldConfidence).filter((level) => CONFIDENCE_RANK[level]);
+  if (scored.length === 0) {
+    return DetectionConfidence.LOW;
+  }
+  return scored.reduce((worst, level) =>
+    CONFIDENCE_RANK[level] < CONFIDENCE_RANK[worst] ? level : worst,
+  );
+}
+
+/** Infer the package manager from whichever lock file is committed. */
+export function detectPackageManager(files) {
+  if (files['pnpm-lock.yaml']) {
+    return PackageManager.PNPM;
+  }
+  if (files['yarn.lock']) {
+    return PackageManager.YARN;
+  }
+  if (files['package-lock.json']) {
+    return PackageManager.NPM;
+  }
+  return PackageManager.UNKNOWN;
+}
+
 export function detectRuntime(files) {
   const issues = [];
 
@@ -40,6 +77,12 @@ export function detectRuntime(files) {
         startCommand: null,
         outputDirectory: '.',
         applicationPort: null,
+        packageManager: PackageManager.UNKNOWN,
+        confidence: DetectionConfidence.HIGH,
+        fieldConfidence: {
+          runtimeType: DetectionConfidence.HIGH,
+          outputDirectory: DetectionConfidence.HIGH,
+        },
         issues: [],
         isValid: true,
       };
@@ -55,6 +98,9 @@ export function detectRuntime(files) {
       startCommand: null,
       outputDirectory: null,
       applicationPort: null,
+      packageManager: detectPackageManager(files),
+      confidence: DetectionConfidence.LOW,
+      fieldConfidence: { runtimeType: DetectionConfidence.LOW },
       issues,
       isValid: false,
     };
@@ -72,6 +118,9 @@ export function detectRuntime(files) {
       startCommand: null,
       outputDirectory: null,
       applicationPort: null,
+      packageManager: detectPackageManager(files),
+      confidence: DetectionConfidence.LOW,
+      fieldConfidence: { runtimeType: DetectionConfidence.LOW },
       issues,
       isValid: false,
     };
@@ -88,13 +137,25 @@ export function detectRuntime(files) {
   let outputDirectory = null;
   let applicationPort = null;
 
+  // A command declared by the project is strong evidence; one filled in from a
+  // framework's convention is weaker, and a port we simply assume is weakest.
+  const fieldConfidence = {};
+  const declared = (value) => (value ? DetectionConfidence.HIGH : DetectionConfidence.MEDIUM);
+
   if ('next' in deps) {
     runtimeType = RuntimeType.NEXTJS;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.buildCommand = declared(scripts.build);
+    fieldConfidence.startCommand = declared(scripts.start);
+    fieldConfidence.outputDirectory = DetectionConfidence.HIGH;
     buildCommand = buildCommand ?? 'npm run build';
     startCommand = startCommand ?? 'npm start';
     outputDirectory = '.next';
   } else if ('react-scripts' in deps) {
     runtimeType = RuntimeType.REACT;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.buildCommand = declared(scripts.build);
+    fieldConfidence.outputDirectory = DetectionConfidence.HIGH;
     buildCommand = buildCommand ?? 'npm run build';
     startCommand = null; // static output, served via nginx in prod
     outputDirectory = pkg.homepage?.startsWith('.') ? 'build' : 'build';
@@ -103,6 +164,9 @@ export function detectRuntime(files) {
     (files['vite.config.js'] !== null || files['vite.config.ts'] !== null)
   ) {
     runtimeType = RuntimeType.REACT;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.buildCommand = declared(scripts.build);
+    fieldConfidence.outputDirectory = DetectionConfidence.HIGH;
     buildCommand = buildCommand ?? 'npm run build';
     startCommand = null;
     outputDirectory = 'dist';
@@ -111,22 +175,37 @@ export function detectRuntime(files) {
     (files['vite.config.js'] !== null || files['vite.config.ts'] !== null)
   ) {
     runtimeType = RuntimeType.VUE;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.buildCommand = declared(scripts.build);
+    fieldConfidence.outputDirectory = DetectionConfidence.HIGH;
     buildCommand = buildCommand ?? 'npm run build';
     startCommand = null;
     outputDirectory = 'dist';
   } else if ('vue' in deps && '@vue/cli-service' in deps) {
     runtimeType = RuntimeType.VUE;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.buildCommand = declared(scripts.build);
+    fieldConfidence.outputDirectory = DetectionConfidence.HIGH;
     buildCommand = buildCommand ?? 'npm run build';
     startCommand = null;
     outputDirectory = 'dist';
   } else if ('express' in deps) {
     runtimeType = RuntimeType.EXPRESS;
+    fieldConfidence.runtimeType = DetectionConfidence.HIGH;
+    fieldConfidence.startCommand = declared(scripts.start);
+    // Nothing in the project states the port; 3000 is a convention we assume.
+    fieldConfidence.applicationPort = DetectionConfidence.LOW;
     applicationPort = 3000;
   } else if (scripts.start) {
+    // Only evidence is that *something* can be started. No framework marker.
     runtimeType = RuntimeType.NODEJS;
+    fieldConfidence.runtimeType = DetectionConfidence.LOW;
+    fieldConfidence.startCommand = DetectionConfidence.HIGH;
+    fieldConfidence.applicationPort = DetectionConfidence.LOW;
     applicationPort = 3000;
   } else {
     runtimeType = RuntimeType.UNKNOWN;
+    fieldConfidence.runtimeType = DetectionConfidence.LOW;
     issues.push({
       level: 'ERROR',
       message:
@@ -164,17 +243,24 @@ export function detectRuntime(files) {
     }
   }
 
-  // ── Lock file check ─────────────────────────────────────────────────────────
-  const hasLockFile =
-    files['package-lock.json'] !== null ||
-    files['yarn.lock'] !== null ||
-    files['pnpm-lock.yaml'] !== null;
+  // ── Lock file / package manager ─────────────────────────────────────────────
+  const packageManager = detectPackageManager(files);
 
-  if (!hasLockFile) {
+  if (packageManager === PackageManager.UNKNOWN) {
     issues.push({
       level: 'WARNING',
       message:
         'No lock file found (package-lock.json / yarn.lock / pnpm-lock.yaml). Commit a lock file for reproducible builds.',
+    });
+  } else if (packageManager !== PackageManager.NPM) {
+    // Builds install with `npm ci`, which needs package-lock.json. Surface this
+    // rather than letting the build fail with an opaque npm error.
+    issues.push({
+      level: 'WARNING',
+      message:
+        packageManager === PackageManager.PNPM
+          ? 'This project uses pnpm, but HelloDeploy installs packages with npm. Commit a package-lock.json so the build can install your dependencies.'
+          : 'This project uses Yarn, but HelloDeploy installs packages with npm. Commit a package-lock.json so the build can install your dependencies.',
     });
   }
 
@@ -194,6 +280,9 @@ export function detectRuntime(files) {
     startCommand: startCommand ?? null,
     outputDirectory,
     applicationPort,
+    packageManager,
+    confidence: lowestConfidence(fieldConfidence),
+    fieldConfidence,
     issues,
     isValid: !hasErrors,
   };
@@ -213,6 +302,10 @@ const FILES_TO_FETCH = [
   'next.config.js',
   'next.config.mjs',
   'next.config.ts',
+  'bun.lock',
+  'astro.config.mjs',
+  'nuxt.config.ts',
+  'Procfile',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -336,6 +429,9 @@ async function persistDetectionResult(projectId, result, checkedCommitSha = null
         detection: {
           status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
           issues: safeDetectionIssues(result.issues),
+          confidence: result.confidence ?? DetectionConfidence.LOW,
+          fieldConfidence: result.fieldConfidence ?? {},
+          packageManager: result.packageManager ?? PackageManager.UNKNOWN,
           checkedCommitSha,
           checkedAt: new Date(),
         },

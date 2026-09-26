@@ -205,3 +205,32 @@ export const DeploymentStageStatus = Object.freeze({
   COMPLETE: 'COMPLETE',
   FAILED: 'FAILED',
 });
+
+/**
+ * How much evidence a detected setting rests on.
+ *
+ * HIGH   — an unambiguous marker in the project (a framework dependency, a
+ *          declared script). Safe to apply without asking.
+ * MEDIUM — identified the framework, but filled a command from its convention
+ *          rather than the project's own declaration. Worth a glance.
+ * LOW    — inferred from weak evidence, such as the mere presence of a `start`
+ *          script. Ask the user to confirm.
+ * MANUAL — the user set this value themselves; detection must not overwrite it.
+ * LEGACY — recorded before confidence was tracked. Never re-derived, because a
+ *          score invented after the fact would be a guess about a guess.
+ */
+export const DetectionConfidence = Object.freeze({
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW: 'LOW',
+  MANUAL: 'MANUAL',
+  LEGACY: 'LEGACY',
+});
+
+/** Node package manager inferred from the committed lock file */
+export const PackageManager = Object.freeze({
+  NPM: 'NPM',
+  PNPM: 'PNPM',
+  YARN: 'YARN',
+  UNKNOWN: 'UNKNOWN',
+});
