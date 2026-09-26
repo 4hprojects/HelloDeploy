@@ -85,6 +85,18 @@ const detectionSchema = new Schema(
   { _id: false },
 );
 
+// Which guided-setup steps the owner has explicitly confirmed. Progress lives
+// here, not in the session, so refreshing or returning on another device
+// resumes in the same place. Derived facts (a connected repository, detection
+// status, present secrets) still gate each step on top of this.
+const setupSchema = new Schema(
+  {
+    confirmedSteps: { type: [String], default: [] },
+    completedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
 const projectSchema = new Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 100 },
@@ -103,6 +115,7 @@ const projectSchema = new Schema(
       default: ProjectStatus.DRAFT,
     },
     repositoryId: { type: Schema.Types.ObjectId, ref: 'Repository', default: null },
+    setup: { type: setupSchema, default: () => ({}) },
     runtimeType: {
       type: String,
       enum: Object.values(RuntimeType),
