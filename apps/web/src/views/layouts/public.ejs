@@ -20,5 +20,8 @@
     <%- include('../partials/icon', { name: 'up' }) %>
   </button>
   <script src="/js/app.js?v=20260730-submit-decision" defer></script>
+  <% if (typeof turnstileSiteKey !== 'undefined' && turnstileSiteKey) { %>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <% } %>
 </body>
 </html>

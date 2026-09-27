@@ -1,6 +1,7 @@
 import { logger } from '@hellodeploy/observability';
 
 import { sendContactMessage } from '../services/email.service.js';
+import { verifyTurnstile } from '../services/turnstile.service.js';
 import { CONTACT_CATEGORIES, validateContactMessage } from '../validators/contact.validator.js';
 
 const PAGE = Object.freeze({
@@ -34,7 +35,14 @@ export async function postContact(req, res) {
 
   const { values, errors, hasErrors } = validateContactMessage(req.body);
 
-  if (hasErrors) {
+  // Checked after validation so a visitor who mistypes a field is not told to
+  // redo the challenge as well.
+  if (!hasErrors && !(await verifyTurnstile(req.body['cf-turnstile-response'], req.ip))) {
+    logger.warn('[contact] Turnstile verification failed', { correlationId: req.correlationId });
+    errors.turnstile = 'Could not confirm you are human. Please try the challenge again.';
+  }
+
+  if (hasErrors || errors.turnstile) {
     return res.status(400).render('pages/contact', {
       ...PAGE,
       categories: CONTACT_CATEGORIES,
