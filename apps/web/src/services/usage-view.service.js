@@ -1,38 +1,44 @@
 /**
  * What an account is using, against what its plan allows.
  *
- * Shows only limits HelloDeploy actually enforces. `deploymentsPerMonth`,
- * `storageMb`, `maxRunningApps`, `buildTimeoutSeconds` and `logRetentionDays`
- * exist on the quota model and are editable by an administrator, but nothing in
- * the platform checks them. Presenting a usage bar for an unenforced limit would
- * tell the owner something untrue about what happens when they reach it, so they
- * are deliberately absent until enforcement exists.
+ * A limit is shown as a limit only where the platform actually refuses to exceed
+ * it. `maxOwnedProjects` and `maxProjectMembers` have real check paths
+ * (`checkCanCreateProject`, `checkCanAddMember`); nothing else does.
+ *
+ * `maxCustomDomains` is configured and displayed elsewhere but is **not**
+ * enforced — `addDomain` never consults it. It is reported here as a plain count
+ * rather than as an allowance, because telling an owner they are "at the limit"
+ * of something they can still exceed is worse than telling them nothing.
+ *
+ * `deploymentsPerMonth`, `storageMb`, `maxRunningApps`, `buildTimeoutSeconds` and
+ * `logRetentionDays` are editable by an administrator and equally unenforced, and
+ * are absent for the same reason.
  *
  * @module services/usage-view
  */
 
-/** Limits with a real check path in the codebase today. */
+/** Limits the platform refuses to exceed. */
 const ENFORCED = Object.freeze([
   {
     key: 'websites',
     label: 'Websites',
     limitField: 'maxOwnedProjects',
-    unit: null,
     explain: 'Websites you own.',
-  },
-  {
-    key: 'domains',
-    label: 'Your own domains',
-    limitField: 'maxCustomDomains',
-    unit: null,
-    explain: 'Custom web addresses across all your websites.',
   },
   {
     key: 'members',
     label: 'People per website',
     limitField: 'maxProjectMembers',
-    unit: null,
     explain: 'People you can invite to a single website.',
+  },
+]);
+
+/** Counts worth showing that carry no enforced limit. */
+const INFORMATIONAL = Object.freeze([
+  {
+    key: 'domains',
+    label: 'Your own domains',
+    explain: 'Custom web addresses connected to this website.',
   },
 ]);
 
@@ -53,6 +59,7 @@ const ENFORCED = Object.freeze([
  *     isNearLimit: boolean,
  *     summary: string,
  *   }>,
+ *   counts: Array<{ key: string, label: string, used: number, explain: string }>,
  *   isAnyAtLimit: boolean,
  * }}
  */
@@ -76,7 +83,18 @@ export function buildUsageRows({ quota, counts }) {
     };
   });
 
-  return { rows, isAnyAtLimit: rows.some((row) => row.isAtLimit) };
+  const counts_ = INFORMATIONAL.map((entry) => ({
+    key: entry.key,
+    label: entry.label,
+    used: counts[entry.key] ?? 0,
+    explain: entry.explain,
+  }));
+
+  return {
+    rows,
+    counts: counts_,
+    isAnyAtLimit: rows.some((row) => row.isAtLimit),
+  };
 }
 
 /**

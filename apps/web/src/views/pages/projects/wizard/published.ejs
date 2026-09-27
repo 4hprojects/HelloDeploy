@@ -41,7 +41,7 @@
   <div class="card__body">
     <h2 class="card__title">Keep your website updated</h2>
     <p class="text-sm">
-      <span class="published__state" aria-hidden="true"><%= autoPublishEnabled ? '&check;' : '&#9675;' %></span>
+      <span class="published__state" aria-hidden="true"><%- autoPublishEnabled ? '&check;' : '&#9675;' %></span>
       <span class="sr-only"><%= autoPublishEnabled ? 'On:' : 'Off:' %></span>
       <% if (autoPublishEnabled) { %>
         New changes you push to <%= branch %> publish automatically.

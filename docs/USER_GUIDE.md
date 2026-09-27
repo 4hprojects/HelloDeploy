@@ -375,10 +375,12 @@ If the project does not yet have a healthy deployment, the domain remains verifi
 The **Usage** page shows what you are using against your allowance, and warns you
 before you reach a limit.
 
-It deliberately shows only the limits HelloDeploy enforces today: websites, custom
-domains and people per website. The other values below are configurable by an
-administrator but are not currently checked, so the Usage page does not show a meter
-for them — a meter would imply something happens when you reach the limit.
+It shows an allowance only where HelloDeploy actually refuses to exceed it: websites
+you own, and people per website. Your connected domains are reported as a plain
+count, because the custom-domain limit below is configurable but is **not** checked
+when a domain is added. The remaining values are configurable and equally unchecked,
+so no meter is shown for them — a meter would imply something happens when you reach
+the limit, and nothing would.
 
 Default limits may be adjusted by an Admin or Super Admin.
 

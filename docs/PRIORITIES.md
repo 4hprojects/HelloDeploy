@@ -230,6 +230,13 @@ mode. Every technical control Simple mode hides stays reachable in Advanced.
    error. Detection now warns and names the fix. Teaching the builder to use the
    project's own package manager needs the build image verified — a build-correctness
    change, not a UI one.
+5. **`maxCustomDomains` is not enforced.** It is a plan default, admin-editable and
+   displayed, but `addDomain` never consults it — an owner can exceed it freely, and
+   each custom domain consumes a cloudflared tunnel and an nginx route on one host.
+   The Usage page now reports domains as a plain count rather than an allowance, so
+   nothing claims otherwise, but the underlying decision is open: enforce it, or
+   remove the field. A code review caught this after it had been asserted as enforced
+   in four documents.
 
 ### Deliberately not built
 

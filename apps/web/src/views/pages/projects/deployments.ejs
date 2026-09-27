@@ -120,7 +120,7 @@
       <tbody>
         <% deployments.forEach(d => { %>
         <% const isLive = liveDeploymentId === String(d._id); %>
-        <tr<%= isLive ? ' class="deployment-row--live"' : '' %>>
+        <tr<%- isLive ? ' class="deployment-row--live"' : '' %>>
           <td class="text-muted text-sm" data-label="#">
             <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="table-link">
               #<%= d.sequenceNumber %>

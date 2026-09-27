@@ -177,6 +177,19 @@ describe('publish history', () => {
     assert.match(await renderHistory(), /Live now/);
   });
 
+  it('highlights the live row, not just labels it', async () => {
+    // The class is emitted as a whole attribute, so it needs <%- %>. With <%= %>
+    // the quotes are escaped and the row is never styled, while the "Live now"
+    // label above still renders — which is how this went unnoticed.
+    const html = await renderHistory();
+    assert.match(html, /<tr class="deployment-row--live">/);
+  });
+
+  it('highlights only the live row', async () => {
+    const html = await renderHistory();
+    assert.equal((html.match(/deployment-row--live/g) ?? []).length, 1);
+  });
+
   it('offers to restore an earlier version from its own row', async () => {
     assert.match(await renderHistory(), /Restore this version/);
   });
@@ -213,6 +226,7 @@ describe('usage page', () => {
   const renderUsage = ({
     counts = { websites: 1, domains: 0, members: 1 },
     allocation = null,
+    informational = null,
   } = {}) => {
     const usage = buildUsageRows({
       quota: { maxOwnedProjects: 3, maxCustomDomains: 1, maxProjectMembers: 3 },
@@ -223,6 +237,7 @@ describe('usage page', () => {
       project,
       membership: { role: 'OWNER' },
       rows: usage.rows,
+      counts: informational ?? usage.counts,
       isAnyAtLimit: usage.isAnyAtLimit,
       allocation,
       csrfToken: 'placeholder',
@@ -245,6 +260,28 @@ describe('usage page', () => {
   it('tells the owner what to do about a reached limit', async () => {
     const html = await renderUsage({ counts: { websites: 3, domains: 0, members: 1 } });
     assert.match(html, /ask an administrator to raise it/);
+  });
+
+  it('reports domains as a plain count, not as an allowance', async () => {
+    // maxCustomDomains is configured but nothing enforces it, so "of N" would be
+    // a false promise.
+    const html = await renderUsage({
+      counts: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
+    });
+    assert.match(html, /These are not capped/);
+  });
+
+  it('does not offer an allowance for an unenforced limit', async () => {
+    const html = await renderUsage({
+      counts: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
+    });
+    const section = html.slice(html.indexOf('Also in use'));
+    assert.doesNotMatch(section, /of \d+|At your limit/);
+  });
+
+  it('lists only limits that are actually enforced as limits', async () => {
+    const html = await renderUsage();
+    assert.doesNotMatch(html, /Your own domains[\s\S]{0,200}usage-row__meter/);
   });
 
   it('hides resource allocation from simple mode', async () => {

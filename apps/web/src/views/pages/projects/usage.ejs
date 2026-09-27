@@ -38,6 +38,25 @@
   <% }) %>
 </ul>
 
+<% if ((locals.counts || []).length > 0) { %>
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Also in use</h2>
+    <p class="text-sm text-muted">
+      These are not capped, so there is no allowance to show.
+    </p>
+    <dl class="usage-allocation">
+      <% counts.forEach((item) => { %>
+      <div>
+        <dt><%= item.label %></dt>
+        <dd><%= item.used %></dd>
+      </div>
+      <% }) %>
+    </dl>
+  </div>
+</div>
+<% } %>
+
 <% if (allocation) { %>
 <div class="card mt-6">
   <div class="card__body">

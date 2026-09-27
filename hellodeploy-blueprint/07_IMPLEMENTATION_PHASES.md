@@ -306,13 +306,14 @@ behavioural gain. Only genuinely missing structures were added.
 | Done   | Deploy a Website funnel, six steps.                   | Source, repository, analyse, identity, settings, readiness.                               |
 | Done   | Human-readable deployment progress.                   | Stages are the default content; logs move behind a disclosure.                            |
 | Done   | Per-failure recovery actions.                         | Driven by failure code; no failure is a dead end.                                         |
-| Done   | Website-first dashboard, history and Usage page.      | Usage shows only limits that are actually enforced.                                       |
+| Done   | Website-first dashboard, history and Usage page.      | Usage shows an allowance only where one is enforced; the rest are plain counts.           |
 | Done   | Domain provider detection and mode-aware diagnostics. | Advisory nameserver lookup; no provider credential is held.                               |
 | Done   | Automatic publishing as a plain choice, with proof.   | A failed automatic publish cannot replace a working release; tested against the pipeline. |
 | Done   | Accessibility and phone layout for the guided flow.   | States named in text, not colour; priority mobile flows covered.                          |
 | Done   | Funnel measurement.                                   | Audit events plus `docs/WORKFLOW_METRICS.md`. No analytics service is used.               |
 | Open   | Record the branch a deployment was built from.        | `Deployment` has no `branch` field, so history cannot label older releases truthfully.    |
 | Open   | Install with the project's own package manager.       | Builds run `npm ci`; pnpm and Yarn projects fail. Detection warns and names the fix.      |
+| Open   | Enforce `maxCustomDomains`, or remove the field.      | Configured, admin-editable and displayed, but `addDomain` never checks it.                |
 | Open   | Exercise the guided flow in a browser.                | Everything is verified by asserting rendered output. No page has been opened by a person. |
 
 ### Acceptance Criteria

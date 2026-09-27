@@ -29,6 +29,7 @@ export const getUsage = asyncHandler(async (req, res) => {
     project,
     membership: req.membership,
     rows: usage.rows,
+    counts: usage.counts,
     isAnyAtLimit: usage.isAnyAtLimit,
     allocation: res.locals.uiMode === UiMode.ADVANCED ? buildAllocationRows(quota) : null,
   });

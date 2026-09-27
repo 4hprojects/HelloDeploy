@@ -47,8 +47,15 @@ describe('usage rows', () => {
   });
 
   it('says when any limit has been reached', () => {
-    const result = buildUsageRows({ quota, counts: { ...counts, domains: 1 } });
+    const result = buildUsageRows({ quota, counts: { ...counts, websites: 3 } });
     assert.equal(result.isAnyAtLimit, true);
+  });
+
+  it('does not treat an unenforced limit as reachable', () => {
+    // maxCustomDomains defaults to 1 and nothing checks it, so one domain must
+    // not raise an at-limit warning about something the owner can still exceed.
+    const result = buildUsageRows({ quota, counts: { ...counts, domains: 1 } });
+    assert.equal(result.isAnyAtLimit, false);
   });
 
   it('explains each row in plain language', () => {
@@ -85,7 +92,17 @@ describe('usage shows only limits that are enforced', () => {
       'utf8',
     );
 
-    assert.match(source, /nothing in\s+\*?\s*the platform checks them/);
+    assert.match(source, /equally unenforced/);
+  });
+
+  it('reports domains as a count rather than an allowance', () => {
+    const result = buildUsageRows({ quota, counts: { ...counts, domains: 2 } });
+    assert.ok(!result.rows.some((row) => row.key === 'domains'));
+  });
+
+  it('still reports how many domains are in use', () => {
+    const result = buildUsageRows({ quota, counts: { ...counts, domains: 2 } });
+    assert.equal(result.counts.find((entry) => entry.key === 'domains').used, 2);
   });
 });
 

@@ -476,7 +476,9 @@
         <div class="settings-field-row">
           <div>
             <span class="form-label">Configured domains</span>
-            <p class="form-hint"><%= settingsState.domainSummary %> of <%= quota.maxCustomDomains %> allowed.</p>
+            <%# Not "of N allowed": maxCustomDomains is configured but nothing
+                enforces it, so an allowance here would be a false promise. %>
+            <p class="form-hint"><%= settingsState.domainSummary %>.</p>
           </div>
           <% if (domains.length) { %>
           <ul class="settings-summary-list">
