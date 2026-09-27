@@ -65,6 +65,39 @@ export const docsSections = [
       },
     ],
   },
+  {
+    heading: 'Deployments',
+    pages: [
+      {
+        slug: 'deployment-process',
+        title: 'Deployment Process',
+        description:
+          'What happens between publishing and a live site — the six stages of a deployment, the statuses it moves through, and where it can fail.',
+        file: 'deployment-process.md',
+      },
+      {
+        slug: 'deployment-logs',
+        title: 'Deployment Logs',
+        description:
+          'Read the record of a deployment, work out which stage failed, and understand what is redacted from log output.',
+        file: 'deployment-logs.md',
+      },
+      {
+        slug: 'redeployment',
+        title: 'Redeployment',
+        description:
+          'Publish updates, enable automatic publishing on push, understand why risky file changes pause it, and roll back to a recent release.',
+        file: 'redeployment.md',
+      },
+      {
+        slug: 'deploy-hooks',
+        title: 'Deploy Hooks',
+        description:
+          'Trigger a deployment from an external workflow with a private hook URL, and handle its token safely.',
+        file: 'deploy-hooks.md',
+      },
+    ],
+  },
 ];
 
 /** Every page, in sidebar order. */
