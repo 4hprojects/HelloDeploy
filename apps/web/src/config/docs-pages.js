@@ -23,6 +23,46 @@ export const docsSections = [
           'Deploy your first project with HelloDeploy, from connecting a repository to a running website.',
         file: 'getting-started.md',
       },
+      {
+        slug: 'project-configuration',
+        title: 'Project Configuration',
+        description:
+          'The settings a HelloDeploy project holds — build command, start command, output directory, application port and health check path.',
+        file: 'project-configuration.md',
+      },
+    ],
+  },
+  {
+    heading: 'Deployment Configuration',
+    pages: [
+      {
+        slug: 'build-configuration',
+        title: 'Build Configuration',
+        description:
+          'Set a build command, understand why builds install with npm ci, and configure output directories for static projects.',
+        file: 'build-configuration.md',
+      },
+      {
+        slug: 'start-command',
+        title: 'Start Command',
+        description:
+          'How HelloDeploy runs your application after it is built, and which projects need no start command at all.',
+        file: 'start-command.md',
+      },
+      {
+        slug: 'application-port',
+        title: 'Application Port',
+        description:
+          'Read the PORT environment variable HelloDeploy injects, bind to every interface, and avoid the most common cause of a failed health check.',
+        file: 'application-port.md',
+      },
+      {
+        slug: 'environment-variables',
+        title: 'Environment Variables',
+        description:
+          'Store configuration and secrets outside your source code, why changes need a redeploy, and which names HelloDeploy manages itself.',
+        file: 'environment-variables.md',
+      },
     ],
   },
 ];
