@@ -8,15 +8,11 @@
  */
 
 import { Project, Repository } from '@hellodeploy/database';
-import {
-  AuditOutcome,
-  DetectionStatus,
-  RepositoryProvider,
-  RepositorySourceType,
-} from '@hellodeploy/contracts';
+import { AuditOutcome, RepositoryProvider, RepositorySourceType } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 
 import { getLatestCommit, listInstallationRepos } from './github.service.js';
+import { DETECTION_RESET } from './detection.service.js';
 
 /** Plain-language copy for the ways connecting can fail. */
 export const CONNECT_ERROR_COPY = Object.freeze({
@@ -114,13 +110,9 @@ export async function connectGithubRepository({ project, installationId, selecti
         productionBranch,
         runtimeType: null,
         // Detection describes a specific commit. Pointing at new code invalidates
-        // whatever was detected before.
-        detection: {
-          status: DetectionStatus.NOT_RUN,
-          issues: [],
-          checkedCommitSha: null,
-          checkedAt: null,
-        },
+        // whatever was detected before. Uses the shared reset shape so no field
+        // is silently dropped back to its schema default.
+        detection: DETECTION_RESET,
         configurationVersion: (project.configurationVersion ?? 0) + 1,
       },
     },

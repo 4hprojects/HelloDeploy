@@ -195,20 +195,65 @@ describe('package manager detection', () => {
   });
 });
 
-describe('detection confidence is persisted, not dropped', () => {
-  it('writes confidence on every path that stores a detection result', async () => {
+describe('every write of the detection sub-document carries all its fields', () => {
+  /**
+   * Mongoose replaces the whole sub-document on `$set`, so a caller that omits a
+   * field silently reverts it to its schema default. The first version of this
+   * test scanned only detection.service.js and therefore missed the reset in
+   * repository-connect.service.js — the bug it was written to prevent. It now
+   * reads every service that writes `detection`.
+   */
+  const WRITERS = [
+    '../../apps/web/src/services/detection.service.js',
+    '../../apps/web/src/services/repository-connect.service.js',
+  ];
+
+  const REQUIRED_FIELDS = [
+    'confidence',
+    'fieldConfidence',
+    'packageManager',
+    'requiredEnvKeys',
+    'optionalEnvKeys',
+  ];
+
+  async function detectionWrites() {
+    const writes = [];
+    for (const relative of WRITERS) {
+      const source = await readFile(new URL(relative, import.meta.url), 'utf8');
+      // Each object literal assigned to `detection:`, and each shared constant use.
+      for (const match of source.matchAll(/detection: (\{[\s\S]*?\n {8}\}|[A-Z_]+)/g)) {
+        writes.push({ file: relative, body: match[1] });
+      }
+    }
+    return writes;
+  }
+
+  it('finds every place detection is written', async () => {
+    // Guards the test itself: if a write moves or is added elsewhere, the count
+    // changes and this fails rather than quietly checking nothing.
+    assert.equal((await detectionWrites()).length, 3);
+  });
+
+  for (const field of REQUIRED_FIELDS) {
+    it(`sets ${field} at every write`, async () => {
+      const missing = (await detectionWrites())
+        // A write that delegates to the shared constant carries every field.
+        .filter((write) => !/^[A-Z_]+$/.test(write.body))
+        .filter((write) => !write.body.includes(`${field}:`))
+        .map((write) => write.file);
+
+      assert.deepEqual(missing, []);
+    });
+  }
+
+  it('resets confidence to nothing rather than to LEGACY', async () => {
+    // LEGACY means "recorded before confidence was tracked", which is not the
+    // same as "not yet detected".
     const source = await readFile(
       new URL('../../apps/web/src/services/detection.service.js', import.meta.url),
       'utf8',
     );
 
-    // Two places persist `detection`: persistDetectionResult() and the inline
-    // update in runProjectDetection(). Both must carry confidence, or the
-    // wizard's confidence gate silently sees LEGACY and asks the owner to
-    // review settings it was actually sure about.
-    const writes = source.match(/detection: \{\s*\n\s*status:/g) ?? [];
-    const withConfidence = source.match(/confidence: result\.confidence/g) ?? [];
-
-    assert.equal(withConfidence.length, writes.length);
+    assert.match(source, /DETECTION_RESET = Object\.freeze\(\{[\s\S]*?confidence: null/);
   });
 });

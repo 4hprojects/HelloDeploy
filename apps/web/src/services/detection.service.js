@@ -11,6 +11,31 @@ import {
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
 
+/**
+ * The detection sub-document as it should look when nothing has been detected.
+ *
+ * Three places write `detection`: this module's two persist paths, and the
+ * repository connect service, which resets it because detection describes one
+ * commit and pointing at new code invalidates it. Mongoose replaces the whole
+ * sub-document on `$set`, so any field a caller omits silently reverts to its
+ * schema default. Exported so every reset writes the same shape and a field
+ * added later cannot be missed at one site.
+ *
+ * `confidence` is null rather than LEGACY: LEGACY means "recorded before
+ * confidence was tracked", which is a different thing from "not yet detected".
+ */
+export const DETECTION_RESET = Object.freeze({
+  status: DetectionStatus.NOT_RUN,
+  issues: [],
+  confidence: null,
+  fieldConfidence: {},
+  packageManager: PackageManager.UNKNOWN,
+  requiredEnvKeys: [],
+  optionalEnvKeys: [],
+  checkedCommitSha: null,
+  checkedAt: null,
+});
+
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
 
@@ -489,6 +514,10 @@ async function persistDetectionResult(projectId, result, checkedCommitSha = null
           confidence: result.confidence ?? DetectionConfidence.LOW,
           fieldConfidence: result.fieldConfidence ?? {},
           packageManager: result.packageManager ?? PackageManager.UNKNOWN,
+          // Reached on the failure paths, where no keys were read. Written
+          // explicitly so the field's value is a decision, not a schema default.
+          requiredEnvKeys: result.requiredEnvKeys ?? [],
+          optionalEnvKeys: result.optionalEnvKeys ?? [],
           checkedCommitSha,
           checkedAt: new Date(),
         },
