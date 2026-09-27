@@ -42,7 +42,17 @@ Only describe integrations that are technically possible.
 
 ## Creating a Hook
 
-Document exact steps after verifying the UI.
+A deploy hook is a project-specific URL of the form:
+
+```text
+POST https://<platform-domain>/api/deploy-hooks/<project-id>/<token>
+```
+
+Sending a POST request to it starts a deployment. It carries no session and no
+user, so the token in the URL is the entire credential — treat it like a password.
+
+Deploy hooks are an infrastructure control, so they are hidden in Simple mode and
+exposed in Advanced mode.
 
 ## Triggering the Hook
 
@@ -63,4 +73,4 @@ Do not:
 
 ## Revoking or Rotating Hooks
 
-Document only if implemented.
+Requests to a deploy hook are rate limited, and a token can be regenerated if it leaks.

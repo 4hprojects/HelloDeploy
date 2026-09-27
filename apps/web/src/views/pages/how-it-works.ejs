@@ -68,9 +68,11 @@
           <h2 class="step-list__title">Start the application</h2>
           <p class="text-sm text-muted">
             HelloDeploy starts your application with the start command you configured, in an
-            isolated container, with your environment variables supplied at startup. Your
-            application must listen on the port you configured — that is where HelloDeploy
-            expects to find it.
+            isolated container, with your environment variables supplied at startup.
+            HelloDeploy sets a <code class="code-inline">PORT</code> variable telling your
+            application which port to listen on, so read that rather than hardcoding a number.
+            An application bound to the wrong port is the most common reason a deployment
+            starts but never becomes healthy.
           </p>
         </div>
       </li>

@@ -69,7 +69,10 @@ Related: `/docs/environment-variables`
 
 ## Step 5: Start the Deployment
 
-Use the actual HelloDeploy deployment action. Document the exact UI label after verification.
+The deployment flow is a guided wizard: choose a source, pick a repository,
+let HelloDeploy inspect it, name the website, set environment variables, review
+readiness, then publish. Each step states what was detected and what was assumed,
+so a wrong guess can be corrected before anything is built.
 
 ## Step 6: Review Deployment Status
 

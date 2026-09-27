@@ -94,6 +94,17 @@
   <div class="card__body">
     <h2>Things worth knowing before you deploy</h2>
 
+    <h3>Read the port from the environment</h3>
+    <p class="text-sm text-muted">
+      HelloDeploy sets a <code class="code-inline">PORT</code> environment variable when your
+      application starts, matching the application port on your project. Read it
+      (<code class="code-inline">process.env.PORT</code>) rather than hardcoding a number.
+      <code class="code-inline">PORT</code> is managed by the platform, so it cannot be set as
+      one of your own environment variables — nor can
+      <code class="code-inline">NODE_ENV</code>, <code class="code-inline">HOST</code> or
+      <code class="code-inline">HOSTNAME</code>.
+    </p>
+
     <h3>Dependencies install with npm</h3>
     <p class="text-sm text-muted">
       Builds run <code class="code-inline">npm ci</code>, which needs a

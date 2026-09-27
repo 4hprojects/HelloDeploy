@@ -39,7 +39,10 @@ Reverse Proxy
 
 ## HelloDeploy Angle
 
-Connect to actual routing architecture only if verified.
+Verified, and safe to describe: each deployed application listens on a private
+loopback port on the server, and nginx forwards incoming requests to the right one.
+That is how many projects share a single server and a single public address. A new
+release is only routed to after it passes its health check.
 
 ## Internal Links
 

@@ -20,7 +20,11 @@ Deployment logs show what happened while HelloDeploy prepared and started your a
 
 ## Opening Logs
 
-Document the exact interface path after verification.
+Open a project, then its deployment. Logs stream while the deployment runs and
+remain readable afterwards, for successful and failed deployments alike.
+
+Secret values are redacted before logs are stored or streamed, so an environment
+variable's value never appears in them.
 
 ## What Logs May Show
 

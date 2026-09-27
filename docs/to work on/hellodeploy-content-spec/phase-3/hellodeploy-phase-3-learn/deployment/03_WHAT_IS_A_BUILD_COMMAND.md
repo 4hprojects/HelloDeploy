@@ -27,13 +27,12 @@ What Is a Build Command and Why Does Your App Need One?
 
 ## Example
 
-Use a verified Node.js or frontend example only if supported.
+`npm run build` is the verified example — it is what HelloDeploy proposes for the
+frontend frameworks it recognises, and builds install dependencies with `npm ci`.
 
-Possible example:
-
-```text
-npm run build
-```
+Do not show a pnpm or Yarn build example. HelloDeploy installs with npm, so a
+project locking with either of those needs a `package-lock.json` committed before
+it will build.
 
 ## Suggested Outline
 

@@ -24,14 +24,27 @@ The port is the internal network location used by the application process. Visit
 
 ## Platform-Provided Port
 
-If HelloDeploy provides a `PORT` environment variable or similar mechanism, document the exact behavior only after verification.
+HelloDeploy always injects a `PORT` environment variable into the container, set to
+the application port configured on the project. Read it rather than hardcoding a
+number:
+
+```js
+const port = process.env.PORT || 3000;
+```
+
+`PORT` is managed by the platform, so it cannot be set as one of your own
+environment variables. Simple mode refuses it outright; Advanced mode allows it
+with a warning. The same applies to `NODE_ENV`, `HOST` and `HOSTNAME`.
+
+An application that binds a fixed port different from the configured one will
+fail its health check, and the release will roll back.
 
 ## Common Symptoms
 
 - deployment succeeds but site does not load
 - application starts but cannot receive external traffic
 - logs show another port
-- health verification fails if implemented
+- the health check fails, because nothing answers on the expected port
 
 ## How to Check
 

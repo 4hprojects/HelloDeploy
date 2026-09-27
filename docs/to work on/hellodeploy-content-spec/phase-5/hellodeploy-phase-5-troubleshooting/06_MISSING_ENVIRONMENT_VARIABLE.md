@@ -34,7 +34,9 @@ Applications often fail in production because a required environment variable ex
 - variable added to local `.env` only
 - redeployment required after adding variable
 
-Only state redeployment is required if verified.
+Redeployment is required, and this is verified: environment variables are passed
+to the container when it starts, so a running application does not pick up a value
+added or changed afterwards. Save the variable, then redeploy.
 
 ## How to Check
 

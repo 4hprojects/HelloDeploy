@@ -27,7 +27,9 @@ What Is Nginx and Why Is It Used in Web Hosting?
 
 ## Important Rule
 
-Do not say HelloDeploy uses Nginx unless verified.
+HelloDeploy does use nginx: the worker writes an nginx server block for a
+release and reloads nginx when that release is activated. This is verified and may
+be stated as fact.
 
 If verified, show a simplified architecture diagram.
 

@@ -25,11 +25,17 @@ Before HTTPS can work:
 - domain must be added to the correct project
 - DNS must point correctly
 - domain verification must succeed if required
-- SSL provisioning must complete if implemented
+- the domain's tunnel must be provisioned by an administrator
 
-## Automatic Certificate Handling
+## Certificate Handling
 
-Only state that HelloDeploy automatically creates or renews certificates if verified.
+Do not claim that HelloDeploy issues or renews a certificate for your domain.
+TLS is terminated upstream of the application, so certificates are not managed
+per project inside HelloDeploy.
+
+What to tell the reader: traffic is served over HTTPS once the domain is
+provisioned and its DNS record resolves. If HTTPS does not work, the cause is
+almost always DNS or provisioning, not a certificate that needs requesting.
 
 ## Checking HTTPS
 

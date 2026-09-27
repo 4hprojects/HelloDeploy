@@ -21,7 +21,7 @@ A port mismatch happens when the application listens on one internal port while 
 - application starts successfully
 - logs show a port
 - site does not load
-- health check fails if implemented
+- the health check fails, because nothing answers on the expected port
 - gateway error appears
 
 ## Common Causes
@@ -46,7 +46,10 @@ Conceptual only:
 const port = process.env.PORT || 3000;
 ```
 
-Do not publish this as a HelloDeploy requirement unless verified.
+This is a verified HelloDeploy requirement and should be stated plainly: read
+`process.env.PORT`. HelloDeploy injects it, set to the application port configured
+on the project. An application that binds some other port fails its health check
+and the release rolls back.
 
 ## How to Fix
 

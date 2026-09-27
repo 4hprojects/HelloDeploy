@@ -48,7 +48,25 @@ If health verification exists, describe the actual checks.
 
 ## Deployment Statuses
 
-Document exact UI statuses. Do not invent labels.
+A deployment moves through these statuses:
+
+| Status | Meaning |
+|---|---|
+| `QUEUED` | Accepted and waiting for a worker |
+| `VALIDATING` | Configuration and repository access being checked |
+| `BUILDING` | Dependencies installing and the build running |
+| `DEPLOYING` | Container starting, health check running, routing being updated |
+| `HEALTHY` | Running and serving traffic |
+| `FAILED` | Stopped at one of the stages above; the previous release keeps serving |
+| `CANCELLED` | Stopped before it finished |
+| `ROLLED_BACK` | Replaced by an earlier release |
+
+Within a run the stage shown is one of `PREPARING`, `BUILDING`, `CONFIGURING`,
+`STARTING`, `CHECKING` or `PUBLISHING`.
+
+Note that Simple mode labels `HEALTHY` as **Published** rather than "Live", because
+several retained releases can be healthy while only one serves visitors. Do not
+describe every healthy release as live.
 
 ## Successful Deployment
 

@@ -32,16 +32,30 @@ Document the exact action after UI verification.
 
 ## Source Updates
 
-If deploying from a repository, document branch and commit behavior only after verification.
+A deployment clones the exact commit it was created for, so redeploying reruns
+the same configuration against whatever commit is being deployed rather than
+picking up unrelated changes.
+
+Pushing to the project's production branch can start a deployment automatically
+through the GitHub webhook. A deployment can also be started manually or through
+a deploy hook.
 
 ## Configuration Changes
 
-Explain whether saving configuration automatically triggers redeployment.
+Saving configuration does not deploy it. The new values take effect on the next deployment.
 
 ## Environment Variable Changes
 
-Explain whether changes require redeployment, restart, or no further action.
+Changes require a redeployment. Environment variables are passed to the container
+when it starts, so a running application does not pick up a value added or changed
+afterwards.
 
 ## Deployment History
 
-If available, document what is stored. Do not call it rollback unless rollback functionality exists.
+Rollback exists and may be described as such. HelloDeploy keeps the three most
+recent healthy releases per project; deploying a fourth stops and removes the
+oldest. Rolling back switches traffic to one of the retained releases without
+rebuilding it.
+
+State the limit of three plainly. A reader who assumes every past release is kept
+will eventually try to roll back to one that no longer exists.
