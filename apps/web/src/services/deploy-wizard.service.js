@@ -46,6 +46,24 @@ function hasConfirmed(project, step) {
 }
 
 /**
+ * Does the owner have to look at the detected settings before continuing?
+ *
+ * Anything outside TRUSTED_CONFIDENCE does — a guessed value (LOW), a value the
+ * owner set themselves (MANUAL), and a project detected before confidence was
+ * recorded at all (LEGACY, the schema default for every project that predates it).
+ *
+ * The analyse step's gate and the button that satisfies it must agree, so both
+ * read this. Deciding it twice is what let LEGACY projects reach a step whose
+ * only way forward was never rendered.
+ *
+ * @param {object} project
+ * @returns {boolean}
+ */
+export function needsAnalysisReview(project) {
+  return !TRUSTED_CONFIDENCE.has(project.detection?.confidence);
+}
+
+/**
  * Is this step satisfied? Each answer leans on observable state first and falls
  * back to an explicit confirmation only where nothing is observable.
  *
@@ -63,9 +81,7 @@ function isSatisfied(step, { project, repository, missingEnvKeys }) {
         return false;
       }
       // Weakly-evidenced settings need a human glance; confident ones do not.
-      return (
-        TRUSTED_CONFIDENCE.has(project.detection?.confidence) || hasConfirmed(project, 'analyze')
-      );
+      return !needsAnalysisReview(project) || hasConfirmed(project, 'analyze');
     }
 
     // Name and address always hold a generated value, so there is nothing to

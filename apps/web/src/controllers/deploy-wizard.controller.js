@@ -10,7 +10,6 @@
 
 import { Deployment, Project, Repository, User } from '@hellodeploy/database';
 import {
-  DetectionConfidence,
   DetectionStatus,
   DeploymentMode,
   DeploymentStatus,
@@ -40,6 +39,7 @@ import { buildApplicationUrl } from '../services/project-overview.service.js';
 import {
   resolveWizardState,
   canEnterStep,
+  needsAnalysisReview,
   withConfirmedStep,
 } from '../services/deploy-wizard.service.js';
 
@@ -269,7 +269,7 @@ async function renderAnalyzeStep(req, res, { project, repository, state }) {
     detection,
     fieldConfidence,
     findings: buildAnalysisFindings(project, detection),
-    needsReview: detection.confidence === DetectionConfidence.LOW,
+    needsReview: needsAnalysisReview(project),
     hasRun: detection.status !== DetectionStatus.NOT_RUN,
     isReady: detection.status === DetectionStatus.READY,
   });

@@ -4,6 +4,7 @@ import { DetectionConfidence, DetectionStatus, ProjectStatus } from '@hellodeplo
 
 import {
   WIZARD_STEPS,
+  needsAnalysisReview,
   STEP_STATUS,
   resolveWizardState,
   canEnterStep,
@@ -202,5 +203,70 @@ describe('guided setup confirmations', () => {
   it('keeps earlier confirmations', () => {
     const p = project({ setup: { confirmedSteps: ['analyze'] } });
     assert.deepEqual(withConfirmedStep(p, 'identity'), ['analyze', 'identity']);
+  });
+});
+
+/**
+ * The analyse step's gate and the button that satisfies it must agree for every
+ * confidence value. When they were decided separately, LEGACY — the default for
+ * every project predating confidence tracking — reached a step whose only way
+ * forward was never rendered, and "Continue" bounced straight back to it.
+ */
+describe('the analysis gate and its confirmation cannot disagree', () => {
+  for (const confidence of Object.values(DetectionConfidence)) {
+    it(`offers a way forward for ${confidence} detection`, () => {
+      const p = project({
+        repositoryId: 'r1',
+        detection: { status: DetectionStatus.READY, confidence },
+      });
+      const state = resolveWizardState({ project: p, repository, missingEnvKeys: [] });
+
+      // Either the step passes on its own, or the owner is asked to confirm it.
+      const passesUnaided = state.currentStep !== 'analyze';
+      assert.equal(passesUnaided || needsAnalysisReview(p), true);
+    });
+  }
+
+  it('does not strand a project detected before confidence was recorded', () => {
+    const p = project({
+      repositoryId: 'r1',
+      detection: { status: DetectionStatus.READY, confidence: DetectionConfidence.LEGACY },
+    });
+
+    assert.equal(needsAnalysisReview(p), true);
+  });
+
+  it('lets a legacy project continue once the owner confirms', () => {
+    const p = project({
+      repositoryId: 'r1',
+      detection: { status: DetectionStatus.READY, confidence: DetectionConfidence.LEGACY },
+      setup: { confirmedSteps: ['analyze'] },
+    });
+    const state = resolveWizardState({ project: p, repository, missingEnvKeys: [] });
+
+    assert.equal(state.currentStep, 'identity');
+  });
+
+  it('asks nothing of a confidently detected project', () => {
+    const p = project({
+      repositoryId: 'r1',
+      detection: { status: DetectionStatus.READY, confidence: DetectionConfidence.HIGH },
+    });
+
+    assert.equal(needsAnalysisReview(p), false);
+  });
+
+  it('asks the owner to confirm settings they set by hand', () => {
+    const p = project({
+      repositoryId: 'r1',
+      detection: { status: DetectionStatus.READY, confidence: DetectionConfidence.MANUAL },
+    });
+
+    assert.equal(needsAnalysisReview(p), true);
+  });
+
+  it('treats a project with no recorded confidence as needing a look', () => {
+    const p = project({ repositoryId: 'r1', detection: { status: DetectionStatus.READY } });
+    assert.equal(needsAnalysisReview(p), true);
   });
 });

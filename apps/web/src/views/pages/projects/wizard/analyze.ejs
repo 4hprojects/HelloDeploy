@@ -39,10 +39,12 @@
     <% } %>
 
     <% if (needsReview && isReady) { %>
+    <%# Covers both a guessed value and a project set up before HelloDeploy
+        recorded how it worked these out, so the wording claims neither. %>
     <div class="alert alert--warning mt-6" role="status">
       <p>
-        HelloDeploy made its best guess for some of these settings. Have a quick look before
-        you continue — you can change them at any time.
+        HelloDeploy is not certain it got all of these right. Have a quick look before you
+        continue — you can change them at any time.
       </p>
     </div>
     <% } %>

@@ -120,7 +120,10 @@ describe('analysis step', () => {
   });
 
   it('asks for a glance at weakly-evidenced settings', async () => {
-    assert.match(await renderAnalyze({ needsReview: true }), /best guess/);
+    assert.match(
+      await renderAnalyze({ needsReview: true }),
+      /not certain it got all of these right/,
+    );
   });
 
   it('requires confirmation before continuing past a guess', async () => {
