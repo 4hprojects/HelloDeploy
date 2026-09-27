@@ -165,6 +165,19 @@ function domainCard(domains) {
 
   const active = domains.find((domain) => domain.status === DomainStatus.ACTIVE);
   if (!active) {
+    // A domain that stopped needs the owner, not more waiting. Reporting it as
+    // still connecting left them watching something that had already given up.
+    const failed = domains.find((domain) => domain.status === DomainStatus.FAILED);
+    if (failed) {
+      return card(
+        'domain',
+        'Your domain',
+        failed.hostnameNormalized,
+        CARD_STATE.ATTENTION,
+        'Setting up this address did not finish. Open Domain to see what to do.',
+      );
+    }
+
     return card('domain', 'Your domain', 'Still connecting', CARD_STATE.WORKING, null);
   }
 

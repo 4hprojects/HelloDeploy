@@ -10,7 +10,8 @@ import {
 } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
-const { recordStage, updateStatus } = await import('../../apps/worker/src/deployment/pipeline.js');
+const { completeCurrentStage, recordStage, updateStatus } =
+  await import('../../apps/worker/src/deployment/pipeline.js');
 
 async function createDeployment() {
   return Deployment.create({
@@ -127,5 +128,55 @@ describe('deployment stage recording', () => {
 
     const stages = await stagesOf(deployment._id);
     assert.equal(stages.at(-1).status, DeploymentStageStatus.COMPLETE);
+  });
+});
+
+describe('the handoff between building and activating', () => {
+  before(async () => {
+    await startTestDb();
+  });
+  after(async () => {
+    await stopTestDb();
+  });
+  beforeEach(async () => {
+    await clearTestDb();
+  });
+
+  /** The build job's sequence: stages recorded, then the stage closed at handoff. */
+  async function builtAndHandedOff() {
+    const deployment = await createDeployment();
+    await recordStage(deployment._id, DeploymentStage.PREPARING);
+    await recordStage(deployment._id, DeploymentStage.BUILDING);
+    await completeCurrentStage(deployment._id);
+    return deployment;
+  }
+
+  it('closes the build stage once the image exists', async () => {
+    const deployment = await builtAndHandedOff();
+    const stages = await stagesOf(deployment._id);
+
+    assert.equal(stages.at(-1).status, DeploymentStageStatus.COMPLETE);
+  });
+
+  it('does not blame the build when the handoff itself fails', async () => {
+    const deployment = await builtAndHandedOff();
+    // An enqueue failure after a successful build.
+    await updateStatus(deployment._id, DeploymentStatus.FAILED, {
+      failureCode: 'ACTIVATION_ENQUEUE_FAILED',
+    });
+
+    const stages = await stagesOf(deployment._id);
+    const building = stages.find((s) => s.stage === DeploymentStage.BUILDING);
+    assert.equal(building.status, DeploymentStageStatus.COMPLETE);
+  });
+
+  it('leaves no stage open to be wrongly marked failed', async () => {
+    const deployment = await builtAndHandedOff();
+    await updateStatus(deployment._id, DeploymentStatus.FAILED, {
+      failureCode: 'ACTIVATION_ENQUEUE_FAILED',
+    });
+
+    const stages = await stagesOf(deployment._id);
+    assert.equal(stages.filter((s) => s.status === DeploymentStageStatus.FAILED).length, 0);
   });
 });

@@ -204,7 +204,7 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
 
   req.flash(
     'success',
-    `Repository ${result.repository.fullName} connected on branch ${result.repository.defaultBranch}.`,
+    `Repository ${result.repository.fullName} connected on branch ${result.productionBranch}.`,
   );
   res.redirect(`/projects/${project.slug}`);
 });

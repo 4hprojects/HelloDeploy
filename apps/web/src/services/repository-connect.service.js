@@ -31,7 +31,12 @@ export const CONNECT_ERROR_COPY = Object.freeze({
  *   selection: { fullName: string, branch: string },
  *   actor: { id: string, sourceIp: string, correlationId: string },
  * }} params
- * @returns {Promise<{ success: boolean, error?: string, repository?: object }>}
+ * @returns {Promise<{
+ *   success: boolean,
+ *   error?: string,
+ *   repository?: object,
+ *   productionBranch?: string,
+ * }>}
  */
 export async function connectGithubRepository({ project, installationId, selection, actor }) {
   if (!installationId) {
@@ -129,5 +134,7 @@ export async function connectGithubRepository({ project, installationId, selecti
     metadata: { fullName, productionBranch },
   });
 
-  return { success: true, repository };
+  // productionBranch is what will be deployed; the repository's own defaultBranch
+  // may be a different branch entirely when the owner chose one.
+  return { success: true, repository, productionBranch };
 }

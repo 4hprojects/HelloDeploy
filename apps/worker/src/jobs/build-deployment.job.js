@@ -19,6 +19,7 @@ import { getProjectEnvVars } from '../deployment/secrets.js';
 import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
 import {
+  completeCurrentStage,
   logEvent,
   recordStage,
   updateStatus,
@@ -370,6 +371,11 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   // ── Transition to DEPLOYING and enqueue ACTIVATE_RELEASE ───────────────────
+  // The image exists, so building is finished. Closing the stage here rather than
+  // leaving it for activation to close means a failure between the two — a queue
+  // that will not accept the job, a project deleted meanwhile — is not attributed
+  // to a build that actually succeeded.
+  await completeCurrentStage(deploymentId);
   await updateStatus(deploymentId, DeploymentStatus.DEPLOYING, { imageTag });
   await logEvent(
     deploymentId,

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFile } from 'node:fs/promises';
 import {
   DeploymentStage,
   DeploymentStageStatus,
@@ -184,5 +185,50 @@ describe('failure recovery actions', () => {
   it('gives an unrecognised code the logs', () => {
     const actions = buildRecoveryActions(project, failed('SOMETHING_NEW'), { canRetry: false });
     assert.ok(actions.some((action) => /technical logs/.test(action.label)));
+  });
+});
+
+/**
+ * Between a finished build and a started activation there is a handoff that can
+ * fail — the queue refusing the job, the project deleted meanwhile. The stage
+ * blamed for that must not be the build, which succeeded.
+ */
+describe('a failure after the build does not blame the build', () => {
+  it('reports no failed stage when the build completed', () => {
+    const progress = buildDeploymentProgress({
+      status: DeploymentStatus.FAILED,
+      stages: [
+        stage(DeploymentStage.PREPARING, DeploymentStageStatus.COMPLETE),
+        stage(DeploymentStage.BUILDING, DeploymentStageStatus.COMPLETE),
+      ],
+    });
+
+    assert.equal(progress.failedStage, null);
+  });
+
+  it('still shows the build as done', () => {
+    const progress = buildDeploymentProgress({
+      status: DeploymentStatus.FAILED,
+      stages: [
+        stage(DeploymentStage.PREPARING, DeploymentStageStatus.COMPLETE),
+        stage(DeploymentStage.BUILDING, DeploymentStageStatus.COMPLETE),
+      ],
+    });
+
+    assert.equal(stepFor(progress, DeploymentStage.BUILDING).status, PROGRESS_STATUS.COMPLETE);
+  });
+
+  it('closes the build stage at handoff rather than leaving it open', async () => {
+    const source = await readFile(
+      new URL('../../apps/worker/src/jobs/build-deployment.job.js', import.meta.url),
+      'utf8',
+    );
+
+    // The call must precede the DEPLOYING transition, which is where the handoff
+    // happens; after it, an enqueue failure would already have closed BUILDING.
+    assert.ok(
+      source.indexOf('completeCurrentStage(deploymentId)') <
+        source.indexOf('DeploymentStatus.DEPLOYING'),
+    );
   });
 });

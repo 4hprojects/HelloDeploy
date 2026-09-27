@@ -153,6 +153,36 @@ describe('overview cards — your domain', () => {
     assert.equal(cardFor(cards, 'domain').state, CARD_STATE.WORKING);
   });
 
+  it('does not report a failed domain as still connecting', () => {
+    // It has given up; waiting longer will not help.
+    const cards = build({
+      domains: [{ status: DomainStatus.FAILED, hostnameNormalized: 'hellouniversity.online' }],
+    });
+
+    assert.equal(cardFor(cards, 'domain').state, CARD_STATE.ATTENTION);
+  });
+
+  it('names the failed domain rather than describing it vaguely', () => {
+    const cards = build({
+      domains: [{ status: DomainStatus.FAILED, hostnameNormalized: 'hellouniversity.online' }],
+    });
+
+    assert.equal(cardFor(cards, 'domain').value, 'hellouniversity.online');
+  });
+
+  it('says where to go about a failed domain', () => {
+    const cards = build({
+      domains: [{ status: DomainStatus.FAILED, hostnameNormalized: 'hellouniversity.online' }],
+    });
+
+    assert.match(cardFor(cards, 'domain').detail, /Open Domain/);
+  });
+
+  it('still reports a genuinely in-progress domain as in progress', () => {
+    const cards = build({ domains: [{ status: DomainStatus.VERIFYING }] });
+    assert.equal(cardFor(cards, 'domain').state, CARD_STATE.WORKING);
+  });
+
   it('does not claim a routed domain is reachable when DNS points elsewhere', () => {
     // Routing being ACTIVE inside nginx says nothing about public DNS.
     const cards = build({

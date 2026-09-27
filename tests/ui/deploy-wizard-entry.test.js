@@ -160,3 +160,15 @@ describe('deploy wizard — connect failures speak plainly', () => {
     );
   });
 });
+
+describe('connecting a repository reports the branch it will deploy', () => {
+  it('returns the resolved production branch, not the repository default', () => {
+    // The owner may pick a branch that is not the repository's default; naming
+    // the default would tell them HelloDeploy will deploy something it will not.
+    assert.match(connectService, /return \{ success: true, repository, productionBranch \}/);
+  });
+
+  it('resolves the branch from the selection before falling back', () => {
+    assert.match(connectService, /const productionBranch = branch \|\| authorized\.defaultBranch/);
+  });
+});
