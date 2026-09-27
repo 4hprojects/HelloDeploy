@@ -17,6 +17,7 @@ import {
   getPublicGithubLatestCommit,
 } from '../services/github.service.js';
 import { connectGithubRepository } from '../services/repository-connect.service.js';
+import { DETECTION_RESET } from '../services/detection.service.js';
 
 // ─── GitHub App installation flow ─────────────────────────────────────────────
 
@@ -272,12 +273,7 @@ async function connectPublicRepository(req, res) {
         productionBranch,
         deploymentMode,
         runtimeType: null,
-        detection: {
-          status: 'NOT_RUN',
-          issues: [],
-          checkedCommitSha: null,
-          checkedAt: null,
-        },
+        detection: DETECTION_RESET,
         configurationVersion: project.configurationVersion + 1,
       },
     },
@@ -344,12 +340,7 @@ export const postDisconnectRepository = asyncHandler(async (req, res) => {
         repositoryId: null,
         productionBranch: null,
         runtimeType: null,
-        detection: {
-          status: 'NOT_RUN',
-          issues: [],
-          checkedCommitSha: null,
-          checkedAt: null,
-        },
+        detection: DETECTION_RESET,
       },
       $inc: { configurationVersion: 1 },
     },

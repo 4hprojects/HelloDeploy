@@ -98,19 +98,37 @@ export function buildUsageRows({ quota, counts }) {
 }
 
 /**
- * Resource allocation for one website. Advanced mode only — these are the
- * container's limits, which mean nothing to an owner who does not run servers.
+ * Resource figures recorded against the plan.
+ *
+ * These are **not** what the container gets. The worker uses
+ * `env.RUNTIME_MEMORY_MB` and a fixed 0.25 CPU, retention keeps a hardcoded three
+ * releases, and the build timeout comes from `env.BUILD_TIMEOUT_MS` — none of them
+ * read the quota. Presenting them as this website's limits is the same false
+ * promise that was just removed for custom domains, so they are labelled as
+ * configured-but-unapplied rather than described as allocation.
+ *
+ * Kept visible because an administrator who edits them should be able to see what
+ * they set; removed from Simple mode because they mean nothing to an owner.
  *
  * @param {object} quota
- * @returns {Array<{ label: string, value: string }>}
+ * @returns {Array<{ label: string, value: string, isApplied: boolean }>}
  */
 export function buildAllocationRows(quota) {
   return [
-    { label: 'Memory', value: quota?.memoryMb ? `${quota.memoryMb} MB` : 'Platform default' },
-    { label: 'CPU', value: quota?.cpuCores ? `${quota.cpuCores} cores` : 'Platform default' },
+    {
+      label: 'Memory',
+      value: quota?.memoryMb ? `${quota.memoryMb} MB` : 'Not set',
+      isApplied: false,
+    },
+    {
+      label: 'CPU',
+      value: quota?.cpuCores ? `${quota.cpuCores} cores` : 'Not set',
+      isApplied: false,
+    },
     {
       label: 'Versions kept for restoring',
-      value: quota?.maxRollbackReleases ? String(quota.maxRollbackReleases) : 'Platform default',
+      value: quota?.maxRollbackReleases ? String(quota.maxRollbackReleases) : 'Not set',
+      isApplied: false,
     },
   ];
 }

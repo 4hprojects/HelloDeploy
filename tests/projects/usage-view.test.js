@@ -106,17 +106,32 @@ describe('usage shows only limits that are enforced', () => {
   });
 });
 
-describe('resource allocation, for advanced mode', () => {
-  it('reports the memory limit', () => {
+describe('recorded plan figures, for advanced mode', () => {
+  it('reports the recorded memory figure', () => {
     assert.equal(buildAllocationRows({ memoryMb: 256 })[0].value, '256 MB');
   });
 
-  it('falls back to a platform default rather than showing nothing', () => {
-    assert.equal(buildAllocationRows({})[0].value, 'Platform default');
+  it('says a figure is unset rather than inventing a default', () => {
+    // "Platform default" implied the value was applied when nothing reads it.
+    assert.equal(buildAllocationRows({})[0].value, 'Not set');
+  });
+
+  it('marks every figure as not applied', () => {
+    const rows = buildAllocationRows({ memoryMb: 256, cpuCores: 1, maxRollbackReleases: 3 });
+    assert.ok(rows.every((row) => row.isApplied === false));
   });
 
   it('describes retained versions in the owner’s terms', () => {
     const rows = buildAllocationRows({ maxRollbackReleases: 3 });
     assert.ok(rows.some((row) => /restoring/i.test(row.label)));
+  });
+
+  it('records why these are not presented as allocation', async () => {
+    const source = await readFile(
+      new URL('../../apps/web/src/services/usage-view.service.js', import.meta.url),
+      'utf8',
+    );
+
+    assert.match(source, /none of them\s+\*?\s*read the quota/);
   });
 });

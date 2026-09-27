@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { readFile } from 'node:fs/promises';
+import { readFile, readdir } from 'node:fs/promises';
+import { join, relative } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { DetectionConfidence, PackageManager } from '@hellodeploy/contracts';
 
 // Set GitHub env vars so the module loads without throwing
@@ -198,15 +200,17 @@ describe('package manager detection', () => {
 describe('every write of the detection sub-document carries all its fields', () => {
   /**
    * Mongoose replaces the whole sub-document on `$set`, so a caller that omits a
-   * field silently reverts it to its schema default. The first version of this
-   * test scanned only detection.service.js and therefore missed the reset in
-   * repository-connect.service.js — the bug it was written to prevent. It now
-   * reads every service that writes `detection`.
+   * field silently reverts it to its schema default.
+   *
+   * This test has been too narrow twice. The first version read one file and
+   * missed the reset in repository-connect.service.js. The second read two named
+   * services and missed two writes in github.controller.js — it even asserted a
+   * write count, which made the blind spot look like coverage.
+   *
+   * It now walks the whole web source tree, so a write added in a file nobody
+   * thought to list is still checked.
    */
-  const WRITERS = [
-    '../../apps/web/src/services/detection.service.js',
-    '../../apps/web/src/services/repository-connect.service.js',
-  ];
+  const WEB_SRC = fileURLToPath(new URL('../../apps/web/src', import.meta.url));
 
   const REQUIRED_FIELDS = [
     'confidence',
@@ -216,29 +220,42 @@ describe('every write of the detection sub-document carries all its fields', () 
     'optionalEnvKeys',
   ];
 
+  async function sourceFiles(directory) {
+    const entries = await readdir(directory, { withFileTypes: true });
+    const files = [];
+    for (const entry of entries) {
+      const full = join(directory, entry.name);
+      if (entry.isDirectory()) {
+        files.push(...(await sourceFiles(full)));
+      } else if (entry.name.endsWith('.js')) {
+        files.push(full);
+      }
+    }
+    return files;
+  }
+
+  /** Every `detection:` assignment in the web app, whatever file it lives in. */
   async function detectionWrites() {
     const writes = [];
-    for (const relative of WRITERS) {
-      const source = await readFile(new URL(relative, import.meta.url), 'utf8');
-      // Each object literal assigned to `detection:`, and each shared constant use.
-      for (const match of source.matchAll(/detection: (\{[\s\S]*?\n {8}\}|[A-Z_]+)/g)) {
-        writes.push({ file: relative, body: match[1] });
+    for (const file of await sourceFiles(WEB_SRC)) {
+      const source = await readFile(file, 'utf8');
+      for (const match of source.matchAll(/^\s*detection: (\{[\s\S]*?^\s*\}|[A-Za-z_]+)/gm)) {
+        writes.push({ file: relative(WEB_SRC, file), body: match[1] });
       }
     }
     return writes;
   }
 
-  it('finds every place detection is written', async () => {
-    // Guards the test itself: if a write moves or is added elsewhere, the count
-    // changes and this fails rather than quietly checking nothing.
-    assert.equal((await detectionWrites()).length, 3);
+  it('finds the writes it is meant to check', async () => {
+    // A floor, not an exact count: an exact count is what let two writes hide.
+    assert.ok((await detectionWrites()).length >= 5);
   });
 
   for (const field of REQUIRED_FIELDS) {
     it(`sets ${field} at every write`, async () => {
       const missing = (await detectionWrites())
-        // A write that delegates to the shared constant carries every field.
-        .filter((write) => !/^[A-Z_]+$/.test(write.body))
+        // A write delegating to the shared constant carries every field.
+        .filter((write) => write.body.startsWith('{'))
         .filter((write) => !write.body.includes(`${field}:`))
         .map((write) => write.file);
 
@@ -249,11 +266,7 @@ describe('every write of the detection sub-document carries all its fields', () 
   it('resets confidence to nothing rather than to LEGACY', async () => {
     // LEGACY means "recorded before confidence was tracked", which is not the
     // same as "not yet detected".
-    const source = await readFile(
-      new URL('../../apps/web/src/services/detection.service.js', import.meta.url),
-      'utf8',
-    );
-
+    const source = await readFile(join(WEB_SRC, 'services/detection.service.js'), 'utf8');
     assert.match(source, /DETECTION_RESET = Object\.freeze\(\{[\s\S]*?confidence: null/);
   });
 });

@@ -175,12 +175,43 @@ describe('overview cards — your domain', () => {
       domains: [{ status: DomainStatus.FAILED, hostnameNormalized: 'hellouniversity.online' }],
     });
 
-    assert.match(cardFor(cards, 'domain').detail, /Open Domain/);
+    assert.match(cardFor(cards, 'domain').detail, /did not finish/);
   });
 
   it('still reports a genuinely in-progress domain as in progress', () => {
     const cards = build({ domains: [{ status: DomainStatus.VERIFYING }] });
     assert.equal(cardFor(cards, 'domain').state, CARD_STATE.WORKING);
+  });
+
+  it('does not let an old failure hide a domain still being set up', () => {
+    // A failure left unremoved must not outrank work in progress.
+    const cards = build({
+      domains: [
+        { status: DomainStatus.VERIFYING, hostnameNormalized: 'new.example' },
+        { status: DomainStatus.FAILED, hostnameNormalized: 'old.example' },
+      ],
+    });
+
+    assert.equal(cardFor(cards, 'domain').state, CARD_STATE.WORKING);
+  });
+
+  it('still prefers a connected domain over any other', () => {
+    const cards = build({
+      domains: [
+        { status: DomainStatus.ACTIVE, hostnameNormalized: 'live.example', routingState: 'LIVE' },
+        { status: DomainStatus.FAILED, hostnameNormalized: 'old.example' },
+      ],
+    });
+
+    assert.equal(cardFor(cards, 'domain').value, 'live.example');
+  });
+
+  it('names the navigation item the owner will actually look for', () => {
+    const cards = build({
+      domains: [{ status: DomainStatus.FAILED, hostnameNormalized: 'old.example' }],
+    });
+
+    assert.match(cardFor(cards, 'domain').detail, /Open Domains/);
   });
 
   it('does not claim a routed domain is reachable when DNS points elsewhere', () => {

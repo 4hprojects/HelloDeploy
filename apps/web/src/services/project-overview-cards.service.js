@@ -165,20 +165,24 @@ function domainCard(domains) {
 
   const active = domains.find((domain) => domain.status === DomainStatus.ACTIVE);
   if (!active) {
+    // Work in progress outranks an older failure: a domain still being set up is
+    // the more useful thing to report, and a stale unremoved failure must not
+    // hide it.
+    const connecting = domains.find((domain) => domain.status !== DomainStatus.FAILED);
+    if (connecting) {
+      return card('domain', 'Your domain', 'Still connecting', CARD_STATE.WORKING, null);
+    }
+
     // A domain that stopped needs the owner, not more waiting. Reporting it as
     // still connecting left them watching something that had already given up.
     const failed = domains.find((domain) => domain.status === DomainStatus.FAILED);
-    if (failed) {
-      return card(
-        'domain',
-        'Your domain',
-        failed.hostnameNormalized,
-        CARD_STATE.ATTENTION,
-        'Setting up this address did not finish. Open Domain to see what to do.',
-      );
-    }
-
-    return card('domain', 'Your domain', 'Still connecting', CARD_STATE.WORKING, null);
+    return card(
+      'domain',
+      'Your domain',
+      failed.hostnameNormalized,
+      CARD_STATE.ATTENTION,
+      'Setting up this address did not finish. Open Domains to see what to do.',
+    );
   }
 
   // Routing being ACTIVE inside nginx says nothing about whether public DNS

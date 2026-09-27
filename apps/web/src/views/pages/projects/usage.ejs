@@ -60,7 +60,11 @@
 <% if (allocation) { %>
 <div class="card mt-6">
   <div class="card__body">
-    <h2 class="card__title">Resources for this website</h2>
+    <h2 class="card__title">Recorded plan figures</h2>
+    <p class="text-sm text-muted">
+      Configured for this plan but not currently applied to running websites —
+      HelloDeploy uses its own server-wide settings instead.
+    </p>
     <dl class="usage-allocation">
       <% allocation.forEach((item) => { %>
       <div>

@@ -79,7 +79,7 @@ sidebar.
 Simple mode shows Overview, Deployments, Domain, Environment, Usage and Settings.
 Advanced mode adds Repository, Detection, Deploy Hook and Members, and reveals the
 build command, start command, internal port, health-check path, deploy hook, raw
-failure codes, DNS diagnostics and resource allocation.
+failure codes, DNS diagnostics and the plan figures recorded for the website.
 
 Hiding is presentation only. Nothing is removed, no page stops working, and your
 role still decides what you are allowed to do. A control hidden in Simple mode is
@@ -381,6 +381,11 @@ count, because the custom-domain limit below is configurable but is **not** chec
 when a domain is added. The remaining values are configurable and equally unchecked,
 so no meter is shown for them — a meter would imply something happens when you reach
 the limit, and nothing would.
+
+The same applies to the memory, CPU, storage and build-time figures shown in Advanced
+mode and in Project Settings. They are recorded against the plan but are **not**
+applied to running websites — HelloDeploy uses server-wide settings instead — so they
+are labelled as recorded figures rather than as the resources your website receives.
 
 Default limits may be adjusted by an Admin or Super Admin.
 

@@ -266,14 +266,21 @@ describe('usage page', () => {
     // maxCustomDomains is configured but nothing enforces it, so "of N" would be
     // a false promise.
     const html = await renderUsage({
-      counts: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
+      informational: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
     });
     assert.match(html, /These are not capped/);
   });
 
+  it('shows the actual count it was given', async () => {
+    const html = await renderUsage({
+      informational: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
+    });
+    assert.match(html, /<dt>Your own domains<\/dt>\s*<dd>2<\/dd>/);
+  });
+
   it('does not offer an allowance for an unenforced limit', async () => {
     const html = await renderUsage({
-      counts: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
+      informational: [{ key: 'domains', label: 'Your own domains', used: 2, explain: 'e' }],
     });
     const section = html.slice(html.indexOf('Also in use'));
     assert.doesNotMatch(section, /of \d+|At your limit/);
@@ -284,12 +291,19 @@ describe('usage page', () => {
     assert.doesNotMatch(html, /Your own domains[\s\S]{0,200}usage-row__meter/);
   });
 
-  it('hides resource allocation from simple mode', async () => {
-    assert.doesNotMatch(await renderUsage(), /Resources for this website/);
+  it('hides the recorded plan figures from simple mode', async () => {
+    assert.doesNotMatch(await renderUsage(), /Recorded plan figures/);
   });
 
-  it('shows resource allocation in advanced mode', async () => {
+  it('shows the recorded plan figures in advanced mode', async () => {
     const html = await renderUsage({ allocation: [{ label: 'Memory', value: '256 MB' }] });
-    assert.match(html, /Resources for this website/);
+    assert.match(html, /Recorded plan figures/);
+  });
+
+  it('does not present recorded figures as what the website is given', async () => {
+    // The worker uses env.RUNTIME_MEMORY_MB and a fixed CPU share; the quota
+    // values are not applied, so the page must not imply they are.
+    const html = await renderUsage({ allocation: [{ label: 'Memory', value: '256 MB' }] });
+    assert.match(html, /not currently applied/);
   });
 });
