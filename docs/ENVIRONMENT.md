@@ -77,6 +77,7 @@ Resend is optional. When `RESEND_API_KEY` is empty, outbound verification and de
 | ---------------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------- |
 | `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification and deployment notifications are skipped when unset |
 | `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                         |
+| `CONTACT_EMAIL`  | web         | `EMAIL_FROM`                 | Where contact form submissions are delivered                                           |
 
 ## Configuration validation
 

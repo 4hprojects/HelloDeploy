@@ -57,9 +57,11 @@ function makeStore(prefix) {
 const onLimitReached = (req, res, _options) => {
   // Serve a friendly HTML page for browser requests, JSON for API
   if (req.accepts('html')) {
+    // Public forms are rate limited too, and a signed-out visitor should not be
+    // handed the authenticated sidebar on the way out.
     res.status(429).render('pages/error', {
       title: 'Too Many Requests',
-      layout: 'layouts/main',
+      layout: req.session?.user ? 'layouts/main' : 'layouts/public',
       message: 'Too many requests. Please wait a moment and try again.',
     });
   } else {
@@ -111,6 +113,17 @@ export const signInLimiter = rateLimit({
   legacyHeaders: false,
   passOnStoreError: false,
   store: makeStore('signin'),
+  handler: onLimitReached,
+});
+
+/** Contact form submissions — a public, unauthenticated write, so kept tight. */
+export const contactLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('contact'),
   handler: onLimitReached,
 });
 

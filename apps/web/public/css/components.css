@@ -3250,3 +3250,95 @@ a.source-choice__card:hover {
   overflow-wrap: break-word;
   word-break: normal;
 }
+
+/* ── Ordered step list (How It Works) ────────────────────────────── */
+.step-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: step;
+}
+
+.step-list__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-4);
+  padding: var(--space-6) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.step-list__item:last-child {
+  border-bottom: none;
+}
+
+.step-list__number {
+  counter-increment: step;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+}
+
+.step-list__number::before {
+  content: counter(step);
+}
+
+.step-list__title {
+  font-size: var(--text-lg);
+  font-weight: var(--font-semibold);
+  margin: 0 0 var(--space-2);
+}
+
+/* ── Plan price (pricing page) ───────────────────────────────────── */
+.price {
+  margin: var(--space-2) 0 var(--space-3);
+  font-size: var(--text-2xl);
+  font-weight: var(--font-bold);
+  line-height: var(--leading-tight);
+  color: var(--color-text);
+}
+
+.price__period {
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  color: var(--color-text-muted);
+}
+
+/* ── Compact workflow chips (homepage) ───────────────────────────── */
+.flow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.flow__step {
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-bg-muted);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: var(--text-sm);
+  font-weight: var(--font-medium);
+  /* --color-text-muted on --color-bg-muted is only 4.34:1, and a raw gray would
+     invert badly in dark mode, so this tracks the theme's text color. */
+  color: var(--color-text);
+}
+
+/* ── Centred call-to-action rows ─────────────────────────────────── */
+/* .button-group is a flex row, so it ignores the text-align of a centred
+   block and leaves its buttons flush left. Scoped to the public pages so
+   application screens keep their existing left-aligned action rows. */
+.public-main .text-center .button-group,
+.public-main .hero .button-group,
+.button-group--center {
+  justify-content: center;
+}

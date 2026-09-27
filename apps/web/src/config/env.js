@@ -36,6 +36,11 @@ const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 const nextMasterKey = optional('HELLODEPLOY_MASTER_KEY_NEXT', '');
+// Where contact form submissions are delivered.
+const contactEmail = optional(
+  'CONTACT_EMAIL',
+  optional('EMAIL_FROM', 'noreply@hellodeploy.online'),
+);
 const platformDomainRaw = optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`);
 const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.hellodeploy.online');
 const deploymentDomainRaw = optional(
@@ -96,6 +101,7 @@ export const env = {
     ? required('MONGODB_URI')
     : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
 
+  CONTACT_EMAIL: contactEmail,
   PLATFORM_DOMAIN: platformDomain,
   DEPLOYMENT_DOMAIN: deploymentDomain,
   PLATFORM_SUBDOMAIN_SUFFIX: platformSubdomainSuffix,

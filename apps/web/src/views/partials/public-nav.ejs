@@ -1,0 +1,54 @@
+<header class="public-header" role="banner">
+  <div class="public-header__inner">
+    <a href="/" class="header__brand" aria-label="HelloDeploy home">
+      <%- include('brand-logo') %>
+    </a>
+
+    <button
+      type="button"
+      class="public-nav__toggle"
+      id="public-nav-toggle"
+      aria-label="Toggle navigation"
+      aria-expanded="false"
+      aria-controls="public-nav"
+    >
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+      <span class="hamburger-line"></span>
+    </button>
+
+    <nav class="public-nav" id="public-nav" aria-label="Primary navigation">
+      <ul class="public-nav__list">
+        <% publicNavLinks.forEach(link => { %>
+          <li>
+            <a
+              href="<%= link.path %>"
+              class="public-nav__link<%= currentPath === link.path ? ' public-nav__link--active' : '' %>"
+              <%- currentPath === link.path ? 'aria-current="page"' : '' %>
+            ><%= link.label %></a>
+          </li>
+        <% }) %>
+      </ul>
+
+      <div class="public-nav__actions">
+        <button
+          type="button"
+          class="header__theme-toggle"
+          id="theme-toggle"
+          aria-label="Switch to dark theme"
+          aria-pressed="false"
+          data-tooltip="Switch to dark theme"
+        >
+          <%- include('icon', { name: 'sun', className: 'theme-icon theme-icon--light' }) %>
+          <%- include('icon', { name: 'moon', className: 'theme-icon theme-icon--dark' }) %>
+        </button>
+        <% if (user) { %>
+          <a href="/dashboard" class="button button--primary button--sm">Dashboard</a>
+        <% } else { %>
+          <a href="/auth/sign-in" class="public-nav__link">Sign In</a>
+          <a href="/auth/create-account" class="button button--primary button--sm">Get Started</a>
+        <% } %>
+      </div>
+    </nav>
+  </div>
+</header>

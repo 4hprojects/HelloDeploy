@@ -259,6 +259,47 @@
     });
   }
 
+  function initPublicNav() {
+    const toggle = document.getElementById('public-nav-toggle');
+    const nav = document.getElementById('public-nav');
+
+    if (!toggle || !nav) {
+      return;
+    }
+
+    const wideQuery = window.matchMedia('(min-width: 60rem)');
+
+    function setOpen(isOpen) {
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        nav.setAttribute('data-open', 'true');
+      } else {
+        nav.removeAttribute('data-open');
+      }
+    }
+
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    // Widening past the breakpoint reveals the nav via CSS; drop the open state so the
+    // toggle does not report expanded while it is hidden.
+    wideQuery.addEventListener('change', (event) => {
+      if (event.matches) {
+        setOpen(false);
+      }
+    });
+
+    setOpen(false);
+  }
+
   function initScrollTop() {
     const button = document.getElementById('scroll-top-button');
     if (!button) {
@@ -1395,6 +1436,7 @@
   function init() {
     initThemeToggle();
     initSidebarDrawer();
+    initPublicNav();
     initTooltips();
     initScrollTop();
     initConfirmationModal();

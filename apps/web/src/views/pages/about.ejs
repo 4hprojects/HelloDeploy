@@ -1,0 +1,93 @@
+<div class="page-header">
+  <h1 class="page-header__title">Why HelloDeploy Exists</h1>
+  <p class="page-header__subtitle">
+    Deploying a web application usually takes more work than writing it.
+  </p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <p>
+      Before a website is reachable, someone has to deal with servers, application processes,
+      ports, a reverse proxy, certificates, domains, DNS records, environment variables, and a
+      repeatable way to publish updates. None of that is the application you set out to build.
+    </p>
+    <p>
+      HelloDeploy exists to make those steps easier to manage — not to hide them. The aim is a
+      guided deployment workflow that still shows you what is happening behind your
+      application, so that when something breaks you can tell what broke and why.
+    </p>
+    <p>
+      It is built for students learning how deployment works, developers publishing personal
+      projects, freelancers managing client applications, educators teaching web systems, teams
+      with no dedicated operations staff, and website owners who would rather not administer a
+      server.
+    </p>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Make deployment easier to understand</h2>
+    <p class="text-sm text-muted">
+      Reducing complexity is not the same as hiding it. A platform that deploys your
+      application but leaves you unable to explain a failure has traded one problem for
+      another. HelloDeploy tries to make these things legible:
+    </p>
+    <ul class="text-sm text-muted mt-2">
+      <li>what your application needs before it can run in production</li>
+      <li>what happens, in order, during a deployment</li>
+      <li>why a deployment failed, and at which stage</li>
+      <li>how a domain connects to a running application</li>
+      <li>what HTTPS does and what it depends on</li>
+      <li>how configuration and secrets are kept separate from your code</li>
+    </ul>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Built through real deployments</h2>
+    <p class="text-sm text-muted">
+      HelloDeploy is developed against real projects rather than hypothetical ones. The
+      failures that shape it are ordinary and specific: a build that works locally and fails in
+      a container, a missing environment variable, an application listening on the wrong port, a
+      DNS record pointing at the wrong place.
+    </p>
+    <p class="text-sm text-muted">
+      Where those problems generalise, they become documentation and guides instead of staying
+      in a private changelog.
+    </p>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Where the project stands</h2>
+    <p class="text-sm text-muted">
+      HelloDeploy is an active pilot, operated by Henson Sagorsor as an MIT capstone project and
+      running on shared infrastructure. It is free to use while in this stage.
+    </p>
+    <p class="text-sm text-muted">
+      That has practical consequences worth stating plainly: supported runtimes are still being
+      verified one at a time, features and availability may change, resource allowances are set
+      by hand rather than bought, and this is not a service to put a business-critical
+      application on without understanding those limits. The
+      <a href="/terms">Terms</a> cover this in more detail, and
+      <a href="/supported-runtimes">Supported Runtimes</a> lists what has actually been tested.
+    </p>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body text-center">
+    <h2 class="feature-title">Try a deployment</h2>
+    <p class="text-sm text-muted">
+      Connect a repository and see what HelloDeploy makes of it before committing to anything.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/auth/create-account" class="button button--primary">Get Started</a>
+      <a href="/how-it-works" class="button button--secondary">How Deployment Works</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,19 @@
+<footer class="public-footer" role="contentinfo">
+  <div class="public-footer__inner">
+    <div class="public-footer__columns">
+      <% publicFooterColumns.forEach(column => { %>
+        <div class="public-footer__column">
+          <h2 class="public-footer__heading"><%= column.heading %></h2>
+          <ul class="public-footer__list">
+            <% column.links.forEach(link => { %>
+              <li><a href="<%= link.path %>" class="public-footer__link"><%= link.label %></a></li>
+            <% }) %>
+          </ul>
+        </div>
+      <% }) %>
+    </div>
+    <p class="public-footer__legal">
+      &copy; <%= new Date().getFullYear() %> HelloDeploy
+    </p>
+  </div>
+</footer>

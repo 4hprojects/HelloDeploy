@@ -1,0 +1,157 @@
+<div class="page-header">
+  <h1 class="page-header__title">What Happens When You Deploy a Website?</h1>
+  <p class="page-header__subtitle">
+    A web application does not become publicly available simply because its source code
+    exists. Getting it into production can involve dependencies, a build, an application
+    process, ports, environment variables, networking, a domain, and HTTPS. HelloDeploy
+    organises those steps into one workflow.
+  </p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <ol class="step-list">
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Your project source</h2>
+          <p class="text-sm text-muted">
+            A deployment starts from your code. HelloDeploy connects to a Git repository — a
+            stored history of your project that records every change — and reads the exact
+            commit you are deploying, so the same code produces the same deployment every
+            time.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Project configuration</h2>
+          <p class="text-sm text-muted">
+            HelloDeploy inspects the repository and suggests settings for the runtimes it
+            recognises. You confirm or correct them: the build command, the start command, the
+            port your application listens on, and any environment variables it needs.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Dependency installation</h2>
+          <p class="text-sm text-muted">
+            Most applications rely on packages written by other people. HelloDeploy installs
+            them with <code class="code-inline">npm ci</code>, which needs a
+            <code class="code-inline">package-lock.json</code> committed to your repository. If
+            your project locks with pnpm or Yarn instead, HelloDeploy tells you before you
+            deploy rather than letting the build fail.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Build</h2>
+          <p class="text-sm text-muted">
+            Many projects need a build before they can run in production — bundling frontend
+            assets, compiling TypeScript, or producing a framework's production output. What
+            runs here depends on your runtime and your build command.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Start the application</h2>
+          <p class="text-sm text-muted">
+            HelloDeploy starts your application with the start command you configured, in an
+            isolated container, with your environment variables supplied at startup. Your
+            application must listen on the port you configured — that is where HelloDeploy
+            expects to find it.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Verify the deployment</h2>
+          <p class="text-sm text-muted">
+            Starting is not the same as working. HelloDeploy requests a path on your running
+            application and waits for a successful response before treating the deployment as
+            healthy. If nothing answers, the deployment is marked failed and your previous
+            version keeps serving traffic.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Route web traffic</h2>
+          <p class="text-sm text-muted">
+            Your application listens on a port that is private to the server. A reverse
+            proxy sits in front of it and forwards incoming web requests to the right
+            application, which is how many projects can share one server without colliding.
+            Only once the new release is healthy does HelloDeploy point that route at it.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">HTTPS</h2>
+          <p class="text-sm text-muted">
+            Traffic is served over HTTPS, so what visitors send and receive is encrypted in
+            transit rather than readable by anything between them and the server. Secure
+            access depends on the domain being configured correctly.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Connect a domain</h2>
+          <p class="text-sm text-muted">
+            Every project gets a HelloDeploy address immediately. To use your own domain, DNS
+            — the system that tells the internet where a domain should send traffic — has to
+            point at HelloDeploy. You prove you own the domain with a TXT record, an
+            administrator provisions it, and you add the record HelloDeploy gives you.
+          </p>
+        </div>
+      </li>
+
+      <li class="step-list__item">
+        <span class="step-list__number" aria-hidden="true"></span>
+        <div>
+          <h2 class="step-list__title">Logs and future updates</h2>
+          <p class="text-sm text-muted">
+            Every deployment leaves logs you can read, whether it succeeded or failed. When
+            your code changes, redeploy: the same configuration runs again, so publishing an
+            update is the same short workflow rather than a fresh setup. Recent healthy
+            releases are kept, so you can roll back if an update goes wrong.
+          </p>
+        </div>
+      </li>
+    </ol>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body text-center">
+    <h2 class="feature-title">Deploy your first project</h2>
+    <p class="text-sm text-muted">
+      Start with a supported project and follow the workflow above from configuration to
+      production.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/auth/create-account" class="button button--primary">Get Started</a>
+      <a href="/features" class="button button--secondary">Explore the Features</a>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,167 @@
+<div class="page-header">
+  <h1 class="page-header__title">Deployment Tools Without the Usual Setup Overhead</h1>
+  <p class="page-header__subtitle">
+    HelloDeploy brings common deployment tasks into one interface. Configure a supported
+    application, deploy it, connect a domain, manage environment variables, review logs, and
+    publish updates from one place.
+  </p>
+</div>
+
+<div class="feature-grid">
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'projects' }) %></p>
+      <h2 class="feature-title">Deployment management</h2>
+      <p class="text-sm text-muted">
+        Create a project, configure its deployment settings, start a deployment, watch its
+        status, and redeploy — all from one dashboard.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'detection' }) %></p>
+      <h2 class="feature-title">Build configuration</h2>
+      <p class="text-sm text-muted">
+        Most applications need a build step before they can run in production. HelloDeploy
+        inspects a connected repository, suggests a build command for the runtimes it
+        recognises, and lets you correct it before the first deployment.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></p>
+      <h2 class="feature-title">Start commands</h2>
+      <p class="text-sm text-muted">
+        HelloDeploy needs to know how your application starts once it is built. Set the start
+        command and the port the application listens on, and the platform runs it the same way
+        on every deployment.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></p>
+      <h2 class="feature-title">Environment variables</h2>
+      <p class="text-sm text-muted">
+        Keep database URLs, API keys, secrets, and service credentials out of your source
+        code. Values are encrypted at rest with AES-256-GCM and injected when the container
+        starts — never stored in plaintext and never shown in logs.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'activity' }) %></p>
+      <h2 class="feature-title">Deployment logs</h2>
+      <p class="text-sm text-muted">
+        Follow a deployment as it runs. Logs cover dependency installation, the build,
+        application startup, and the health check, so a failure points at the stage that
+        actually broke.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></p>
+      <h2 class="feature-title">Project URL</h2>
+      <p class="text-sm text-muted">
+        Every deployed project is reachable at a HelloDeploy address such as
+        <code class="code-inline">my-project.<%= deploymentDomain %></code>, with no DNS
+        work on your side.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'server' }) %></p>
+      <h2 class="feature-title">Custom domains</h2>
+      <p class="text-sm text-muted">
+        Connect a domain you already own. You prove ownership with a TXT record, an
+        administrator reviews and provisions the domain, and you point a CNAME at the address
+        HelloDeploy shows you. Registering a domain is separate — HelloDeploy does not sell
+        domains.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'check' }) %></p>
+      <h2 class="feature-title">HTTPS</h2>
+      <p class="text-sm text-muted">
+        Traffic between a visitor's browser and a deployed application is served over HTTPS,
+        so page contents and form submissions are encrypted in transit.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'overview' }) %></p>
+      <h2 class="feature-title">Redeployment and rollback</h2>
+      <p class="text-sm text-muted">
+        Publish a new version without rebuilding your configuration from scratch. HelloDeploy
+        keeps your recent healthy releases, so you can roll back to one if an update goes
+        wrong.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></p>
+      <h2 class="feature-title">Deploy hooks</h2>
+      <p class="text-sm text-muted">
+        A deploy hook is a private URL that starts a deployment when something sends a request
+        to it — useful for triggering a release from a script or an external workflow. Treat
+        it like a password: anyone holding the URL can deploy your project.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'dashboard' }) %></p>
+      <h2 class="feature-title">Project dashboard</h2>
+      <p class="text-sm text-muted">
+        One place to see current status, the most recent deployment, the project's domains,
+        build and runtime settings, environment configuration, logs, and the actions available
+        to you.
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></p>
+      <h2 class="feature-title">Access and audit</h2>
+      <p class="text-sm text-muted">
+        Invite collaborators as Owner, Maintainer, or Viewer, and transfer ownership when a
+        project changes hands. Deployments, configuration changes, and access events are
+        recorded with the actor and the outcome.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body text-center">
+    <h2 class="feature-title">See how these features work together</h2>
+    <p class="text-sm text-muted">
+      Follow a deployment from project configuration through build, health check, routing, and
+      production updates.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/how-it-works" class="button button--primary">How It Works</a>
+      <a href="/auth/create-account" class="button button--secondary">Get Started</a>
+    </div>
+  </div>
+</div>

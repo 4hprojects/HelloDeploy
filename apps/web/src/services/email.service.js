@@ -24,7 +24,7 @@ function getResendClient() {
  * Send an email. In development without RESEND_API_KEY, logs to stdout instead.
  * @returns {Promise<void>}
  */
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const client = getResendClient();
 
   if (!client) {
@@ -42,12 +42,56 @@ async function sendEmail({ to, subject, html, text }) {
     subject,
     html,
     text,
+    ...(replyTo ? { replyTo } : {}),
   });
 
   if (error) {
     logger.error('[email] Failed to send email', { to, subject, error: error.message });
     throw new Error(`Email delivery failed: ${error.message}`);
   }
+}
+
+/**
+ * Deliver a contact form submission to the address configured for support.
+ *
+ * Every field is visitor-supplied, so each one is escaped before it reaches the
+ * HTML body, and the reply-to carries the sender's address so a reply reaches
+ * them without the operator copying it by hand.
+ */
+export async function sendContactMessage({
+  name,
+  email,
+  categoryLabel,
+  subject,
+  message,
+  projectUrl,
+  deploymentId,
+}) {
+  const rows = [
+    ['From', `${name} <${email}>`],
+    ['Category', categoryLabel],
+    ['Project address', projectUrl || 'not given'],
+    ['Deployment', deploymentId || 'not given'],
+  ];
+
+  const html = `
+    <p><strong>Contact form submission</strong></p>
+    <ul>
+      ${rows.map(([k, v]) => `<li>${escapeEmailHtml(k)}: ${escapeEmailHtml(v)}</li>`).join('')}
+    </ul>
+    <p><strong>${escapeEmailHtml(subject)}</strong></p>
+    <p>${escapeEmailHtml(message).replaceAll('\n', '<br />')}</p>
+  `;
+
+  const text = [...rows.map(([k, v]) => `${k}: ${v}`), '', subject, '', message].join('\n');
+
+  await sendEmail({
+    to: env.CONTACT_EMAIL,
+    subject: `[HelloDeploy contact] ${subject}`,
+    html,
+    text,
+    replyTo: email,
+  });
 }
 
 export async function sendVerificationEmail({ to, firstName, verificationUrl }) {
