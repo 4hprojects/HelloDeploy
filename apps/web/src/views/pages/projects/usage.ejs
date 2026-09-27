@@ -16,7 +16,9 @@
       <span class="usage-row__label"><%= row.label %></span>
       <span class="usage-row__summary">
         <%= row.summary %>
-        <% if (row.isAtLimit) { %>
+        <% if (row.isOverLimit) { %>
+        <span class="usage-row__flag">Over your limit</span>
+        <% } else if (row.isAtLimit) { %>
         <span class="usage-row__flag">At your limit</span>
         <% } else if (row.isNearLimit) { %>
         <span class="usage-row__flag">One left</span>

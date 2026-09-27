@@ -28,7 +28,7 @@ export const getDomains = asyncHandler(async (req, res) => {
   const pending = consumePendingDomainVerification(req);
 
   res.render('pages/projects/domains', {
-    title: `Custom Domains – ${project.name}`,
+    title: `Your domain – ${project.name}`,
     project,
     membership: req.membership,
     domains,
@@ -50,7 +50,7 @@ export const postAddDomain = asyncHandler(async (req, res) => {
     const domains = await getProjectDomains(project._id);
     const pending = consumePendingDomainVerification(req);
     return res.status(400).render('pages/projects/domains', {
-      title: `Custom Domains – ${project.name}`,
+      title: `Your domain – ${project.name}`,
       project,
       membership: req.membership,
       domains,

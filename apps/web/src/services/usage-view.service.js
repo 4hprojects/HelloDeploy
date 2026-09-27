@@ -77,9 +77,16 @@ export function buildUsageRows({ quota, counts }) {
       explain: entry.explain,
       isUnlimited,
       isAtLimit: !isUnlimited && used >= limit,
+      isOverLimit: !isUnlimited && used > limit,
       // Warn one short of the limit, so the owner is not surprised by a refusal.
       isNearLimit: !isUnlimited && limit > 1 && used === limit - 1,
-      summary: isUnlimited ? `${used} — no limit` : `${used} of ${limit}`,
+      // "3 of 1" is nonsense, and over-limit is exactly the case the warning is
+      // about — so it must read properly rather than only the tidy case.
+      summary: isUnlimited
+        ? `${used} — no limit`
+        : used > limit
+          ? `${used}, more than your limit of ${limit}`
+          : `${used} of ${limit}`,
     };
   });
 

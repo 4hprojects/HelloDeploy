@@ -3001,6 +3001,8 @@ a.source-choice__card:hover {
 /* The live release is named in text, not marked by shading alone. */
 .deployment-row__live-tag {
   display: inline-block;
+  /* Kept on one line: wrapping split it across two rows in the narrow # column. */
+  white-space: nowrap;
   margin-left: var(--space-2);
   padding: 1px var(--space-2);
   border-radius: var(--radius-full);
@@ -3014,7 +3016,9 @@ a.source-choice__card:hover {
 .usage-rows {
   display: grid;
   gap: var(--space-5);
-  margin: 0;
+  /* The at-limit warning sits directly above and otherwise collides with the
+     first row's label. */
+  margin: var(--space-6) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -3237,4 +3241,12 @@ a.source-choice__card:hover {
   .readiness-summary {
     grid-template-columns: 1fr;
   }
+}
+
+/* ── Domain names in tables ───────────────────────────────────────────── */
+/* `anywhere` split hostnames mid-label — "hellouniversity.onl / ine" reads as a
+   different address. Break only where it must, and prefer the dots. */
+.domain-hostname {
+  overflow-wrap: break-word;
+  word-break: normal;
 }

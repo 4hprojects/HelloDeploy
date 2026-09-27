@@ -212,7 +212,19 @@ describe('deployment status wording', () => {
       uiMode: 'SIMPLE',
     });
 
-    assert.match(html, />Live</);
+    assert.match(html, />Published</);
+  });
+
+  it('does not call every successful version live', async () => {
+    // HEALTHY means this build worked, which is true of every retained version.
+    // Only one is serving visitors, and the history marks that one separately —
+    // labelling them all "Live" put two contradictory claims on one screen.
+    const html = await renderFile(badgePartial, {
+      status: DeploymentStatus.HEALTHY,
+      uiMode: 'SIMPLE',
+    });
+
+    assert.doesNotMatch(html, />Live</);
   });
 
   it('keeps the platform term in advanced mode', async () => {
@@ -226,7 +238,7 @@ describe('deployment status wording', () => {
 
   it('defaults to simple wording when no mode is supplied', async () => {
     const html = await renderFile(badgePartial, { status: DeploymentStatus.HEALTHY });
-    assert.match(html, />Live</);
+    assert.match(html, />Published</);
   });
 
   it('no longer keeps a second status map on the overview', () => {

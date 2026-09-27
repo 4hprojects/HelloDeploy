@@ -111,6 +111,22 @@ describe('website-first overview', () => {
     assert.doesNotMatch(await renderOverview({ online: false }), /Publish again/);
   });
 
+  it('does not repeat the address under its own heading', async () => {
+    // The older guidance band restated the address beneath "Application address"
+    // while the header above already showed it.
+    assert.doesNotMatch(await renderOverview(), /Application address/);
+  });
+
+  it('offers one way to open a live website', async () => {
+    const html = await renderOverview();
+    assert.ok(!(/Open website/.test(html) && /Open app/.test(html)));
+  });
+
+  it('keeps the guidance band while a website is not yet live', async () => {
+    // Before launch the band is the only thing telling the owner what to do.
+    assert.match(await renderOverview({ online: false }), /project-home-summary/);
+  });
+
   it('answers the owner’s questions as cards', async () => {
     const html = await renderOverview();
     assert.equal((html.match(/class="overview-card /g) ?? []).length, 6);
@@ -250,6 +266,27 @@ describe('usage page', () => {
 
   it('describes each meter for assistive technology', async () => {
     assert.match(await renderUsage(), /aria-label="Websites: 1 of 3"/);
+  });
+
+  it('reads sensibly when usage is over the limit', async () => {
+    // "5 of 3" is nonsense, and over-limit is exactly when the owner reads this.
+    const html = await renderUsage({ counts: { websites: 5, domains: 0, members: 1 } });
+    assert.match(html, /5, more than your limit of 3/);
+  });
+
+  it('says over, not at, when the limit is exceeded', async () => {
+    const html = await renderUsage({ counts: { websites: 5, domains: 0, members: 1 } });
+    assert.match(html, /Over your limit/);
+  });
+
+  it('still says at your limit when exactly at it', async () => {
+    const html = await renderUsage({ counts: { websites: 3, domains: 0, members: 1 } });
+    assert.match(html, /At your limit/);
+  });
+
+  it('does not phrase an exceeded limit as a fraction', async () => {
+    const html = await renderUsage({ counts: { websites: 5, domains: 0, members: 1 } });
+    assert.doesNotMatch(html, /5 of 3/);
   });
 
   it('says in words when a limit is reached, not only on the meter', async () => {

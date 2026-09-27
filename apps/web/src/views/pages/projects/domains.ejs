@@ -229,37 +229,6 @@
 </section>
 <% } %>
 
-<% if (membership.role === 'OWNER') { %>
-<section class="domain-page-section" aria-labelledby="add-domain-title">
-  <header class="domain-page-section__header">
-    <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
-    <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
-  </header>
-  <% const domainFormErrors = locals.errors || {}; %>
-  <% const domainFormValues = locals.values || {}; %>
-  <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
-  <form method="POST" action="/projects/<%= project.slug %>/domains"
-    class="domain-add-form">
-    <%- include('../../partials/csrf-field') %>
-    <div class="form-group form-group--floating">
-      <label for="hostname" class="form-label">Domain</label>
-      <input type="text" id="hostname" name="hostname"
-        class="form-input<%= domainFormErrors.hostname ? ' form-input--error' : '' %>"
-        value="<%= domainFormValues.hostname ?? '' %>"
-        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false"
-        aria-describedby="<%= domainFormErrors.hostname ? 'hostname-error' : 'hostname-hint' %>">
-      <% if (domainFormErrors.hostname) { %>
-      <p class="form-error" id="hostname-error" role="alert"><%= domainFormErrors.hostname %></p>
-      <% } else { %>
-      <p class="form-hint text-xs text-muted mt-1" id="hostname-hint">Do not include <code class="code-inline">https://</code> or a page path.</p>
-      <% } %>
-    </div>
-    <button type="submit" class="button button--primary"
-      data-pending-label="Adding...">Add domain</button>
-  </form>
-</section>
-<% } %>
-
 <% if (verifiedDomains.length) { %>
 <section class="domain-setup-panel" id="routing-records"
   aria-labelledby="routing-records-title" tabindex="-1">
@@ -316,11 +285,12 @@
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
 
     <p class="form-hint">
-      This record covers <code class="code-inline"><%= domain.hostnameNormalized %></code> and
-      nothing else. If you want both <code class="code-inline"><%= domain.hostnameNormalized %></code>
-      and another form of the address — <code class="code-inline">www</code> and the bare domain,
-      for example — add each one here as its own domain and create a record for each. HelloDeploy
-      does not redirect one to the other for you.
+      This record covers <code class="code-inline"><%= domain.hostnameNormalized %></code> and no
+      other form of the address.
+    </p>
+    <p class="form-hint">
+      To serve <code class="code-inline">www</code> as well as the bare domain, add each one here
+      as its own domain. HelloDeploy does not redirect between them.
     </p>
 
     <div class="domain-routing-record__actions">
@@ -384,6 +354,38 @@
   <% }); %>
 </section>
 <% } %>
+
+<% if (membership.role === 'OWNER') { %>
+<section class="domain-page-section" aria-labelledby="add-domain-title">
+  <header class="domain-page-section__header">
+    <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
+    <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
+  </header>
+  <% const domainFormErrors = locals.errors || {}; %>
+  <% const domainFormValues = locals.values || {}; %>
+  <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
+  <form method="POST" action="/projects/<%= project.slug %>/domains"
+    class="domain-add-form">
+    <%- include('../../partials/csrf-field') %>
+    <div class="form-group form-group--floating">
+      <label for="hostname" class="form-label">Domain</label>
+      <input type="text" id="hostname" name="hostname"
+        class="form-input<%= domainFormErrors.hostname ? ' form-input--error' : '' %>"
+        value="<%= domainFormValues.hostname ?? '' %>"
+        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false"
+        aria-describedby="<%= domainFormErrors.hostname ? 'hostname-error' : 'hostname-hint' %>">
+      <% if (domainFormErrors.hostname) { %>
+      <p class="form-error" id="hostname-error" role="alert"><%= domainFormErrors.hostname %></p>
+      <% } else { %>
+      <p class="form-hint text-xs text-muted mt-1" id="hostname-hint">Do not include <code class="code-inline">https://</code> or a page path.</p>
+      <% } %>
+    </div>
+    <button type="submit" class="button button--primary"
+      data-pending-label="Adding...">Add domain</button>
+  </form>
+</section>
+<% } %>
+
 
 <section class="domain-page-section" aria-labelledby="domains-title">
   <header class="domain-page-section__header">

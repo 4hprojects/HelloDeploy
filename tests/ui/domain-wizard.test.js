@@ -146,11 +146,11 @@ describe('root and www behaviour is stated', () => {
   });
 
   it('says each form of the address must be added separately', async () => {
-    assert.match(await render(), /add each one here as its own domain/);
+    assert.match(await render(), /add each one here\s+as its own domain/);
   });
 
   it('does not imply a redirect that does not happen', async () => {
-    assert.match(await render(), /does not redirect one to the other/);
+    assert.match(await render(), /does not redirect between them/);
   });
 });
 
