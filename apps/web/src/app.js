@@ -21,6 +21,8 @@ import deployHookRoutes from './routes/api/deploy-hook.routes.js';
 import helmet from 'helmet';
 import { getDashboard } from './controllers/dashboard.controller.js';
 import { getContact, postContact } from './controllers/contact.controller.js';
+import { docsPaths, getDocsArticle, getDocsIndex } from './controllers/docs.controller.js';
+import { asyncHandler } from './utils/async-handler.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { livePublicPaths } from './config/public-pages.js';
@@ -193,6 +195,9 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
     });
   });
 
+  app.get('/docs', getDocsIndex);
+  app.get('/docs/:slug', asyncHandler(getDocsArticle));
+
   app.get('/contact', getContact);
   app.post('/contact', contactLimiter, postContact);
 
@@ -298,7 +303,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   });
 
   app.get('/sitemap.xml', (_req, res) => {
-    const urls = livePublicPaths
+    const urls = [...livePublicPaths, ...docsPaths]
       .map((path) => `  <url><loc>${res.locals.siteUrl}${path}</loc></url>`)
       .join('\n');
     const body = `<?xml version="1.0" encoding="UTF-8"?>

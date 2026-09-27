@@ -1,0 +1,54 @@
+<div class="docs">
+  <nav class="docs__sidebar" aria-label="Documentation">
+    <h2 class="docs__sidebar-title">Documentation</h2>
+    <% docsSections.forEach(section => { %>
+      <div class="docs__section">
+        <h3 class="docs__section-heading"><%= section.heading %></h3>
+        <ul class="docs__list">
+          <% section.pages.forEach(entry => { %>
+            <li>
+              <a
+                href="/docs/<%= entry.slug %>"
+                class="docs__link<%= entry.slug === page.slug ? ' docs__link--active' : '' %>"
+                <%- entry.slug === page.slug ? 'aria-current="page"' : '' %>
+              ><%= entry.title %></a>
+            </li>
+          <% }) %>
+        </ul>
+      </div>
+    <% }) %>
+  </nav>
+
+  <article class="docs__article">
+    <nav class="docs__breadcrumbs" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/docs">Docs</a></li>
+        <% if (section) { %><li><%= section.heading %></li><% } %>
+        <li aria-current="page"><%= page.title %></li>
+      </ol>
+    </nav>
+
+    <h1 class="page-header__title"><%= page.title %></h1>
+
+    <div class="prose">
+      <%- content %>
+    </div>
+
+    <% if (previous || next) { %>
+    <nav class="docs__pager" aria-label="Documentation pages">
+      <% if (previous) { %>
+        <a href="/docs/<%= previous.slug %>" class="docs__pager-link">
+          <span class="docs__pager-label">Previous</span>
+          <span class="docs__pager-title"><%= previous.title %></span>
+        </a>
+      <% } else { %><span></span><% } %>
+      <% if (next) { %>
+        <a href="/docs/<%= next.slug %>" class="docs__pager-link docs__pager-link--next">
+          <span class="docs__pager-label">Next</span>
+          <span class="docs__pager-title"><%= next.title %></span>
+        </a>
+      <% } %>
+    </nav>
+    <% } %>
+  </article>
+</div>
