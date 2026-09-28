@@ -2331,6 +2331,13 @@ something is missing or wrong, never by re-running a green test.
   is logged. Without the second, every bot challenge passes. Both now warn or fail
   where this branch touches them; making them mandatory would stop a running instance
   starting, so it was left as an operator decision.
-- The security review was run single-reviewer: its sub-agent pipeline hit a rate
-  limit, so the findings rest on the author reading their own changes.
+- The security review was run twice: once by the author, then independently once
+  the rate limit that blocked the first attempt cleared. Both found no newly
+  introduced vulnerability above the reporting bar. The independent pass went
+  further than the author's — NoSQL injection paths, route authorization coverage,
+  the worker diffs, the new client-side JS and the reserved-subdomain move — and
+  noted that `repository-connect.service.js` **strengthened** authorization by
+  ignoring the submitted repository id, node id, owner and visibility in favour of
+  the installation's own listing, where the previous controller trusted those body
+  fields.
 - Nothing is pushed.
