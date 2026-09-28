@@ -1,4 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
+import { isSafeReturnPath } from '../utils/safe-redirect.js';
 import { UiMode } from '@hellodeploy/contracts';
 import { User } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
@@ -9,10 +10,7 @@ import { logger } from '@hellodeploy/observability';
  * discarded so the toggle cannot be used as an open redirect.
  */
 function safeReturnPath(candidate) {
-  if (typeof candidate !== 'string' || !candidate.startsWith('/') || candidate.startsWith('//')) {
-    return '/dashboard';
-  }
-  return candidate;
+  return isSafeReturnPath(candidate) ? candidate : '/dashboard';
 }
 
 /**
