@@ -29,6 +29,10 @@ deployment_status:
 
 Only include technical values after verification.
 
+`database` records what the application connects to, not something HelloDeploy
+provides. There are no managed databases; applications reach an external provider
+through environment variables.
+
 ---
 
 # SEO
@@ -99,9 +103,17 @@ Possible areas:
 - custom domain
 - HTTPS
 - static assets
-- background processes
 - external APIs
-- persistent storage if applicable
+
+Two areas need care, because a case study that claims them would be describing a
+platform that does not exist:
+
+- **Background processes.** A project runs one start command, so one process. A
+  case study needing a worker, a queue consumer or a scheduler must say how that
+  was handled — usually by running it elsewhere — not imply HelloDeploy ran it.
+- **Persistent storage.** Containers are started with no volume mounts, so the
+  filesystem is ephemeral and anything written to it is lost on the next
+  deployment. Uploads and generated files need external storage.
 
 ---
 
@@ -129,18 +141,24 @@ Explain the architecture in simple terms.
 Possible diagram:
 
 ```text
-Users
+Visitor
+  ↓  DNS: CNAME to <tunnel-id>.cfargotunnel.com
+Cloudflare tunnel
+  ↓  TLS terminates here
+nginx on the host
+  ↓  routes by hostname to a private loopback port
+Application container
   ↓
-Domain
-  ↓
-HelloDeploy
-  ↓
-Application
-  ↓
-Database / External Services
+External database / APIs
 ```
 
-Use the real architecture.
+That is the real path for a custom domain, and the parts that surprise people are
+worth keeping: TLS terminates upstream rather than in the application, nginx
+chooses the container by hostname, and the container is not reachable from the
+internet directly.
+
+A project address on `hellodeploy.online` takes the same path without the
+customer-owned DNS record.
 
 ---
 
@@ -169,18 +187,24 @@ Describe what actually happened.
 
 Suggested flow:
 
-1. project added
-2. deployment settings configured
+1. project added and repository connected
+2. detection reviewed, and any guessed setting corrected
 3. environment variables added
 4. deployment started
 5. logs reviewed
 6. issue discovered if applicable
 7. configuration corrected
 8. project redeployed
-9. domain connected
-10. HTTPS verified
+9. domain added, and the one-time TXT record published
+10. ownership verified
+11. domain approved and provisioned by an administrator
+12. CNAME published, and routing confirmed
+13. HTTPS verified on both root and www
 
-Adjust to match reality.
+Adjust to match reality. Note that connecting a domain is steps 9 to 12, not one
+step, and that step 11 involves a person and a wait. A case study that compresses
+it into "connected the domain" misrepresents how long it takes and hides the
+prerequisite that the domain is on Cloudflare.
 
 ---
 

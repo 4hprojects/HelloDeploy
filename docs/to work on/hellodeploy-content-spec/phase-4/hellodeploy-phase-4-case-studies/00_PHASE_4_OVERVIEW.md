@@ -1,5 +1,16 @@
 # HelloDeploy Phase 4: Case Studies Overview
 
+> **Status, 28 September 2026: blocked, not deferred.**
+>
+> These case studies document real deployments of HelloUniversity, HelloRun and
+> HelloPera. None has been deployed through HelloDeploy yet — the cutover
+> checklist in the production plan is entirely unchecked and customer hosting is
+> marked NO-GO. See `02_EVIDENCE_COLLECTION.md` for the conditions that unblock
+> each one.
+>
+> Phases 1, 2, 3 and 5 are built and live. Phase 4 is the only one waiting, and
+> it is waiting on a deployment rather than on writing effort.
+
 ## Purpose
 
 Phase 4 creates real deployment case studies for projects that use HelloDeploy.
