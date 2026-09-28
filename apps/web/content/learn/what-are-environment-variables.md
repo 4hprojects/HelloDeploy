@@ -72,7 +72,9 @@ browser is public, whatever it is named and whatever the tutorial implied.
 ## How HelloDeploy handles it
 
 Variables are set on the project, encrypted at rest, and supplied when the container starts.
-They are redacted from log output, so a value will not appear in a deployment log.
+Output that looks like a credential is redacted from deployment logs, but that is pattern
+matching rather than knowledge of your values, so it is a safety net rather than a
+guarantee.
 
 Because they are supplied at start, changing one needs a redeploy before the running
 application sees it. Four names — `PORT`, `NODE_ENV`, `HOST` and `HOSTNAME` — are set by the

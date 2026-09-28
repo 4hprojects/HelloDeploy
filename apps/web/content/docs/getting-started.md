@@ -68,7 +68,8 @@ it.
 
 Watch the logs as it runs. They cover dependency installation, the build, startup and the
 health check, so a failure points at the stage that broke rather than leaving you guessing.
-Secret values are redacted, so an environment variable's value never appears in them.
+Output that looks like a credential is redacted, though that is pattern matching rather than
+knowledge of your values — read a log before sharing it.
 
 ## Step 7: Check the result
 

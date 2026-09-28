@@ -18,13 +18,26 @@ Because the stages are distinct, a failure tells you which one broke. That is us
 to know where to look: a build that fails is a problem in your project, while a build that
 succeeds and a health check that fails is usually a port or startup problem.
 
-## Secret values are redacted
+## Recognisable secrets are redacted
 
-Environment variable values are removed from log output before it is stored or streamed, so a
-secret does not leak into a log you might later paste into a support message.
+Log output is scanned before it is stored or streamed, and things that _look_ like credentials
+are replaced with `[REDACTED]`: GitHub, AWS and npm tokens, bearer headers, JSON web tokens,
+private key blocks, and assignments such as `password=`.
 
-This is not a reason to be careless — an application that prints its own configuration can
-still expose things HelloDeploy does not know are secret.
+**This is pattern matching, not knowledge of your values.** HelloDeploy does not compare log
+output against the environment variables you set, so a secret that does not match one of those
+shapes will appear in the log. A database URL with the password inside it, or an application
+printing its own configuration at startup, are the common ways this happens:
+
+```text
+DATABASE_URL=postgres://user:hunter2@db.example.com:5432/app
+{ STRIPE_SECRET: 'rk_live_51H8xyz' }
+```
+
+Neither of those is redacted.
+
+So treat redaction as a safety net that catches the obvious cases, not a guarantee. Read a log
+before you share it.
 
 ## Reading a failure
 

@@ -8,7 +8,9 @@ Set them on the project. Names are limited to 128 characters and follow the usua
 of uppercase words separated by underscores, such as `DATABASE_URL`.
 
 Values are encrypted before they are stored, and decrypted only when a container is started.
-They are never written to logs — log output is redacted, so a value cannot leak that way.
+Log output is scanned for things that look like credentials and those are redacted, but that
+is a safety net rather than a guarantee: an application that prints its own configuration can
+still put a value in the log.
 
 ## Changes need a redeploy
 

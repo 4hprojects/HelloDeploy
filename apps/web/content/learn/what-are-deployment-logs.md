@@ -65,5 +65,8 @@ HelloDeploy streams logs while a deployment runs and keeps them readable afterwa
 failures as well as successes. The stages are separated, so a failure points at installation,
 the build, startup, or the health check.
 
-Environment variable values are redacted before logs are stored or streamed, so a secret you
-set will not appear in them. See [Deployment Logs](/docs/deployment-logs).
+Output matching known credential shapes — GitHub, AWS and npm tokens, bearer headers, JSON
+web tokens, private keys — is replaced before logs are stored or streamed. That is pattern
+matching, not a comparison against the values you set, so a database URL with a password in it
+or an application printing its own configuration will still appear. See
+[Deployment Logs](/docs/deployment-logs).
