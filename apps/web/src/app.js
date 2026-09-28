@@ -7,6 +7,7 @@ import { randomBytes } from 'crypto';
 
 import { correlationIdMiddleware } from './middleware/correlation-id.js';
 import { createSessionMiddleware } from './middleware/session.js';
+import { canonicalPathMiddleware } from './middleware/canonical-path.js';
 import { csrfMiddleware } from './middleware/csrf.js';
 import { localsMiddleware } from './middleware/locals.js';
 import { maintenanceModeMiddleware } from './middleware/maintenance-mode.js';
@@ -133,6 +134,9 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   if (env.isProduction()) {
     app.use(generalLimiter);
   }
+
+  // Public URLs answer at one spelling only; variants redirect to it.
+  app.use(canonicalPathMiddleware);
 
   // ── Routes ─────────────────────────────────────────────────────────────────
   app.use('/auth', authRoutes);
