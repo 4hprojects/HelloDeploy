@@ -9,6 +9,7 @@
  */
 
 const PRODUCT = 'Product';
+const RESOURCES = 'Resources';
 const COMPANY = 'Company';
 const LEGAL = 'Legal';
 
@@ -20,6 +21,9 @@ const publicPages = [
   { path: '/features', label: 'Features', group: PRODUCT, live: true },
   { path: '/supported-runtimes', label: 'Supported Runtimes', group: PRODUCT, live: true },
   { path: '/pricing', label: 'Pricing', group: PRODUCT, live: true },
+
+  { path: '/docs', label: 'Documentation', group: RESOURCES, live: true },
+  { path: '/learn', label: 'Learn', group: RESOURCES, live: true },
 
   { path: '/about', label: 'About', group: COMPANY, live: true },
   { path: '/contact', label: 'Contact', group: COMPANY, live: true },
@@ -46,11 +50,11 @@ function toColumns(groups) {
 
 /** Flat link list for the top navigation. */
 export const publicNavLinks = publicPages.filter(
-  (page) => page.live && (page.group === PRODUCT || page.group === COMPANY),
+  (page) => page.live && page.group !== null && page.group !== LEGAL,
 );
 
 /** Grouped columns for the footer. */
-export const publicFooterColumns = toColumns([PRODUCT, COMPANY, LEGAL]);
+export const publicFooterColumns = toColumns([PRODUCT, RESOURCES, COMPANY, LEGAL]);
 
 /** Every public path that exists, for the sitemap. */
 export const livePublicPaths = publicPages.filter((page) => page.live).map((page) => page.path);

@@ -1,0 +1,38 @@
+<article class="learn-article">
+  <nav class="docs__breadcrumbs" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="/learn">Learn</a></li>
+      <% if (category) { %><li><%= category.heading %></li><% } %>
+      <li aria-current="page"><%= page.title %></li>
+    </ol>
+  </nav>
+
+  <h1 class="page-header__title"><%= page.title %></h1>
+
+  <p class="learn-article__byline">
+    By <%= page.author %> &middot;
+    Published <time datetime="<%= page.published %>"><%= page.published %></time>
+    <% if (page.updated !== page.published) { %>
+      &middot; Updated <time datetime="<%= page.updated %>"><%= page.updated %></time>
+    <% } %>
+  </p>
+
+  <div class="prose">
+    <%- content %>
+  </div>
+
+  <% if (category && category.pages.length > 1) { %>
+  <nav class="learn-article__related" aria-label="Related articles">
+    <h2 class="feature-title">More on <%= category.heading %></h2>
+    <ul class="docs__index-list">
+      <% category.pages.filter(entry => entry.slug !== page.slug).slice(0, 4).forEach(entry => { %>
+        <li><a href="<%= entry.path %>"><%= entry.title %></a></li>
+      <% }) %>
+    </ul>
+  </nav>
+  <% } %>
+</article>
+
+<script type="application/ld+json" nonce="<%= cspNonce %>">
+  <%- structuredData %>
+</script>
