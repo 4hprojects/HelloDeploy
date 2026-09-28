@@ -105,6 +105,40 @@ describe('learn registry', () => {
   });
 });
 
+describe('learn routing', () => {
+  it('distinguishes an article path from a troubleshooting path', () => {
+    const articlePaths = learnPages.map((page) => page.path);
+    const collisions = learnPages.filter((page) => {
+      const other = page.path.startsWith('/learn/troubleshooting/')
+        ? `/learn/${page.slug}`
+        : `/learn/troubleshooting/${page.slug}`;
+      return articlePaths.includes(other);
+    });
+
+    assert.deepEqual(collisions, []);
+  });
+
+  it('puts troubleshooting guides under the troubleshooting path', () => {
+    const guides = learnCategories.find((category) => category.heading === 'Troubleshooting');
+
+    assert.deepEqual(
+      (guides?.pages ?? []).filter((page) => !page.path.startsWith('/learn/troubleshooting/')),
+      [],
+    );
+  });
+
+  it('keeps every other article directly under learn', () => {
+    const others = learnCategories
+      .filter((category) => category.heading !== 'Troubleshooting')
+      .flatMap((category) => category.pages);
+
+    assert.deepEqual(
+      others.filter((page) => page.path !== `/learn/${page.slug}`),
+      [],
+    );
+  });
+});
+
 describe('learn content', () => {
   it('links only to learn articles that exist', () => {
     const dangling = [];

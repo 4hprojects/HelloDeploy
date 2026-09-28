@@ -14,17 +14,21 @@ export function getLearnIndex(_req, res) {
 }
 
 export async function getLearnArticle(req, res, next) {
-  return renderArticle(req.params.slug, res, next);
+  return renderArticle(req, res, next);
 }
 
 /** Troubleshooting guides live one level deeper, at /learn/troubleshooting/. */
 export async function getTroubleshootingArticle(req, res, next) {
-  return renderArticle(req.params.slug, res, next);
+  return renderArticle(req, res, next);
 }
 
-async function renderArticle(slug, res, next) {
-  const page = findLearnPage(slug);
-  if (!page) {
+async function renderArticle(req, res, next) {
+  const page = findLearnPage(req.params.slug);
+
+  // A slug alone does not identify a page: guides live under /learn/troubleshooting/
+  // and articles directly under /learn/. Serving either from the other's route would
+  // put every page at two addresses.
+  if (!page || page.path !== req.path) {
     // Fall through to the 404 handler rather than rendering an empty article.
     return next();
   }
@@ -40,7 +44,8 @@ async function renderArticle(slug, res, next) {
     category,
     content,
     // Editorial articles carry Article structured data, as the content spec requires.
-    structuredData: JSON.stringify({
+    // Escaped so a '<' in a title can never close the script tag it sits inside.
+    structuredData: toJsonLd({
       '@context': 'https://schema.org',
       '@type': 'Article',
       headline: page.title,
@@ -52,4 +57,9 @@ async function renderArticle(slug, res, next) {
     }),
     layout: LAYOUT,
   });
+}
+
+/** Serialise structured data for embedding in a <script> tag. */
+function toJsonLd(value) {
+  return JSON.stringify(value).replaceAll('<', '\\u003c');
 }
