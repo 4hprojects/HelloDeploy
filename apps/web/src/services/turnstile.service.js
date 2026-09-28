@@ -19,6 +19,7 @@ const SITEVERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverif
 export async function verifyTurnstile(token, sourceIp) {
   const secret = env.TURNSTILE_SECRET_KEY;
   if (!secret) {
+    warnOnceIfProduction();
     return true;
   }
 
@@ -37,4 +38,21 @@ export async function verifyTurnstile(token, sourceIp) {
     logger.warn('Turnstile verification request failed', { error: err.message });
     return false;
   }
+}
+
+let hasWarned = false;
+
+/**
+ * Both Turnstile keys being unset passes configuration validation, so a
+ * production instance can run with bot protection silently disabled. Say so
+ * once rather than letting every challenge quietly pass.
+ */
+function warnOnceIfProduction() {
+  if (hasWarned || !env.isProduction()) {
+    return;
+  }
+  hasWarned = true;
+  logger.warn(
+    'Turnstile is not configured; challenges are passing without verification. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY to enable bot protection.',
+  );
 }
