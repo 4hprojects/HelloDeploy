@@ -1,7 +1,10 @@
+<%
+  const footerColumns = typeof publicFooterColumns !== 'undefined' ? publicFooterColumns : [];
+%>
 <footer class="public-footer" role="contentinfo">
   <div class="public-footer__inner">
     <div class="public-footer__columns">
-      <% publicFooterColumns.forEach(column => { %>
+      <% footerColumns.forEach(column => { %>
         <div class="public-footer__column">
           <h2 class="public-footer__heading"><%= column.heading %></h2>
           <ul class="public-footer__list">

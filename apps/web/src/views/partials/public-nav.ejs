@@ -1,3 +1,10 @@
+<%
+  // Rendered on error pages too, which can reach the layout before
+  // localsMiddleware has supplied these.
+  const navLinks = typeof publicNavLinks !== 'undefined' ? publicNavLinks : [];
+  const navUser = typeof user !== 'undefined' ? user : null;
+  const navPath = typeof currentPath !== 'undefined' ? currentPath : '';
+%>
 <header class="public-header" role="banner">
   <div class="public-header__inner">
     <a href="/" class="header__brand" aria-label="HelloDeploy home">
@@ -19,12 +26,12 @@
 
     <nav class="public-nav" id="public-nav" aria-label="Primary navigation">
       <ul class="public-nav__list">
-        <% publicNavLinks.forEach(link => { %>
+        <% navLinks.forEach(link => { %>
           <li>
             <a
               href="<%= link.path %>"
-              class="public-nav__link<%= currentPath === link.path ? ' public-nav__link--active' : '' %>"
-              <%- currentPath === link.path ? 'aria-current="page"' : '' %>
+              class="public-nav__link<%= navPath === link.path ? ' public-nav__link--active' : '' %>"
+              <%- navPath === link.path ? 'aria-current="page"' : '' %>
             ><%= link.label %></a>
           </li>
         <% }) %>
@@ -42,7 +49,7 @@
           <%- include('icon', { name: 'sun', className: 'theme-icon theme-icon--light' }) %>
           <%- include('icon', { name: 'moon', className: 'theme-icon theme-icon--dark' }) %>
         </button>
-        <% if (user) { %>
+        <% if (navUser) { %>
           <a href="/dashboard" class="button button--primary button--sm">Dashboard</a>
         <% } else { %>
           <a href="/auth/sign-in" class="public-nav__link">Sign In</a>

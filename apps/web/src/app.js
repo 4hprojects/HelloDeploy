@@ -1,3 +1,4 @@
+import { layoutForRequest } from './utils/error-layout.js';
 import express from 'express';
 import expressEjsLayouts from 'express-ejs-layouts';
 import { fileURLToPath } from 'url';
@@ -330,7 +331,7 @@ ${urls}
   app.use((req, res) => {
     res.status(404).render('pages/404', {
       title: 'Page Not Found',
-      layout: req.session?.user ? 'layouts/main' : PUBLIC_LAYOUT,
+      layout: layoutForRequest(req),
     });
   });
 
@@ -344,7 +345,7 @@ ${urls}
     });
     res.status(500).render('pages/error', {
       title: 'Something Went Wrong',
-      layout: 'layouts/main',
+      layout: layoutForRequest(req),
       message: 'An unexpected error occurred. Please try again.',
     });
   });

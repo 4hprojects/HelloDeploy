@@ -1,3 +1,4 @@
+import { layoutForRequest } from '../utils/error-layout.js';
 import rateLimit from 'express-rate-limit';
 import { RedisStore } from 'rate-limit-redis';
 import { classifyRedisError, createRedisConnection } from '@hellodeploy/queue';
@@ -61,7 +62,7 @@ const onLimitReached = (req, res, _options) => {
     // handed the authenticated sidebar on the way out.
     res.status(429).render('pages/error', {
       title: 'Too Many Requests',
-      layout: req.session?.user ? 'layouts/main' : 'layouts/public',
+      layout: layoutForRequest(req),
       message: 'Too many requests. Please wait a moment and try again.',
     });
   } else {
