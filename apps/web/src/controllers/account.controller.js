@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { UiMode } from '@hellodeploy/contracts';
 import { User } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
@@ -19,7 +20,7 @@ function safeReturnPath(candidate) {
  * Presentation-only: it changes which controls render, never what the account
  * is permitted to do, so no project-level authorization applies.
  */
-export async function postUiMode(req, res) {
+export const postUiMode = asyncHandler(async (req, res) => {
   const requested = req.body?.uiMode;
   const returnTo = safeReturnPath(req.body?.returnTo);
 
@@ -44,4 +45,4 @@ export async function postUiMode(req, res) {
       : 'Simple mode on. Technical settings are hidden but unchanged.',
   );
   return res.redirect(returnTo);
-}
+});
