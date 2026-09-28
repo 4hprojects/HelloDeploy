@@ -19,6 +19,26 @@ Case studies should be detailed without exposing sensitive system information.
 - private repository credentials
 - confidential user data
 
+## Platform redaction is not sanitisation
+
+Deployment logs are scanned for things that look like credentials — GitHub, AWS
+and npm tokens, bearer headers, JSON web tokens, private key blocks, and
+assignments such as `password=` — and those are replaced with `[REDACTED]`.
+
+That is pattern matching, not knowledge of the values a project set. It does not
+catch a database URL carrying its password inline, or an application printing its
+own configuration at startup:
+
+```text
+DATABASE_URL=postgres://user:hunter2@db.example.com:5432/app
+{ STRIPE_SECRET: 'rk_live_51H8xyz' }
+```
+
+So a log that appears redacted may still contain secrets. Read every line of any
+log excerpt or screenshot before publishing it, and treat anything that was
+exposed as leaked and rotate it. Never assume a log is safe because the platform
+redacts.
+
 ## Review Before Publishing
 
 Check screenshots for:

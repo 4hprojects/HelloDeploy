@@ -21,6 +21,16 @@ Possible screenshots:
 
 Do not include screenshots only to increase page length.
 
+Every item on that list except the first requires a deployment that actually ran.
+No project has completed one through HelloDeploy yet, so these cannot be captured
+for the three planned case studies until that changes — see
+`02_EVIDENCE_COLLECTION.md`.
+
+Logs are the item to be most careful with: platform redaction matches known
+credential shapes and does not know a project's own values, so a log screenshot
+can contain secrets that look redacted. `07_PRIVACY_AND_SANITIZATION.md` covers
+this.
+
 ## Architecture Diagram
 
 Every case study should include one simple architecture diagram.
@@ -28,19 +38,25 @@ Every case study should include one simple architecture diagram.
 Example:
 
 ```text
-User
- ↓
-Custom Domain
- ↓
-HelloDeploy
- ↓
-Application
- ├── Database
- ├── Authentication
- └── External Services
+Visitor
+ ↓  DNS: CNAME to <tunnel-id>.cfargotunnel.com
+Cloudflare tunnel
+ ↓  TLS terminates here
+nginx on the host
+ ↓  routes by hostname to a private loopback port
+Application container
+ ├── External database
+ ├── Authentication provider
+ └── Other external services
 ```
 
-Customize it to the actual project.
+Customise it to the actual project, but keep the real path. Collapsing it to
+"HelloDeploy" hides the parts a reader wants explained: that TLS terminates
+upstream rather than in the application, that nginx picks the container by
+hostname, and that the container is not directly reachable from the internet.
+
+Databases and other services are external — HelloDeploy does not provide them,
+so they belong outside the box, reached by the application.
 
 ## Before and After Visual
 
