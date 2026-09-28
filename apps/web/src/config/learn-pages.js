@@ -261,6 +261,78 @@ export const learnCategories = [
         file: 'ts-application-keeps-restarting.md',
         published: '2026-09-28',
       }),
+      article({
+        slug: 'custom-domain-not-resolving',
+        path: '/learn/troubleshooting/custom-domain-not-resolving',
+        title: 'Custom Domain Is Not Resolving',
+        description:
+          'Your project address works and your own domain does not — verification, provisioning and DNS, checked in the order they depend on each other.',
+        file: 'ts-custom-domain-not-resolving.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'ssl-certificate-not-working',
+        path: '/learn/troubleshooting/ssl-certificate-not-working',
+        title: 'SSL Certificate Is Not Working',
+        description:
+          'Why a failing secure address on HelloDeploy is almost never a certificate problem, and what to check instead.',
+        file: 'ts-ssl-certificate-not-working.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: '502-bad-gateway',
+        path: '/learn/troubleshooting/502-bad-gateway',
+        title: '502 Bad Gateway',
+        description:
+          'The proxy is working and your application is not answering it — crashes, wrong ports and restart loops.',
+        file: 'ts-502-bad-gateway.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: '404-after-deployment',
+        path: '/learn/troubleshooting/404-after-deployment',
+        title: '404 After Deployment',
+        description:
+          'Something answered but the path was not found — output directories, missing index files and single-page application routing.',
+        file: 'ts-404-after-deployment.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'root-domain-works-www-does-not',
+        path: '/learn/troubleshooting/root-domain-works-www-does-not',
+        title: 'The Root Domain Works but www Does Not',
+        description:
+          'Two hostnames, two records, two tunnel entries — and what to do when the record is right and it still does not resolve.',
+        file: 'ts-root-domain-works-www-does-not.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'www-works-root-domain-does-not',
+        path: '/learn/troubleshooting/www-works-root-domain-does-not',
+        title: 'www Works but the Root Domain Does Not',
+        description:
+          'The mirror image, plus the root CNAME rule that guides warn about and modern DNS providers work around.',
+        file: 'ts-www-works-root-domain-does-not.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'dns-points-to-wrong-server',
+        path: '/learn/troubleshooting/dns-points-to-wrong-server',
+        title: 'DNS Points to the Wrong Server',
+        description:
+          'Your domain resolves somewhere else — leftover records, or editing DNS at a provider that is not the one answering.',
+        file: 'ts-dns-points-to-wrong-server.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'works-locally-but-fails-on-hellodeploy',
+        path: '/learn/troubleshooting/works-locally-but-fails-on-hellodeploy',
+        title: 'Works Locally but Fails on HelloDeploy',
+        description:
+          'Why a development machine and a production container differ, and the clean-checkout test that reproduces most of it in a minute.',
+        file: 'ts-works-locally-but-fails-on-hellodeploy.md',
+        published: '2026-09-28',
+      }),
     ],
   },
 ];
