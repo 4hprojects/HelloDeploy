@@ -85,6 +85,13 @@ export async function sendContactMessage({
 
   const text = [...rows.map(([k, v]) => `${k}: ${v}`), '', subject, '', message].join('\n');
 
+  // Without a configured provider sendEmail logs and returns, which would let the
+  // contact form tell a visitor their message was sent when it was not. A dropped
+  // support request is worse than a visible failure, so refuse instead.
+  if (!env.RESEND_API_KEY) {
+    throw new Error('Email delivery is not configured (RESEND_API_KEY is unset)');
+  }
+
   await sendEmail({
     to: env.CONTACT_EMAIL,
     subject: `[HelloDeploy contact] ${subject}`,

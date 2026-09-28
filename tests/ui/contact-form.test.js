@@ -88,3 +88,26 @@ describe('contact categories', () => {
     );
   });
 });
+
+describe('contact delivery configuration', () => {
+  it('refuses to send when no email provider is configured', async () => {
+    const previous = process.env.RESEND_API_KEY;
+    process.env.RESEND_API_KEY = '';
+
+    const { sendContactMessage } = await import('../../apps/web/src/services/email.service.js');
+
+    await assert.rejects(
+      () =>
+        sendContactMessage({
+          name: 'Ada',
+          email: 'ada@example.com',
+          categoryLabel: 'Bug report',
+          subject: 'Subject',
+          message: 'Message',
+        }),
+      /not configured/,
+    );
+
+    process.env.RESEND_API_KEY = previous;
+  });
+});
