@@ -22,7 +22,11 @@ import helmet from 'helmet';
 import { getDashboard } from './controllers/dashboard.controller.js';
 import { getContact, postContact } from './controllers/contact.controller.js';
 import { docsPaths, getDocsArticle, getDocsIndex } from './controllers/docs.controller.js';
-import { getLearnArticle, getLearnIndex } from './controllers/learn.controller.js';
+import {
+  getLearnArticle,
+  getLearnIndex,
+  getTroubleshootingArticle,
+} from './controllers/learn.controller.js';
 import { learnPaths } from './config/learn-pages.js';
 import { asyncHandler } from './utils/async-handler.js';
 import { logger } from '@hellodeploy/observability';
@@ -198,6 +202,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   });
 
   app.get('/learn', getLearnIndex);
+  app.get('/learn/troubleshooting/:slug', asyncHandler(getTroubleshootingArticle));
   app.get('/learn/:slug', asyncHandler(getLearnArticle));
 
   app.get('/docs', getDocsIndex);

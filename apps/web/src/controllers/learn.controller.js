@@ -14,7 +14,16 @@ export function getLearnIndex(_req, res) {
 }
 
 export async function getLearnArticle(req, res, next) {
-  const page = findLearnPage(req.params.slug);
+  return renderArticle(req.params.slug, res, next);
+}
+
+/** Troubleshooting guides live one level deeper, at /learn/troubleshooting/. */
+export async function getTroubleshootingArticle(req, res, next) {
+  return renderArticle(req.params.slug, res, next);
+}
+
+async function renderArticle(slug, res, next) {
+  const page = findLearnPage(slug);
   if (!page) {
     // Fall through to the 404 handler rather than rendering an empty article.
     return next();

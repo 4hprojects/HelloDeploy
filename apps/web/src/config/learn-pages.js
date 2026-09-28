@@ -203,6 +203,66 @@ export const learnCategories = [
       }),
     ],
   },
+  {
+    heading: 'Troubleshooting',
+    slug: 'troubleshooting',
+    pages: [
+      article({
+        slug: 'dependency-installation-failed',
+        path: '/learn/troubleshooting/dependency-installation-failed',
+        title: 'Dependency Installation Failed',
+        description:
+          'A deployment that stops while installing packages — usually a missing or mismatched npm lockfile.',
+        file: 'ts-dependency-installation-failed.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'build-command-failed',
+        path: '/learn/troubleshooting/build-command-failed',
+        title: 'Build Command Failed',
+        description:
+          'Your build ran and returned an error. Uncommitted files, path capitalisation and missing build variables are the usual causes.',
+        file: 'ts-build-command-failed.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'app-starts-but-site-does-not-load',
+        path: '/learn/troubleshooting/app-starts-but-site-does-not-load',
+        title: 'The App Starts but the Site Does Not Load',
+        description:
+          'A build that succeeds and a health check that fails — almost always the port, or binding to localhost inside a container.',
+        file: 'ts-app-starts-but-site-does-not-load.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'application-port-incorrect',
+        path: '/learn/troubleshooting/application-port-incorrect',
+        title: 'Application Port Is Incorrect',
+        description:
+          'Your application is listening where nobody is asking. Read the PORT variable HelloDeploy injects.',
+        file: 'ts-application-port-incorrect.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'missing-environment-variable',
+        path: '/learn/troubleshooting/missing-environment-variable',
+        title: 'Missing Environment Variable',
+        description:
+          'A value your application needs is absent, or was added after the running release started and needs a redeploy.',
+        file: 'ts-missing-environment-variable.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'application-keeps-restarting',
+        path: '/learn/troubleshooting/application-keeps-restarting',
+        title: 'The Application Keeps Restarting',
+        description:
+          'A process that starts, exits and starts again — startup errors, crashes, memory limits, or a command that finishes.',
+        file: 'ts-application-keeps-restarting.md',
+        published: '2026-09-28',
+      }),
+    ],
+  },
 ];
 
 /** Every article, in listing order. */
