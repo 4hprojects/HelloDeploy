@@ -65,6 +65,60 @@ export const learnCategories = [
         file: 'what-is-a-start-command.md',
         published: '2026-09-28',
       }),
+      article({
+        slug: 'what-are-deployment-logs',
+        title: 'What Are Deployment Logs?',
+        description:
+          'How to read the record a deployment leaves, tell build failures from startup failures, and find the error that actually matters.',
+        file: 'what-are-deployment-logs.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-is-a-deploy-hook',
+        title: 'What Is a Deploy Hook?',
+        description:
+          'A private URL that triggers a deployment, what people use one for, and why it has to be treated like a password.',
+        file: 'what-is-a-deploy-hook.md',
+        published: '2026-09-28',
+      }),
+    ],
+  },
+  {
+    heading: 'Hosting',
+    slug: 'hosting',
+    pages: [
+      article({
+        slug: 'what-is-web-hosting',
+        title: 'What Is Web Hosting?',
+        description:
+          'What you are actually renting when you buy hosting, why a domain is a separate thing, and how static and application hosting differ.',
+        file: 'what-is-web-hosting.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-is-a-vps',
+        title: 'What Is a VPS?',
+        description:
+          'What a virtual private server gives you, what it makes you responsible for, and when it is more machine than your project needs.',
+        file: 'what-is-a-vps.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'shared-hosting-vs-vps-vs-cloud-hosting',
+        title: 'Shared Hosting vs VPS vs Cloud Hosting',
+        description:
+          'How the three compare on control, isolation, resources, scaling and maintenance — and which suits a small project.',
+        file: 'shared-hosting-vs-vps-vs-cloud-hosting.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'how-multiple-websites-run-on-one-server',
+        title: 'How Multiple Websites Run on One Server',
+        description:
+          'How one machine serves many sites at one address, what a reverse proxy does, and why your application port is invisible to visitors.',
+        file: 'how-multiple-websites-run-on-one-server.md',
+        published: '2026-09-28',
+      }),
     ],
   },
 ];
