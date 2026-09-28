@@ -7,6 +7,7 @@ import {
   AuditOutcome,
   DomainStatus,
   FailureCode,
+  ProjectStatus,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
@@ -496,6 +497,27 @@ export async function runReleasePipeline({
       status: current.status,
     });
     return { ok: false };
+  }
+
+  // Suspending a project already stops new deployments being created. One that
+  // was in flight when the suspension landed should not slip past that, so it is
+  // checked here too. Failing rather than returning quietly matters: a release
+  // left mid-flight would satisfy the one-active-deployment check forever and
+  // block the project even after it is reactivated.
+  const currentProject = await Project.findById(projectId).select('status').lean();
+  if (currentProject && currentProject.status !== ProjectStatus.ACTIVE) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Release stopped before routing: project is ${currentProject.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    return fail(
+      FailureCode.PROJECT_NOT_ACTIVE,
+      `Project is ${currentProject.status}; the release was not published.`,
+    );
   }
 
   await recordStage(deploymentId, DeploymentStage.PUBLISHING);

@@ -29,6 +29,7 @@ export const FailureCode = Object.freeze({
   SUBDOMAIN_INVALID: 'SUBDOMAIN_INVALID',
   NGINX_ROUTE_FAILED: 'NGINX_ROUTE_FAILED',
   PROJECT_NOT_FOUND: 'PROJECT_NOT_FOUND',
+  PROJECT_NOT_ACTIVE: 'PROJECT_NOT_ACTIVE',
   REPO_ACCESS_REVOKED: 'REPO_ACCESS_REVOKED',
   GITHUB_TOKEN_FAILED: 'GITHUB_TOKEN_FAILED',
   CLONE_FAILED: 'CLONE_FAILED',
@@ -102,6 +103,12 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "HelloDeploy couldn't connect your app to its web address.",
     action: TRY_AGAIN_ACTION,
     actions: [RecoveryAction.RETRY],
+  },
+  [FailureCode.PROJECT_NOT_ACTIVE]: {
+    message: 'This website was suspended while the release was being published.',
+    action:
+      'Nothing was published, and the version that was already live is still serving. Contact support to find out why the website was suspended.',
+    actions: [RecoveryAction.LOGS],
   },
   [FailureCode.PROJECT_NOT_FOUND]: {
     message: "HelloDeploy couldn't find this project.",

@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
 import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import { DeploymentStatus, DeploymentTrigger, ProjectStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 // Routing sits behind NGINX_ENABLED and env is read when the pipeline loads.
@@ -44,14 +44,17 @@ const ACTIVATE_OPTS = {
   logLabel: 'Container',
 };
 
-async function run(status) {
+async function run(status, projectStatus = ProjectStatus.ACTIVE) {
   const calls = { stopped: [], routed: [], inspected: 0 };
-  // Not a reserved label — a reserved one skips routing entirely.
+  // Not a reserved label — a reserved one skips routing entirely. The project
+  // must be ACTIVE: the model defaults to DRAFT, and a release only reaches the
+  // pipeline for a project that was active when it was created.
   const project = await Project.create({
     name: 'My App',
     slug: 'myapp',
     ownerId: objectId(),
     platformSubdomain: 'myapp',
+    status: projectStatus,
   });
   const deployment = await Deployment.create({
     projectId: project._id,
@@ -116,5 +119,43 @@ describe('a release cancelled before routing does not take traffic', () => {
 
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.status, DeploymentStatus.CANCELLED);
+  });
+});
+
+describe('a release whose project was suspended mid-flight', () => {
+  before(async () => {
+    await startTestDb();
+  });
+  after(async () => {
+    await stopTestDb();
+  });
+  beforeEach(async () => {
+    await clearTestDb();
+  });
+
+  it('never routes traffic', async () => {
+    const { calls } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.SUSPENDED);
+
+    assert.deepEqual(calls.routed, []);
+  });
+
+  it('stops the container it started', async () => {
+    const { calls } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.SUSPENDED);
+
+    assert.equal(calls.stopped.length, 1);
+  });
+
+  it('reaches a terminal state, so the project is not blocked afterwards', async () => {
+    const { deployment } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.SUSPENDED);
+
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.status, DeploymentStatus.FAILED);
+  });
+
+  it('records why it stopped', async () => {
+    const { deployment } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.SUSPENDED);
+
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'PROJECT_NOT_ACTIVE');
   });
 });
