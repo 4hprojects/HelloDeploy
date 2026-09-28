@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import { findLearnPage, getLearnCategory, learnCategories } from '../config/learn-pages.js';
 import { renderContentFile } from '../services/content.service.js';
 
@@ -13,14 +14,14 @@ export function getLearnIndex(_req, res) {
   });
 }
 
-export async function getLearnArticle(req, res, next) {
+export const getLearnArticle = asyncHandler(async (req, res, next) => {
   return renderArticle(req, res, next);
-}
+});
 
 /** Troubleshooting guides live one level deeper, at /learn/troubleshooting/. */
-export async function getTroubleshootingArticle(req, res, next) {
+export const getTroubleshootingArticle = asyncHandler(async (req, res, next) => {
   return renderArticle(req, res, next);
-}
+});
 
 async function renderArticle(req, res, next) {
   const page = findLearnPage(req.params.slug);

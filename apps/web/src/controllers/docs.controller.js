@@ -1,3 +1,4 @@
+import { asyncHandler } from '../utils/async-handler.js';
 import {
   docsPages,
   docsSections,
@@ -19,7 +20,7 @@ export function getDocsIndex(_req, res) {
   });
 }
 
-export async function getDocsArticle(req, res, next) {
+export const getDocsArticle = asyncHandler(async (req, res, next) => {
   const page = findDocsPage(req.params.slug);
   if (!page) {
     // Fall through to the 404 handler rather than rendering an empty article.
@@ -41,7 +42,7 @@ export async function getDocsArticle(req, res, next) {
     next: nextPage,
     layout: LAYOUT,
   });
-}
+});
 
 /** Documentation paths for the sitemap. */
 export const docsPaths = ['/docs', ...docsPages.map((page) => `/docs/${page.slug}`)];

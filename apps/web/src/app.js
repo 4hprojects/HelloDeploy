@@ -28,7 +28,6 @@ import {
   getTroubleshootingArticle,
 } from './controllers/learn.controller.js';
 import { learnPaths } from './config/learn-pages.js';
-import { asyncHandler } from './utils/async-handler.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { livePublicPaths } from './config/public-pages.js';
@@ -202,11 +201,11 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   });
 
   app.get('/learn', getLearnIndex);
-  app.get('/learn/troubleshooting/:slug', asyncHandler(getTroubleshootingArticle));
-  app.get('/learn/:slug', asyncHandler(getLearnArticle));
+  app.get('/learn/troubleshooting/:slug', getTroubleshootingArticle);
+  app.get('/learn/:slug', getLearnArticle);
 
   app.get('/docs', getDocsIndex);
-  app.get('/docs/:slug', asyncHandler(getDocsArticle));
+  app.get('/docs/:slug', getDocsArticle);
 
   app.get('/contact', getContact);
   app.post('/contact', contactLimiter, postContact);

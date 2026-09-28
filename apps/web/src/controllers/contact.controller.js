@@ -1,5 +1,7 @@
 import { logger } from '@hellodeploy/observability';
 
+import { asyncHandler } from '../utils/async-handler.js';
+
 import { sendContactMessage } from '../services/email.service.js';
 import { verifyTurnstile } from '../services/turnstile.service.js';
 import { CONTACT_CATEGORIES, validateContactMessage } from '../validators/contact.validator.js';
@@ -26,7 +28,7 @@ export function getContact(_req, res) {
   renderContact(res);
 }
 
-export async function postContact(req, res) {
+export const postContact = asyncHandler(async (req, res) => {
   // Bots fill every field they find; a visitor never sees this one.
   if ((req.body.website ?? '').trim()) {
     logger.info('[contact] Discarded honeypot submission', { correlationId: req.correlationId });
@@ -43,14 +45,8 @@ export async function postContact(req, res) {
   }
 
   if (hasErrors || errors.turnstile) {
-    return res.status(400).render('pages/contact', {
-      ...PAGE,
-      categories: CONTACT_CATEGORIES,
-      values,
-      errors,
-      sent: false,
-      layout: 'layouts/public',
-    });
+    res.status(400);
+    return renderContact(res, { values, errors });
   }
 
   const category = CONTACT_CATEGORIES.find((entry) => entry.value === values.category);
@@ -64,16 +60,9 @@ export async function postContact(req, res) {
       error: err.message,
       correlationId: req.correlationId,
     });
-    return res.status(502).render('pages/contact', {
-      ...PAGE,
-      categories: CONTACT_CATEGORIES,
-      values,
-      errors: {},
-      sent: false,
-      deliveryFailed: true,
-      layout: 'layouts/public',
-    });
+    res.status(502);
+    return renderContact(res, { values, deliveryFailed: true });
   }
 
   return renderContact(res, { sent: true });
-}
+});
