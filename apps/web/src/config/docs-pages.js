@@ -98,6 +98,51 @@ export const docsSections = [
       },
     ],
   },
+  {
+    heading: 'Domains',
+    pages: [
+      {
+        slug: 'domains',
+        title: 'Domains Overview',
+        description:
+          'Your project address, what connecting a domain you own involves, and why it is not fully self-service.',
+        file: 'domains.md',
+      },
+      {
+        slug: 'custom-domain',
+        title: 'Connect a Custom Domain',
+        description:
+          'Add a domain, verify ownership with a TXT record, wait for provisioning, then point a CNAME at your project.',
+        file: 'custom-domain.md',
+      },
+      {
+        slug: 'dns-configuration',
+        title: 'DNS Configuration',
+        description:
+          'The two DNS records a HelloDeploy domain needs, why there is no A record, and how to avoid conflicting records.',
+        file: 'dns-configuration.md',
+      },
+      {
+        slug: 'https-and-ssl',
+        title: 'HTTPS and SSL',
+        description:
+          'How HTTPS works for HelloDeploy sites, what has to be in place first, and what to check when a secure address does not load.',
+        file: 'https-and-ssl.md',
+      },
+    ],
+  },
+  {
+    heading: 'Support',
+    pages: [
+      {
+        slug: 'troubleshooting',
+        title: 'Troubleshooting',
+        description:
+          'Find the shape of a deployment problem — build, startup, health check, configuration or domain — and where to fix it.',
+        file: 'troubleshooting.md',
+      },
+    ],
+  },
 ];
 
 /** Every page, in sidebar order. */
