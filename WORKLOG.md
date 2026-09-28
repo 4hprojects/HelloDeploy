@@ -2238,3 +2238,99 @@ PRIORITIES.md review notes — was preserved on `docs/priorities-2026-09-25-revi
   names the fix, but teaching the builder is a separate, testable change.
 - **Nothing has been opened in a browser.** Every screen is verified by asserting
   rendered output, which cannot catch a page that reads badly.
+
+## 2026-09-28 — Public Website and Content (Spec Phases 1, 2, 3, 5)
+
+Implemented `docs/to work on/hellodeploy-content-spec/` on `feat/ui-mode-foundation`:
+sixteen public pages, fifteen documentation pages, eighteen Learn articles and
+fourteen troubleshooting guides — sixty-five public URLs where there were eleven,
+all reachable, none linking to a page that does not exist.
+
+### The spec had to be corrected before it could be built
+
+It documented a custom domain flow the platform does not have: an A record pointing
+at an IPv4 address, a Learn article framing A-record-versus-CNAME as the reader's
+choice, and self-service setup throughout. None of that is true. Traffic arrives
+through a Cloudflare tunnel addressed as `<tunnel-id>.cfargotunnel.com`, there is no
+IP to publish, and an administrator approves and provisions the domain partway
+through. Building from the spec as written would have shipped instructions that
+cannot work.
+
+Also corrected: pricing proposed four paid tiers with "Choose Starter" buttons
+against a codebase with no billing and no plan tiers; the runtime matrix shipped
+statuses like "Supported if verified"; and thirteen "document this after verifying
+the UI" placeholders were answerable by reading the code, so they were answered.
+
+### What was rejected from the spec
+
+- **Phase 4, the three case studies.** They document real deployments of
+  HelloUniversity, HelloRun and HelloPera. The cutover checklist in the production
+  plan is entirely unchecked, including deploying HelloUniversity through HelloDeploy
+  at all, and customer hosting is marked NO-GO. Writing them would mean inventing
+  events. Blocked on reality, not on effort.
+- **A Learn article walking through connecting a custom domain.** `/docs/custom-domain`
+  already is that. Two pages competing for one intent is what the spec's own rules
+  forbid.
+- **The pricing comparison table.** It gates features by plan, and
+  `usage-view.service.js` records that only `maxOwnedProjects` and
+  `maxProjectMembers` are enforced — everything else is editable and unenforced.
+- **Status and Glossary in the footer.** Neither has a spec or a page.
+
+### Bugs found and fixed along the way
+
+Nine, all in paths that had passing tests. Each was found by asking what happens when
+something is missing or wrong, never by re-running a green test.
+
+- **Every Learn article served at two URLs.** The handlers looked pages up by slug and
+  ignored which route matched, so `/learn/502-bad-gateway` returned a troubleshooting
+  guide that belongs under `/learn/troubleshooting/`. The tests only ever requested
+  each page's own path.
+- **Every public page served at several URLs.** Express ignores case and trailing
+  slashes, and most pages build their canonical tag from the requested path — so
+  `/FEATURES` returned 200 and declared _itself_ canonical. The tag that exists to
+  consolidate duplicates was endorsing them.
+- **An open redirect in the sign-in return path.** Both helpers accepted
+  `/\evil.com`, which browsers resolve off-origin. A link to the genuine domain sent
+  the visitor to the real sign-in page and then to the attacker's site. Pre-existing.
+- **The contact form told visitors "Message sent" when nothing was sent.**
+  `RESEND_API_KEY` is optional in production and `sendEmail` silently returns without
+  it, writing the sender's address and message into the log instead.
+- **Three route handlers were async and unwrapped.** Node terminates on an unhandled
+  rejection, so a Redis or Mongo blip in the GitHub webhook took the web process down
+  and GitHub retried against a dead server. Two were pre-existing.
+- **Error pages handed visitors the app sidebar.** Fixed for the 404, then again for
+  the rate limit page, and still not fixed — the 500 handler, the CSRF page and
+  maintenance mode each hardcoded the layout separately. Now one helper.
+- **Workflow chips failed AA contrast** at 4.34:1. The first fix measured 6.92:1 in
+  light mode and 1.37:1 in dark, because a raw grey does not follow the theme.
+- **Every call-to-action sat flush left** under centred text. Only visible in a
+  rendered screenshot.
+- **`docs/troubleshooting` linked to none of the fourteen guides** it exists to triage.
+
+### Verified, not assumed
+
+- **Screens were opened in a browser**, closing the gap the previous entry left open.
+  Headless Chromium driven over the DevTools Protocol at 390px and 1280px: no console
+  errors, no horizontal overflow, tab order correct with visible focus rings, and the
+  mobile nav opening and closing under a real click and Escape key.
+- 448 content checks, 92 browser checks and 255 Phase 1 checks, all against a running
+  instance rather than rendered strings.
+- Contrast computed for every colour pair in **both** themes, after the dark-mode
+  regression above proved one theme is not enough.
+- The contact form end to end: CSRF rejected, rate limit enforced, honeypot silently
+  accepted, HTML escaped on redisplay, and a newline in the subject refused because
+  that value reaches an email header.
+- New tests were checked against a deliberately broken version before being trusted.
+
+### Still open
+
+- `CONTACT_EMAIL` defaults to `EMAIL_FROM`, currently `noreply@`. Contact submissions
+  go nowhere readable until it points at a real inbox.
+- **`RESEND_API_KEY` and both Turnstile keys are optional in production.** Without
+  the first, verification and password-reset mail silently vanish and the reset code
+  is logged. Without the second, every bot challenge passes. Both now warn or fail
+  where this branch touches them; making them mandatory would stop a running instance
+  starting, so it was left as an operator decision.
+- The security review was run single-reviewer: its sub-agent pipeline hit a rate
+  limit, so the findings rest on the author reading their own changes.
+- Nothing is pushed.
