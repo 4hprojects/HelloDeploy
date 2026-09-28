@@ -121,6 +121,58 @@ export const learnCategories = [
       }),
     ],
   },
+  {
+    heading: 'Domains and DNS',
+    slug: 'domains-dns',
+    pages: [
+      article({
+        slug: 'what-is-dns',
+        title: 'What Is DNS?',
+        description:
+          'How a domain name becomes an address, what the record types do, and why changes are never instant.',
+        file: 'what-is-dns.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'why-hellodeploy-uses-a-cname',
+        title: 'Why HelloDeploy Uses a CNAME (and Not an A Record)',
+        description:
+          'The difference between an A record and a CNAME, and why a tunnel-based platform has no IP address for you to point at.',
+        file: 'why-hellodeploy-uses-a-cname.md',
+        published: '2026-09-28',
+      }),
+    ],
+  },
+  {
+    heading: 'Security',
+    slug: 'security',
+    pages: [
+      article({
+        slug: 'what-is-https',
+        title: 'What Is HTTPS?',
+        description:
+          'What encrypting traffic protects, what a certificate adds, and why a padlock does not mean a site is trustworthy.',
+        file: 'what-is-https.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-is-an-ssl-certificate',
+        title: 'What Is an SSL Certificate?',
+        description:
+          'What a TLS certificate contains, what a browser checks, what it proves and does not prove, and why they expire.',
+        file: 'what-is-an-ssl-certificate.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-are-environment-variables',
+        title: 'What Are Environment Variables?',
+        description:
+          'Keeping configuration and secrets outside your code, the limits of what they protect, and the frontend trap that makes keys public.',
+        file: 'what-are-environment-variables.md',
+        published: '2026-09-28',
+      }),
+    ],
+  },
 ];
 
 /** Every article, in listing order. */
