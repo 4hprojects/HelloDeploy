@@ -60,4 +60,5 @@ installs dependencies, runs your build, starts your application with its configu
 checks that it responds, and only then sends traffic to it.
 
 The point is not that the steps disappear. It is that they happen the same way every time,
-and you can see which one failed when something does.
+and you can see which one failed when something does. The
+[deployment process](/docs/deployment-process) documentation sets out each stage.

@@ -54,6 +54,12 @@ Restarting a crashed process is correct behaviour — it is what keeps a site up
 transient fault. A restart _loop_ is that mechanism failing to help, because the cause is
 present every time. The fix is the cause, not the restarting.
 
+## On HelloDeploy
+
+A release that never reaches a healthy state is rolled back, leaving the previous one
+serving. The deployment logs show each start attempt, so the error printed before each restart
+is visible. See [Deployment Logs](/docs/deployment-logs).
+
 ## Related
 
 - [What Is a Start Command?](/learn/what-is-a-start-command)

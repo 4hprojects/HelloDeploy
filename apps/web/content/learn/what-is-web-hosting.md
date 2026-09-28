@@ -72,4 +72,5 @@ control for not having to administer a server.
 
 HelloDeploy is a deployment platform rather than a host you administer. It builds your
 project, runs it, routes traffic to it and serves it over HTTPS, without you configuring a
-server. You still need a domain if you want your own address.
+server. You still need a domain if you want your own address — see
+[Domains in HelloDeploy](/docs/domains).

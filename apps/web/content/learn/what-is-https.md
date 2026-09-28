@@ -69,4 +69,4 @@ served over HTTPS too, once it has been provisioned and its DNS resolves.
 
 TLS is terminated upstream of your application, so there is no certificate for you to request,
 install or renew. If a secure address does not load, the cause is almost always DNS or
-provisioning rather than a certificate.
+provisioning rather than a certificate. See [HTTPS and SSL](/docs/https-and-ssl).

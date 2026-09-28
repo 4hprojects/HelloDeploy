@@ -16,10 +16,12 @@ Knowing which one failed narrows the cause more than any other single fact.
 ## The build fails
 
 **Dependencies will not install.** Builds run `npm ci`, which needs a `package-lock.json`
-committed. A project locking with pnpm or Yarn needs an npm lockfile added.
+committed. A project locking with pnpm or Yarn needs an npm lockfile added. Full guide:
+[Dependency Installation Failed](/learn/troubleshooting/dependency-installation-failed).
 
 **The build command fails.** Run the same command locally from a clean checkout. A build that
-only works with files you have locally and have not committed will fail here.
+only works with files you have locally and have not committed will fail here. Full guide:
+[Build Command Failed](/learn/troubleshooting/build-command-failed).
 
 **Something is missing that exists on your machine.** Anything not committed does not reach
 the build. That includes `.env` files, which is the point of environment variables.
@@ -37,6 +39,11 @@ This almost always means nothing answered the health check.
 - **The health check path errors.** HelloDeploy requests `/` by default. If that returns an
   error, point the health check at a path that responds.
 
+Full guides: [The app starts but the site does not
+load](/learn/troubleshooting/app-starts-but-site-does-not-load),
+[Application port is incorrect](/learn/troubleshooting/application-port-incorrect), and
+[The application keeps restarting](/learn/troubleshooting/application-keeps-restarting).
+
 ## It works locally but not deployed
 
 The environments differ in ways that are easy to forget:
@@ -49,13 +56,14 @@ The environments differ in ways that are easy to forget:
 - A build step you run manually and have not configured.
 
 Change one thing at a time and redeploy, rather than several at once. Otherwise a fix and a
-new problem cancel out and you learn nothing.
+new problem cancel out and you learn nothing. Full guide: [Works locally but fails on
+HelloDeploy](/learn/troubleshooting/works-locally-but-fails-on-hellodeploy).
 
 ## A change did not take effect
 
 Saving configuration does not deploy it, and environment variables are passed to the
-container when it starts. Add or change what you need, then redeploy. See
-[Redeployment](/docs/redeployment).
+container when it starts. Add or change what you need, then redeploy. See [Redeployment](/docs/redeployment) and
+[Missing environment variable](/learn/troubleshooting/missing-environment-variable).
 
 ## A push did not deploy
 
@@ -74,8 +82,14 @@ Work through it in order, because each step depends on the last:
 4. Is the CNAME correct, and is there an old conflicting record at the same name?
 5. Does root differ from `www`? They are separate hostnames needing separate tunnel entries.
 
-See [Connect a Custom Domain](/docs/custom-domain) and [DNS
-Configuration](/docs/dns-configuration).
+Full guides: [Custom domain is not resolving](/learn/troubleshooting/custom-domain-not-resolving),
+[DNS points to the wrong server](/learn/troubleshooting/dns-points-to-wrong-server),
+[The root domain works but www does not](/learn/troubleshooting/root-domain-works-www-does-not),
+[www works but the root domain does not](/learn/troubleshooting/www-works-root-domain-does-not),
+and [SSL certificate is not working](/learn/troubleshooting/ssl-certificate-not-working).
+
+See also [Connect a Custom Domain](/docs/custom-domain) and
+[DNS Configuration](/docs/dns-configuration).
 
 ## The site was working and now is not
 
@@ -85,6 +99,10 @@ application than the deployment.
 
 Rolling back to a recent healthy release is the fastest way to restore service while you
 investigate. HelloDeploy keeps the three most recent.
+
+If you are seeing a specific HTTP error: [502 Bad
+Gateway](/learn/troubleshooting/502-bad-gateway) or [404 after
+deployment](/learn/troubleshooting/404-after-deployment).
 
 ## When to ask for help
 

@@ -82,4 +82,5 @@ at HelloDeploy once the domain has been provisioned.
 
 There is no A record, because HelloDeploy does not publish a server address for you to point
 at — traffic arrives through a tunnel addressed by hostname. See
-[Why HelloDeploy Uses a CNAME](/learn/why-hellodeploy-uses-a-cname).
+[Why HelloDeploy Uses a CNAME](/learn/why-hellodeploy-uses-a-cname) and
+[DNS Configuration](/docs/dns-configuration).

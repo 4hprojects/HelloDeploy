@@ -71,4 +71,4 @@ in configuration and features rather than in what they fundamentally do — see
 
 nginx sits in front of every deployed project. Each runs in a container on a private port,
 and nginx routes requests by hostname to the right one. Routing switches to a new release
-only after its health check passes.
+only after its health check passes — see [Deployment Process](/docs/deployment-process).

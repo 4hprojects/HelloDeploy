@@ -56,4 +56,4 @@ probably after is a separate backend, deployed as its own project.
 HelloDeploy proposes a start command from your project and lets you correct it, and sets a
 `PORT` environment variable when your container starts. Read that value rather than
 hardcoding one — an application listening elsewhere never answers the health check, and the
-deployment is rolled back.
+deployment is rolled back. See [Start Command](/docs/start-command).

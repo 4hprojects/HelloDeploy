@@ -76,4 +76,4 @@ rather than mysterious.
 
 HelloDeploy writes an nginx server block for each release and reloads nginx when that release
 is activated. You do not configure it, and a Dockerfile or nginx configuration in your
-repository is not used.
+repository is not used — see [Build Configuration](/docs/build-configuration).

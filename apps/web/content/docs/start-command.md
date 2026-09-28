@@ -35,3 +35,32 @@ practice.
 A command that starts a development server with file watching and hot reloading is the wrong
 thing in production: slower, heavier, and often bound to the wrong interface. Use your
 project's production start script.
+
+## What HelloDeploy proposes
+
+HelloDeploy reads your `package.json` and suggests a start command for the runtimes it
+recognises — usually your `start` script. It also records how confident it is: a command your
+project declares is strong evidence, one filled in from a framework's convention is weaker.
+Anything it had to guess is flagged so you can check it before deploying.
+
+## When the start command is wrong
+
+The symptom is distinctive. The build succeeds, the container starts, and the deployment then
+fails its health check — because either nothing is listening, or the process has already
+exited.
+
+| What the logs show                               | Likely cause                                   |
+| ------------------------------------------------ | ---------------------------------------------- |
+| Startup messages, then nothing                   | The command ran and finished                   |
+| Application reports a port you did not configure | A hardcoded port                               |
+| Repeating startup messages                       | The process is crashing and restarting         |
+| No output after the build                        | The command is not producing a running process |
+
+A failed start leaves your previous release serving traffic, so a wrong start command does
+not take your site down — it just prevents the new version replacing it.
+
+## Related
+
+- [Application Port](/docs/application-port)
+- [Deployment Logs](/docs/deployment-logs)
+- [What Is a Start Command?](/learn/what-is-a-start-command)

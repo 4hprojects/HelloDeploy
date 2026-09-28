@@ -53,6 +53,12 @@ so.
 Keep a committed example file listing every variable name with placeholder values. Anyone
 setting the project up, including future you, then knows what is required without guessing.
 
+## On HelloDeploy
+
+Variables are encrypted at rest and supplied when the container starts, which is why a change
+needs a redeploy. Four names — `PORT`, `NODE_ENV`, `HOST` and `HOSTNAME` — are set by the
+platform and cannot be overridden.
+
 ## Related
 
 - [What Are Environment Variables?](/learn/what-are-environment-variables)

@@ -61,6 +61,12 @@ deployment.
 Redeploy, then test a deep link directly rather than by clicking through the site. Typing the
 URL is what exercises server-side routing.
 
+## On HelloDeploy
+
+Static projects are served from the output directory configured on the project, so a mismatch
+between that and what your build produces is the first thing to check. See
+[Build Configuration](/docs/build-configuration).
+
 ## Related
 
 - [Build Configuration](/docs/build-configuration)

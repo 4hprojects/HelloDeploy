@@ -46,6 +46,12 @@ correct, and routing worked. The failure is in the last step.
 
 **Too slow.** Find out what it is waiting for at startup.
 
+## Verify
+
+Reload the site. A 502 that has cleared means the application is answering again. Check the
+deployment logs to confirm it is running steadily rather than restarting, because an
+intermittent 502 looks fixed at the moment you happen to look.
+
 ## If it was working before
 
 Check whether a deployment ran recently. A failed deployment should leave the previous
@@ -53,6 +59,13 @@ release serving, so a 502 after one suggests the application itself is failing r
 the deployment.
 
 Rolling back to a recent healthy release restores service while you investigate.
+
+## On HelloDeploy
+
+nginx sits in front of every project and routes by hostname to a container on a private port.
+A 502 means nginx is running and that container is not answering. Rolling back to a recent
+healthy release restores service while you investigate — HelloDeploy keeps the three most
+recent. See [Redeployment](/docs/redeployment).
 
 ## Related
 

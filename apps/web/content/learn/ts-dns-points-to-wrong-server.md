@@ -45,6 +45,11 @@ to take longer to take effect than an ordinary record change.
 **Caching.** Wait, and check from elsewhere. Do not keep changing records while waiting —
 that makes it impossible to tell which change did what.
 
+## Verify
+
+Check what the domain resolves to from a network other than your own. It should reach
+HelloDeploy rather than the previous destination, and the page you get should be your site.
+
 ## A note on patience
 
 Make one change, then verify. Changing several things while caches expire produces a state

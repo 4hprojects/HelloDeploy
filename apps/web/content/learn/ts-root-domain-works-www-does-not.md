@@ -39,6 +39,11 @@ domain.
 **Record correct, still not resolving.** The tunnel was provisioned for the root alone. Ask
 for `www` to be added — no DNS change on your side will fix this.
 
+## Verify
+
+Load `www.example.com` from a network that has not cached the old answer. It should serve the
+same site as the root, over HTTPS, with no certificate warning.
+
 ## Which should visitors use?
 
 Pick one as canonical and redirect the other, so you do not have two addresses serving the

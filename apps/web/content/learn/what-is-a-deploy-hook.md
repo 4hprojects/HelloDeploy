@@ -61,4 +61,5 @@ it means generating a new one rather than looking it up.
 HelloDeploy gives each project a hook URL of the form
 `/api/deploy-hooks/[project-id]/[token]`. Only a hash of the token is stored, the URL is
 shown once, and generating a new token immediately kills the old one. Requests are rate
-limited, and hooks appear in Advanced mode alongside other infrastructure controls.
+limited, and hooks appear in Advanced mode alongside other infrastructure controls. See
+[Deploy Hooks](/docs/deploy-hooks).

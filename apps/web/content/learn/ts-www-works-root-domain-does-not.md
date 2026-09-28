@@ -43,6 +43,11 @@ record at the root is left over from something else and will prevent the CNAME w
 **Record correct, still not resolving.** The tunnel covers `www` only. Ask for the root to be
 added — this is not fixable at your DNS provider.
 
+## Verify
+
+Load the bare domain from a network that has not cached the old answer. It should serve the
+same site as `www`, over HTTPS, with no certificate warning.
+
 ## Related
 
 - [Why HelloDeploy Uses a CNAME](/learn/why-hellodeploy-uses-a-cname)

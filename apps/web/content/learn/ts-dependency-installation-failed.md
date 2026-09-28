@@ -54,3 +54,14 @@ Redeploy. Installation should complete and the logs should move on to your build
 If `npm ci` succeeds locally from a clean checkout and fails when deployed, compare what is
 actually committed against what is on your machine. An uncommitted file is the most common
 difference.
+
+## On HelloDeploy
+
+Builds install with `npm ci`, so an npm lockfile is required. HelloDeploy warns you before
+deploying if your project locks with pnpm or Yarn, rather than letting the install fail with
+an opaque error. See [Build Configuration](/docs/build-configuration).
+
+## Related
+
+- [What Is a Build Command?](/learn/what-is-a-build-command)
+- [Build Configuration](/docs/build-configuration)

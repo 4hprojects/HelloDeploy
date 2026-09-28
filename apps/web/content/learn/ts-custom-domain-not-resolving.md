@@ -43,6 +43,11 @@ traffic actually arrives, separately.
 A domain can be fully set up here while its DNS still points somewhere else entirely. Read
 both, because "configured" and "reachable" answer different questions.
 
+## Verify
+
+Load your domain from a network you have not used to test it before — a phone on mobile data
+is ideal, because it will not be holding a cached answer. Check both the root and `www`.
+
 ## What you cannot fix yourself
 
 If verification has succeeded, provisioning has completed, the CNAME matches exactly and it

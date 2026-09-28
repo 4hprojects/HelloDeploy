@@ -63,4 +63,5 @@ the command. If your `package.json` has a `build` script, that is the one.
 
 HelloDeploy inspects your repository and proposes a build command and an output directory for
 frameworks it recognises, marking anything it had to guess. Builds install dependencies with
-`npm ci`, so a `package-lock.json` needs to be committed.
+`npm ci`, so a `package-lock.json` needs to be committed. See
+[Build Configuration](/docs/build-configuration).

@@ -43,6 +43,11 @@ conflicting records.
 If you put another proxy or CDN in front, make sure its own TLS settings are consistent —
 that configuration is yours, not the platform's.
 
+## Verify
+
+Load the `https://` address. The page should load, the browser should report a secure
+connection, and the certificate should name your domain. Check root and `www` separately.
+
 ## Never work around a warning
 
 Do not tell visitors to click through a certificate warning, and do not disable certificate

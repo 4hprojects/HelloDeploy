@@ -63,4 +63,5 @@ after it never ran, which means their absence is not evidence of anything.
 
 HelloDeploy runs exactly these steps and shows you which one it is on. The logs separate
 dependency installation, the build, startup and the health check, so a failure points at a
-stage rather than leaving you to search the whole thing.
+stage rather than leaving you to search the whole thing. See
+[Deployment Process](/docs/deployment-process).

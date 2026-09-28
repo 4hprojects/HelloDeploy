@@ -66,4 +66,4 @@ failures as well as successes. The stages are separated, so a failure points at 
 the build, startup, or the health check.
 
 Environment variable values are redacted before logs are stored or streamed, so a secret you
-set will not appear in them.
+set will not appear in them. See [Deployment Logs](/docs/deployment-logs).

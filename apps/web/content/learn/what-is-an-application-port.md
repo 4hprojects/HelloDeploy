@@ -85,4 +85,4 @@ sits listening somewhere nobody is asking.
 
 HelloDeploy allocates a private port, injects it as `PORT`, and routes public traffic to it.
 Read `PORT` rather than hardcoding. An application listening elsewhere never answers the
-health check, and the release is rolled back.
+health check, and the release is rolled back. See [Application Port](/docs/application-port).

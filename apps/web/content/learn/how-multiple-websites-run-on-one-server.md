@@ -79,4 +79,4 @@ Each project runs in its own container on a private port, and nginx routes reque
 hostname to the right one. That is why every project gets an address that just works, why
 your application must listen on the port it is given, and why a new release only receives
 traffic once it has passed its health check — the routing switches at that moment and not
-before.
+before. See [Application Port](/docs/application-port).

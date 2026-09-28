@@ -61,6 +61,12 @@ Commit an example environment file listing every variable name with placeholder 
 turns "what does this project need?" from archaeology into reading one file — and it is the
 difference most often responsible for this whole class of problem.
 
+## On HelloDeploy
+
+The deployment logs separate installation, the build, startup and the health check, so start
+by identifying which stage failed — that narrows the difference faster than comparing
+environments in the abstract. See [Troubleshooting](/docs/troubleshooting).
+
 ## Related
 
 - [What Are Environment Variables?](/learn/what-are-environment-variables)

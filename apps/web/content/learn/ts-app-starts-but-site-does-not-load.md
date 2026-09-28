@@ -57,6 +57,13 @@ accepting connections makes startup as slow as the slowest one.
 Redeploy and watch the logs through the health check. A healthy deployment reports the check
 succeeding and then switches traffic.
 
+## On HelloDeploy
+
+HelloDeploy requests the health check path — `/` unless you change it — and waits for a
+successful response before routing any traffic to a new release. If nothing answers, the
+release is rolled back and your previous one keeps serving. See
+[Deployment Process](/docs/deployment-process).
+
 ## Related
 
 - [What Is an Application Port?](/learn/what-is-an-application-port)

@@ -69,4 +69,4 @@ away because it is inconvenient.
 HelloDeploy runs on server infrastructure and manages it for you: your project runs in an
 isolated container with its own resources, and the updates, routing and certificates are
 handled. You get isolation without becoming a system administrator, and in exchange you work
-within what the platform supports.
+within what the platform supports — see [Supported Runtimes](/supported-runtimes).

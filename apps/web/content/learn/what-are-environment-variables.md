@@ -76,4 +76,4 @@ They are redacted from log output, so a value will not appear in a deployment lo
 
 Because they are supplied at start, changing one needs a redeploy before the running
 application sees it. Four names — `PORT`, `NODE_ENV`, `HOST` and `HOSTNAME` — are set by the
-platform and cannot be overridden.
+platform and cannot be overridden. See [Environment Variables](/docs/environment-variables).

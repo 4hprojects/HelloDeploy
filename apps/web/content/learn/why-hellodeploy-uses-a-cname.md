@@ -79,4 +79,5 @@ change will fix.
 HelloDeploy asks for a CNAME because there is no address to point at. The target is a tunnel,
 tunnels are named rather than numbered, and naming is what a CNAME is for.
 
-See [What Is DNS?](/learn/what-is-dns) for how records are resolved in general.
+See [What Is DNS?](/learn/what-is-dns) for how records are resolved in general, and
+[DNS Configuration](/docs/dns-configuration) for the exact records to add.

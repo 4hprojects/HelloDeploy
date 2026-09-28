@@ -98,4 +98,5 @@ on infrastructure of its own and handles the deployment work — building, runni
 certificates — so you supply a project rather than administer a machine.
 
 The trade is the usual one: less control, less to maintain. HelloDeploy is this kind of thing,
-which is why it supports particular runtimes rather than anything you care to install.
+which is why it [supports particular runtimes](/supported-runtimes) rather than anything you
+care to install.

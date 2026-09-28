@@ -53,6 +53,12 @@ something unhelpful and truncated.
 
 Redeploy. The build should complete and the logs should move on to starting the application.
 
+## On HelloDeploy
+
+HelloDeploy proposes a build command from your repository and marks anything it had to guess.
+If the detected command is wrong for your project, correct it in the project's build
+configuration and redeploy. A failed build leaves your previous release serving traffic.
+
 ## Related
 
 - [What Is a Build Command?](/learn/what-is-a-build-command)
