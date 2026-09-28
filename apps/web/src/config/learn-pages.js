@@ -173,6 +173,36 @@ export const learnCategories = [
       }),
     ],
   },
+  {
+    heading: 'Servers and Infrastructure',
+    slug: 'servers-infrastructure',
+    pages: [
+      article({
+        slug: 'what-is-an-application-port',
+        title: 'What Is an Application Port?',
+        description:
+          'What a port is, why production chooses one for you, the difference between binding localhost and every interface, and what a mismatch looks like.',
+        file: 'what-is-an-application-port.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-is-a-reverse-proxy',
+        title: 'What Is a Reverse Proxy?',
+        description:
+          'The server that receives requests on behalf of your application, what it handles for you, and why a new release only gets traffic once it is healthy.',
+        file: 'what-is-a-reverse-proxy.md',
+        published: '2026-09-28',
+      }),
+      article({
+        slug: 'what-is-nginx',
+        title: 'What Is Nginx?',
+        description:
+          'The software behind most 502 pages — what it does, how to read its errors, and whether you need to learn it.',
+        file: 'what-is-nginx.md',
+        published: '2026-09-28',
+      }),
+    ],
+  },
 ];
 
 /** Every article, in listing order. */
