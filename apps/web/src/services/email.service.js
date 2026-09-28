@@ -92,6 +92,8 @@ export async function sendContactMessage({
     throw new Error('Email delivery is not configured (RESEND_API_KEY is unset)');
   }
 
+  warnOnceIfUnmonitored();
+
   await sendEmail({
     to: env.CONTACT_EMAIL,
     subject: `[HelloDeploy contact] ${subject}`,
@@ -163,4 +165,22 @@ export async function sendPasswordChangedEmail({ to, firstName }) {
     `,
     text: `Hi ${firstName},\n\nYour HelloDeploy password was changed. If you did not do this, contact support immediately.`,
   });
+}
+
+let hasWarnedAboutRecipient = false;
+
+/**
+ * CONTACT_EMAIL falls back to EMAIL_FROM, which is a no-reply address by
+ * default. Delivering support requests there loses them silently — the sender
+ * is told the message arrived, and it did, into a mailbox nobody reads. Say so
+ * once rather than never.
+ */
+function warnOnceIfUnmonitored() {
+  if (hasWarnedAboutRecipient || !/^no-?reply@/i.test(env.CONTACT_EMAIL)) {
+    return;
+  }
+  hasWarnedAboutRecipient = true;
+  logger.warn(
+    `Contact form submissions are being delivered to ${env.CONTACT_EMAIL}, which looks like an unmonitored address. Set CONTACT_EMAIL to an inbox someone reads.`,
+  );
 }

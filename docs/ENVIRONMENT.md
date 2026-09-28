@@ -73,11 +73,11 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 Resend is optional. When `RESEND_API_KEY` is empty, outbound verification and deployment-notification email is skipped.
 
-| Variable         | Used by     | Default                      | Purpose                                                                                |
-| ---------------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification and deployment notifications are skipped when unset |
-| `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                         |
-| `CONTACT_EMAIL`  | web         | `EMAIL_FROM`                 | Where contact form submissions are delivered                                           |
+| Variable         | Used by     | Default                      | Purpose                                                                                                                                                                  |
+| ---------------- | ----------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification and deployment notifications are skipped when unset                                                                                   |
+| `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                                                                                                           |
+| `CONTACT_EMAIL`  | web         | `EMAIL_FROM`                 | Where contact form submissions are delivered. The default is a no-reply address; set it to a monitored inbox or submissions are lost silently (a warning is logged once) |
 
 ## Configuration validation
 
