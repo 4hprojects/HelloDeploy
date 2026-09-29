@@ -80,6 +80,22 @@ const HIGH_RISK_PATTERNS = [
   /^\.platform\//,
 ];
 
+/**
+ * A value safe to put in a query as a string.
+ *
+ * Returns null for anything that is not already a string, rather than calling
+ * String() on it: String({ $ne: null }) is "[object Object]", which turns an
+ * injection attempt into a silent no-match instead of a rejected one.
+ */
+function toPlainString(value) {
+  return typeof value === 'string' ? value : null;
+}
+
+/** An installation id safe to put in a query. The field is a Number. */
+function toInstallationId(value) {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function collectChangedPaths(commits) {
   const paths = new Set();
   for (const commit of commits ?? []) {
@@ -155,8 +171,12 @@ const defaultPushDeps = {
 
 export async function handlePushEvent(payload, correlationId, deps = defaultPushDeps) {
   const { repository, ref, after: newSha, head_commit, commits, installation } = payload;
-  const installationId = installation?.id;
-  const repoFullName = repository?.full_name;
+  // Coerced before they reach a query. Mongoose casts an operator's operand but
+  // not the operator itself, so `{ $ne: null }` arriving here would match records
+  // this push has nothing to do with. The signature check upstream is what makes
+  // that unreachable today; this makes it harmless if it ever is not.
+  const installationId = toInstallationId(installation?.id);
+  const repoFullName = toPlainString(repository?.full_name);
   const branch = ref?.replace('refs/heads/', '');
 
   if (!installationId || !repoFullName || !newSha || newSha === '0'.repeat(40)) {
@@ -267,7 +287,7 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
 
 async function handleInstallationEvent(payload) {
   const { action, installation } = payload;
-  const installationId = installation?.id;
+  const installationId = toInstallationId(installation?.id);
 
   if (action === 'deleted' || action === 'suspended') {
     // Mark all repositories for this installation as REVOKED
@@ -286,10 +306,12 @@ async function handleInstallationEvent(payload) {
 
 async function handleInstallationRepositoriesEvent(payload) {
   const { action, installation, repositories_removed } = payload;
-  const installationId = installation?.id;
+  const installationId = toInstallationId(installation?.id);
 
   if (action === 'removed' && repositories_removed?.length) {
-    const removedNames = repositories_removed.map((r) => r.full_name);
+    const removedNames = repositories_removed
+      .map((r) => toPlainString(r?.full_name))
+      .filter(Boolean);
     await Repository.updateMany(
       { installationId, fullName: { $in: removedNames } },
       { $set: { accessStatus: 'REVOKED', revokedAt: new Date() } },
