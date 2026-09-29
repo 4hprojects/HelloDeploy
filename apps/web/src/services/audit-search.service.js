@@ -1,3 +1,5 @@
+import mongoose from 'mongoose';
+
 import { AuditEvent, User } from '@hellodeploy/database';
 
 /**
@@ -22,38 +24,82 @@ async function attachActorNames(events) {
   });
 }
 
+/**
+ * A filter value trimmed to a non-empty string, or null for anything else.
+ *
+ * These come straight from `req.query`, where a bracketed parameter arrives as an
+ * object. Returning null rather than calling String() on it follows the same
+ * reasoning as the webhook's `toPlainString`: coercing would silently query for
+ * "[object Object]", while reaching `.trim()` on an object throws a TypeError and
+ * turns a malformed filter into a 500.
+ */
+function toFilterString(value) {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  return trimmed === '' ? null : trimmed;
+}
+
+/** A parsed date, or null when the value is absent or not a real date. */
+function toFilterDate(value) {
+  if (typeof value !== 'string' && !(value instanceof Date)) {
+    return null;
+  }
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+// Every event has an _id, so requiring a null one returns nothing.
+const MATCHES_NOTHING = Object.freeze({ _id: null });
+
 function buildAuditQuery({ action, actorId, targetType, targetId, outcome, from, to } = {}) {
   const query = {};
 
-  if (action?.trim()) {
+  const actionFilter = toFilterString(action);
+  if (actionFilter) {
     // Prefix match: "admin." matches all admin.* actions
-    const escaped = action.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const escaped = actionFilter.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     query.action = new RegExp(`^${escaped}`, 'i');
   }
 
-  if (actorId?.trim()) {
-    query.actorId = actorId.trim();
-  }
-
-  if (targetType?.trim()) {
-    query.targetType = targetType.trim();
-  }
-
-  if (targetId?.trim()) {
-    query.targetId = targetId.trim();
-  }
-
-  if (outcome?.trim()) {
-    query.outcome = outcome.trim();
-  }
-
-  if (from || to) {
-    query.createdAt = {};
-    if (from) {
-      query.createdAt.$gte = new Date(from);
+  // actorId is an ObjectId, so an unparseable value would reach Mongo and throw a
+  // CastError. Dropping the filter instead would be worse than the 500: the reply
+  // would be the whole unfiltered log, inviting an operator to read every event as
+  // the work of the actor they searched for. An id that cannot exist matches
+  // nothing instead.
+  const actorIdFilter = toFilterString(actorId);
+  if (actorIdFilter) {
+    if (!mongoose.isValidObjectId(actorIdFilter)) {
+      return MATCHES_NOTHING;
     }
-    if (to) {
-      query.createdAt.$lte = new Date(to);
+    query.actorId = actorIdFilter;
+  }
+
+  const targetTypeFilter = toFilterString(targetType);
+  if (targetTypeFilter) {
+    query.targetType = targetTypeFilter;
+  }
+
+  const targetIdFilter = toFilterString(targetId);
+  if (targetIdFilter) {
+    query.targetId = targetIdFilter;
+  }
+
+  const outcomeFilter = toFilterString(outcome);
+  if (outcomeFilter) {
+    query.outcome = outcomeFilter;
+  }
+
+  const fromFilter = toFilterDate(from);
+  const toFilter = toFilterDate(to);
+  if (fromFilter || toFilter) {
+    query.createdAt = {};
+    if (fromFilter) {
+      query.createdAt.$gte = fromFilter;
+    }
+    if (toFilter) {
+      query.createdAt.$lte = toFilter;
     }
   }
 
