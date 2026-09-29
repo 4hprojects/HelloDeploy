@@ -14,6 +14,11 @@ const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RESET_MAX_ATTEMPTS = 5;
 
+// Per-account sign-in throttle. The per-IP limiter cannot see a spray at one
+// account spread across many addresses, so the account carries its own count.
+const SIGN_IN_MAX_ATTEMPTS = 10;
+const SIGN_IN_LOCK_MS = 15 * 60 * 1000; // 15 minutes
+
 // Generic failure — identical whether email exists or not to prevent enumeration.
 const GENERIC_AUTH_FAILURE = 'Email address or password is incorrect.';
 
@@ -165,11 +170,35 @@ export async function signIn({ email, password, sourceIp, userAgent, correlation
     return { success: false, error: GENERIC_AUTH_FAILURE };
   }
 
+  if (user.lockedUntil && user.lockedUntil.getTime() > Date.now()) {
+    // Same stub hash and same message as a wrong password: a locked account that
+    // answered faster, or differently, would tell an attacker the address exists
+    // and that they had found it — trading a spray defence for an enumeration
+    // oracle.
+    await verifyPassword('$argon2id$v=19$m=19456,t=2,p=1$placeholder', 'timing-stub');
+    await writeAuditEvent({
+      action: 'auth.sign_in.locked',
+      outcome: AuditOutcome.DENIED,
+      actorId: user._id.toString(),
+      sourceIp,
+      correlationId,
+    });
+    return { success: false, error: GENERIC_AUTH_FAILURE };
+  }
+
   const passwordOk = await verifyPassword(user.passwordHash, password);
 
   if (!passwordOk) {
+    user.failedLoginAttempts += 1;
+    const reachedLimit = user.failedLoginAttempts >= SIGN_IN_MAX_ATTEMPTS;
+    if (reachedLimit) {
+      user.lockedUntil = new Date(Date.now() + SIGN_IN_LOCK_MS);
+      user.failedLoginAttempts = 0;
+    }
+    await user.save();
+
     await writeAuditEvent({
-      action: 'auth.sign_in.wrong_password',
+      action: reachedLimit ? 'auth.sign_in.locked_out' : 'auth.sign_in.wrong_password',
       outcome: AuditOutcome.FAILURE,
       actorId: user._id.toString(),
       sourceIp,
@@ -206,6 +235,8 @@ export async function signIn({ email, password, sourceIp, userAgent, correlation
   }
 
   user.lastLoginAt = new Date();
+  user.failedLoginAttempts = 0;
+  user.lockedUntil = null;
   await user.save();
 
   await writeAuditEvent({

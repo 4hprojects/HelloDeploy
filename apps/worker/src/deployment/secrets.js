@@ -1,5 +1,5 @@
 import { EnvironmentSecret } from '@hellodeploy/database';
-import { decrypt } from '@hellodeploy/security';
+import { buildSecretAad, decrypt } from '@hellodeploy/security';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
 
@@ -23,6 +23,9 @@ export async function getProjectEnvVars(projectId) {
       iv: s.iv,
       authTag: s.authTag,
       version: s.encryptionVersion,
+      // Records predating AAD binding carry aadBound: false and decrypt without
+      // one; the flag on the record decides, never a retry.
+      aad: s.aadBound ? buildSecretAad({ projectId: s.projectId, name: s.name }) : undefined,
     });
   }
 

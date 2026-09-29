@@ -22,6 +22,7 @@ import { getDashboard } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
+import { releaseSha } from './utils/release-sha.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -33,15 +34,30 @@ function cspNonceMiddleware(_req, res, next) {
 export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   const app = express();
 
-  // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare)
-  app.set('trust proxy', 1);
+  // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare).
+  // Two hops sit in front of the app — cloudflared, then nginx, both on
+  // loopback. Trusting only one leaves req.ip pinned to cloudflared's local
+  // address, which silently merges every visitor into a single rate-limit
+  // bucket and records 127.0.0.1 as the source of every audited action.
+  app.set('trust proxy', 2);
 
   app.use(cspNonceMiddleware);
 
   // Liveness only proves that the HTTP process can respond. Readiness is a
   // separate dependency check and intentionally returns only component names.
+  //
+  // `commit` is here so a deploy can be confirmed from outside the host. Nothing
+  // could previously say which code was running without filesystem access to
+  // /opt/hellodeploy, which meant every release was taken on trust. The value is
+  // an opaque SHA against a private repository, so it tells an unauthenticated
+  // caller nothing they could look up; it is null when it cannot be read.
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'web', timestamp: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      service: 'web',
+      commit: releaseSha,
+      timestamp: new Date().toISOString(),
+    });
   });
   app.get('/ready', async (_req, res) => {
     try {

@@ -1,5 +1,5 @@
 import { EnvironmentSecret } from '@hellodeploy/database';
-import { encrypt, decrypt } from '@hellodeploy/security';
+import { buildSecretAad, encrypt, decrypt } from '@hellodeploy/security';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { parse } from 'dotenv';
@@ -156,12 +156,7 @@ export async function revealSecretValue(projectId, name, actorId, opts = {}) {
     return { success: false, error: `Secret "${normalizedName}" not found.` };
   }
 
-  const value = decrypt({
-    ciphertext: secret.ciphertext,
-    iv: secret.iv,
-    authTag: secret.authTag,
-    version: secret.encryptionVersion,
-  });
+  const value = decryptSecretRecord(secret);
 
   await writeAuditEvent({
     action: 'project.secret_revealed',
@@ -175,6 +170,28 @@ export async function revealSecretValue(projectId, name, actorId, opts = {}) {
   });
 
   return { success: true, name: normalizedName, value };
+}
+
+/**
+ * Decrypt one stored secret record.
+ *
+ * Records written before AAD binding carry `aadBound: false` and must decrypt
+ * without it, so the flag on the record — never a guess or a retry — decides.
+ *
+ * @param {{ projectId: unknown, name: string, ciphertext: string, iv: string,
+ *   authTag: string, encryptionVersion: number, aadBound?: boolean }} record
+ * @returns {string} plaintext
+ */
+function decryptSecretRecord(record) {
+  return decrypt({
+    ciphertext: record.ciphertext,
+    iv: record.iv,
+    authTag: record.authTag,
+    version: record.encryptionVersion,
+    aad: record.aadBound
+      ? buildSecretAad({ projectId: record.projectId, name: record.name })
+      : undefined,
+  });
 }
 
 /**
@@ -192,7 +209,10 @@ export async function setSecret(projectId, name, value, actorId, opts = {}) {
     return { success: false, error: 'Secret value is required.' };
   }
 
-  const { ciphertext, iv, authTag, version } = encrypt(value);
+  const { ciphertext, iv, authTag, version, aadBound } = encrypt(
+    value,
+    buildSecretAad({ projectId, name }),
+  );
 
   await EnvironmentSecret.findOneAndUpdate(
     { projectId, name },
@@ -204,6 +224,7 @@ export async function setSecret(projectId, name, value, actorId, opts = {}) {
         iv,
         authTag,
         encryptionVersion: version,
+        aadBound,
         updatedBy: actorId,
       },
       $setOnInsert: { createdBy: actorId },
@@ -275,12 +296,7 @@ export async function getDecryptedSecrets(projectId) {
   const secrets = await EnvironmentSecret.find({ projectId }).lean();
   const result = {};
   for (const s of secrets) {
-    result[s.name] = decrypt({
-      ciphertext: s.ciphertext,
-      iv: s.iv,
-      authTag: s.authTag,
-      version: s.encryptionVersion,
-    });
+    result[s.name] = decryptSecretRecord(s);
   }
   return result;
 }

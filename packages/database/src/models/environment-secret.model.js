@@ -24,6 +24,11 @@ const environmentSecretSchema = new Schema(
     iv: { type: String, required: true },
     authTag: { type: String, required: true },
     encryptionVersion: { type: Number, required: true, default: 1 },
+    // Whether the ciphertext is bound to this record's projectId+name via GCM
+    // additional authenticated data. False on records written before binding
+    // existed, which must keep decrypting without it. Separate from
+    // encryptionVersion, which says only which master key was used.
+    aadBound: { type: Boolean, required: true, default: false },
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   },

@@ -232,8 +232,15 @@ export async function getInstallationToken(installationId) {
   );
 
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`GitHub installation token request failed (${res.status}): ${text}`);
+    // The body can carry provider detail that has no business in an error message
+    // this app may surface or store alongside a deployment. It stays in the log,
+    // where operators can still reach it, and the thrown error carries only the
+    // status — the convention runGit already follows.
+    logger.error('GitHub installation token request failed', {
+      status: res.status,
+      body: await res.text(),
+    });
+    throw new Error(`GitHub installation token request failed (${res.status})`);
   }
 
   const data = await res.json();
@@ -242,11 +249,17 @@ export async function getInstallationToken(installationId) {
 
 // ─── Public API helpers ────────────────────────────────────────────────────────
 
-export function getInstallationUrl() {
+export function getInstallationUrl(state) {
   if (!env.GITHUB_APP_NAME) {
     throw new Error('GITHUB_APP_NAME is not configured.');
   }
-  return `https://github.com/apps/${env.GITHUB_APP_NAME}/installations/new`;
+  const url = new URL(`https://github.com/apps/${env.GITHUB_APP_NAME}/installations/new`);
+  // GitHub echoes `state` back to the setup URL. The callback has no other way
+  // to tell an installation this session asked for from one an attacker named.
+  if (state) {
+    url.searchParams.set('state', state);
+  }
+  return url.toString();
 }
 
 /**
@@ -282,12 +295,50 @@ export async function listInstallationRepos(installationId) {
   }));
 }
 
+// GitHub's own naming rules, kept deliberately tight: an owner is alphanumeric
+// with interior hyphens, a repository adds underscore and period.
+const FULL_NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9-]{0,38}\/[A-Za-z0-9._-]{1,100}$/;
+const TRAVERSAL_SEGMENTS = new Set(['.', '..']);
+
+/**
+ * Split an "owner/repo" name into path segments, rejecting anything that could
+ * point the request somewhere other than that repository.
+ *
+ * Both halves are interpolated into an api.github.com path. Splitting alone is
+ * not enough and neither is encoding: `encodeURIComponent` leaves `.` untouched,
+ * so an owner of `..` would still resolve away from `/repos` once the URL is
+ * normalised. The shape is therefore validated rather than sanitised, and a bad
+ * name fails loudly instead of quietly addressing the wrong endpoint.
+ *
+ * @param {string} fullName
+ * @returns {[string, string]}
+ * @throws {RepositorySourceError} when the name is not a plain owner/repo pair
+ */
+function splitFullName(fullName) {
+  const value = String(fullName);
+  const segments = value.split('/');
+
+  if (
+    !FULL_NAME_PATTERN.test(value) ||
+    segments.length !== 2 ||
+    segments.some((segment) => TRAVERSAL_SEGMENTS.has(segment))
+  ) {
+    throw new RepositorySourceError(
+      'INVALID_REPOSITORY_NAME',
+      'Enter a valid GitHub repository in owner/name form.',
+    );
+  }
+
+  const [owner, repo] = segments;
+  return [encodeURIComponent(owner), encodeURIComponent(repo)];
+}
+
 /**
  * Lists branch names for a repository.
  */
 export async function listBranches(installationId, fullName) {
+  const [owner, repo] = splitFullName(fullName);
   const token = await getInstallationToken(installationId);
-  const [owner, repo] = fullName.split('/');
 
   const res = await fetch(`https://api.github.com/repos/${owner}/${repo}/branches?per_page=100`, {
     headers: {
@@ -311,8 +362,8 @@ export async function listBranches(installationId, fullName) {
  * Returns { sha, message, authorName, committedAt }.
  */
 export async function getLatestCommit(installationId, fullName, branch) {
+  const [owner, repo] = splitFullName(fullName);
   const token = await getInstallationToken(installationId);
-  const [owner, repo] = fullName.split('/');
 
   const res = await fetch(
     `https://api.github.com/repos/${owner}/${repo}/commits/${encodeURIComponent(branch)}`,
