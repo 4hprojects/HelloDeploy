@@ -244,7 +244,7 @@ async function readBoundedDetectionResponse(res, path) {
 }
 
 async function fetchGithubFile(token, owner, repo, path, ref) {
-  const url = `https://api.github.com/repos/${owner}/${repo}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
     redirect: 'error',
     signal: AbortSignal.timeout(DETECTION_REQUEST_TIMEOUT_MS),

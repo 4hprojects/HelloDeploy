@@ -1,5 +1,8 @@
+import { timingSafeEqual } from 'node:crypto';
+
 import { asyncHandler } from '../utils/async-handler.js';
 import { User, Project, Repository } from '@hellodeploy/database';
+import { generateRawToken } from '@hellodeploy/security';
 import {
   AuditOutcome,
   DeploymentMode,
@@ -7,7 +10,7 @@ import {
   RepositorySourceError,
   RepositorySourceType,
 } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import {
   getInstallationUrl,
@@ -38,16 +41,56 @@ export function getGithubConnect(req, res) {
     return res.redirect('/dashboard');
   }
 
-  // Store state in session to verify on callback
-  req.session.githubConnectState = {
-    projectSlug,
-    nonce: Math.random().toString(36).slice(2),
-  };
+  // Store state in session to verify on callback. Math.random() is not a
+  // suitable source here — the nonce is what proves the callback belongs to
+  // this flow, so it has to be unguessable.
+  const nonce = generateRawToken(16);
+  req.session.githubConnectState = { projectSlug, nonce };
 
-  const installUrl = getInstallationUrl();
+  const installUrl = getInstallationUrl(nonce);
   req.session.save(() => {
     res.redirect(installUrl);
   });
+}
+
+/**
+ * The installation's own listing for `fullName`, or null when it holds no such
+ * repository.
+ *
+ * A submitted repository name is never authority on its own: an installation id
+ * plus the app's private key mints a token that can read that installation's
+ * private code, so the listing is what decides which repository a caller may
+ * reach. Throws when the listing itself cannot be fetched, so a caller can tell
+ * "not allowed" apart from "could not check".
+ *
+ * @param {number|null} installationId
+ * @param {unknown} fullName
+ * @returns {Promise<object|null>}
+ */
+async function findAuthorizedRepository(installationId, fullName) {
+  if (!installationId || typeof fullName !== 'string' || fullName === '') {
+    return null;
+  }
+
+  const repos = await listInstallationRepos(installationId);
+  return repos.find((candidate) => candidate.fullName === fullName) ?? null;
+}
+
+/**
+ * Whether GitHub's callback carries the single-use nonce this session sent it.
+ *
+ * The callback is a plain GET, so `installation_id` is only a claim: nothing in
+ * the request proves the caller has any relationship to that installation.
+ * Matching the nonce is what ties the id to a flow this user actually started.
+ */
+function hasValidConnectState(sessionState, submittedState) {
+  const nonce = sessionState?.nonce;
+  if (typeof nonce !== 'string' || typeof submittedState !== 'string') {
+    return false;
+  }
+  const expected = Buffer.from(nonce);
+  const received = Buffer.from(submittedState);
+  return expected.length === received.length && timingSafeEqual(expected, received);
 }
 
 /**
@@ -56,11 +99,19 @@ export function getGithubConnect(req, res) {
  * GET /github/callback
  */
 export const getGithubCallback = asyncHandler(async (req, res) => {
-  const { installation_id, setup_action } = req.query;
+  const { installation_id, setup_action, state } = req.query;
   const sessionState = req.session.githubConnectState;
 
-  // Clean up session state
+  // Clean up session state — the nonce is single-use either way.
   delete req.session.githubConnectState;
+
+  if (!hasValidConnectState(sessionState, state)) {
+    req.flash(
+      'error',
+      'That GitHub installation link could not be verified. Start from Connect GitHub and try again.',
+    );
+    return req.session.save(() => res.redirect('/dashboard'));
+  }
 
   if (setup_action === 'request') {
     // User requested installation from an org — awaiting admin approval
@@ -79,6 +130,29 @@ export const getGithubCallback = asyncHandler(async (req, res) => {
   const installationId = parseInt(installation_id, 10);
   if (isNaN(installationId)) {
     req.flash('error', 'Invalid installation ID from GitHub.');
+    return req.session.save(() => res.redirect('/dashboard'));
+  }
+
+  // An installation is authority over its repositories' source: HelloDeploy
+  // mints installation tokens from it and clones private code with them. Let two
+  // accounts hold the same id and whoever claims it second reads the first
+  // account's private repositories, so a claim is exclusive.
+  const claimedByOther = await User.findOne({
+    githubInstallationId: installationId,
+    _id: { $ne: req.session.user.id },
+  })
+    .select('_id')
+    .lean();
+
+  if (claimedByOther) {
+    logger.warn('Rejected GitHub installation already claimed by another account', {
+      installationId,
+      correlationId: req.correlationId,
+    });
+    req.flash(
+      'error',
+      'That GitHub installation is already connected to a different HelloDeploy account.',
+    );
     return req.session.save(() => res.redirect('/dashboard'));
   }
 
@@ -207,15 +281,14 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
   }
 
   // Verify this repo is actually accessible to the user's installation
-  let repos;
+  let authorizedRepo;
   try {
-    repos = await listInstallationRepos(user.githubInstallationId);
+    authorizedRepo = await findAuthorizedRepository(user.githubInstallationId, fullName);
   } catch {
     req.flash('error', 'Could not verify repository access. Please try again.');
     return res.redirect(`/projects/${project.slug}/repository`);
   }
 
-  const authorizedRepo = repos.find((r) => r.fullName === fullName);
   if (!authorizedRepo) {
     req.flash('error', 'This repository is not authorized for your GitHub App installation.');
     return res.redirect(`/projects/${project.slug}/repository`);
@@ -474,8 +547,21 @@ export const getBranches = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'GitHub not connected' });
   }
 
+  // The submitted name decides nothing on its own — without this check any
+  // signed-in account could read branch listings for any repository the
+  // installation can see, and feed arbitrary path segments to the GitHub API.
+  let authorized;
   try {
-    const branches = await listBranches(user.githubInstallationId, fullName);
+    authorized = await findAuthorizedRepository(user.githubInstallationId, fullName);
+  } catch {
+    return res.status(502).json({ error: 'Could not reach GitHub to confirm access' });
+  }
+  if (!authorized) {
+    return res.status(403).json({ error: 'Repository is not authorized for this installation' });
+  }
+
+  try {
+    const branches = await listBranches(user.githubInstallationId, authorized.fullName);
     res.json({ branches });
   } catch {
     res.status(500).json({ error: 'Could not load branches' });
