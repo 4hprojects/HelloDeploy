@@ -17,7 +17,9 @@ describe('production session cookie', () => {
   });
 
   it('trusts the ingress proxy before installing production sessions', () => {
-    const trustProxy = appSource.indexOf("app.set('trust proxy', 1)");
+    // The hop count belongs to the deployment topology, not to this guarantee —
+    // what matters here is only that the setting lands before sessions do.
+    const trustProxy = appSource.search(/app\.set\('trust proxy', \d+\)/);
     const sessionMiddleware = appSource.indexOf('app.use(sessionMiddleware)');
     assert.ok(trustProxy > 0 && trustProxy < sessionMiddleware);
   });

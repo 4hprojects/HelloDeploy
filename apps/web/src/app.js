@@ -33,8 +33,12 @@ function cspNonceMiddleware(_req, res, next) {
 export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   const app = express();
 
-  // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare)
-  app.set('trust proxy', 1);
+  // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare).
+  // Two hops sit in front of the app — cloudflared, then nginx, both on
+  // loopback. Trusting only one leaves req.ip pinned to cloudflared's local
+  // address, which silently merges every visitor into a single rate-limit
+  // bucket and records 127.0.0.1 as the source of every audited action.
+  app.set('trust proxy', 2);
 
   app.use(cspNonceMiddleware);
 
