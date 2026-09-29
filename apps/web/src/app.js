@@ -22,6 +22,7 @@ import { getDashboard } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
+import { releaseSha } from './utils/release-sha.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,8 +45,19 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
 
   // Liveness only proves that the HTTP process can respond. Readiness is a
   // separate dependency check and intentionally returns only component names.
+  //
+  // `commit` is here so a deploy can be confirmed from outside the host. Nothing
+  // could previously say which code was running without filesystem access to
+  // /opt/hellodeploy, which meant every release was taken on trust. The value is
+  // an opaque SHA against a private repository, so it tells an unauthenticated
+  // caller nothing they could look up; it is null when it cannot be read.
   app.get('/health', (_req, res) => {
-    res.json({ status: 'ok', service: 'web', timestamp: new Date().toISOString() });
+    res.json({
+      status: 'ok',
+      service: 'web',
+      commit: releaseSha,
+      timestamp: new Date().toISOString(),
+    });
   });
   app.get('/ready', async (_req, res) => {
     try {
