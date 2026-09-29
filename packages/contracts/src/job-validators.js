@@ -44,6 +44,18 @@ function requireObject(data, field, jobType) {
   }
 }
 
+// A full commit SHA. The worker passes this value straight into `git fetch` and
+// `git checkout` argv, where a leading dash would be read as an option — git
+// accepts `--upload-pack=<cmd>`, which runs a command. The web side already
+// rejects anything else; this is the boundary check that does not depend on it.
+const FULL_COMMIT_SHA_PATTERN = /^[0-9a-f]{40}$/;
+
+function requireCommitSha(data, field, jobType) {
+  if (typeof data[field] !== 'string' || !FULL_COMMIT_SHA_PATTERN.test(data[field])) {
+    throw new JobPayloadValidationError(jobType, `"${field}" must be a 40-character commit SHA.`);
+  }
+}
+
 function requireStringArray(data, field, jobType) {
   if (!Array.isArray(data[field]) || data[field].some((value) => !isNonEmptyString(value))) {
     throw new JobPayloadValidationError(jobType, `"${field}" must be an array of strings.`);
@@ -52,16 +64,10 @@ function requireStringArray(data, field, jobType) {
 
 const VALIDATORS = {
   [JobType.BUILD_DEPLOYMENT](data) {
-    for (const field of [
-      'projectId',
-      'deploymentId',
-      'commitSha',
-      'repositoryId',
-      'runtimeType',
-      'imageTag',
-    ]) {
+    for (const field of ['projectId', 'deploymentId', 'repositoryId', 'runtimeType', 'imageTag']) {
       requireString(data, field, JobType.BUILD_DEPLOYMENT);
     }
+    requireCommitSha(data, 'commitSha', JobType.BUILD_DEPLOYMENT);
   },
   [JobType.ACTIVATE_RELEASE](data) {
     for (const field of ['projectId', 'deploymentId']) {

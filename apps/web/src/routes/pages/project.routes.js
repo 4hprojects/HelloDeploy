@@ -228,11 +228,11 @@ router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);
 router.post(
   '/:slug/deployments',
   requireAuth,
-  deployActionLimiter,
   ownerOrMaintainer,
+  deployActionLimiter,
   postCreateDeployment,
 );
-router.post('/:slug/rollback', requireAuth, deployActionLimiter, ownerOrMaintainer, postRollback);
+router.post('/:slug/rollback', requireAuth, ownerOrMaintainer, deployActionLimiter, postRollback);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);
 router.get('/:slug/deployments/:deploymentId/logs', requireAuth, anyRole, sseDeploymentLogs);
 router.post(
