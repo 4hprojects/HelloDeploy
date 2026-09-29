@@ -71,19 +71,47 @@ export async function logEvent(deploymentId, stage, level, message, correlationI
 }
 
 /**
+ * Statuses a deployment never leaves. Cancelling is the one that matters here:
+ * an owner may cancel while a job is mid-flight, and that job is past its entry
+ * guard and will keep going.
+ */
+const TERMINAL_STATUSES = [
+  DeploymentStatus.HEALTHY,
+  DeploymentStatus.FAILED,
+  DeploymentStatus.CANCELLED,
+  DeploymentStatus.ROLLED_BACK,
+];
+
+/**
  * Transition a deployment and run the terminal-status side effects:
  * image removal on FAILED (when `removeImageOnFailure`) and owner notification.
+ *
+ * A deployment already in a terminal state is left alone. Without that, a build
+ * cancelled while running would finish, write DEPLOYING over CANCELLED, and pass
+ * the activation job's entry guard — so a release the owner stopped would go
+ * live. Retrying is unaffected: it creates a new deployment record rather than
+ * reusing the cancelled one.
+ *
+ * @returns {Promise<boolean>} Whether the transition was applied.
  */
 export async function updateStatus(deploymentId, toStatus, extra = {}, options = {}) {
   const { project = null, deps = null, removeImageOnFailure = false } = options;
 
-  await Deployment.updateOne(
-    { _id: deploymentId },
+  const result = await Deployment.updateOne(
+    { _id: deploymentId, status: { $nin: TERMINAL_STATUSES } },
     { $set: { status: toStatus, currentStage: toStatus, ...extra } },
   );
 
+  if (result.matchedCount === 0) {
+    logger.info('Pipeline: status transition skipped, deployment already finished', {
+      deploymentId: String(deploymentId),
+      attemptedStatus: toStatus,
+    });
+    return false;
+  }
+
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
-    return;
+    return true;
   }
 
   // Instant terminal-status push for live SSE viewers.
@@ -133,6 +161,8 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
       })
       .catch(() => {}); // notification failures must never affect the deployment pipeline
   }
+
+  return true;
 }
 
 /**
