@@ -1,4 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
+import { isSafeReturnPath } from '../utils/safe-redirect.js';
 import { PlatformRole } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
@@ -55,11 +56,7 @@ function authRenderOpts(extra = {}) {
 
 function safeRedirect(req, fallback) {
   const returnTo = req.query.returnTo ?? req.body.returnTo ?? '';
-  // Prevent open redirect: only allow relative paths starting with /
-  if (returnTo && /^\/[^/]/.test(returnTo)) {
-    return returnTo;
-  }
-  return fallback;
+  return isSafeReturnPath(returnTo) ? returnTo : fallback;
 }
 
 function redirectByRole(role) {

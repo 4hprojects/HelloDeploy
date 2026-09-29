@@ -1,5 +1,11 @@
 import { Project, Deployment, DeploymentEvent, Domain } from '@hellodeploy/database';
-import { DeploymentStatus, RuntimeType, AuditOutcome, DomainStatus } from '@hellodeploy/contracts';
+import {
+  DeploymentStatus,
+  RuntimeType,
+  AuditOutcome,
+  DomainStatus,
+  ProjectStatus,
+} from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
@@ -71,19 +77,47 @@ export async function logEvent(deploymentId, stage, level, message, correlationI
 }
 
 /**
+ * Statuses a deployment never leaves. Cancelling is the one that matters here:
+ * an owner may cancel while a job is mid-flight, and that job is past its entry
+ * guard and will keep going.
+ */
+const TERMINAL_STATUSES = [
+  DeploymentStatus.HEALTHY,
+  DeploymentStatus.FAILED,
+  DeploymentStatus.CANCELLED,
+  DeploymentStatus.ROLLED_BACK,
+];
+
+/**
  * Transition a deployment and run the terminal-status side effects:
  * image removal on FAILED (when `removeImageOnFailure`) and owner notification.
+ *
+ * A deployment already in a terminal state is left alone. Without that, a build
+ * cancelled while running would finish, write DEPLOYING over CANCELLED, and pass
+ * the activation job's entry guard — so a release the owner stopped would go
+ * live. Retrying is unaffected: it creates a new deployment record rather than
+ * reusing the cancelled one.
+ *
+ * @returns {Promise<boolean>} Whether the transition was applied.
  */
 export async function updateStatus(deploymentId, toStatus, extra = {}, options = {}) {
   const { project = null, deps = null, removeImageOnFailure = false } = options;
 
-  await Deployment.updateOne(
-    { _id: deploymentId },
+  const result = await Deployment.updateOne(
+    { _id: deploymentId, status: { $nin: TERMINAL_STATUSES } },
     { $set: { status: toStatus, currentStage: toStatus, ...extra } },
   );
 
+  if (result.matchedCount === 0) {
+    logger.info('Pipeline: status transition skipped, deployment already finished', {
+      deploymentId: String(deploymentId),
+      attemptedStatus: toStatus,
+    });
+    return false;
+  }
+
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
-    return;
+    return true;
   }
 
   // Instant terminal-status push for live SSE viewers.
@@ -133,6 +167,8 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
       })
       .catch(() => {}); // notification failures must never affect the deployment pipeline
   }
+
+  return true;
 }
 
 /**
@@ -359,6 +395,49 @@ export async function runReleasePipeline({
     `Health check passed (HTTP ${health.finalStatus}).`,
     correlationId,
   );
+
+  // ── Last check before traffic moves ─────────────────────────────────────────
+  // Cancelling is allowed while a release is in flight, and this job is long past
+  // its entry guard. Routing is the point of no return: after it, visitors are
+  // being served by a release someone asked to stop. The container is healthy but
+  // nothing points at it yet, so stopping here is clean.
+  const current = await Deployment.findById(deploymentId).select('status').lean();
+  if (current && TERMINAL_STATUSES.includes(current.status)) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Release stopped before routing: deployment is ${current.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    logger.info('Pipeline: release abandoned before routing', {
+      deploymentId: String(deploymentId),
+      status: current.status,
+    });
+    return { ok: false };
+  }
+
+  // Suspending a project already stops new deployments being created. One that
+  // was in flight when the suspension landed should not slip past that, so it is
+  // checked here too. Failing rather than returning quietly matters: a release
+  // left mid-flight would satisfy the one-active-deployment check forever and
+  // block the project even after it is reactivated.
+  const currentProject = await Project.findById(projectId).select('status').lean();
+  if (currentProject && currentProject.status !== ProjectStatus.ACTIVE) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Release stopped before routing: project is ${currentProject.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    return fail(
+      'PROJECT_NOT_ACTIVE',
+      `Project is ${currentProject.status}; the release was not published.`,
+    );
+  }
 
   // ── Nginx route activation ──────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {

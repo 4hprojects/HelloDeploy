@@ -52,6 +52,11 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "HelloDeploy couldn't connect your app to its web address.",
     action: TRY_AGAIN_ACTION,
   },
+  PROJECT_NOT_ACTIVE: {
+    message: 'This website was suspended while the release was being published.',
+    action:
+      'Nothing was published, and the version that was already live is still serving. Contact support to find out why the website was suspended.',
+  },
   PROJECT_NOT_FOUND: {
     message: "HelloDeploy couldn't find this project.",
     action: 'Try refreshing the page. If this keeps happening, contact support.',

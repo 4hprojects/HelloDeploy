@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
 import {
   DeploymentMode,
@@ -447,6 +448,14 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   const project = await Project.findById(projectId).lean();
   if (!project) {
     return { success: false, error: 'Project not found.' };
+  }
+
+  // From the request body, so it may not be an id at all. An operator object
+  // reaching findById would match an arbitrary deployment; the project check
+  // below would catch a cross-project match, but the rollback should be refused
+  // outright rather than relying on that.
+  if (!mongoose.isValidObjectId(targetDeploymentId)) {
+    return { success: false, error: 'Target deployment not found.' };
   }
 
   const targetDeployment = await Deployment.findById(targetDeploymentId).lean();
