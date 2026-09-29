@@ -77,6 +77,17 @@ const userSchema = new Schema(
       default: 0,
     },
 
+    // Failed sign-in throttling. Per-IP limits cannot stop a spray at one
+    // account from many addresses, so the count lives on the account itself.
+    failedLoginAttempts: {
+      type: Number,
+      default: 0,
+    },
+    lockedUntil: {
+      type: Date,
+      default: null,
+    },
+
     // Suspension
     suspendedAt: {
       type: Date,
