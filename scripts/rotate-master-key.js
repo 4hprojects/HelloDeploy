@@ -26,7 +26,13 @@ import 'dotenv/config';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { connectDatabase, disconnectDatabase, EnvironmentSecret } from '@hellodeploy/database';
-import { encrypt, decrypt, VERSION_PRIMARY, VERSION_NEXT } from '@hellodeploy/security';
+import {
+  buildSecretAad,
+  encrypt,
+  decrypt,
+  VERSION_PRIMARY,
+  VERSION_NEXT,
+} from '@hellodeploy/security';
 
 const required = (name) => {
   const v = process.env[name];
@@ -45,13 +51,17 @@ export async function rotateAllSecrets() {
 
   for await (const secret of cursor) {
     try {
+      // Rotation changes the key, not the binding: a record arrives bound or not
+      // and leaves the same way, so re-encrypting never silently drops its AAD.
+      const aad = buildSecretAad({ projectId: secret.projectId, name: secret.name });
       const plaintext = decrypt({
         ciphertext: secret.ciphertext,
         iv: secret.iv,
         authTag: secret.authTag,
         version: secret.encryptionVersion,
+        aad: secret.aadBound ? aad : undefined,
       });
-      const reEncrypted = encrypt(plaintext);
+      const reEncrypted = encrypt(plaintext, secret.aadBound ? aad : undefined);
       if (reEncrypted.version !== VERSION_NEXT) {
         throw new Error('HELLODEPLOY_MASTER_KEY_NEXT is not set — nothing to rotate to.');
       }
@@ -63,6 +73,7 @@ export async function rotateAllSecrets() {
             iv: reEncrypted.iv,
             authTag: reEncrypted.authTag,
             encryptionVersion: reEncrypted.version,
+            aadBound: reEncrypted.aadBound,
           },
         },
       );

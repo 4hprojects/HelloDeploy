@@ -61,23 +61,48 @@ function getKeyForVersion(version) {
 }
 
 /**
+ * Build the additional authenticated data that ties a ciphertext to one record.
+ *
+ * Without it a ciphertext is valid wherever it is pasted, so anyone able to write
+ * to the collection could copy another project's secret into a project they own
+ * and read the plaintext back through reveal or a deploy. GCM authenticates this
+ * value without storing it, and the pair below is the record's identity — the
+ * same pair the collection's unique index is built on.
+ *
+ * @param {{ projectId: unknown, name: string }} record
+ * @returns {Buffer}
+ */
+export function buildSecretAad({ projectId, name }) {
+  return Buffer.from(`${String(projectId)}:${name}`, 'utf8');
+}
+
+/**
  * Encrypt a plaintext string with AES-256-GCM.
  * Returns the pieces needed to store and later decrypt.
  *
  * Uses HELLODEPLOY_MASTER_KEY_NEXT (version 2) when a rotation is in
  * progress, otherwise HELLODEPLOY_MASTER_KEY (version 1) — never stored.
  *
+ * `aad` binds the result to a single record. It is reported back as `aadBound`
+ * so the caller can record whether decryption will need it: key choice and AAD
+ * are independent, and folding both into `version` would make the version space
+ * combinatorial.
+ *
  * @param {string} plaintext
- * @returns {{ ciphertext: string, iv: string, authTag: string, version: number }}
- *   All Buffer values are base64-encoded strings.
+ * @param {Buffer} [aad]
+ * @returns {{ ciphertext: string, iv: string, authTag: string, version: number,
+ *   aadBound: boolean }} All Buffer values are base64-encoded strings.
  */
-export function encrypt(plaintext) {
+export function encrypt(plaintext, aad) {
   const nextKey = getNextKey();
   const key = nextKey ?? getMasterKey();
   const version = nextKey ? VERSION_NEXT : VERSION_PRIMARY;
   const iv = randomBytes(IV_BYTES);
 
   const cipher = createCipheriv(ALGORITHM, key, iv);
+  if (aad) {
+    cipher.setAAD(aad);
+  }
   const encrypted = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const authTag = cipher.getAuthTag(); // 16 bytes for AES-GCM
 
@@ -86,6 +111,7 @@ export function encrypt(plaintext) {
     iv: iv.toString('base64'),
     authTag: authTag.toString('base64'),
     version,
+    aadBound: Boolean(aad),
   };
 }
 
@@ -93,13 +119,23 @@ export function encrypt(plaintext) {
  * Decrypt a previously encrypted payload.
  * Throws if authentication fails (tampered data) or version is unsupported.
  *
- * @param {{ ciphertext: string, iv: string, authTag: string, version: number }} payload
+ * `aad` must be passed exactly when the record was written with it — records
+ * predating AAD binding carry `aadBound: false` and decrypt without one. There is
+ * deliberately no retry without AAD on failure: that would turn a real
+ * authentication failure, which is the signal a ciphertext was moved, into a
+ * silent success.
+ *
+ * @param {{ ciphertext: string, iv: string, authTag: string, version: number,
+ *   aad?: Buffer }} payload
  * @returns {string} plaintext
  */
-export function decrypt({ ciphertext, iv, authTag, version }) {
+export function decrypt({ ciphertext, iv, authTag, version, aad }) {
   const key = getKeyForVersion(version);
   const decipher = createDecipheriv(ALGORITHM, key, Buffer.from(iv, 'base64'));
   decipher.setAuthTag(Buffer.from(authTag, 'base64'));
+  if (aad) {
+    decipher.setAAD(aad);
+  }
 
   const plaintext = Buffer.concat([
     decipher.update(Buffer.from(ciphertext, 'base64')),
