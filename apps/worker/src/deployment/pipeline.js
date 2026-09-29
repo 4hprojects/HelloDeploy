@@ -390,6 +390,28 @@ export async function runReleasePipeline({
     correlationId,
   );
 
+  // ── Last check before traffic moves ─────────────────────────────────────────
+  // Cancelling is allowed while a release is in flight, and this job is long past
+  // its entry guard. Routing is the point of no return: after it, visitors are
+  // being served by a release someone asked to stop. The container is healthy but
+  // nothing points at it yet, so stopping here is clean.
+  const current = await Deployment.findById(deploymentId).select('status').lean();
+  if (current && TERMINAL_STATUSES.includes(current.status)) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Release stopped before routing: deployment is ${current.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    logger.info('Pipeline: release abandoned before routing', {
+      deploymentId: String(deploymentId),
+      status: current.status,
+    });
+    return { ok: false };
+  }
+
   // ── Nginx route activation ──────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {
     const subdomain = project.platformSubdomain ?? project.slug;
