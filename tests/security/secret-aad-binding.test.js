@@ -5,6 +5,24 @@ import { EnvironmentSecret } from '@hellodeploy/database';
 import { buildSecretAad, encrypt, decrypt } from '@hellodeploy/security';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
+// A valid 32-byte key, set the way tests/security/encryption.test.js does. The
+// suite must not depend on a developer's .env — CI has none, and these tests
+// passed locally while failing there for exactly that reason.
+const TEST_KEY = Buffer.alloc(32).toString('base64');
+const ORIGINAL_KEY = process.env.HELLODEPLOY_MASTER_KEY;
+
+before(() => {
+  process.env.HELLODEPLOY_MASTER_KEY = TEST_KEY;
+});
+
+after(() => {
+  if (ORIGINAL_KEY !== undefined) {
+    process.env.HELLODEPLOY_MASTER_KEY = ORIGINAL_KEY;
+  } else {
+    delete process.env.HELLODEPLOY_MASTER_KEY;
+  }
+});
+
 const { bindAllSecrets } = await import('../../scripts/bind-secret-aad.js');
 const { getProjectEnvVars } = await import('../../apps/worker/src/deployment/secrets.js');
 
