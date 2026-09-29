@@ -149,7 +149,7 @@ describe('project overview lifecycle state', () => {
       membershipRole: ProjectRole.VIEWER,
     });
     assert.equal(viewer.primaryAction.method, 'GET');
-    assert.equal(viewer.primaryAction.label, 'View deployments');
+    assert.equal(viewer.primaryAction.label, 'See your published versions');
   });
 
   it('requires a current app check before the first deployment', () => {
@@ -252,7 +252,7 @@ describe('project overview lifecycle state', () => {
       activeDeployment: active,
     });
     assert.equal(missingUrl.phase, 'LIVE');
-    assert.equal(missingUrl.primaryAction.label, 'View deployment');
+    assert.equal(missingUrl.primaryAction.label, 'See what happened');
 
     const inaccessibleSource = fixture({
       project: { status: ProjectStatus.ACTIVE },

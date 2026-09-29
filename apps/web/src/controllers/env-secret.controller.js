@@ -1,3 +1,4 @@
+import { UiMode } from '@hellodeploy/contracts';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   listSecretNames,
@@ -95,6 +96,8 @@ export const postSetSecret = asyncHandler(async (req, res) => {
   const result = await setSecret(project._id, normalizedName, value, req.session.user.id, {
     sourceIp: req.ip,
     correlationId: req.correlationId,
+    // Advanced mode may override a platform-managed name; Simple mode may not.
+    allowPlatformManaged: res.locals.uiMode === UiMode.ADVANCED,
   });
 
   if (!result.success) {
@@ -119,10 +122,12 @@ export const postImportEnvFile = asyncHandler(async (req, res) => {
     return renderEnvironment(req, res, { importErrors: { form: result.error } });
   }
 
-  req.flash(
-    'success',
-    `${result.count} environment variable${result.count === 1 ? '' : 's'} imported.`,
-  );
+  const imported = `${result.count} environment variable${result.count === 1 ? '' : 's'} imported.`;
+  const skipped = result.skipped?.length
+    ? ` ${result.skipped.join(', ')} ${result.skipped.length === 1 ? 'was' : 'were'} skipped — HelloDeploy sets ${result.skipped.length === 1 ? 'it' : 'those'} for you.`
+    : '';
+
+  req.flash('success', `${imported}${skipped}`);
   res.redirect(`/projects/${project.slug}/environment`);
 });
 

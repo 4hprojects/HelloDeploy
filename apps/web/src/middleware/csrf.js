@@ -1,3 +1,4 @@
+import { layoutForRequest } from '../utils/error-layout.js';
 import { timingSafeEqual } from 'crypto';
 import { generateRawToken } from '@hellodeploy/security';
 import { logger } from '@hellodeploy/observability';
@@ -51,7 +52,7 @@ export function csrfMiddleware(req, res, next) {
 
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
-      layout: 'layouts/main',
+      layout: layoutForRequest(req),
       message: 'Invalid or missing CSRF token. Please refresh and try again.',
     });
   }

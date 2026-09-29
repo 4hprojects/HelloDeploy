@@ -1,116 +1,207 @@
 <div class="hero">
   <div class="hero__content">
-    <h1 class="hero__title">Deploy web apps from GitHub in minutes</h1>
+    <p class="text-sm text-muted text-uppercase">Simple Web Deployment</p>
+    <h1 class="hero__title">Deploy Your Website Without Managing the Server</h1>
     <p class="hero__subtitle">
-      HelloDeploy is a self-hosted platform that builds, deploys, and manages your
-      web applications — with zero vendor lock-in.
+      HelloDeploy gives you a guided way to publish and manage supported web applications
+      without configuring every part of a server yourself. Configure your project, deploy it,
+      connect a domain, manage environment variables, read the logs, and publish updates from
+      one place.
     </p>
     <div class="button-group mt-6">
-      <a href="/auth/create-account" class="button button--primary button--lg">Get Started</a>
-      <a href="/auth/sign-in" class="button button--secondary button--lg">Sign In</a>
+      <a href="/auth/create-account" class="button button--primary button--lg">Deploy a Project</a>
+      <a href="/how-it-works" class="button button--secondary button--lg">See How It Works</a>
     </div>
     <p class="text-sm text-muted mt-4">
-      Free to use. This instance is an active pilot operated by Henson Sagorsor as an
-      MIT capstone project, running on shared infrastructure — see the <a href="/terms">Terms</a>
-      for details. Features and availability may change.
+      Built for developers, students, freelancers, educators, and small teams.
     </p>
   </div>
 </div>
 
-<div class="text-center mt-8">
-  <h2 class="feature-title">How it works</h2>
+<div class="card">
+  <div class="card__body text-center">
+    <h2 class="feature-title">A simpler path from code to a live website</h2>
+    <p class="text-sm text-muted">
+      Deploying an application usually means more than uploading files. Depending on the
+      project you may need to install dependencies, run a build, set a start command, define
+      environment variables, expose the right port, connect a domain, and read the logs when
+      something fails. HelloDeploy brings those steps into one workflow.
+    </p>
+    <ol class="flow mt-6">
+      <li class="flow__step">Project</li>
+      <li class="flow__step">Configure</li>
+      <li class="flow__step">Build</li>
+      <li class="flow__step">Deploy</li>
+      <li class="flow__step">Connect a domain</li>
+      <li class="flow__step">Go live</li>
+    </ol>
+    <div class="button-group mt-6">
+      <a href="/how-it-works" class="button button--secondary">Learn How Deployment Works</a>
+    </div>
+  </div>
 </div>
+
+<h2 class="feature-title mt-8 text-center">Everything you need to manage a deployment</h2>
+
 <div class="feature-grid mt-4">
   <div class="card">
     <div class="card__body">
-      <p class="feature-icon">1</p>
-      <h2 class="feature-title">Connect</h2>
-      <p class="text-sm text-muted">Connect a GitHub repository. HelloDeploy detects the runtime and suggests build settings.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">2</p>
-      <h2 class="feature-title">Configure</h2>
-      <p class="text-sm text-muted">Review or adjust the build command, start command, and environment variables.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">3</p>
-      <h2 class="feature-title">Deploy</h2>
-      <p class="text-sm text-muted">Push to your production branch, or deploy manually. HelloDeploy builds a container image.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">4</p>
-      <h2 class="feature-title">Live</h2>
-      <p class="text-sm text-muted">HelloDeploy health-checks the new release and routes traffic to it at a live URL.</p>
-    </div>
-  </div>
-</div>
-
-<div class="feature-grid mt-8">
-  <div class="card">
-    <div class="card__body">
       <p class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></p>
-      <h2 class="feature-title">GitHub integration</h2>
-      <p class="text-sm text-muted">Connect any repository. Push to your production branch and HelloDeploy builds and deploys automatically.</p>
+      <h3 class="feature-title">Guided deployment</h3>
+      <p class="text-sm text-muted">
+        Connect a repository. HelloDeploy inspects it, proposes build and start settings, and
+        tells you what it had to assume.
+      </p>
     </div>
   </div>
   <div class="card">
     <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></p>
-      <h2 class="feature-title">Live deployment logs</h2>
-      <p class="text-sm text-muted">Watch builds in real time. Roll back to any healthy deployment with a single click.</p>
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'activity' }) %></p>
+      <h3 class="feature-title">Deployment logs</h3>
+      <p class="text-sm text-muted">
+        Follow a deployment as it runs, and see which stage failed when one does.
+      </p>
     </div>
   </div>
   <div class="card">
     <div class="card__body">
       <p class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></p>
-      <h2 class="feature-title">Encrypted secrets</h2>
-      <p class="text-sm text-muted">Environment variables are encrypted with AES-256-GCM and injected at runtime — never stored in plaintext.</p>
+      <h3 class="feature-title">Encrypted environment variables</h3>
+      <p class="text-sm text-muted">
+        Keep secrets out of your source code. Values are encrypted at rest and injected when
+        the container starts.
+      </p>
     </div>
   </div>
   <div class="card">
     <div class="card__body">
       <p class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></p>
-      <h2 class="feature-title">Custom domains</h2>
-      <p class="text-sm text-muted">Point your own domain at any project. DNS verification and admin review keep things secure.</p>
+      <h3 class="feature-title">Domains and HTTPS</h3>
+      <p class="text-sm text-muted">
+        Every project gets an address immediately, served over HTTPS. Connect your own domain
+        once you own one.
+      </p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <p class="feature-icon"><%- include('../partials/icon', { name: 'overview' }) %></p>
+      <h3 class="feature-title">Redeploy and roll back</h3>
+      <p class="text-sm text-muted">
+        Publish an update without rebuilding your configuration, and return to a recent healthy
+        release if one goes wrong.
+      </p>
     </div>
   </div>
   <div class="card">
     <div class="card__body">
       <p class="feature-icon"><%- include('../partials/icon', { name: 'users' }) %></p>
-      <h2 class="feature-title">Team access</h2>
-      <p class="text-sm text-muted">Invite collaborators as Owner, Maintainer, or Viewer. Transfer ownership when the time comes.</p>
+      <h3 class="feature-title">Team access and audit</h3>
+      <p class="text-sm text-muted">
+        Invite collaborators as Owner, Maintainer, or Viewer. Deployments and configuration
+        changes are recorded.
+      </p>
+    </div>
+  </div>
+</div>
+
+<div class="button-group button-group--center mt-6">
+  <a href="/features" class="button button--secondary">Explore All Features</a>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2 class="feature-title">What you can deploy</h2>
+    <p class="text-sm text-muted">
+      Static sites, Node.js and Express applications, and React projects are supported today.
+      Vue and Next.js are being verified. Python, PHP, Java, and custom Dockerfiles are not
+      supported yet — a runtime is only listed as supported once a full deployment has been
+      tested.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/supported-runtimes" class="button button--secondary button--sm">See Supported Runtimes</a>
+    </div>
+  </div>
+</div>
+
+<h2 class="feature-title mt-8 text-center">Built for different ways of building on the web</h2>
+
+<div class="feature-grid mt-4">
+  <div class="card">
+    <div class="card__body">
+      <h3 class="feature-title">Students</h3>
+      <p class="text-sm text-muted">
+        Learn how deployment works without starting from server administration.
+      </p>
     </div>
   </div>
   <div class="card">
     <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></p>
-      <h2 class="feature-title">Audit log</h2>
-      <p class="text-sm text-muted">Every deployment, config change, and access event is recorded with actor, IP, and outcome.</p>
+      <h3 class="feature-title">Freelancers</h3>
+      <p class="text-sm text-muted">Manage client projects through one deployment workflow.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <h3 class="feature-title">Developers</h3>
+      <p class="text-sm text-muted">
+        Skip the repeated infrastructure setup that small and mid-sized projects keep demanding.
+      </p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <h3 class="feature-title">Educators</h3>
+      <p class="text-sm text-muted">
+        Demonstrate deployment concepts on a platform that shows its working.
+      </p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <h3 class="feature-title">Small teams</h3>
+      <p class="text-sm text-muted">
+        Ship applications without building an internal operations workflow first.
+      </p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card__body">
+      <h3 class="feature-title">Website owners</h3>
+      <p class="text-sm text-muted">
+        Run a supported application without learning every server administration task.
+      </p>
     </div>
   </div>
 </div>
 
 <div class="card mt-8">
   <div class="card__body">
-    <h2 class="feature-title">What you can deploy</h2>
-    <p class="text-sm text-muted mt-2">Version 1 supports:</p>
-    <ul class="text-sm text-muted mt-2">
-      <li>Static sites</li>
-      <li>Node.js applications</li>
-      <li>Express applications</li>
-      <li>React static builds</li>
-      <li>Vue static builds</li>
-      <li>Constrained Next.js applications</li>
-    </ul>
-    <p class="text-sm text-muted mt-4">
-      Not yet supported: Python, PHP, Java, Docker Compose, arbitrary container images, or
-      privileged containers.
+    <h2 class="feature-title">Pricing</h2>
+    <p class="text-sm text-muted">
+      HelloDeploy is free to use while it is in pilot. Paid plans are proposed but not built —
+      there is no checkout and nothing is charged.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/pricing" class="button button--secondary button--sm">View Pricing</a>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body text-center">
+    <h2 class="feature-title">Ready to deploy your project?</h2>
+    <p class="text-sm text-muted">
+      Start with a supported project and follow the workflow from configuration to production.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/auth/create-account" class="button button--primary">Get Started</a>
+      <a href="/about" class="button button--secondary">About the Project</a>
+    </div>
+    <p class="text-sm text-muted mt-6">
+      HelloDeploy is an active pilot operated by Henson Sagorsor as an MIT capstone project,
+      running on shared infrastructure — see the <a href="/terms">Terms</a> for details.
+      Features and availability may change.
     </p>
   </div>
 </div>

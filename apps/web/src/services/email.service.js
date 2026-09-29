@@ -24,7 +24,7 @@ function getResendClient() {
  * Send an email. In development without RESEND_API_KEY, logs to stdout instead.
  * @returns {Promise<void>}
  */
-async function sendEmail({ to, subject, html, text }) {
+async function sendEmail({ to, subject, html, text, replyTo }) {
   const client = getResendClient();
 
   if (!client) {
@@ -42,12 +42,65 @@ async function sendEmail({ to, subject, html, text }) {
     subject,
     html,
     text,
+    ...(replyTo ? { replyTo } : {}),
   });
 
   if (error) {
     logger.error('[email] Failed to send email', { to, subject, error: error.message });
     throw new Error(`Email delivery failed: ${error.message}`);
   }
+}
+
+/**
+ * Deliver a contact form submission to the address configured for support.
+ *
+ * Every field is visitor-supplied, so each one is escaped before it reaches the
+ * HTML body, and the reply-to carries the sender's address so a reply reaches
+ * them without the operator copying it by hand.
+ */
+export async function sendContactMessage({
+  name,
+  email,
+  categoryLabel,
+  subject,
+  message,
+  projectUrl,
+  deploymentId,
+}) {
+  const rows = [
+    ['From', `${name} <${email}>`],
+    ['Category', categoryLabel],
+    ['Project address', projectUrl || 'not given'],
+    ['Deployment', deploymentId || 'not given'],
+  ];
+
+  const html = `
+    <p><strong>Contact form submission</strong></p>
+    <ul>
+      ${rows.map(([k, v]) => `<li>${escapeEmailHtml(k)}: ${escapeEmailHtml(v)}</li>`).join('')}
+    </ul>
+    <p><strong>${escapeEmailHtml(subject)}</strong></p>
+    <p>${escapeEmailHtml(message).replaceAll('\n', '<br />')}</p>
+  `;
+
+  const text = [...rows.map(([k, v]) => `${k}: ${v}`), '', subject, '', message].join('\n');
+
+  // Without a configured provider sendEmail logs and returns, which would let the
+  // contact form tell a visitor their message was sent when it was not. A dropped
+  // support request is worse than a visible failure, so refuse instead.
+  if (!env.RESEND_API_KEY) {
+    throw new Error('Email delivery is not configured (RESEND_API_KEY is unset)');
+  }
+
+  warnOnceIfUnmonitored();
+
+  await sendEmail({
+    to: env.CONTACT_EMAIL,
+    subject: `[HelloDeploy contact] ${subject}`,
+    html,
+    text,
+    replyTo: email,
+  });
 }
 
 export async function sendVerificationEmail({ to, firstName, verificationUrl }) {
@@ -112,4 +165,22 @@ export async function sendPasswordChangedEmail({ to, firstName }) {
     `,
     text: `Hi ${firstName},\n\nYour HelloDeploy password was changed. If you did not do this, contact support immediately.`,
   });
+}
+
+let hasWarnedAboutRecipient = false;
+
+/**
+ * CONTACT_EMAIL falls back to EMAIL_FROM, which is a no-reply address by
+ * default. Delivering support requests there loses them silently — the sender
+ * is told the message arrived, and it did, into a mailbox nobody reads. Say so
+ * once rather than never.
+ */
+function warnOnceIfUnmonitored() {
+  if (hasWarnedAboutRecipient || !/^no-?reply@/i.test(env.CONTACT_EMAIL)) {
+    return;
+  }
+  hasWarnedAboutRecipient = true;
+  logger.warn(
+    `Contact form submissions are being delivered to ${env.CONTACT_EMAIL}, which looks like an unmonitored address. Set CONTACT_EMAIL to an inbox someone reads.`,
+  );
 }

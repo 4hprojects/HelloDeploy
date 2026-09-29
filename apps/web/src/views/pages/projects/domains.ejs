@@ -31,7 +31,7 @@
   data-domain-operation-started-at="<%= operationStartedAt %>"
   <% } %>>
   <div>
-    <h1 class="page-header__title">Custom Domains</h1>
+    <h1 class="page-header__title">Your domain</h1>
     <p class="page-header__subtitle text-muted text-sm">
       <a href="/projects/<%= project.slug %>" class="table-link">&larr; <%= project.name %></a>
     </p>
@@ -88,7 +88,7 @@
       <span class="domain-step__number" aria-hidden="true"><% if (liveDomains.length) { %>&check;<% } else { %>5<% } %></span>
       <div>
         <strong>Domain is live</strong>
-        <span>Visitors reach your app. Use Check routing to confirm.</span>
+        <span>Visitors reach your app at this address.</span>
       </div>
     </li>
   </ol>
@@ -105,9 +105,30 @@
     </div>
   </header>
 
-  <div class="domain-provider-guidance">
-    <strong>Where should I edit DNS?</strong>
-    <p>Use the provider that manages your nameservers. If your nameservers are Cloudflare, edit DNS in Cloudflare even when you purchased the domain from GoDaddy.</p>
+  <%# Filled in by a lookup after the page loads. The static text below is what
+      the owner sees if detection is unavailable, so the panel is never empty. %>
+  <div
+    class="domain-provider-guidance"
+    data-domain-provider
+    <% if (pendingSetupDomain) { %>
+    data-domain-provider-url="/projects/<%= project.slug %>/domains/<%= pendingSetupDomain._id %>/provider"
+    <% } %>
+    aria-live="polite"
+  >
+    <strong data-domain-provider-headline>Where should I edit DNS?</strong>
+    <p data-domain-provider-detail>Use the provider that manages your nameservers. If your nameservers are Cloudflare, edit DNS in Cloudflare even when you purchased the domain from GoDaddy.</p>
+    <% if ((locals.uiMode || 'SIMPLE') === 'ADVANCED') { %>
+    <dl class="domain-diagnostics" data-domain-diagnostics hidden>
+      <div>
+        <dt>Zone answering</dt>
+        <dd data-domain-diagnostics-zone>—</dd>
+      </div>
+      <div>
+        <dt>Nameservers</dt>
+        <dd data-domain-diagnostics-nameservers>—</dd>
+      </div>
+    </dl>
+    <% } %>
   </div>
 
   <ol class="domain-task-list">
@@ -208,37 +229,6 @@
 </section>
 <% } %>
 
-<% if (membership.role === 'OWNER') { %>
-<section class="domain-page-section" aria-labelledby="add-domain-title">
-  <header class="domain-page-section__header">
-    <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
-    <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
-  </header>
-  <% const domainFormErrors = locals.errors || {}; %>
-  <% const domainFormValues = locals.values || {}; %>
-  <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
-  <form method="POST" action="/projects/<%= project.slug %>/domains"
-    class="domain-add-form">
-    <%- include('../../partials/csrf-field') %>
-    <div class="form-group form-group--floating">
-      <label for="hostname" class="form-label">Domain</label>
-      <input type="text" id="hostname" name="hostname"
-        class="form-input<%= domainFormErrors.hostname ? ' form-input--error' : '' %>"
-        value="<%= domainFormValues.hostname ?? '' %>"
-        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false"
-        aria-describedby="<%= domainFormErrors.hostname ? 'hostname-error' : 'hostname-hint' %>">
-      <% if (domainFormErrors.hostname) { %>
-      <p class="form-error" id="hostname-error" role="alert"><%= domainFormErrors.hostname %></p>
-      <% } else { %>
-      <p class="form-hint text-xs text-muted mt-1" id="hostname-hint">Do not include <code class="code-inline">https://</code> or a page path.</p>
-      <% } %>
-    </div>
-    <button type="submit" class="button button--primary"
-      data-pending-label="Adding...">Add domain</button>
-  </form>
-</section>
-<% } %>
-
 <% if (verifiedDomains.length) { %>
 <section class="domain-setup-panel" id="routing-records"
   aria-labelledby="routing-records-title" tabindex="-1">
@@ -294,6 +284,15 @@
       <code class="code-inline">@</code> for the domain itself. The finished record must apply to
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
 
+    <p class="form-hint">
+      This record covers <code class="code-inline"><%= domain.hostnameNormalized %></code> and no
+      other form of the address.
+    </p>
+    <p class="form-hint">
+      To serve <code class="code-inline">www</code> as well as the bare domain, add each one here
+      as its own domain. HelloDeploy does not redirect between them.
+    </p>
+
     <div class="domain-routing-record__actions">
       <% if (membership.role === 'OWNER') { %>
       <form method="POST"
@@ -303,12 +302,51 @@
           data-pending-label="Checking...">Check routing</button>
       </form>
       <% } %>
+      <%# Simple mode gets a settled explanation; the probe's own wording is a
+          diagnostic and belongs in Advanced mode. %>
       <% if (domain.routingState === 'LIVE') { %>
       <span class="text-success text-sm" role="status">Live — visitors reach your app.</span>
-      <% } else if (domain.routingDetail) { %>
-      <span class="form-error text-sm" role="status"><%= domain.routingDetail %></span>
+      <% } else if (domain.routingState === 'NOT_POINTED') { %>
+      <span class="text-sm" role="status">
+        Your domain is still connecting. DNS changes can take some time to appear — try
+        the check again in a few minutes.
+      </span>
+      <% } else if (domain.routingState === 'FOREIGN') { %>
+      <span class="text-sm" role="status">
+        This address currently opens a different website. Check the record above matches
+        exactly, then try again.
+      </span>
+      <% } else if (domain.routingState === 'TUNNEL_DOWN') { %>
+      <span class="text-sm" role="status">
+        HelloDeploy cannot reach this address at the moment. Try the check again shortly.
+      </span>
+      <% } else if (domain.routingState && domain.routingState !== 'UNKNOWN') { %>
+      <span class="text-sm" role="status">Still connecting. Try the check again in a few minutes.</span>
       <% } else { %>
       <span class="text-muted text-sm">Not checked yet.</span>
+      <% } %>
+
+      <% if ((locals.uiMode || 'SIMPLE') === 'ADVANCED') { %>
+      <dl class="domain-diagnostics">
+        <div>
+          <dt>Routing state</dt>
+          <dd><%= domain.routingState || 'UNKNOWN' %></dd>
+        </div>
+        <div>
+          <dt>Last checked</dt>
+          <dd><%= domain.routingCheckedAt ? new Date(domain.routingCheckedAt).toISOString() : 'Never' %></dd>
+        </div>
+        <% if (domain.routingDetail) { %>
+        <div>
+          <dt>Probe detail</dt>
+          <dd><%= domain.routingDetail %></dd>
+        </div>
+        <% } %>
+        <div>
+          <dt>Expected target</dt>
+          <dd><%= domain.tunnelId %>.cfargotunnel.com</dd>
+        </div>
+      </dl>
       <% } %>
     </div>
     <% } %>
@@ -316,6 +354,38 @@
   <% }); %>
 </section>
 <% } %>
+
+<% if (membership.role === 'OWNER') { %>
+<section class="domain-page-section" aria-labelledby="add-domain-title">
+  <header class="domain-page-section__header">
+    <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
+    <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
+  </header>
+  <% const domainFormErrors = locals.errors || {}; %>
+  <% const domainFormValues = locals.values || {}; %>
+  <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
+  <form method="POST" action="/projects/<%= project.slug %>/domains"
+    class="domain-add-form">
+    <%- include('../../partials/csrf-field') %>
+    <div class="form-group form-group--floating">
+      <label for="hostname" class="form-label">Domain</label>
+      <input type="text" id="hostname" name="hostname"
+        class="form-input<%= domainFormErrors.hostname ? ' form-input--error' : '' %>"
+        value="<%= domainFormValues.hostname ?? '' %>"
+        placeholder="app.yourdomain.com" required autocomplete="off" spellcheck="false"
+        aria-describedby="<%= domainFormErrors.hostname ? 'hostname-error' : 'hostname-hint' %>">
+      <% if (domainFormErrors.hostname) { %>
+      <p class="form-error" id="hostname-error" role="alert"><%= domainFormErrors.hostname %></p>
+      <% } else { %>
+      <p class="form-hint text-xs text-muted mt-1" id="hostname-hint">Do not include <code class="code-inline">https://</code> or a page path.</p>
+      <% } %>
+    </div>
+    <button type="submit" class="button button--primary"
+      data-pending-label="Adding...">Add domain</button>
+  </form>
+</section>
+<% } %>
+
 
 <section class="domain-page-section" aria-labelledby="domains-title">
   <header class="domain-page-section__header">

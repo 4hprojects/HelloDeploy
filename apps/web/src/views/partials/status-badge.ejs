@@ -24,7 +24,25 @@ const STATUS_MAP = {
   CANCELLED:           { mod: 'stopped',   label: 'Cancelled',              hint: 'Deployment was cancelled before completion.' },
   ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back',            hint: 'A retained healthy release was restored.' },
 };
+// Simple mode speaks about the website, not the platform. Advanced mode keeps
+// the technical vocabulary. Only statuses that read badly to a non-developer are
+// overridden; everything else falls through to STATUS_MAP.
+const SIMPLE_LABELS = {
+  QUEUED:      { label: 'Waiting to start', hint: 'Waiting for a free slot to start publishing.' },
+  VALIDATING:  { label: 'Checking setup',   hint: 'Checking your project before building it.' },
+  BUILDING:    { label: 'Building',         hint: 'Installing what your website needs, then building it.' },
+  DEPLOYING:   { label: 'Publishing',       hint: 'Starting your website and pointing your address at it.' },
+  HEALTHY:     { label: 'Published',        hint: 'This version built and started successfully.' },
+  FAILED:      { label: 'Did not publish',  hint: 'Publishing stopped before your website went live.' },
+  CANCELLED:   { label: 'Cancelled',        hint: 'Publishing was stopped before it finished.' },
+  ROLLED_BACK: { label: 'Replaced',         hint: 'A newer version replaced this one.' },
+};
 const _status = typeof status !== 'undefined' ? status : '';
-const { mod, label, hint } = STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
+const _isSimple = (locals.uiMode || 'SIMPLE') !== 'ADVANCED';
+const _base = STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
+const _simple = _isSimple ? SIMPLE_LABELS[_status] : null;
+const { mod } = _base;
+const label = _simple?.label ?? _base.label;
+const hint = _simple?.hint ?? _base.hint;
 %>
 <span class="status-badge status-badge--<%= mod %>" tabindex="0" aria-label="<%= label %>: <%= hint %>" data-tooltip="<%= hint %>"><%= label %></span>

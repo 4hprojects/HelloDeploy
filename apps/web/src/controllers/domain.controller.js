@@ -1,4 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
+import { detectDomainProvider, providerGuidance } from '../services/domain-provider.service.js';
 import {
   stashPendingDomainVerification,
   consumePendingDomainVerification,
@@ -27,7 +28,7 @@ export const getDomains = asyncHandler(async (req, res) => {
   const pending = consumePendingDomainVerification(req);
 
   res.render('pages/projects/domains', {
-    title: `Custom Domains – ${project.name}`,
+    title: `Your domain – ${project.name}`,
     project,
     membership: req.membership,
     domains,
@@ -49,7 +50,7 @@ export const postAddDomain = asyncHandler(async (req, res) => {
     const domains = await getProjectDomains(project._id);
     const pending = consumePendingDomainVerification(req);
     return res.status(400).render('pages/projects/domains', {
-      title: `Custom Domains – ${project.name}`,
+      title: `Your domain – ${project.name}`,
       project,
       membership: req.membership,
       domains,
@@ -236,4 +237,36 @@ export const postRejectDomain = asyncHandler(async (req, res) => {
   }
 
   res.redirect('/admin/domains');
+});
+
+/**
+ * Who manages this domain's DNS.
+ *
+ * Fetched on demand rather than during page render: a nameserver lookup can take
+ * seconds, and the domain page must not wait on the network to display.
+ *
+ * Scoped to a domain already attached to this project, so the endpoint cannot be
+ * used to probe arbitrary hostnames through the platform.
+ */
+export const getDomainProvider = asyncHandler(async (req, res) => {
+  const domains = await getProjectDomains(req.project._id);
+  const domain = domains.find((candidate) => String(candidate._id) === req.params.domainId);
+
+  if (!domain) {
+    return res.status(404).json({ error: 'Domain not found.' });
+  }
+
+  const detection = await detectDomainProvider(domain.hostnameNormalized);
+  const guidance = providerGuidance(detection);
+
+  res.set('Cache-Control', 'no-store');
+  res.json({
+    hostname: domain.hostnameNormalized,
+    provider: detection.provider,
+    headline: guidance.headline,
+    detail: guidance.detail,
+    // Advanced mode shows these; Simple mode ignores them.
+    nameservers: detection.nameservers,
+    zone: detection.zone,
+  });
 });

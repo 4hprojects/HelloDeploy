@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
 import {
   DeploymentMode,
@@ -7,6 +8,7 @@ import {
   AuditOutcome,
   ProjectStatus,
   RepositorySourceType,
+  FailureCode,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -252,7 +254,7 @@ export async function createDeployment({
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           failureSummary: 'Deployment queue is not available.',
           completedAt: new Date(),
         },
@@ -394,7 +396,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           completedAt: new Date(),
         },
       },
@@ -449,6 +451,14 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     return { success: false, error: 'Project not found.' };
   }
 
+  // From the request body, so it may not be an id at all. An operator object
+  // reaching findById would match an arbitrary deployment; the project check
+  // below would catch a cross-project match, but the rollback should be refused
+  // outright rather than relying on that.
+  if (!mongoose.isValidObjectId(targetDeploymentId)) {
+    return { success: false, error: 'Target deployment not found.' };
+  }
+
   const targetDeployment = await Deployment.findById(targetDeploymentId).lean();
   if (!targetDeployment || targetDeployment.projectId.toString() !== projectId.toString()) {
     return { success: false, error: 'Target deployment not found.' };
@@ -495,7 +505,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
       {
         $set: {
           status: DeploymentStatus.FAILED,
-          failureCode: 'QUEUE_UNAVAILABLE',
+          failureCode: FailureCode.QUEUE_UNAVAILABLE,
           completedAt: new Date(),
         },
       },

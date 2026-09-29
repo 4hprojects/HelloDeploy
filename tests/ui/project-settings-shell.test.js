@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { readFile } from 'node:fs/promises';
-import { ProjectRole } from '@hellodeploy/contracts';
+import { ProjectRole, UiMode } from '@hellodeploy/contracts';
 
 import {
   buildProjectNavigation,
@@ -48,11 +48,7 @@ describe('project settings shell', () => {
       'example',
       ProjectRole.OWNER,
       '/projects/example/settings',
-    );
-    const viewerNavigation = buildProjectNavigation(
-      'example',
-      ProjectRole.VIEWER,
-      '/projects/example',
+      UiMode.ADVANCED,
     );
 
     assert.deepEqual(
@@ -66,14 +62,45 @@ describe('project settings shell', () => {
         'deploy-hook',
         'environment',
         'members',
+        'usage',
         'settings',
       ],
     );
+  });
+
+  it('marks the current page active for an owner', () => {
+    const ownerNavigation = buildProjectNavigation(
+      'example',
+      ProjectRole.OWNER,
+      '/projects/example/settings',
+      UiMode.ADVANCED,
+    );
+
     assert.equal(ownerNavigation.find((item) => item.key === 'settings')?.active, true);
+  });
+
+  it('hides owner-only pages from a viewer', () => {
+    const viewerNavigation = buildProjectNavigation(
+      'example',
+      ProjectRole.VIEWER,
+      '/projects/example',
+      UiMode.ADVANCED,
+    );
+
     assert.deepEqual(
       viewerNavigation.map((item) => item.key),
-      ['overview', 'deployments', 'detection', 'domains'],
+      ['overview', 'deployments', 'detection', 'domains', 'usage'],
     );
+  });
+
+  it('marks the current page active for a viewer', () => {
+    const viewerNavigation = buildProjectNavigation(
+      'example',
+      ProjectRole.VIEWER,
+      '/projects/example',
+      UiMode.ADVANCED,
+    );
+
     assert.equal(viewerNavigation[0]?.active, true);
   });
 

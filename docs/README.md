@@ -9,6 +9,8 @@ Use this index as the starting point for repository documentation. The top-level
 - [User Guide](USER_GUIDE.md) - account setup, project setup, GitHub connection, deployments, rollback, custom domains, roles, and troubleshooting.
 - [FAQ](FAQ.md) - common user, project-owner, GitHub, deployment, domain, limits, and support questions.
 
+- [Public Content Authoring](PUBLIC_CONTENT_AUTHORING.md) - how to add or change a marketing page, documentation page, Learn article, or troubleshooting guide, and the invariants the tests enforce.
+
 ## Operations Documentation
 
 - [Operations Runbooks](OPERATIONS_RUNBOOKS.md) - incident response, backup, restore, upgrade, rollback, uninstall, maintenance workflows, and the post-release non-root container smoke test.

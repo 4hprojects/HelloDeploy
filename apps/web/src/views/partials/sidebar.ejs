@@ -1,12 +1,13 @@
 <% var _path = locals.currentPath || ''; %>
 <% var _user = locals.user || null; %>
+<% var _uiMode = locals.uiMode || 'SIMPLE'; %>
 <nav class="sidebar" id="sidebar" aria-label="Application navigation">
   <ul class="sidebar__nav" role="list">
     <li>
       <a
         href="/dashboard"
         class="sidebar__link"
-        <%= _path === '/dashboard' ? 'aria-current="page"' : '' %>
+        <%- _path === '/dashboard' ? 'aria-current="page"' : '' %>
       >
         <%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %>
         <span>Dashboard</span>
@@ -16,7 +17,7 @@
       <a
         href="/projects"
         class="sidebar__link"
-        <%= _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
+        <%- _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
       >
         <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
         <span>Projects</span>
@@ -32,7 +33,7 @@
         <li>
           <a href="<%= item.href %>"
              class="sidebar__link"
-             <%= item.active ? 'aria-current="page"' : '' %>>
+             <%- item.active ? 'aria-current="page"' : '' %>>
             <%- include('icon', { name: item.icon, className: 'sidebar__icon' }) %>
             <span><%= item.label %></span>
           </a>
@@ -50,7 +51,7 @@
         <a
           href="/admin"
           class="sidebar__link"
-          <%= _path === '/admin' ? 'aria-current="page"' : '' %>
+          <%- _path === '/admin' ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %>
           <span>Overview</span>
@@ -60,7 +61,7 @@
         <a
           href="/admin/users"
           class="sidebar__link"
-          <%= _path.startsWith('/admin/users') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/users') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'users', className: 'sidebar__icon' }) %>
           <span>Users</span>
@@ -70,7 +71,7 @@
         <a
           href="/admin/projects"
           class="sidebar__link"
-          <%= _path.startsWith('/admin/projects') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/projects') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
           <span>All Projects</span>
@@ -80,7 +81,7 @@
         <a
           href="/admin/approval-requests"
           class="sidebar__link"
-          <%= _path.startsWith('/admin/approval-requests') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/approval-requests') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'reviews', className: 'sidebar__icon' }) %>
           <span>Reviews</span>
@@ -90,7 +91,7 @@
         <a
           href="/admin/audit-events"
           class="sidebar__link"
-          <%= currentPath.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
+          <%- currentPath.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'audit', className: 'sidebar__icon' }) %>
           <span>Audit Log</span>
@@ -100,13 +101,50 @@
         <a
           href="/admin/server"
           class="sidebar__link"
-          <%= currentPath.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
+          <%- currentPath.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
           <span>Server</span>
         </a>
       </li>
     </ul>
+  </div>
+  <% } %>
+
+  <% if (_user) { %>
+  <div class="sidebar__section">
+    <p class="sidebar__section-title" id="ui-mode-label">Interface</p>
+    <form method="POST" action="/account/ui-mode" class="ui-mode-switch">
+      <%- include('csrf-field') %>
+      <input type="hidden" name="returnTo" value="<%= _path %>" />
+      <div class="ui-mode-switch__group" role="group" aria-labelledby="ui-mode-label">
+        <button
+          type="submit"
+          name="uiMode"
+          value="SIMPLE"
+          class="ui-mode-switch__option"
+          aria-pressed="<%= _uiMode === 'SIMPLE' ? 'true' : 'false' %>"
+        >
+          Simple<% if (_uiMode === 'SIMPLE') { %><span class="sr-only"> (current)</span><% } %>
+        </button>
+        <button
+          type="submit"
+          name="uiMode"
+          value="ADVANCED"
+          class="ui-mode-switch__option"
+          aria-pressed="<%= _uiMode === 'ADVANCED' ? 'true' : 'false' %>"
+        >
+          Advanced<% if (_uiMode === 'ADVANCED') { %><span class="sr-only"> (current)</span><% } %>
+        </button>
+      </div>
+      <p class="ui-mode-switch__hint">
+        <% if (_uiMode === 'ADVANCED') { %>
+          Build commands, ports and deploy hooks are visible.
+        <% } else { %>
+          Technical settings are hidden. Nothing is changed or removed.
+        <% } %>
+      </p>
+    </form>
   </div>
   <% } %>
 

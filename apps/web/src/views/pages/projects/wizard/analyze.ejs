@@ -1,0 +1,80 @@
+<%- include('../../../partials/wizard-progress') %>
+
+<div class="page-header">
+  <h1 class="page-header__title">
+    <% if (!hasRun) { %>Checking your project<% } else if (isReady) { %>Here is what we found<% } else { %>We need your help with this project<% } %>
+  </h1>
+  <p class="page-header__subtitle">
+    <% if (isReady) { %>
+      HelloDeploy worked out how to build <%= project.name %>. Nothing here needs changing unless
+      you want it to.
+    <% } else { %>
+      HelloDeploy could not work out everything about <%= project.name %> on its own.
+    <% } %>
+  </p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <% if (findings.length === 0) { %>
+    <p class="text-sm text-muted">
+      HelloDeploy has not looked at this project yet.
+    </p>
+    <% } else { %>
+    <ul class="analysis-findings" role="list">
+      <% findings.forEach((finding) => { %>
+      <li class="analysis-finding analysis-finding--<%= finding.status.toLowerCase() %>">
+        <span class="analysis-finding__marker" aria-hidden="true">
+          <% if (finding.status === 'OK') { %>&check;<% } else if (finding.status === 'WARNING') { %>!<% } else { %>&times;<% } %>
+        </span>
+        <span class="analysis-finding__text">
+          <span class="sr-only">
+            <% if (finding.status === 'OK') { %>Found:<% } else if (finding.status === 'WARNING') { %>Worth knowing:<% } else { %>Needs fixing:<% } %>
+          </span>
+          <%= finding.label %>
+        </span>
+      </li>
+      <% }) %>
+    </ul>
+    <% } %>
+
+    <% if (needsReview && isReady) { %>
+    <%# Covers both a guessed value and a project set up before HelloDeploy
+        recorded how it worked these out, so the wording claims neither. %>
+    <div class="alert alert--warning mt-6" role="status">
+      <p>
+        HelloDeploy is not certain it got all of these right. Have a quick look before you
+        continue — you can change them at any time.
+      </p>
+    </div>
+    <% } %>
+  </div>
+
+  <div class="card__footer">
+    <% if (isReady) { %>
+      <% if (needsReview) { %>
+      <form method="POST" action="/projects/<%= project.slug %>/setup/analyze/confirm" class="form-inline">
+        <%- include('../../../partials/csrf-field') %>
+        <button type="submit" class="button button--primary" data-pending-label="Saving...">
+          These settings look right
+        </button>
+      </form>
+      <% } else { %>
+      <a href="/projects/<%= project.slug %>/setup/identity" class="button button--primary">
+        Continue
+      </a>
+      <% } %>
+    <% } %>
+
+    <form method="POST" action="/projects/<%= project.slug %>/setup/analyze" class="form-inline">
+      <%- include('../../../partials/csrf-field') %>
+      <button type="submit" class="button button--secondary" data-pending-label="Checking...">
+        Check again
+      </button>
+    </form>
+
+    <a href="/projects/<%= project.slug %>/detection" class="button button--ghost">
+      Change these settings
+    </a>
+  </div>
+</div>

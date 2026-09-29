@@ -15,17 +15,39 @@ Controls:
 - Verification tokens are hashed, single-use, and expire.
 - Do not disclose whether an email exists during password recovery.
 
-## Project Creation
+## Website Creation (guided setup)
 
-1. User creates a project name and slug.
-2. System verifies ownership quota and slug availability.
-3. User either enters a public GitHub HTTPS URL or installs/authorizes the GitHub App for private or Automatic access.
-4. User selects a server-verified repository and production branch.
-5. System retrieves normalized public metadata without credentials or obtains short-lived authorized metadata through the GitHub App, then resolves the latest exact commit.
-6. Framework detector proposes configuration.
-7. User supplies required settings and secret names/values.
-8. System reserves `project-slug.hellodeploy.online`.
-9. Project remains a draft until approval is requested.
+The default path. Steps 2 onward are resolved from persisted project state, so the
+flow resumes at the same step after a refresh, a new tab, or a return on another
+device. Nothing about progress lives in the session.
+
+1. User chooses a source. GitHub only; upload and starter templates are declared but
+   unavailable.
+2. User picks a repository from the installation's own listing, which is the sole
+   authority on what the account may connect. Branch defaults to the repository's
+   default and is editable under advanced options.
+3. System creates the project on selection, named from the repository, and reserves
+   the slug. Creating it here rather than earlier means an abandoned flow leaves no
+   placeholder project and burns no slug.
+4. System resolves the exact commit and runs framework detection immediately.
+   Detection records per-field confidence; a detection failure does not strand the
+   project, which already has its source.
+5. User reviews analysis. High and medium confidence pass through; low confidence
+   requires explicit confirmation, recorded in `project.setup.confirmedSteps`.
+6. User confirms or edits the website name and platform address. Availability is
+   checked against reserved names, existing subdomains and existing slugs, using the
+   same rules the worker enforces at routing time.
+7. User supplies required settings, derived from the project's own `.env.example`.
+   Platform-managed names are refused in Simple mode.
+8. System assesses readiness. Every blocking check carries an action pointing at the
+   field that fixes it. The result is persisted for diagnosis.
+9. Project remains a draft until approval is requested. The readiness step surfaces
+   that gate rather than leaving it on a separate page.
+
+### Manual creation
+
+`/projects/new/manual` creates a name-only draft. Retained because it is the only
+path that supports a public Git URL, which guided setup does not cover.
 
 ## Initial Approval
 
@@ -65,6 +87,20 @@ High-risk file changes include:
 - `Dockerfile` and Dockerfile variants
 - Infrastructure manifests
 - Platform-specific deployment configuration
+
+## Deployment Progress Reporting
+
+1. Worker records a `DeploymentStage` at each real boundary of a release:
+   PREPARING, BUILDING, CONFIGURING, STARTING, CHECKING, PUBLISHING.
+2. Install and build are one stage. Both run inside a single `docker build`;
+   reporting them separately would mean parsing build output.
+3. Each transition is persisted and published on the existing Redis channel, so the
+   browser advances without a reload and a reader who arrives later sees the same
+   picture from the record alone.
+4. A terminal status closes the open stage. Cancellation sets the status directly and
+   does not close it, so a lingering open stage on a finished deployment is reported
+   as "did not finish" rather than as work in progress.
+5. Stages never reached stay absent rather than being marked skipped.
 
 ## Failed Deployment
 

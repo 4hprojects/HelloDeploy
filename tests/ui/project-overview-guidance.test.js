@@ -9,6 +9,8 @@ import {
   DeploymentStatus,
   ProjectRole,
   ProjectStatus,
+  FailureCode,
+  getFailureCopy,
 } from '@hellodeploy/contracts';
 
 const { renderFile } = ejs;
@@ -136,12 +138,15 @@ describe('guided project overview', () => {
       status: DeploymentStatus.HEALTHY,
       startedAt: new Date('2026-07-30T01:00:00Z'),
     };
+    // The overview renders translated copy, not the raw failureSummary, so the
+    // fixture carries what the controller attaches.
     const failedUpdate = {
       _id: '64b7f8e2a1c9d4f5b6a7c804',
       sequenceNumber: 5,
       status: DeploymentStatus.FAILED,
-      failureSummary:
-        'The application did not become healthy. The previous release remains available.',
+      failureCode: FailureCode.HEALTH_CHECK_FAILED,
+      failureSummary: 'ECONNREFUSED 127.0.0.1:3000',
+      failureCopy: getFailureCopy(FailureCode.HEALTH_CHECK_FAILED),
       startedAt: new Date('2026-07-30T02:00:00Z'),
     };
     const html = await renderOverview({
@@ -169,7 +174,7 @@ describe('guided project overview', () => {
 
     assert.match(html, /href="https:\/\/sample-app\.apps\.example\.com"/);
     assert.match(html, /target="_blank" rel="noopener noreferrer"/);
-    assert.match(html, /The previous release remains available/);
+    assert.match(html, /respond in time to confirm/);
     assert.doesNotMatch(html, /Steps to get the app live/);
   });
 

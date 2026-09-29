@@ -1,5 +1,5 @@
 import { Project, Deployment } from '@hellodeploy/database';
-import { DeploymentStatus } from '@hellodeploy/contracts';
+import { DeploymentStatus, FailureCode } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { allocatePort } from '../deployment/port-allocator.js';
 import {
@@ -72,7 +72,7 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
       deploymentId,
       DeploymentStatus.FAILED,
       {
-        failureCode: 'ROLLBACK_SOURCE_INVALID',
+        failureCode: FailureCode.ROLLBACK_SOURCE_INVALID,
         failureSummary: 'Target deployment is not in a valid HEALTHY state for rollback.',
         completedAt: new Date(),
       },
@@ -87,7 +87,7 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
       deploymentId,
       DeploymentStatus.FAILED,
       {
-        failureCode: 'PROJECT_NOT_FOUND',
+        failureCode: FailureCode.PROJECT_NOT_FOUND,
         failureSummary: 'Project not found.',
         completedAt: new Date(),
       },

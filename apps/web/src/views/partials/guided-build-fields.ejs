@@ -12,6 +12,7 @@
   const _gbStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime);
   const _gbBuiltStaticRuntime = ['REACT', 'VUE'].includes(_gbRuntime);
   const _gbServerRuntime = ['EXPRESS', 'NODEJS'].includes(_gbRuntime);
+  const _gbSimpleMode = (locals.uiMode || 'SIMPLE') !== 'ADVANCED';
 %>
 
 <div class="<%= _gbGridClass %>">
@@ -104,6 +105,19 @@
     <span class="form-label">App port</span>
     <p class="form-hint">
       HelloDeploy chooses the port automatically for this type of website. Nothing is required here.
+    </p>
+  </div>
+  <% } else if (_gbSimpleMode && !_gbErrors.applicationPort) { %>
+  <%# An internal port is infrastructure, so Simple mode does not ask about it.
+      The current value rides along in a hidden field: dropping it from the form
+      would clear a working app's port on the next save. Advanced mode edits it.
+      A rejected port falls through to the editable field below, because an
+      error the owner cannot see or correct is worse than showing the field. %>
+  <input type="hidden" name="applicationPort" value="<%= _gbValue('applicationPort', _gbConfig.applicationPort) %>" />
+  <div class="form-group guided-build-field--informational">
+    <span class="form-label">Connection</span>
+    <p class="form-hint">
+      HelloDeploy handles how visitors reach your website. Switch to Advanced mode to change it.
     </p>
   </div>
   <% } else { %>

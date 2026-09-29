@@ -1,7 +1,28 @@
 import mongoose from 'mongoose';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import {
+  DeploymentStage,
+  DeploymentStageStatus,
+  DeploymentStatus,
+  DeploymentTrigger,
+} from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
+
+// One coarse, user-facing step of a release. Ordered progress for the owner;
+// DeploymentEvent remains the full log stream for diagnosis.
+const deploymentStageSchema = new Schema(
+  {
+    stage: { type: String, enum: Object.values(DeploymentStage), required: true },
+    status: {
+      type: String,
+      enum: Object.values(DeploymentStageStatus),
+      default: DeploymentStageStatus.ACTIVE,
+    },
+    startedAt: { type: Date, default: Date.now },
+    completedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
 
 const deploymentSchema = new Schema(
   {
@@ -21,7 +42,7 @@ const deploymentSchema = new Schema(
       enum: Object.values(DeploymentStatus),
       default: DeploymentStatus.QUEUED,
     },
-    currentStage: { type: String, default: null },
+    stages: { type: [deploymentStageSchema], default: [] },
     imageTag: { type: String, default: null },
     imageDigest: { type: String, default: null },
     candidateContainerId: { type: String, default: null },

@@ -170,3 +170,88 @@ export const RuntimeType = Object.freeze({
   NEXTJS: 'NEXTJS',
   UNKNOWN: 'UNKNOWN',
 });
+
+/**
+ * Interface complexity preference.
+ * SIMPLE hides infrastructure controls (ports, runtime config, deploy hooks);
+ * ADVANCED exposes them. Hiding is presentation-only — nothing is removed, and
+ * every SIMPLE-hidden control stays reachable in ADVANCED.
+ */
+export const UiMode = Object.freeze({
+  SIMPLE: 'SIMPLE',
+  ADVANCED: 'ADVANCED',
+});
+
+/**
+ * Coarse, user-facing deployment stage.
+ *
+ * Each value corresponds to a real boundary in the worker, so a recorded stage
+ * always reflects work that actually started. Install and build are not split:
+ * both run inside a single `docker build`, and separating them would mean
+ * parsing Docker's step output.
+ */
+export const DeploymentStage = Object.freeze({
+  PREPARING: 'PREPARING',
+  BUILDING: 'BUILDING',
+  CONFIGURING: 'CONFIGURING',
+  STARTING: 'STARTING',
+  CHECKING: 'CHECKING',
+  PUBLISHING: 'PUBLISHING',
+});
+
+/** Outcome of a single deployment stage */
+export const DeploymentStageStatus = Object.freeze({
+  ACTIVE: 'ACTIVE',
+  COMPLETE: 'COMPLETE',
+  FAILED: 'FAILED',
+});
+
+/**
+ * How much evidence a detected setting rests on.
+ *
+ * HIGH   — an unambiguous marker in the project (a framework dependency, a
+ *          declared script). Safe to apply without asking.
+ * MEDIUM — identified the framework, but filled a command from its convention
+ *          rather than the project's own declaration. Worth a glance.
+ * LOW    — inferred from weak evidence, such as the mere presence of a `start`
+ *          script. Ask the user to confirm.
+ * MANUAL — the user set this value themselves; detection must not overwrite it.
+ * LEGACY — recorded before confidence was tracked. Never re-derived, because a
+ *          score invented after the fact would be a guess about a guess.
+ */
+export const DetectionConfidence = Object.freeze({
+  HIGH: 'HIGH',
+  MEDIUM: 'MEDIUM',
+  LOW: 'LOW',
+  MANUAL: 'MANUAL',
+  LEGACY: 'LEGACY',
+});
+
+/** Node package manager inferred from the committed lock file */
+export const PackageManager = Object.freeze({
+  NPM: 'NPM',
+  PNPM: 'PNPM',
+  YARN: 'YARN',
+  UNKNOWN: 'UNKNOWN',
+});
+
+/**
+ * What kind of environment value a variable is, from the owner's point of view.
+ *
+ * PLATFORM_MANAGED   — HelloDeploy sets this at run time (PORT, NODE_ENV, HOST).
+ *                      Setting it by hand usually breaks the website, so Simple
+ *                      mode refuses it and Advanced mode warns.
+ * REQUIRED_USER_INPUT— referenced by the project and not yet supplied. Blocks
+ *                      publishing.
+ * OPTIONAL_USER_INPUT— referenced with a fallback, or supplied already.
+ * DETECTED_EXISTING  — stored by the owner and not referenced by the code we
+ *                      could see. Kept, never removed on our own initiative.
+ * UNKNOWN            — nothing could be established about it.
+ */
+export const EnvVarCategory = Object.freeze({
+  PLATFORM_MANAGED: 'PLATFORM_MANAGED',
+  REQUIRED_USER_INPUT: 'REQUIRED_USER_INPUT',
+  OPTIONAL_USER_INPUT: 'OPTIONAL_USER_INPUT',
+  DETECTED_EXISTING: 'DETECTED_EXISTING',
+  UNKNOWN: 'UNKNOWN',
+});

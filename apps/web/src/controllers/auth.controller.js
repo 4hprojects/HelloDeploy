@@ -1,7 +1,6 @@
 import { asyncHandler } from '../utils/async-handler.js';
+import { isSafeReturnPath } from '../utils/safe-redirect.js';
 import { PlatformRole } from '@hellodeploy/contracts';
-import { logger } from '@hellodeploy/observability';
-import { env } from '../config/env.js';
 import {
   registerUser,
   verifyEmail,
@@ -11,6 +10,7 @@ import {
   verifyPasswordResetCode,
   completePasswordReset,
 } from '../services/auth.service.js';
+import { verifyTurnstile } from '../services/turnstile.service.js';
 import {
   validateRegistration,
   validateSignIn,
@@ -18,34 +18,6 @@ import {
   validateResetCode,
   validateNewPassword,
 } from '../validators/auth.validator.js';
-
-// ─── Turnstile verification ────────────────────────────────────────────────────
-
-async function verifyTurnstile(token, sourceIp) {
-  const secret = env.TURNSTILE_SECRET_KEY;
-  if (!secret) {
-    // Skip in development when no key is configured
-    return true;
-  }
-  try {
-    const body = new URLSearchParams({
-      secret,
-      response: token,
-      remoteip: sourceIp ?? '',
-    });
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body,
-    });
-    const data = await res.json();
-    return data.success === true;
-  } catch (err) {
-    // A Turnstile outage silently failing every sign-in would be hard to spot
-    // without this trail.
-    logger.warn('Turnstile verification request failed', { error: err.message });
-    return false;
-  }
-}
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -55,11 +27,7 @@ function authRenderOpts(extra = {}) {
 
 function safeRedirect(req, fallback) {
   const returnTo = req.query.returnTo ?? req.body.returnTo ?? '';
-  // Prevent open redirect: only allow relative paths starting with /
-  if (returnTo && /^\/[^/]/.test(returnTo)) {
-    return returnTo;
-  }
-  return fallback;
+  return isSafeReturnPath(returnTo) ? returnTo : fallback;
 }
 
 function redirectByRole(role) {

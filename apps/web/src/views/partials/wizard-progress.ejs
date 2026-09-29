@@ -1,0 +1,28 @@
+<%
+  var _steps = locals.wizardSteps || [];
+  var _statusGlyph = { COMPLETE: '✓', CURRENT: '●', UPCOMING: '○' };
+  var _statusWord = { COMPLETE: 'Done', CURRENT: 'In progress', UPCOMING: 'Not started' };
+%>
+<nav class="wizard-progress" aria-label="Setup progress">
+  <ol class="wizard-progress__list" role="list">
+    <% _steps.forEach((step) => { %>
+    <li class="wizard-progress__step wizard-progress__step--<%= step.status.toLowerCase() %>">
+      <% if (step.status === 'COMPLETE') { %>
+      <a href="<%= step.href %>" class="wizard-progress__link">
+      <% } else { %>
+      <span class="wizard-progress__link" <%- step.status === 'CURRENT' ? 'aria-current="step"' : '' %>>
+      <% } %>
+        <span class="wizard-progress__marker" aria-hidden="true">
+          <%= step.status === 'COMPLETE' ? _statusGlyph.COMPLETE : step.position %>
+        </span>
+        <span class="wizard-progress__label"><%= step.label %></span>
+        <span class="sr-only"> — <%= _statusWord[step.status] %></span>
+      <% if (step.status === 'COMPLETE') { %>
+      </a>
+      <% } else { %>
+      </span>
+      <% } %>
+    </li>
+    <% }) %>
+  </ol>
+</nav>

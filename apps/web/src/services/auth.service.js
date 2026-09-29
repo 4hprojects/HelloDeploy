@@ -1,4 +1,4 @@
-import { randomInt, createHash } from 'node:crypto';
+import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import { User } from '@hellodeploy/database';
 import { hashPassword, verifyPassword, generateToken, hashToken } from '@hellodeploy/auth';
 import { AuditOutcome, UserStatus, PlatformRole } from '@hellodeploy/contracts';
@@ -279,7 +279,7 @@ export async function verifyPasswordResetCode({ email, code, sourceIp, correlati
 
   const submittedHash = createHash('sha256').update(code.trim()).digest('hex');
 
-  if (user.passwordResetTokenHash !== submittedHash) {
+  if (!hashesMatch(submittedHash, user.passwordResetTokenHash)) {
     user.passwordResetAttempts += 1;
     await user.save();
     return { success: false, error: 'Reset code is incorrect.' };
@@ -330,4 +330,19 @@ export async function completePasswordReset({ email, newPassword, sourceIp, corr
   });
 
   return { success: true };
+}
+
+/**
+ * Compare two hex digests without leaking how far they matched.
+ *
+ * The attempt limiter is what actually stops a reset code being guessed; this
+ * keeps the comparison consistent with how deploy hook tokens, CSRF tokens and
+ * webhook signatures are checked elsewhere, so the protection does not depend
+ * on that limiter staying in place.
+ */
+function hashesMatch(submittedHex, storedHex) {
+  if (typeof storedHex !== 'string' || submittedHex.length !== storedHex.length) {
+    return false;
+  }
+  return timingSafeEqual(Buffer.from(submittedHex, 'hex'), Buffer.from(storedHex, 'hex'));
 }

@@ -1,5 +1,14 @@
 import { Project, Deployment, DeploymentEvent, Domain } from '@hellodeploy/database';
-import { DeploymentStatus, RuntimeType, AuditOutcome, DomainStatus } from '@hellodeploy/contracts';
+import {
+  DeploymentStage,
+  DeploymentStageStatus,
+  DeploymentStatus,
+  RuntimeType,
+  AuditOutcome,
+  DomainStatus,
+  FailureCode,
+  ProjectStatus,
+} from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
@@ -71,19 +80,119 @@ export async function logEvent(deploymentId, stage, level, message, correlationI
 }
 
 /**
+ * Mark a coarse, user-facing stage as started, and close the stage before it.
+ *
+ * Called at real boundaries only, so a recorded stage always means the work
+ * began. Failures are closed by `failCurrentStage` rather than here, which
+ * keeps the progress list honest when a release stops partway.
+ */
+export async function recordStage(deploymentId, stage) {
+  const now = new Date();
+
+  await Deployment.updateOne(
+    { _id: deploymentId, 'stages.status': DeploymentStageStatus.ACTIVE },
+    {
+      $set: {
+        'stages.$[active].status': DeploymentStageStatus.COMPLETE,
+        'stages.$[active].completedAt': now,
+      },
+    },
+    { arrayFilters: [{ 'active.status': DeploymentStageStatus.ACTIVE }] },
+  );
+
+  // Retrying a release re-enters stages it already recorded; keep one row per
+  // stage so the progress list does not grow on every attempt.
+  await Deployment.updateOne({ _id: deploymentId }, { $pull: { stages: { stage } } });
+  await Deployment.updateOne(
+    { _id: deploymentId },
+    {
+      $push: {
+        stages: { stage, status: DeploymentStageStatus.ACTIVE, startedAt: now, completedAt: null },
+      },
+    },
+  );
+
+  publishDeployEvent(deploymentId, { type: 'stage', stage, status: DeploymentStageStatus.ACTIVE });
+}
+
+async function closeCurrentStage(deploymentId, status) {
+  await Deployment.updateOne(
+    { _id: deploymentId, 'stages.status': DeploymentStageStatus.ACTIVE },
+    {
+      $set: {
+        'stages.$[active].status': status,
+        'stages.$[active].completedAt': new Date(),
+      },
+    },
+    { arrayFilters: [{ 'active.status': DeploymentStageStatus.ACTIVE }] },
+  );
+
+  publishDeployEvent(deploymentId, { type: 'stage', status });
+}
+
+/**
+ * Close whichever stage was in progress as FAILED. Leaves later stages absent
+ * rather than marking them skipped — nothing was attempted, so nothing is shown.
+ */
+export async function failCurrentStage(deploymentId) {
+  await closeCurrentStage(deploymentId, DeploymentStageStatus.FAILED);
+}
+
+/** Close the final stage once the release is healthy. */
+export async function completeCurrentStage(deploymentId) {
+  await closeCurrentStage(deploymentId, DeploymentStageStatus.COMPLETE);
+}
+
+/**
+ * Statuses a deployment never leaves. Cancelling is the one that matters here:
+ * an owner may cancel while a job is mid-flight, and that job is past its entry
+ * guard and will keep going.
+ */
+const TERMINAL_STATUSES = [
+  DeploymentStatus.HEALTHY,
+  DeploymentStatus.FAILED,
+  DeploymentStatus.CANCELLED,
+  DeploymentStatus.ROLLED_BACK,
+];
+
+/**
  * Transition a deployment and run the terminal-status side effects:
  * image removal on FAILED (when `removeImageOnFailure`) and owner notification.
+ *
+ * A deployment already in a terminal state is left alone. Without that, a build
+ * cancelled while running would finish, write DEPLOYING over CANCELLED, and pass
+ * the activation job's entry guard — so a release the owner stopped would go
+ * live. Retrying is unaffected: it creates a new deployment record rather than
+ * reusing the cancelled one.
+ *
+ * @returns {Promise<boolean>} Whether the transition was applied.
  */
 export async function updateStatus(deploymentId, toStatus, extra = {}, options = {}) {
   const { project = null, deps = null, removeImageOnFailure = false } = options;
 
-  await Deployment.updateOne(
-    { _id: deploymentId },
-    { $set: { status: toStatus, currentStage: toStatus, ...extra } },
+  const result = await Deployment.updateOne(
+    { _id: deploymentId, status: { $nin: TERMINAL_STATUSES } },
+    { $set: { status: toStatus, ...extra } },
   );
 
+  if (result.matchedCount === 0) {
+    logger.info('Pipeline: status transition skipped, deployment already finished', {
+      deploymentId: String(deploymentId),
+      attemptedStatus: toStatus,
+    });
+    return false;
+  }
+
+  // Close the open stage on both terminal outcomes so the progress list never
+  // leaves a stage stuck mid-flight.
+  if (toStatus === DeploymentStatus.FAILED) {
+    await failCurrentStage(deploymentId);
+  } else if (toStatus === DeploymentStatus.HEALTHY) {
+    await completeCurrentStage(deploymentId);
+  }
+
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
-    return;
+    return true;
   }
 
   // Instant terminal-status push for live SSE viewers.
@@ -133,6 +242,8 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
       })
       .catch(() => {}); // notification failures must never affect the deployment pipeline
   }
+
+  return true;
 }
 
 /**
@@ -186,6 +297,8 @@ export async function runReleasePipeline({
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
+  await recordStage(deploymentId, DeploymentStage.CONFIGURING);
+
   // ── Allocate port ───────────────────────────────────────────────────────────
   let hostPort;
   try {
@@ -197,7 +310,7 @@ export async function runReleasePipeline({
     await logEvent(deploymentId, 'DEPLOY', 'INFO', `Allocated port ${hostPort}.`, correlationId);
   } catch (err) {
     await logEvent(deploymentId, 'DEPLOY', 'ERROR', err.message, correlationId);
-    return fail('PORT_ALLOCATION_FAILED', err.message);
+    return fail(FailureCode.PORT_ALLOCATION_FAILED, err.message);
   }
 
   // ── Ensure network ──────────────────────────────────────────────────────────
@@ -211,7 +324,7 @@ export async function runReleasePipeline({
       `Network setup failed: ${err.message}`,
       correlationId,
     );
-    return fail('NETWORK_SETUP_FAILED', err.message);
+    return fail(FailureCode.NETWORK_SETUP_FAILED, err.message);
   }
 
   // ── Decrypt env vars ────────────────────────────────────────────────────────
@@ -233,8 +346,10 @@ export async function runReleasePipeline({
       'Failed to decrypt environment secrets.',
       correlationId,
     );
-    return fail('SECRET_DECRYPTION_FAILED', 'Could not decrypt environment secrets.');
+    return fail(FailureCode.SECRET_DECRYPTION_FAILED, 'Could not decrypt environment secrets.');
   }
+
+  await recordStage(deploymentId, DeploymentStage.STARTING);
 
   // ── Start container ─────────────────────────────────────────────────────────
   // A retried job can leave a container from its previous attempt under the
@@ -294,7 +409,7 @@ export async function runReleasePipeline({
       `Failed to start container: ${err.message}`,
       correlationId,
     );
-    return fail('CONTAINER_START_FAILED', err.message);
+    return fail(FailureCode.CONTAINER_START_FAILED, err.message);
   }
 
   // ── Startup stabilization + crash-loop detection ────────────────────────────
@@ -320,6 +435,8 @@ export async function runReleasePipeline({
       `Container exited with code ${state.exitCode} immediately after start.`,
     );
   }
+
+  await recordStage(deploymentId, DeploymentStage.CHECKING);
 
   // ── HTTP health check ───────────────────────────────────────────────────────
   const rawHealthCheckPath = project.buildConfiguration?.healthCheckPath || '/';
@@ -360,6 +477,51 @@ export async function runReleasePipeline({
     correlationId,
   );
 
+  // ── Last check before traffic moves ─────────────────────────────────────────
+  // Cancelling is allowed while a release is in flight, and this job is long past
+  // its entry guard. Routing is the point of no return: after it, visitors are
+  // being served by a release someone asked to stop. The container is healthy but
+  // nothing points at it yet, so stopping here is clean.
+  const current = await Deployment.findById(deploymentId).select('status').lean();
+  if (current && TERMINAL_STATUSES.includes(current.status)) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Release stopped before routing: deployment is ${current.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    logger.info('Pipeline: release abandoned before routing', {
+      deploymentId: String(deploymentId),
+      status: current.status,
+    });
+    return { ok: false };
+  }
+
+  // Suspending a project already stops new deployments being created. One that
+  // was in flight when the suspension landed should not slip past that, so it is
+  // checked here too. Failing rather than returning quietly matters: a release
+  // left mid-flight would satisfy the one-active-deployment check forever and
+  // block the project even after it is reactivated.
+  const currentProject = await Project.findById(projectId).select('status').lean();
+  if (currentProject && currentProject.status !== ProjectStatus.ACTIVE) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      `Release stopped before routing: project is ${currentProject.status}.`,
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    return fail(
+      FailureCode.PROJECT_NOT_ACTIVE,
+      `Project is ${currentProject.status}; the release was not published.`,
+    );
+  }
+
+  await recordStage(deploymentId, DeploymentStage.PUBLISHING);
+
   // ── Nginx route activation ──────────────────────────────────────────────────
   if (env.NGINX_ENABLED) {
     const subdomain = project.platformSubdomain ?? project.slug;
@@ -374,7 +536,7 @@ export async function runReleasePipeline({
         correlationId,
       );
       await deps.stopAndRemoveContainer(cName);
-      return fail('SUBDOMAIN_INVALID', `Subdomain "${subdomain}" cannot be used.`);
+      return fail(FailureCode.SUBDOMAIN_INVALID, `Subdomain "${subdomain}" cannot be used.`);
     }
 
     if (subdomainUsable) {
@@ -474,7 +636,7 @@ export async function runReleasePipeline({
           correlationId,
         );
         await deps.stopAndRemoveContainer(cName);
-        return fail('NGINX_ROUTE_FAILED', `Nginx configuration failed: ${err.message}`);
+        return fail(FailureCode.NGINX_ROUTE_FAILED, `Nginx configuration failed: ${err.message}`);
       }
 
       // Persist subdomain assignment on first-time deployment

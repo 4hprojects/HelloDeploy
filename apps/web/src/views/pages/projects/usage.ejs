@@ -1,0 +1,80 @@
+<div class="page-header">
+  <h1 class="page-header__title">Usage</h1>
+  <p class="page-header__subtitle">What you are using, and what your plan allows.</p>
+</div>
+
+<% if (isAnyAtLimit) { %>
+<div class="alert alert--warning" role="status">
+  <p>You have reached one of your limits. Remove something you no longer need, or ask an administrator to raise it.</p>
+</div>
+<% } %>
+
+<ul class="usage-rows" role="list">
+  <% rows.forEach((row) => { %>
+  <li class="usage-row<%= row.isAtLimit ? ' usage-row--at-limit' : '' %>">
+    <div class="usage-row__head">
+      <span class="usage-row__label"><%= row.label %></span>
+      <span class="usage-row__summary">
+        <%= row.summary %>
+        <% if (row.isOverLimit) { %>
+        <span class="usage-row__flag">Over your limit</span>
+        <% } else if (row.isAtLimit) { %>
+        <span class="usage-row__flag">At your limit</span>
+        <% } else if (row.isNearLimit) { %>
+        <span class="usage-row__flag">One left</span>
+        <% } %>
+      </span>
+    </div>
+    <% if (!row.isUnlimited) { %>
+    <%# A native progress element carries its own value and needs no inline
+        style, which the content security policy forbids. %>
+    <progress
+      class="usage-row__meter"
+      max="<%= row.limit %>"
+      value="<%= Math.min(row.used, row.limit) %>"
+      aria-label="<%= row.label %>: <%= row.summary %>"
+    ></progress>
+    <% } %>
+    <p class="usage-row__explain"><%= row.explain %></p>
+  </li>
+  <% }) %>
+</ul>
+
+<% if ((locals.counts || []).length > 0) { %>
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Also in use</h2>
+    <p class="text-sm text-muted">
+      These are not capped, so there is no allowance to show.
+    </p>
+    <dl class="usage-allocation">
+      <% counts.forEach((item) => { %>
+      <div>
+        <dt><%= item.label %></dt>
+        <dd><%= item.used %></dd>
+      </div>
+      <% }) %>
+    </dl>
+  </div>
+</div>
+<% } %>
+
+<% if (allocation) { %>
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Recorded plan figures</h2>
+    <p class="text-sm text-muted">
+      Configured for this plan but not currently applied to running websites —
+      HelloDeploy uses its own server-wide settings instead.
+    </p>
+    <dl class="usage-allocation">
+      <% allocation.forEach((item) => { %>
+      <div>
+        <dt><%= item.label %></dt>
+        <dd><%= item.value %></dd>
+      </div>
+      <% }) %>
+    </dl>
+  </div>
+</div>
+<% } %>

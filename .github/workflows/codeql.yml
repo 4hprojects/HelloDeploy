@@ -30,7 +30,51 @@ jobs:
         with:
           languages: ${{ matrix.language }}
 
+      # Uploading results needs code scanning, which a private repository only
+      # has with GitHub Advanced Security. Without it the upload is rejected and
+      # the analysis is thrown away — the queries run, find whatever they find,
+      # and nobody sees it. Writing SARIF locally and reading it here keeps the
+      # findings visible. Restoring code scanning is the better answer, because
+      # it brings back alert history and dismissals; until then this at least
+      # fails the build for a real reason rather than a configuration one.
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
         with:
           category: '/language:${{ matrix.language }}'
+          upload: false
+          output: codeql-results
+
+      - name: Report findings
+        run: |
+          shopt -s nullglob
+          files=(codeql-results/*.sarif)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No SARIF produced — the analysis did not complete as expected."
+            exit 1
+          fi
+
+          total=0
+          for f in "${files[@]}"; do
+            count=$(jq '[.runs[].results[]?] | length' "$f")
+            total=$((total + count))
+            if [ "$count" -gt 0 ]; then
+              echo "::group::$f ($count findings)"
+              jq -r '.runs[].results[]? |
+                "\(.ruleId)  \(.locations[0].physicalLocation.artifactLocation.uri):\(.locations[0].physicalLocation.region.startLine // 0)\n    \(.message.text)"' "$f"
+              echo "::endgroup::"
+            fi
+          done
+
+          echo "CodeQL findings: $total"
+          if [ "$total" -gt 0 ]; then
+            echo "::error::CodeQL reported $total finding(s). See the grouped output above."
+            exit 1
+          fi
+
+      - name: Upload SARIF as an artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-sarif
+          path: codeql-results/
+          if-no-files-found: warn

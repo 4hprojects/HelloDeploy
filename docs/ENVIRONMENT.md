@@ -73,10 +73,11 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 Resend is optional. When `RESEND_API_KEY` is empty, outbound verification and deployment-notification email is skipped.
 
-| Variable         | Used by     | Default                      | Purpose                                                                                |
-| ---------------- | ----------- | ---------------------------- | -------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification and deployment notifications are skipped when unset |
-| `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                         |
+| Variable         | Used by     | Default                      | Purpose                                                                                                                                                                                                                     |
+| ---------------- | ----------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification and deployment notifications are skipped when unset                                                                                                                                      |
+| `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                                                                                                                                                              |
+| `CONTACT_EMAIL`  | web         | operator address             | Where contact form submissions are delivered. Defaults to the address the legal and security pages publish. Set it explicitly if support should go elsewhere; a warning is logged once if it resolves to a no-reply address |
 
 ## Configuration validation
 

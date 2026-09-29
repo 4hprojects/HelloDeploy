@@ -1,4 +1,9 @@
-import { ProjectRole } from '@hellodeploy/contracts';
+import { ProjectRole, UiMode } from '@hellodeploy/contracts';
+
+// `modes` lists the interface modes an item appears in. Items without it show
+// in every mode. Infrastructure-oriented pages are ADVANCED-only: they remain
+// fully functional and routable in SIMPLE, just absent from the navigation.
+const ADVANCED_ONLY = Object.freeze([UiMode.ADVANCED]);
 
 const PROJECT_NAVIGATION = Object.freeze([
   { key: 'overview', label: 'Overview', path: '', icon: 'overview' },
@@ -9,8 +14,15 @@ const PROJECT_NAVIGATION = Object.freeze([
     path: '/repository',
     icon: 'repository',
     roles: [ProjectRole.OWNER],
+    modes: ADVANCED_ONLY,
   },
-  { key: 'detection', label: 'Detection', path: '/detection', icon: 'detection' },
+  {
+    key: 'detection',
+    label: 'Detection',
+    path: '/detection',
+    icon: 'detection',
+    modes: ADVANCED_ONLY,
+  },
   { key: 'domains', label: 'Domains', path: '/domains', icon: 'domain' },
   {
     key: 'deploy-hook',
@@ -18,6 +30,7 @@ const PROJECT_NAVIGATION = Object.freeze([
     path: '/deploy-hook',
     icon: 'deploy',
     roles: [ProjectRole.OWNER],
+    modes: ADVANCED_ONLY,
   },
   {
     key: 'environment',
@@ -32,7 +45,9 @@ const PROJECT_NAVIGATION = Object.freeze([
     path: '/members',
     icon: 'users',
     roles: [ProjectRole.OWNER],
+    modes: ADVANCED_ONLY,
   },
+  { key: 'usage', label: 'Usage', path: '/usage', icon: 'activity' },
   {
     key: 'settings',
     label: 'Settings',
@@ -60,9 +75,15 @@ function roleCanAccess(item, role) {
   return !item.roles || item.roles.includes(role);
 }
 
-export function buildProjectNavigation(slug, role, currentPath = '') {
+function modeCanAccess(item, uiMode) {
+  return !item.modes || item.modes.includes(uiMode);
+}
+
+export function buildProjectNavigation(slug, role, currentPath = '', uiMode = UiMode.SIMPLE) {
   const base = `/projects/${slug}`;
-  return PROJECT_NAVIGATION.filter((item) => roleCanAccess(item, role)).map((item) => {
+  return PROJECT_NAVIGATION.filter(
+    (item) => roleCanAccess(item, role) && modeCanAccess(item, uiMode),
+  ).map((item) => {
     const href = `${base}${item.path}`;
     const active = item.path ? currentPath.startsWith(href) : currentPath === base;
     return { ...item, href, active };

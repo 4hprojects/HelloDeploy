@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
 import { User } from '@hellodeploy/database';
-import { UserStatus, PlatformRole } from '@hellodeploy/contracts';
+import { UiMode, UserStatus, PlatformRole } from '@hellodeploy/contracts';
 import { generateToken } from '@hellodeploy/auth';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
@@ -74,6 +74,7 @@ describe('email verification establishes a session (no forced re-login)', () => 
       platformRole: PlatformRole.USER,
       status: UserStatus.ACTIVE,
       configVersion: user.configVersion,
+      uiMode: UiMode.SIMPLE,
     });
   });
 

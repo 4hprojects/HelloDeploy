@@ -1,0 +1,151 @@
+<div class="page-header">
+  <h1 class="page-header__title">Contact HelloDeploy</h1>
+  <p class="page-header__subtitle">
+    Use this page if you need help with HelloDeploy or want to reach the project team. Pick the
+    closest category — it goes to the same inbox, but the subject line helps it get triaged.
+  </p>
+</div>
+
+<div class="alert alert--warning">
+  <p>
+    <strong>Never send secrets.</strong> Do not include passwords, private keys, API secrets,
+    access tokens, or the values of secret environment variables in a message. If a
+    troubleshooting step seems to need one, say so and it will be handled another way.
+  </p>
+</div>
+
+<% if (sent) { %>
+<div class="alert alert--success" role="status">
+  <p>
+    <strong>Message sent.</strong> Thanks — it has been delivered. HelloDeploy is a pilot
+    operated by one person, so a reply is not immediate.
+  </p>
+</div>
+<% } %>
+
+<% if (typeof deliveryFailed !== 'undefined' && deliveryFailed) { %>
+<div class="alert alert--error" role="alert">
+  <p>
+    <strong>The message could not be delivered.</strong> Nothing was sent. Please try again, or
+    email <strong>hensonsagorsor@gmail.com</strong> directly.
+  </p>
+</div>
+<% } %>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Send a message</h2>
+
+    <form method="post" action="/contact" novalidate>
+      <%- include('../partials/csrf-field') %>
+
+      <!-- Honeypot: hidden from people, irresistible to bots. -->
+      <div class="sr-only" aria-hidden="true">
+        <label for="website">Leave this field empty</label>
+        <input type="text" id="website" name="website" tabindex="-1" autocomplete="off" />
+      </div>
+
+      <%- include('../partials/form-field', {
+        fieldId: 'name', label: 'Your name', type: 'text', name: 'name',
+        value: values.name || '', autocomplete: 'name', required: true, error: errors.name || null,
+      }) %>
+
+      <%- include('../partials/form-field', {
+        fieldId: 'email', label: 'Email address', type: 'email', name: 'email',
+        value: values.email || '', autocomplete: 'email', required: true,
+        hint: 'Where a reply should go.', error: errors.email || null,
+      }) %>
+
+      <div class="form-field">
+        <label for="category" class="form-label form-label--required">Category</label>
+        <select
+          id="category"
+          name="category"
+          class="form-select<% if (errors.category) { %> form-input--error<% } %>"
+          aria-required="true"
+          <% if (errors.category) { %>aria-describedby="category-error"<% } %>
+        >
+          <option value="">Choose a category</option>
+          <% categories.forEach(category => { %>
+            <option value="<%= category.value %>"<%= values.category === category.value ? ' selected' : '' %>><%= category.label %></option>
+          <% }) %>
+        </select>
+        <% if (errors.category) { %>
+        <p class="form-error" id="category-error" role="alert"><%= errors.category %></p>
+        <% } %>
+      </div>
+
+      <%- include('../partials/form-field', {
+        fieldId: 'subject', label: 'Subject', type: 'text', name: 'subject',
+        value: values.subject || '', required: true, error: errors.subject || null,
+      }) %>
+
+      <div class="form-field">
+        <label for="message" class="form-label form-label--required">Message</label>
+        <textarea
+          id="message"
+          name="message"
+          rows="8"
+          class="form-textarea<% if (errors.message) { %> form-input--error<% } %>"
+          aria-required="true"
+          <% if (errors.message) { %>aria-describedby="message-error"<% } else { %>aria-describedby="message-hint"<% } %>
+        ><%= values.message || '' %></textarea>
+        <% if (errors.message) { %>
+        <p class="form-error" id="message-error" role="alert"><%= errors.message %></p>
+        <% } else { %>
+        <p class="form-hint" id="message-hint">What you did, what you expected, and what happened instead.</p>
+        <% } %>
+      </div>
+
+      <%- include('../partials/form-field', {
+        fieldId: 'projectUrl', label: 'Project address (optional)', type: 'text', name: 'projectUrl',
+        value: values.projectUrl || '', error: errors.projectUrl || null,
+        hint: 'Only if your question is about a deployed project.',
+      }) %>
+
+      <%- include('../partials/form-field', {
+        fieldId: 'deploymentId', label: 'Deployment reference (optional)', type: 'text', name: 'deploymentId',
+        value: values.deploymentId || '', error: errors.deploymentId || null,
+        hint: 'Which deployment it concerns, if you know.',
+      }) %>
+
+      <% if (turnstileSiteKey) { %>
+      <%# Cloudflare Turnstile widget placeholder (rendered by Turnstile JS) %>
+      <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>"></div>
+      <% } %>
+      <% if (errors.turnstile) { %>
+      <p class="form-error" role="alert"><%= errors.turnstile %></p>
+      <% } %>
+
+      <div class="button-group mt-6">
+        <button type="submit" class="button button--primary">Send message</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Reporting a security issue</h2>
+    <p class="text-sm text-muted">
+      Suspected vulnerabilities have their own process, including what counts as safe testing
+      and what not to do while investigating. Read the
+      <a href="/security">Security Policy</a> before reporting one.
+    </p>
+
+    <h2 class="mt-8">What to include</h2>
+    <p class="text-sm text-muted">
+      For anything deployment-related, these turn a slow exchange into a single reply:
+    </p>
+    <ul class="text-sm text-muted mt-2">
+      <li>your project address</li>
+      <li>which deployment it concerns, and roughly when it ran</li>
+      <li>the exact error text, or the log lines around the failure</li>
+      <li>what you have already tried</li>
+    </ul>
+    <p class="text-sm text-muted mt-4">
+      HelloDeploy is a pilot operated by one person, so replies are not immediate. See
+      <a href="/about">About</a> for what that means in practice.
+    </p>
+  </div>
+</div>

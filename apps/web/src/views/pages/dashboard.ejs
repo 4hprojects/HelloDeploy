@@ -3,7 +3,7 @@
     <h1 class="page-header__title">Dashboard</h1>
     <p class="page-header__subtitle">Welcome back, <%= locals.user?.firstName ?? 'there' %>.</p>
   </div>
-  <a href="/projects/new" class="button button--primary">New Project</a>
+  <a href="/projects/new" class="button button--primary">Deploy a Website</a>
 </div>
 
 <% if (projects.length === 0) { %>
@@ -17,7 +17,7 @@
     <li>Run detection, add required secrets, and deploy when ready.</li>
   </ul>
   <div class="empty-state__actions">
-    <a href="/projects/new" class="button button--primary">Create Project</a>
+    <a href="/projects/new" class="button button--primary">Deploy a Website</a>
   </div>
 </div>
 <% } else { %>

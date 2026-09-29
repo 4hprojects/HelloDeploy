@@ -259,6 +259,47 @@
     });
   }
 
+  function initPublicNav() {
+    const toggle = document.getElementById('public-nav-toggle');
+    const nav = document.getElementById('public-nav');
+
+    if (!toggle || !nav) {
+      return;
+    }
+
+    const wideQuery = window.matchMedia('(min-width: 60rem)');
+
+    function setOpen(isOpen) {
+      toggle.setAttribute('aria-expanded', String(isOpen));
+      if (isOpen) {
+        nav.setAttribute('data-open', 'true');
+      } else {
+        nav.removeAttribute('data-open');
+      }
+    }
+
+    toggle.addEventListener('click', () => {
+      setOpen(toggle.getAttribute('aria-expanded') !== 'true');
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape' && toggle.getAttribute('aria-expanded') === 'true') {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    // Widening past the breakpoint reveals the nav via CSS; drop the open state so the
+    // toggle does not report expanded while it is hidden.
+    wideQuery.addEventListener('change', (event) => {
+      if (event.matches) {
+        setOpen(false);
+      }
+    });
+
+    setOpen(false);
+  }
+
   function initScrollTop() {
     const button = document.getElementById('scroll-top-button');
     if (!button) {
@@ -786,39 +827,53 @@
 
     const indicator = document.getElementById('live-indicator');
     const reconnectButton = document.getElementById('log-reconnect-button');
-    const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
 
-    function updateTimeline(ev) {
-      const statusKey = eventStageToStatus[ev.stage];
-      if (!statusKey) {
+    // Words as well as glyphs, matching what the server rendered, so a stage
+    // advancing live stays readable to a screen reader.
+    const STAGE_STATUS_WORD = {
+      COMPLETE: 'Done',
+      ACTIVE: 'Working on it',
+      FAILED: 'Stopped here',
+    };
+    const STAGE_GLYPH = { COMPLETE: '\u2713', ACTIVE: '\u2022', FAILED: '\u00d7' };
+
+    function applyStage(stage, status) {
+      const row = document.querySelector('[data-progress-stage="' + stage + '"]');
+      if (!row) {
         return;
       }
 
-      const stage = document.querySelector('[data-stage-key="' + statusKey + '"]');
-      if (!stage) {
+      row.className =
+        'deploy-progress__step deploy-progress__step--' + String(status).toLowerCase();
+
+      const marker = row.querySelector('.deploy-progress__marker');
+      if (marker && STAGE_GLYPH[status]) {
+        marker.textContent = STAGE_GLYPH[status];
+      }
+
+      const hidden = row.querySelector('.deploy-progress__label .sr-only');
+      if (hidden && STAGE_STATUS_WORD[status]) {
+        hidden.textContent = ' \u2014 ' + STAGE_STATUS_WORD[status];
+      }
+    }
+
+    /**
+     * A new stage starting means the one before it finished. The server already
+     * closed it in the database; this keeps the page in step without a reload.
+     */
+    function advanceTo(stage) {
+      const rows = Array.prototype.slice.call(document.querySelectorAll('[data-progress-stage]'));
+      const index = rows.findIndex((row) => row.dataset.progressStage === stage);
+      if (index === -1) {
         return;
       }
 
-      stage.classList.remove('deployment-stage--pending', 'deployment-stage--complete');
-      stage.classList.add('deployment-stage--active');
-
-      const status = stage.querySelector('[data-stage-status]');
-      const message = stage.querySelector('[data-stage-message]');
-      const time = stage.querySelector('[data-stage-time]');
-      if (status) {
-        status.textContent = 'In progress';
-      }
-      if (message) {
-        message.textContent = ev.message || '';
-      }
-      if (time && ev.timestamp) {
-        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-      }
+      rows.slice(0, index).forEach((row) => {
+        if (row.classList.contains('deploy-progress__step--active')) {
+          applyStage(row.dataset.progressStage, 'COMPLETE');
+        }
+      });
+      applyStage(stage, 'ACTIVE');
     }
 
     function appendLog(ev) {
@@ -833,7 +888,6 @@
       line.append(stage, message);
       output.appendChild(line);
       output.scrollTop = output.scrollHeight;
-      updateTimeline(ev);
     }
 
     let source = null;
@@ -861,6 +915,19 @@
           appendLog(JSON.parse(e.data));
         } catch {
           // Ignore malformed SSE payloads and wait for the next event.
+        }
+      });
+
+      source.addEventListener('stage', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          if (data.status === 'ACTIVE' && data.stage) {
+            advanceTo(data.stage);
+          } else if (data.stage) {
+            applyStage(data.stage, data.status);
+          }
+        } catch {
+          // Ignore malformed stage payloads; the page still reloads when done.
         }
       });
 
@@ -1178,9 +1245,198 @@
     window.setTimeout(poll, 2000);
   }
 
+  /**
+   * Filter the guided-setup repository list as the owner types, and keep the
+   * branch field showing the selected project's default branch.
+   *
+   * Filtering is client-side because the whole list is already on the page —
+   * there is nothing to fetch, and it keeps working if scripting is slow.
+   */
+  function initRepositoryPicker() {
+    const picker = document.querySelector('[data-repo-picker]');
+    if (!picker) {
+      return;
+    }
+
+    const search = picker.querySelector('[data-repo-search]');
+    const items = Array.prototype.slice.call(picker.querySelectorAll('[data-repo-item]'));
+    const empty = picker.querySelector('[data-repo-empty]');
+    const branch = picker.querySelector('[data-repo-branch]');
+
+    function syncBranchPlaceholder() {
+      if (!branch) {
+        return;
+      }
+      const selected = picker.querySelector('[data-repo-radio]:checked');
+      branch.placeholder = selected ? selected.getAttribute('data-default-branch') || '' : '';
+    }
+
+    if (search) {
+      search.addEventListener('input', () => {
+        const term = search.value.trim().toLowerCase();
+        let visible = 0;
+
+        items.forEach((item) => {
+          const match = !term || (item.getAttribute('data-repo-name') || '').indexOf(term) !== -1;
+          item.hidden = !match;
+          if (match) {
+            visible += 1;
+          }
+        });
+
+        if (empty) {
+          empty.hidden = visible !== 0;
+        }
+
+        // Keep a hidden row from staying selected, which would submit a project
+        // the owner can no longer see.
+        const selected = picker.querySelector('[data-repo-radio]:checked');
+        if (selected && selected.closest('[data-repo-item]').hidden) {
+          selected.checked = false;
+          const firstVisible = items.filter((item) => {
+            return !item.hidden;
+          })[0];
+          if (firstVisible) {
+            firstVisible.querySelector('[data-repo-radio]').checked = true;
+          }
+          syncBranchPlaceholder();
+        }
+      });
+    }
+
+    picker.addEventListener('change', (event) => {
+      if (event.target.matches('[data-repo-radio]')) {
+        syncBranchPlaceholder();
+      }
+    });
+
+    syncBranchPlaceholder();
+  }
+
+  /**
+   * Check the website address as the owner types.
+   *
+   * The form re-checks server-side on submit, so this is only to save a failed
+   * round trip — if the request fails the hint stays neutral and submitting
+   * still works.
+   */
+  function initAddressAvailability() {
+    const field = document.querySelector('[data-address-field]');
+    if (!field) {
+      return;
+    }
+
+    const input = field.querySelector('[data-address-input]');
+    const status = field.querySelector('[data-address-status]');
+    const checkUrl = input && input.getAttribute('data-address-check-url');
+    if (!input || !status || !checkUrl) {
+      return;
+    }
+
+    const neutralText = status.textContent.trim();
+    let timer = null;
+    let sequence = 0;
+
+    function setStatus(text, state) {
+      status.textContent = text;
+      status.classList.remove('address-status--available', 'address-status--unavailable');
+      if (state) {
+        status.classList.add('address-status--' + state);
+      }
+    }
+
+    async function check() {
+      const value = input.value.trim();
+      if (!value) {
+        setStatus(neutralText, null);
+        return;
+      }
+
+      // Ignore a response that arrives after a newer keystroke.
+      sequence += 1;
+      const ticket = sequence;
+
+      try {
+        const response = await fetch(checkUrl + '?address=' + encodeURIComponent(value), {
+          headers: { Accept: 'application/json' },
+        });
+        if (!response.ok) {
+          throw new Error('check failed');
+        }
+        const result = await response.json();
+        if (ticket !== sequence) {
+          return;
+        }
+        setStatus(result.message, result.isAvailable ? 'available' : 'unavailable');
+      } catch {
+        if (ticket === sequence) {
+          setStatus(neutralText, null);
+        }
+      }
+    }
+
+    input.addEventListener('input', () => {
+      window.clearTimeout(timer);
+      timer = window.setTimeout(check, 350);
+    });
+  }
+
+  /**
+   * Ask who manages this domain's DNS, and say so.
+   *
+   * Runs after the page has rendered because a nameserver lookup can take
+   * seconds. The panel already contains usable generic wording, so a failed or
+   * slow lookup simply leaves that in place.
+   */
+  function initDomainProviderHint() {
+    const panel = document.querySelector('[data-domain-provider]');
+    const url = panel && panel.getAttribute('data-domain-provider-url');
+    if (!panel || !url) {
+      return;
+    }
+
+    const headline = panel.querySelector('[data-domain-provider-headline]');
+    const detail = panel.querySelector('[data-domain-provider-detail]');
+
+    const showDiagnostics = (result) => {
+      const diagnostics = panel.querySelector('[data-domain-diagnostics]');
+      if (!diagnostics) {
+        return;
+      }
+      const zone = panel.querySelector('[data-domain-diagnostics-zone]');
+      const nameservers = panel.querySelector('[data-domain-diagnostics-nameservers]');
+      if (zone) {
+        zone.textContent = result.zone || 'None found';
+      }
+      if (nameservers) {
+        nameservers.textContent = (result.nameservers || []).join(', ') || 'None found';
+      }
+      diagnostics.hidden = false;
+    };
+
+    (async () => {
+      try {
+        const response = await fetch(url, { headers: { Accept: 'application/json' } });
+        if (!response.ok) {
+          return;
+        }
+        const result = await response.json();
+        if (headline && result.headline) {
+          headline.textContent = result.headline;
+        }
+        if (detail && result.detail) {
+          detail.textContent = result.detail;
+        }
+        showDiagnostics(result);
+      } catch {
+        // Leave the generic guidance in place.
+      }
+    })();
+  }
   function init() {
     initThemeToggle();
     initSidebarDrawer();
+    initPublicNav();
     initTooltips();
     initScrollTop();
     initConfirmationModal();
@@ -1189,12 +1445,15 @@
     initPasswordToggles();
     initPasswordRequirements();
     initRepositoryBranchLoader();
+    initRepositoryPicker();
+    initAddressAvailability();
     initDeploymentLiveLogs();
     initEnvFileImport();
     initSettingsSectionNavigation();
     initSettingsEditGroups();
     initDnsCopyButtons();
     initDomainStatusPolling();
+    initDomainProviderHint();
   }
 
   if (document.readyState === 'loading') {

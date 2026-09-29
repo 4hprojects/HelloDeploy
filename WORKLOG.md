@@ -2169,3 +2169,175 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Production was not changed. Release and live-domain evidence require a reviewed
   immutable commit, existing upgrade controls, resubmission of the current domain,
   HTTPS checks for both hostnames, and one controlled redeployment.
+
+## 2026-09-27 — Guided Workflow Redesign (Phases 1-9)
+
+Implemented `docs/HELLODEPLOY_WORKFLOW_UI_REDESIGN_SPEC.md` across nine phases on
+`feat/ui-mode-foundation`. The deployment experience is now a guided path rather
+than a set of infrastructure-oriented pages, with every technical control retained
+behind a per-account Advanced mode.
+
+### Before starting
+
+The working tree held 36 modified and 8 untracked files that looked like in-flight
+custom-domain work. It was a stale snapshot: 30 files were byte-identical to
+`origin/main` (PRs #50, #52, #53) and 12 were **behind** it, missing PR #54's routing
+guidance. Committing that tree would have silently reverted `DomainRoutingState`,
+`Domain.tunnelId` and the routing probe. Everything was backed up, the tree was reset
+and fast-forwarded to `2aa6791`, and the one piece of genuine local work — 87 lines of
+PRIORITIES.md review notes — was preserved on `docs/priorities-2026-09-25-review`.
+
+### What was rejected from the spec
+
+- **The normalized data model** (Website, SourceConnection, RuntimeConfiguration).
+  Project, Repository and `project.buildConfiguration` already carry those concepts;
+  renaming would mean a migration touching every controller, worker job and test for
+  no behavioural gain.
+- **A separate INSTALLING deployment stage.** Install and build both run inside one
+  `docker build`; reporting them separately would mean parsing build output.
+- **A "server capacity" readiness check.** Nothing measures capacity. A green tick
+  against an unmeasured thing is worse than no line, and a test pins its absence.
+- **Build minute, storage and data-transfer meters on the Usage page.** Those quota
+  fields exist and admins can edit them, but nothing enforces them.
+- **Loading skeletons.** The guided steps render server-side with their data present.
+- **A checkbox for automatic publishing.** An unchecked checkbox submits nothing,
+  which would read silently as "manual"; two radios always submit one value.
+
+### Bugs found and fixed along the way
+
+- The project overview rendered the raw `failureSummary` — a Docker or Node string
+  such as `ECONNREFUSED 127.0.0.1:3000` — as its primary failure message, although
+  the translation layer already existed and the detail page used it.
+- `aria-current` had never worked anywhere. Eleven sites emitted it through `<%= %>`,
+  producing `aria-current=&#34;page&#34;`, so no screen reader had ever announced the
+  current page in the sidebar, project navigation, admin navigation or settings.
+- `runProjectDetection()` bypassed `persistDetectionResult()` through its own inline
+  update, resetting detection confidence to `LEGACY` on every real run.
+- `importEnvFile()` ignored `setSecret()`'s result, so a rejected assignment was
+  dropped silently while the reported count still claimed success.
+- The domain step tracker told every reader to "Use Check routing to confirm",
+  including viewers, who have no such button.
+- Cancelling a deployment never closed its open stage, leaving a finished deployment
+  showing work in progress. Handled at display level rather than importing worker
+  code into web.
+
+### Verified, not assumed
+
+- A failed automatic publish cannot replace a working release. Tested against the
+  real pipeline helpers and database, because the guarantee rests on which write
+  happens when — a mock would assert the mock.
+- A failure is fully reconstructible from the stored record: code, raw summary, finish
+  time, which stage stopped, which completed, and that no later stage is claimed.
+- The overlap guard genuinely refuses a second push. An early version of that test
+  passed twice on the _wrong_ refusal before the fixture was made deploy-ready.
+
+### Still open
+
+- `Deployment` records no branch, so publish history cannot label older releases.
+- Builds install with `npm ci`; pnpm and Yarn projects fail. Detection now warns and
+  names the fix, but teaching the builder is a separate, testable change.
+- **Nothing has been opened in a browser.** Every screen is verified by asserting
+  rendered output, which cannot catch a page that reads badly.
+
+## 2026-09-28 — Public Website and Content (Spec Phases 1, 2, 3, 5)
+
+Implemented `docs/to work on/hellodeploy-content-spec/` on `feat/ui-mode-foundation`:
+sixteen public pages, fifteen documentation pages, eighteen Learn articles and
+fourteen troubleshooting guides — sixty-five public URLs where there were eleven,
+all reachable, none linking to a page that does not exist.
+
+### The spec had to be corrected before it could be built
+
+It documented a custom domain flow the platform does not have: an A record pointing
+at an IPv4 address, a Learn article framing A-record-versus-CNAME as the reader's
+choice, and self-service setup throughout. None of that is true. Traffic arrives
+through a Cloudflare tunnel addressed as `<tunnel-id>.cfargotunnel.com`, there is no
+IP to publish, and an administrator approves and provisions the domain partway
+through. Building from the spec as written would have shipped instructions that
+cannot work.
+
+Also corrected: pricing proposed four paid tiers with "Choose Starter" buttons
+against a codebase with no billing and no plan tiers; the runtime matrix shipped
+statuses like "Supported if verified"; and thirteen "document this after verifying
+the UI" placeholders were answerable by reading the code, so they were answered.
+
+### What was rejected from the spec
+
+- **Phase 4, the three case studies.** They document real deployments of
+  HelloUniversity, HelloRun and HelloPera. The cutover checklist in the production
+  plan is entirely unchecked, including deploying HelloUniversity through HelloDeploy
+  at all, and customer hosting is marked NO-GO. Writing them would mean inventing
+  events. Blocked on reality, not on effort.
+- **A Learn article walking through connecting a custom domain.** `/docs/custom-domain`
+  already is that. Two pages competing for one intent is what the spec's own rules
+  forbid.
+- **The pricing comparison table.** It gates features by plan, and
+  `usage-view.service.js` records that only `maxOwnedProjects` and
+  `maxProjectMembers` are enforced — everything else is editable and unenforced.
+- **Status and Glossary in the footer.** Neither has a spec or a page.
+
+### Bugs found and fixed along the way
+
+Nine, all in paths that had passing tests. Each was found by asking what happens when
+something is missing or wrong, never by re-running a green test.
+
+- **Every Learn article served at two URLs.** The handlers looked pages up by slug and
+  ignored which route matched, so `/learn/502-bad-gateway` returned a troubleshooting
+  guide that belongs under `/learn/troubleshooting/`. The tests only ever requested
+  each page's own path.
+- **Every public page served at several URLs.** Express ignores case and trailing
+  slashes, and most pages build their canonical tag from the requested path — so
+  `/FEATURES` returned 200 and declared _itself_ canonical. The tag that exists to
+  consolidate duplicates was endorsing them.
+- **An open redirect in the sign-in return path.** Both helpers accepted
+  `/\evil.com`, which browsers resolve off-origin. A link to the genuine domain sent
+  the visitor to the real sign-in page and then to the attacker's site. Pre-existing.
+- **The contact form told visitors "Message sent" when nothing was sent.**
+  `RESEND_API_KEY` is optional in production and `sendEmail` silently returns without
+  it, writing the sender's address and message into the log instead.
+- **Three route handlers were async and unwrapped.** Node terminates on an unhandled
+  rejection, so a Redis or Mongo blip in the GitHub webhook took the web process down
+  and GitHub retried against a dead server. Two were pre-existing.
+- **Error pages handed visitors the app sidebar.** Fixed for the 404, then again for
+  the rate limit page, and still not fixed — the 500 handler, the CSRF page and
+  maintenance mode each hardcoded the layout separately. Now one helper.
+- **Workflow chips failed AA contrast** at 4.34:1. The first fix measured 6.92:1 in
+  light mode and 1.37:1 in dark, because a raw grey does not follow the theme.
+- **Every call-to-action sat flush left** under centred text. Only visible in a
+  rendered screenshot.
+- **`docs/troubleshooting` linked to none of the fourteen guides** it exists to triage.
+
+### Verified, not assumed
+
+- **Screens were opened in a browser**, closing the gap the previous entry left open.
+  Headless Chromium driven over the DevTools Protocol at 390px and 1280px: no console
+  errors, no horizontal overflow, tab order correct with visible focus rings, and the
+  mobile nav opening and closing under a real click and Escape key.
+- 448 content checks, 92 browser checks and 255 Phase 1 checks, all against a running
+  instance rather than rendered strings.
+- Contrast computed for every colour pair in **both** themes, after the dark-mode
+  regression above proved one theme is not enough.
+- The contact form end to end: CSRF rejected, rate limit enforced, honeypot silently
+  accepted, HTML escaped on redisplay, and a newline in the subject refused because
+  that value reaches an email header.
+- New tests were checked against a deliberately broken version before being trusted.
+
+### Still open
+
+- `CONTACT_EMAIL` defaults to `EMAIL_FROM`, currently `noreply@`. Contact submissions
+  go nowhere readable until it points at a real inbox.
+- **`RESEND_API_KEY` and both Turnstile keys are optional in production.** Without
+  the first, verification and password-reset mail silently vanish and the reset code
+  is logged. Without the second, every bot challenge passes. Both now warn or fail
+  where this branch touches them; making them mandatory would stop a running instance
+  starting, so it was left as an operator decision.
+- The security review was run twice: once by the author, then independently once
+  the rate limit that blocked the first attempt cleared. Both found no newly
+  introduced vulnerability above the reporting bar. The independent pass went
+  further than the author's — NoSQL injection paths, route authorization coverage,
+  the worker diffs, the new client-side JS and the reserved-subdomain move — and
+  noted that `repository-connect.service.js` **strengthened** authorization by
+  ignoring the submitted repository id, node id, owner and visibility in favour of
+  the installation's own listing, where the previous controller trusted those body
+  fields.
+- Nothing is pushed.

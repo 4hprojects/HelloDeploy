@@ -4,6 +4,8 @@ import {
   DeploymentMode,
   RuntimeType,
   DetectionStatus,
+  DetectionConfidence,
+  PackageManager,
 } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
@@ -61,8 +63,47 @@ const detectionSchema = new Schema(
       default: DetectionStatus.NOT_RUN,
     },
     issues: { type: [detectionIssueSchema], default: [] },
+    // Overall strength of the evidence behind the detected settings. Projects
+    // detected before this existed stay LEGACY rather than being given a score
+    // after the fact.
+    confidence: {
+      type: String,
+      enum: Object.values(DetectionConfidence),
+      default: DetectionConfidence.LEGACY,
+    },
+    // Per-field confidence, keyed by buildConfiguration field name, so the UI
+    // can ask about only the settings that were guessed.
+    fieldConfidence: { type: Map, of: String, default: () => new Map() },
+    packageManager: {
+      type: String,
+      enum: Object.values(PackageManager),
+      default: PackageManager.UNKNOWN,
+    },
+    // Names the project's own .env.example declares. Required ones have no
+    // default there and block publishing until supplied.
+    requiredEnvKeys: { type: [String], default: [] },
+    optionalEnvKeys: { type: [String], default: [] },
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
+  },
+  { _id: false },
+);
+
+// Which guided-setup steps the owner has explicitly confirmed. Progress lives
+// here, not in the session, so refreshing or returning on another device
+// resumes in the same place. Derived facts (a connected repository, detection
+// status, present secrets) still gate each step on top of this.
+const setupSchema = new Schema(
+  {
+    confirmedSteps: { type: [String], default: [] },
+    completedAt: { type: Date, default: null },
+    // Last readiness assessment, kept for diagnosing why a website could not
+    // be published rather than for driving the UI, which always recomputes.
+    lastReadiness: {
+      checkedAt: { type: Date, default: null },
+      isReady: { type: Boolean, default: false },
+      blocking: { type: [String], default: [] },
+    },
   },
   { _id: false },
 );
@@ -85,6 +126,7 @@ const projectSchema = new Schema(
       default: ProjectStatus.DRAFT,
     },
     repositoryId: { type: Schema.Types.ObjectId, ref: 'Repository', default: null },
+    setup: { type: setupSchema, default: () => ({}) },
     runtimeType: {
       type: String,
       enum: Object.values(RuntimeType),

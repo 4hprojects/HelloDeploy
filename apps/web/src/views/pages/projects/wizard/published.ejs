@@ -1,0 +1,69 @@
+<div class="page-header">
+  <h1 class="page-header__title">Your website is live</h1>
+  <p class="page-header__subtitle"><%= project.name %></p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <p class="published__url">
+      <% if (appUrl) { %>
+      <a href="<%= appUrl %>" target="_blank" rel="noopener noreferrer"><%= appUrl %></a>
+      <% } else { %>
+      Your web address is being set up.
+      <% } %>
+    </p>
+  </div>
+  <div class="card__footer">
+    <% if (appUrl) { %>
+    <a href="<%= appUrl %>" class="button button--primary" target="_blank" rel="noopener noreferrer">
+      Open website
+    </a>
+    <% } %>
+    <a href="/projects/<%= project.slug %>" class="button button--secondary">Go to your website</a>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Make it yours</h2>
+    <p class="text-sm text-muted">
+      Use your own web address instead of the HelloDeploy one.
+    </p>
+    <p class="mt-4">
+      <a href="/projects/<%= project.slug %>/domains" class="button button--secondary">
+        Connect your domain
+      </a>
+    </p>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Keep your website updated</h2>
+    <p class="text-sm">
+      <span class="published__state" aria-hidden="true"><%- autoPublishEnabled ? '&check;' : '&#9675;' %></span>
+      <span class="sr-only"><%= autoPublishEnabled ? 'On:' : 'Off:' %></span>
+      <% if (autoPublishEnabled) { %>
+        New changes you push to <%= branch %> publish automatically.
+      <% } else { %>
+        Automatic publishing is off. You publish each change yourself.
+      <% } %>
+    </p>
+    <p class="mt-4">
+      <a href="/projects/<%= project.slug %>/settings#deployment" class="button button--ghost button--sm">
+        <%= autoPublishEnabled ? 'Change this' : 'Turn it on' %>
+      </a>
+    </p>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__body">
+    <h2 class="card__title">Next steps</h2>
+    <ul class="published__next" role="list">
+      <li><a href="/projects/<%= project.slug %>/domains">Connect your domain</a></li>
+      <li><a href="/projects/<%= project.slug %>/environment">Review your settings</a></li>
+      <li><a href="/projects/<%= project.slug %>/deployments">See what you have published</a></li>
+    </ul>
+  </div>
+</div>

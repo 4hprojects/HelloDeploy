@@ -36,6 +36,11 @@ const masterKey = production
   ? required('HELLODEPLOY_MASTER_KEY')
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 const nextMasterKey = optional('HELLODEPLOY_MASTER_KEY_NEXT', '');
+// Where contact form submissions are delivered. The fallback is the address the
+// legal, security, copyright and acceptable-use pages already publish as the way
+// to reach the operator — falling back to EMAIL_FROM instead sent support
+// requests to a no-reply mailbox while those pages told people to write in.
+const contactEmail = optional('CONTACT_EMAIL', 'hensonsagorsor@gmail.com');
 const platformDomainRaw = optional('PLATFORM_DOMAIN', `localhost:${optional('PORT', '3000')}`);
 const platformSubdomainSuffix = optional('PLATFORM_SUBDOMAIN_SUFFIX', '.hellodeploy.online');
 const deploymentDomainRaw = optional(
@@ -96,6 +101,7 @@ export const env = {
     ? required('MONGODB_URI')
     : optional('MONGODB_URI', 'mongodb://127.0.0.1:27017/hellodeploy'),
 
+  CONTACT_EMAIL: contactEmail,
   PLATFORM_DOMAIN: platformDomain,
   DEPLOYMENT_DOMAIN: deploymentDomain,
   PLATFORM_SUBDOMAIN_SUFFIX: platformSubdomainSuffix,

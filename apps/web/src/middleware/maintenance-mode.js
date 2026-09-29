@@ -1,3 +1,4 @@
+import { layoutForRequest } from '../utils/error-layout.js';
 import { PlatformRole } from '@hellodeploy/contracts';
 import { getMaintenanceMode } from '../services/platform-settings.service.js';
 
@@ -32,7 +33,7 @@ export function createMaintenanceModeMiddleware({
     if (req.accepts('html')) {
       return res.status(503).render('pages/error', {
         title: 'Maintenance Mode',
-        layout: 'layouts/main',
+        layout: layoutForRequest(req),
         message,
       });
     }

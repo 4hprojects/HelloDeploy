@@ -702,6 +702,14 @@ export async function transferOwnership({
   sourceIp,
   correlationId,
 }) {
+  // `newOwnerId` arrives from the request body. Mongoose casts an operator's
+  // operand but not the operator itself, so `{ $ne: null }` would reach the
+  // query and match whichever membership happens to come first — handing the
+  // project to someone the owner did not choose.
+  if (!mongoose.isValidObjectId(newOwnerId)) {
+    return { success: false, error: 'Choose a member to transfer ownership to.' };
+  }
+
   const [currentMembership, newMembership] = await Promise.all([
     ProjectMembership.findOne({ projectId, userId: actorId }),
     ProjectMembership.findOne({ projectId, userId: newOwnerId }),

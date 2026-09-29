@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<%- include('../partials/head') %>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <%- include('../partials/public-nav') %>
+  <main class="public-main" id="main-content" tabindex="-1">
+    <%- include('../partials/flash-banner') %>
+    <%- body %>
+  </main>
+  <%- include('../partials/public-footer') %>
+  <button
+    type="button"
+    class="scroll-top-button"
+    id="scroll-top-button"
+    aria-label="Scroll to top"
+    data-tooltip="Back to top"
+    hidden
+  >
+    <%- include('../partials/icon', { name: 'up' }) %>
+  </button>
+  <script src="/js/app.js?v=20260730-submit-decision" defer></script>
+  <% if (typeof turnstileSiteKey !== 'undefined' && turnstileSiteKey) { %>
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+  <% } %>
+</body>
+</html>

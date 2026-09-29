@@ -36,6 +36,21 @@ import {
   postUpdateBuildConfiguration,
   postUpdateBuildFilters,
 } from '../../controllers/detection.controller.js';
+import { getUsage } from '../../controllers/usage.controller.js';
+import {
+  getDeploySource,
+  getDeployRepository,
+  postDeployRepository,
+  getSetupStep,
+  postSetupAnalyze,
+  postSetupAnalyzeConfirm,
+  getAddressAvailability,
+  postSetupIdentity,
+  postSetupEnvironment,
+  postSetupEnvironmentConfirm,
+  postSetupPublish,
+  getPublished,
+} from '../../controllers/deploy-wizard.controller.js';
 import {
   getDeployHookSettings,
   postGenerateDeployHook,
@@ -56,6 +71,7 @@ import {
   postActivateDomain,
   postRemoveDomain,
   getDomainStatuses,
+  getDomainProvider,
   postCheckDomainRouting,
 } from '../../controllers/domain.controller.js';
 import {
@@ -82,7 +98,13 @@ for (const param of ['userId', 'deploymentId', 'domainId']) {
 
 // Project list and creation
 router.get('/', requireAuth, getProjectIndex);
-router.get('/new', requireAuth, getNewProject);
+
+// Guided setup. `/new` is the funnel; the name-only form stays reachable at
+// `/new/manual` because it is the only way to set up a public Git URL.
+router.get('/new', requireAuth, getDeploySource);
+router.get('/new/github', requireAuth, getDeployRepository);
+router.post('/new/github', requireAuth, postDeployRepository);
+router.get('/new/manual', requireAuth, getNewProject);
 router.post('/', requireAuth, postNewProject);
 
 // Project-scoped routes (require resolved project + membership)
@@ -205,6 +227,59 @@ router.post(
   postRevokeDeployHook,
 );
 
+// Guided setup steps. Owner-only: every step writes project configuration.
+// Owner-scoped, not public: the answer reveals whether an address is in use.
+router.get('/:slug/setup/address-available', requireAuth, ownerOnly, getAddressAvailability);
+router.get('/:slug/setup/published', requireAuth, anyRole, getPublished);
+
+router.get('/:slug/setup/:step', requireAuth, ownerOnly, getSetupStep);
+router.post(
+  '/:slug/setup/analyze',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupAnalyze,
+);
+router.post(
+  '/:slug/setup/analyze/confirm',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupAnalyzeConfirm,
+);
+router.post(
+  '/:slug/setup/identity',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupIdentity,
+);
+router.post(
+  '/:slug/setup/environment',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupEnvironment,
+);
+router.post(
+  '/:slug/setup/environment/confirm',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSetupEnvironmentConfirm,
+);
+router.post(
+  '/:slug/setup/publish',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  deployActionLimiter,
+  postSetupPublish,
+);
+
+// Usage
+router.get('/:slug/usage', requireAuth, anyRole, getUsage);
+
 // Detection
 router.get('/:slug/detection', requireAuth, anyRole, getDetection);
 router.post('/:slug/detection', requireAuth, ownerOnly, requireEditableProject, postRunDetection);
@@ -283,6 +358,7 @@ router.post(
 // Custom domains
 router.get('/:slug/domains', requireAuth, anyRole, getDomains);
 router.get('/:slug/domains/status', requireAuth, anyRole, getDomainStatuses);
+router.get('/:slug/domains/:domainId/provider', requireAuth, anyRole, getDomainProvider);
 router.post('/:slug/domains', requireAuth, ownerOnly, requireEditableProject, postAddDomain);
 router.post(
   '/:slug/domains/:domainId/verify',

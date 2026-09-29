@@ -1,0 +1,680 @@
+/**
+ * Guided setup ("Deploy a Website").
+ *
+ * Source selection and repository choice happen before a project exists: the
+ * project is created when a repository is picked, named after it, so an
+ * abandoned wizard does not leave a placeholder project or burn a slug. From
+ * there every step operates on a real project and the current step is derived
+ * from persisted state.
+ */
+
+import { Deployment, Project, Repository, User } from '@hellodeploy/database';
+import {
+  DetectionStatus,
+  DeploymentMode,
+  DeploymentStatus,
+  AuditOutcome,
+  DeploymentTrigger,
+  EnvVarCategory,
+  PackageManager,
+  ProjectStatus,
+  RuntimeType,
+  UiMode,
+} from '@hellodeploy/contracts';
+
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
+
+import { asyncHandler } from '../utils/async-handler.js';
+import { env } from '../config/env.js';
+import { createProject } from '../services/project.service.js';
+import { listInstallationRepos, getInstallationUrl } from '../services/github.service.js';
+import { connectGithubRepository } from '../services/repository-connect.service.js';
+import { runProjectDetection } from '../services/detection.service.js';
+import { checkAddressAvailability } from '../services/website-address.service.js';
+import { listSecretNames, setSecret } from '../services/env-secret.service.js';
+import { classifyEnvironment, validateEnvValue } from '../services/env-classification.service.js';
+import { assessDeploymentReadiness } from '../services/deployment-readiness.service.js';
+import { createDeployment } from '../services/deployment.service.js';
+import { buildApplicationUrl } from '../services/project-overview.service.js';
+import {
+  resolveWizardState,
+  canEnterStep,
+  needsAnalysisReview,
+  withConfirmedStep,
+} from '../services/deploy-wizard.service.js';
+
+/**
+ * Sources a website can come from. A registry rather than hard-coded markup, so
+ * upload and starter templates can be added without restructuring the step.
+ * `available: false` entries render as not-yet-offered instead of being hidden,
+ * so the roadmap is visible rather than mysterious.
+ */
+export const DEPLOY_SOURCES = Object.freeze([
+  {
+    key: 'github',
+    label: 'GitHub',
+    description: 'Connect a project you already keep on GitHub.',
+    icon: 'repository',
+    href: '/projects/new/github',
+    available: true,
+  },
+  {
+    key: 'upload',
+    label: 'Upload a project',
+    description: 'Send a folder or ZIP straight from your computer.',
+    icon: 'projects',
+    href: null,
+    available: false,
+  },
+  {
+    key: 'starter',
+    label: 'Start from a template',
+    description: 'Begin with a ready-made website and change it later.',
+    icon: 'overview',
+    href: null,
+    available: false,
+  },
+]);
+
+// ─── Step 1: where is your website? ───────────────────────────────────────────
+
+export function getDeploySource(req, res) {
+  res.render('pages/projects/wizard/source', {
+    title: 'Deploy a website',
+    sources: DEPLOY_SOURCES,
+  });
+}
+
+// ─── Step 2: choose your website ──────────────────────────────────────────────
+
+export const getDeployRepository = asyncHandler(async (req, res) => {
+  const user = await User.findById(req.session.user.id).lean();
+  const githubConfigured = env.isGithubConfigured();
+  const installationId = user?.githubInstallationId ?? null;
+
+  let repos = [];
+  let loadError = null;
+
+  if (githubConfigured && installationId) {
+    try {
+      repos = await listInstallationRepos(installationId);
+    } catch {
+      loadError =
+        'HelloDeploy could not load your GitHub projects. Try again, or reconnect GitHub below.';
+    }
+  }
+
+  res.render('pages/projects/wizard/repository', {
+    title: 'Choose your website',
+    sources: DEPLOY_SOURCES,
+    repos: repos.sort((a, b) => a.fullName.localeCompare(b.fullName)),
+    githubConfigured,
+    isGithubConnected: Boolean(installationId),
+    installUrl: githubConfigured ? getInstallationUrl() : null,
+    loadError,
+  });
+});
+
+export const postDeployRepository = asyncHandler(async (req, res) => {
+  const { fullName, branch } = req.body;
+
+  if (!fullName) {
+    req.flash('error', 'Choose a GitHub project to continue.');
+    return res.redirect('/projects/new/github');
+  }
+
+  // Name the website after the repository; the identity step lets the owner
+  // change both the name and the address before anything is published.
+  const suggestedName = fullName.split('/').pop();
+
+  const created = await createProject({
+    name: suggestedName,
+    ownerId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!created.success) {
+    req.flash('error', created.error);
+    return res.redirect('/projects/new/github');
+  }
+
+  const user = await User.findById(req.session.user.id).lean();
+  const connected = await connectGithubRepository({
+    project: created.project,
+    installationId: user?.githubInstallationId ?? null,
+    selection: { fullName, branch },
+    actor: {
+      id: req.session.user.id,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    },
+  });
+
+  if (!connected.success) {
+    // The project exists but has no source. Send the owner to its own setup
+    // rather than restarting, so a retry does not create a second project.
+    req.flash('error', connected.error);
+    return res.redirect(`/projects/${created.project.slug}/setup/repository`);
+  }
+
+  // Analyse straight away rather than making the owner press "Check my app".
+  // A failure here is not fatal — the analyse step shows what happened and
+  // offers a retry, so it must not strand a project that is already connected.
+  try {
+    await runProjectDetection(created.project._id, req.session.user.id, {
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+  } catch (err) {
+    logger.warn('Guided setup: automatic analysis failed', {
+      projectId: created.project._id.toString(),
+      error: err.message,
+    });
+  }
+
+  return res.redirect(`/projects/${created.project.slug}/setup/analyze`);
+});
+
+/**
+ * Record that a guided-setup step was completed.
+ *
+ * HelloDeploy has no analytics sink, so funnel measurement rides on audit
+ * events. Project creation and deployment outcomes are already audited, which
+ * gives the headline metric — time from "Deploy a Website" to a live URL. These
+ * add the per-step drop-off in between, which nothing else records.
+ */
+async function auditSetupStep(req, project, step) {
+  await writeAuditEvent({
+    action: 'project.setup_step_completed',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { step },
+  });
+}
+
+// ─── Shared setup shell ───────────────────────────────────────────────────────
+
+/**
+ * Load the facts the step machine needs. Kept in one place so every step sees
+ * the same picture of the project.
+ */
+async function loadWizardContext(project) {
+  const repository = project.repositoryId
+    ? await Repository.findById(project.repositoryId).lean()
+    : null;
+
+  // Missing required values gate the environment step, so they must be part of
+  // the picture every step is judged against, not just that step's own view.
+  const { missingRequired } = await loadEnvironment(project);
+
+  const state = resolveWizardState({ project, repository, missingEnvKeys: missingRequired });
+  return { repository, state };
+}
+
+/**
+ * Render a step, or redirect if the owner has jumped ahead of their progress.
+ * A deep link to a step that depends on decisions not yet made would otherwise
+ * render a form over missing data.
+ */
+export const getSetupStep = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const step = req.params.step;
+  const { repository, state } = await loadWizardContext(project);
+
+  if (!canEnterStep(step, state)) {
+    return res.redirect(state.nextHref);
+  }
+
+  if (step === 'analyze') {
+    return renderAnalyzeStep(req, res, { project, repository, state });
+  }
+
+  if (step === 'identity') {
+    return renderIdentityStep(req, res, { project, state, extras: { repository } });
+  }
+
+  if (step === 'environment') {
+    return renderEnvironmentStep(req, res, { project, state });
+  }
+
+  if (step === 'readiness') {
+    return renderReadinessStep(req, res, { project, repository, state });
+  }
+
+  // Remaining steps arrive in later work; until then send the owner onward
+  // rather than rendering a placeholder.
+  return res.redirect(`/projects/${project.slug}`);
+});
+
+// ─── Step 3: check your project ───────────────────────────────────────────────
+
+async function renderAnalyzeStep(req, res, { project, repository, state }) {
+  const detection = project.detection ?? {};
+  const fieldConfidence =
+    detection.fieldConfidence instanceof Map
+      ? Object.fromEntries(detection.fieldConfidence)
+      : (detection.fieldConfidence ?? {});
+
+  res.render('pages/projects/wizard/analyze', {
+    title: 'Check your project',
+    project,
+    membership: req.membership,
+    repository,
+    wizardSteps: state.steps,
+    detection,
+    fieldConfidence,
+    findings: buildAnalysisFindings(project, detection),
+    needsReview: needsAnalysisReview(project),
+    hasRun: detection.status !== DetectionStatus.NOT_RUN,
+    isReady: detection.status === DetectionStatus.READY,
+  });
+}
+
+/**
+ * Turn a detection result into the checklist the owner reads.
+ *
+ * Only states what was actually established — no line is emitted for a value
+ * detection did not produce, so the list never implies more certainty than
+ * the evidence supports.
+ */
+export function buildAnalysisFindings(project, detection) {
+  const findings = [];
+  const runtimeLabel = RUNTIME_LABELS[project.runtimeType];
+
+  if (runtimeLabel) {
+    findings.push({ key: 'runtime', label: `${runtimeLabel} detected`, status: 'OK' });
+  }
+
+  const build = project.buildConfiguration ?? {};
+  if (build.buildCommand) {
+    findings.push({ key: 'build', label: 'Build settings found', status: 'OK' });
+  }
+  if (build.startCommand) {
+    findings.push({ key: 'start', label: 'Start settings found', status: 'OK' });
+  }
+  if (build.outputDirectory) {
+    findings.push({ key: 'output', label: 'Published folder found', status: 'OK' });
+  }
+
+  if (detection.packageManager && detection.packageManager !== PackageManager.UNKNOWN) {
+    findings.push({
+      key: 'packageManager',
+      label: `Packages managed with ${PACKAGE_MANAGER_LABELS[detection.packageManager]}`,
+      status: 'OK',
+    });
+  }
+
+  (detection.issues ?? []).forEach((issue, index) => {
+    findings.push({
+      key: `issue-${index}`,
+      label: issue.message,
+      status: issue.level === 'ERROR' ? 'BLOCKED' : 'WARNING',
+    });
+  });
+
+  return findings;
+}
+
+const RUNTIME_LABELS = Object.freeze({
+  [RuntimeType.STATIC]: 'A plain HTML website',
+  [RuntimeType.NODEJS]: 'A Node.js app',
+  [RuntimeType.EXPRESS]: 'An Express app',
+  [RuntimeType.REACT]: 'A React website',
+  [RuntimeType.VUE]: 'A Vue website',
+  [RuntimeType.NEXTJS]: 'A Next.js website',
+});
+
+const PACKAGE_MANAGER_LABELS = Object.freeze({
+  [PackageManager.NPM]: 'npm',
+  [PackageManager.PNPM]: 'pnpm',
+  [PackageManager.YARN]: 'Yarn',
+});
+
+/** Re-run detection, then land back on the step so the result is visible. */
+export const postSetupAnalyze = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  await runProjectDetection(project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  res.redirect(`/projects/${project.slug}/setup/analyze`);
+});
+
+/** Accept weakly-evidenced detection and move on. */
+export const postSetupAnalyzeConfirm = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  await Project.updateOne(
+    { _id: project._id },
+    { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'analyze') } },
+  );
+
+  await auditSetupStep(req, project, 'analyze');
+
+  const fresh = await Project.findById(project._id).lean();
+  const { state } = await loadWizardContext(fresh);
+  res.redirect(state.nextHref);
+});
+
+// ─── Step 4: name your website ────────────────────────────────────────────────
+
+function renderIdentityStep(req, res, { project, state, extras = {} }) {
+  res.render('pages/projects/wizard/identity', {
+    title: 'Name your website',
+    project,
+    membership: req.membership,
+    wizardSteps: state.steps,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    values: {
+      name: project.name,
+      address: project.platformSubdomain ?? project.slug,
+    },
+    errors: {},
+    ...extras,
+  });
+}
+
+/**
+ * Live availability for the address field.
+ *
+ * Owner-scoped rather than public: the response reveals whether a given address
+ * is in use, which is not something an unauthenticated caller should be able to
+ * enumerate.
+ */
+export const getAddressAvailability = asyncHandler(async (req, res) => {
+  const result = await checkAddressAvailability(req.query.address, {
+    excludeProjectId: req.project._id,
+  });
+
+  res.set('Cache-Control', 'no-store');
+  res.json(result);
+});
+
+export const postSetupIdentity = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { repository, state } = await loadWizardContext(project);
+  const name = String(req.body.name ?? '').trim();
+  const address = String(req.body.address ?? '').trim();
+
+  const errors = {};
+  if (name.length < 2 || name.length > 100) {
+    errors.name = 'Give your website a name between 2 and 100 characters.';
+  }
+
+  const availability = await checkAddressAvailability(address, {
+    excludeProjectId: project._id,
+  });
+  if (!availability.isAvailable) {
+    errors.address = availability.message;
+  }
+
+  if (Object.keys(errors).length > 0) {
+    return renderIdentityStep(req, res, {
+      project: { ...project, name: name || project.name },
+      state,
+      extras: { errors, values: { name, address }, repository },
+    });
+  }
+
+  await Project.updateOne(
+    { _id: project._id },
+    {
+      $set: {
+        name,
+        platformSubdomain: availability.label,
+        'setup.confirmedSteps': withConfirmedStep(project, 'identity'),
+      },
+    },
+  );
+
+  await auditSetupStep(req, project, 'identity');
+
+  const fresh = await Project.findById(project._id).lean();
+  const next = await loadWizardContext(fresh);
+  res.redirect(next.state.nextHref);
+});
+
+// ─── Step 5: add your settings ────────────────────────────────────────────────
+
+/** Load the classified environment rows for a project. */
+async function loadEnvironment(project) {
+  const stored = await listSecretNames(project._id);
+  return classifyEnvironment({
+    requiredKeys: project.detection?.requiredEnvKeys ?? [],
+    optionalKeys: project.detection?.optionalEnvKeys ?? [],
+    storedNames: stored.map((secret) => secret.name),
+  });
+}
+
+async function renderEnvironmentStep(req, res, { project, state, extras = {} }) {
+  const { rows, missingRequired } = await loadEnvironment(project);
+
+  res.render('pages/projects/wizard/environment', {
+    title: 'Add your settings',
+    project,
+    membership: req.membership,
+    wizardSteps: state.steps,
+    rows,
+    missingRequired,
+    hasDetectedKeys: rows.some((row) => row.category !== EnvVarCategory.PLATFORM_MANAGED),
+    errors: {},
+    values: { name: '', value: '' },
+    ...extras,
+  });
+}
+
+/** Store one value supplied from the guided step. */
+export const postSetupEnvironment = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { state } = await loadWizardContext(project);
+  const name = String(req.body.name ?? '')
+    .trim()
+    .toUpperCase();
+  const value = String(req.body.value ?? '');
+
+  const formatError = validateEnvValue(name, value);
+  if (formatError) {
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: { errors: { value: formatError }, values: { name, value: '' } },
+    });
+  }
+
+  const result = await setSecret(project._id, name, value, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    allowPlatformManaged: res.locals.uiMode === UiMode.ADVANCED,
+  });
+
+  if (!result.success) {
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: { errors: { form: result.error }, values: { name, value: '' } },
+    });
+  }
+
+  res.redirect(`/projects/${project.slug}/setup/environment`);
+});
+
+/** Move on, once nothing required is still missing. */
+export const postSetupEnvironmentConfirm = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { missingRequired } = await loadEnvironment(project);
+
+  if (missingRequired.length > 0) {
+    const { state } = await loadWizardContext(project);
+    return renderEnvironmentStep(req, res, {
+      project,
+      state,
+      extras: {
+        errors: {
+          form: `${missingRequired.join(', ')} still ${missingRequired.length === 1 ? 'needs' : 'need'} a value before your website can start.`,
+        },
+      },
+    });
+  }
+
+  await Project.updateOne(
+    { _id: project._id },
+    { $set: { 'setup.confirmedSteps': withConfirmedStep(project, 'environment') } },
+  );
+
+  await auditSetupStep(req, project, 'environment');
+
+  const fresh = await Project.findById(project._id).lean();
+  const next = await loadWizardContext(fresh);
+  res.redirect(next.state.nextHref);
+});
+
+// ─── Step 6: ready to publish ─────────────────────────────────────────────────
+
+async function renderReadinessStep(req, res, { project, repository, state, extras = {} }) {
+  const { missingRequired } = await loadEnvironment(project);
+  const readiness = await assessDeploymentReadiness({
+    project,
+    repository,
+    missingEnvKeys: missingRequired,
+  });
+
+  // Which checks block, and how often, is a listed metric and is not derivable
+  // from anything else — a failing check leaves no other trace.
+  await writeAuditEvent({
+    action: 'project.readiness_checked',
+    outcome: readiness.isReady ? AuditOutcome.SUCCESS : AuditOutcome.FAILURE,
+    actorId: req.session.user.id,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+    metadata: { ready: readiness.isReady, blocking: readiness.blocking },
+  });
+
+  // Kept for diagnosing a failed publish later; the view always recomputes.
+  await Project.updateOne(
+    { _id: project._id },
+    {
+      $set: {
+        'setup.lastReadiness': {
+          checkedAt: new Date(),
+          isReady: readiness.isReady,
+          blocking: readiness.blocking,
+        },
+      },
+    },
+  );
+
+  res.render('pages/projects/wizard/readiness', {
+    title: 'Ready to publish',
+    project,
+    membership: req.membership,
+    repository,
+    wizardSteps: state.steps,
+    readiness,
+    deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    ...extras,
+  });
+}
+
+/**
+ * Publish, or ask for review first.
+ *
+ * A project that has never been approved cannot deploy — validateProjectDeployment-
+ * Eligibility refuses anything that is not ACTIVE — so the gate is surfaced here
+ * as part of the funnel instead of as a separate page the owner has to find.
+ */
+export const postSetupPublish = asyncHandler(async (req, res) => {
+  const project = req.project;
+  const { repository, state } = await loadWizardContext(project);
+  const { missingRequired } = await loadEnvironment(project);
+
+  const readiness = await assessDeploymentReadiness({
+    project,
+    repository,
+    missingEnvKeys: missingRequired,
+  });
+
+  if (!readiness.isReady) {
+    return renderReadinessStep(req, res, {
+      project,
+      repository,
+      state,
+      extras: {
+        formError: 'Some things still need your attention before this website can be published.',
+      },
+    });
+  }
+
+  if (project.status !== ProjectStatus.ACTIVE) {
+    return res.redirect(`/projects/${project.slug}?review=requested`);
+  }
+
+  const created = await createDeployment({
+    projectId: project._id,
+    requestedBy: req.session.user.id,
+    triggerType: DeploymentTrigger.MANUAL,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!created.success) {
+    return renderReadinessStep(req, res, {
+      project,
+      repository,
+      state,
+      extras: { formError: created.error },
+    });
+  }
+
+  res.redirect(`/projects/${project.slug}/deployments/${created.deployment._id}`);
+});
+
+// ─── After publishing: your website is live ───────────────────────────────────
+
+/**
+ * The success screen.
+ *
+ * Only shown once the project actually has a healthy release — otherwise the
+ * owner is sent to the deployment they are waiting on, so the page can never
+ * claim a website is live when it is not.
+ */
+export const getPublished = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const active = project.activeDeploymentId
+    ? await Deployment.findById(project.activeDeploymentId).lean()
+    : null;
+
+  if (!active || active.status !== DeploymentStatus.HEALTHY) {
+    return res.redirect(`/projects/${project.slug}`);
+  }
+
+  // Guided setup is over once a website is live; stop resuming into it.
+  if (!project.setup?.completedAt) {
+    await Project.updateOne({ _id: project._id }, { $set: { 'setup.completedAt': new Date() } });
+  }
+
+  const repository = project.repositoryId
+    ? await Repository.findById(project.repositoryId).lean()
+    : null;
+
+  res.render('pages/projects/wizard/published', {
+    title: `${project.name} is live`,
+    project,
+    membership: req.membership,
+    appUrl: buildApplicationUrl({
+      subdomain: project.platformSubdomain ?? project.slug,
+      deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    }),
+    autoPublishEnabled: project.deploymentMode === DeploymentMode.AUTOMATIC,
+    branch: project.productionBranch ?? repository?.defaultBranch ?? 'your branch',
+  });
+});

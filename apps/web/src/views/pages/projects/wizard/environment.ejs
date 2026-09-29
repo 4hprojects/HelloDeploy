@@ -1,0 +1,131 @@
+<%- include('../../../partials/wizard-progress') %>
+
+<div class="page-header">
+  <h1 class="page-header__title">Add your settings</h1>
+  <p class="page-header__subtitle">
+    <% if (missingRequired.length > 0) { %>
+      <%= project.name %> needs <%= missingRequired.length %>
+      more setting<%= missingRequired.length === 1 ? '' : 's' %> before it can start.
+    <% } else if (hasDetectedKeys) { %>
+      Everything <%= project.name %> asked for is in place.
+    <% } else { %>
+      <%= project.name %> did not ask for any settings. You can add your own if you need to.
+    <% } %>
+  </p>
+</div>
+
+<%- include('../../../partials/form-errors', { errors }) %>
+
+<% if (rows.length > 0) { %>
+<div class="card">
+  <div class="card__body">
+    <ul class="env-rows" role="list">
+      <% rows.forEach((row) => { %>
+      <li class="env-row env-row--<%= row.category.toLowerCase().replace(/_/g, '-') %>">
+        <span class="env-row__marker" aria-hidden="true">
+          <% if (row.isBlocking) { %>!<% } else { %>&check;<% } %>
+        </span>
+        <span class="env-row__body">
+          <code class="env-row__name"><%= row.name %></code>
+          <span class="env-row__state">
+            <% if (row.category === 'PLATFORM_MANAGED') { %>
+              Managed by HelloDeploy<% if (row.note) { %> — <%= row.note %><% } %>
+            <% } else if (row.isBlocking) { %>
+              Needed before your website can start
+            <% } else if (row.isStored) { %>
+              Saved
+            <% } else { %>
+              Optional
+            <% } %>
+          </span>
+        </span>
+      </li>
+      <% }) %>
+    </ul>
+  </div>
+</div>
+<% } %>
+
+<div class="card mt-6">
+  <form method="POST" action="/projects/<%= project.slug %>/setup/environment" novalidate>
+    <div class="card__body">
+      <h2 class="card__title">
+        <%= missingRequired.length > 0 ? 'Add a setting' : 'Add another setting' %>
+      </h2>
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-field">
+        <label for="env-name" class="form-label form-label--required">Name</label>
+        <input
+          type="text"
+          id="env-name"
+          name="name"
+          class="form-input"
+          value="<%= values.name %>"
+          pattern="[A-Z_][A-Z0-9_]*"
+          maxlength="128"
+          autocomplete="off"
+          spellcheck="false"
+          required
+          <% if (missingRequired.length > 0) { %>list="env-suggestions"<% } %>
+          aria-describedby="env-name-hint"
+        />
+        <% if (missingRequired.length > 0) { %>
+        <datalist id="env-suggestions">
+          <% missingRequired.forEach((name) => { %>
+          <option value="<%= name %>"></option>
+          <% }) %>
+        </datalist>
+        <% } %>
+        <span id="env-name-hint" class="form-hint">
+          Capital letters, numbers and underscores, such as DATABASE_URL.
+        </span>
+      </div>
+
+      <div class="form-field">
+        <label for="env-value" class="form-label form-label--required">Value</label>
+        <input
+          type="password"
+          id="env-value"
+          name="value"
+          class="form-input<%= errors.value ? ' form-input--error' : '' %>"
+          autocomplete="off"
+          required
+          aria-describedby="<%= errors.value ? 'env-value-error' : 'env-value-hint' %>"
+        />
+        <% if (errors.value) { %>
+        <span id="env-value-error" class="form-error" role="alert"><%= errors.value %></span>
+        <% } else { %>
+        <span id="env-value-hint" class="form-hint">
+          Values are encrypted and never shown in your website's logs.
+        </span>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="card__footer">
+      <button type="submit" class="button button--secondary" data-pending-label="Saving...">
+        Save setting
+      </button>
+    </div>
+  </form>
+</div>
+
+<form method="POST" action="/projects/<%= project.slug %>/setup/environment/confirm" class="form-actions mt-6">
+  <%- include('../../../partials/csrf-field') %>
+  <button
+    type="submit"
+    class="button button--primary"
+    data-pending-label="Continuing..."
+    <%= missingRequired.length > 0 ? 'disabled' : '' %>
+  >
+    Continue
+  </button>
+  <a href="/projects/<%= project.slug %>/setup/identity" class="button button--secondary">Back</a>
+</form>
+
+<% if (missingRequired.length > 0) { %>
+<p class="text-sm text-muted mt-2" role="status">
+  Add <%= missingRequired.join(', ') %> to continue.
+</p>
+<% } %>

@@ -38,6 +38,7 @@ function renderDomains(overrides = {}) {
     domains: overrides.domains ?? [],
     verificationToken: overrides.verificationToken ?? null,
     pendingHostname: overrides.pendingHostname ?? null,
+    uiMode: overrides.uiMode ?? 'SIMPLE',
     csrfToken: 'test-token',
   });
 }
@@ -210,8 +211,23 @@ describe('routing record guidance', () => {
     assert.match(html, /visitors reach your app/);
   });
 
-  it('surfaces the reason a check failed', async () => {
+  it('explains a failed check in terms the owner can act on', async () => {
     const html = await renderDomains({
+      domains: [
+        {
+          ...verifiedDomain,
+          tunnelId,
+          routingState: 'TUNNEL_DOWN',
+          routingDetail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+        },
+      ],
+    });
+    assert.match(html, /cannot reach this address at the moment/);
+  });
+
+  it('keeps the raw probe reason available in advanced mode', async () => {
+    const html = await renderDomains({
+      uiMode: 'ADVANCED',
       domains: [
         {
           ...verifiedDomain,

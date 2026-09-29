@@ -205,6 +205,46 @@ are resolved — see Recently resolved below and
 evidence trail and per-item resolution notes. Nothing currently open on
 this track.
 
+## Track H — Guided workflow redesign (2026-09-27)
+
+Spec: `docs/HELLODEPLOY_WORKFLOW_UI_REDESIGN_SPEC.md`. Nine phases implemented on
+`feat/ui-mode-foundation`, 16 commits, **not pushed and not reviewed**. Narrative in
+WORKLOG.md; blueprint Phase 13 carries the task table.
+
+The deployment experience is now a guided path with a per-account Simple/Advanced
+mode. Every technical control Simple mode hides stays reachable in Advanced.
+
+### Open — needs a person, not more code
+
+1. **Nobody has opened any of it in a browser.** Every screen is verified by
+   asserting rendered output, which cannot catch a page that reads badly. The domain
+   page in particular now stacks a tracker, two record panels, a provider hint and
+   diagnostics. This is the caveat this doc already raises about the domain UI, now
+   covering roughly fifteen screens.
+2. **The branch wants splitting** before any PR. Phase boundaries are clean commit
+   boundaries.
+3. **`Deployment` records no branch**, so publish history cannot say which branch an
+   older release came from. Spec §20 asks for it; deriving it from the project's
+   current branch would mislabel history. Needs a schema field.
+4. **Builds install with `npm ci`**, so pnpm and Yarn projects fail with an opaque npm
+   error. Detection now warns and names the fix. Teaching the builder to use the
+   project's own package manager needs the build image verified — a build-correctness
+   change, not a UI one.
+5. **`maxCustomDomains` is not enforced.** It is a plan default, admin-editable and
+   displayed, but `addDomain` never consults it — an owner can exceed it freely, and
+   each custom domain consumes a cloudflared tunnel and an nginx route on one host.
+   The Usage page now reports domains as a plain count rather than an allowance, so
+   nothing claims otherwise, but the underlying decision is open: enforce it, or
+   remove the field. A code review caught this after it had been asserted as enforced
+   in four documents.
+
+### Deliberately not built
+
+Recorded so these read as decisions rather than omissions: the spec's normalized data
+model, a separate INSTALLING stage, a "server capacity" readiness check, usage meters
+for limits nothing enforces, loading skeletons, and Cloudflare API integration for
+domains. Each is explained in WORKLOG.md and blueprint Phase 13.
+
 ## Also worth a deliberate decision (not urgent, not blocking anything)
 
 - **HelloDeploy's own production dashboard is running older code than this

@@ -1,0 +1,129 @@
+<div class="page-header">
+  <h1 class="page-header__title">Choose your website</h1>
+  <p class="page-header__subtitle">
+    Pick the GitHub project you want to publish. You can change the branch later.
+  </p>
+</div>
+
+<% if (!githubConfigured) { %>
+<div class="alert alert--warning" role="status">
+  <p>GitHub is not set up on this HelloDeploy server yet. Ask your administrator to finish connecting it.</p>
+</div>
+
+<% } else if (!isGithubConnected) { %>
+<div class="card card--form-narrow">
+  <div class="card__body">
+    <h2 class="card__title">Connect GitHub first</h2>
+    <p class="text-sm text-muted">
+      HelloDeploy needs permission to read the project you want to publish. You choose which
+      repositories it can see, and you can change that at any time.
+    </p>
+    <div class="form-actions mt-6">
+      <a href="<%= installUrl %>" class="button button--primary">Connect GitHub</a>
+      <a href="/projects/new" class="button button--secondary">Back</a>
+    </div>
+  </div>
+</div>
+
+<% } else { %>
+  <% if (loadError) { %>
+  <div class="alert alert--error" role="alert">
+    <p><%= loadError %></p>
+    <p class="mt-2"><a href="<%= installUrl %>">Review which repositories HelloDeploy can see</a></p>
+  </div>
+  <% } %>
+
+  <% if (repos.length === 0 && !loadError) { %>
+  <div class="card card--form-narrow">
+    <div class="card__body">
+      <h2 class="card__title">No projects available yet</h2>
+      <p class="text-sm text-muted">
+        HelloDeploy cannot see any GitHub projects for your account. Grant it access to at least
+        one repository, then come back to this page.
+      </p>
+      <div class="form-actions mt-6">
+        <a href="<%= installUrl %>" class="button button--primary">Choose repositories</a>
+      </div>
+    </div>
+  </div>
+
+  <% } else if (repos.length > 0) { %>
+  <form method="POST" action="/projects/new/github" class="card" data-repo-picker>
+    <div class="card__body">
+      <%- include('../../../partials/csrf-field') %>
+
+      <div class="form-field">
+        <label for="repo-search" class="form-label">Search your projects</label>
+        <input
+          type="search"
+          id="repo-search"
+          class="form-input"
+          placeholder="Start typing a name..."
+          autocomplete="off"
+          data-repo-search
+          aria-describedby="repo-search-hint"
+        />
+        <span id="repo-search-hint" class="form-hint">
+          <%= repos.length %> project<%= repos.length === 1 ? '' : 's' %> available.
+        </span>
+      </div>
+
+      <ul class="repo-list" role="list" data-repo-list>
+        <% repos.forEach((repo, index) => { %>
+        <li class="repo-list__item" data-repo-item data-repo-name="<%= repo.fullName.toLowerCase() %>">
+          <label class="repo-list__label">
+            <input
+              type="radio"
+              name="fullName"
+              value="<%= repo.fullName %>"
+              class="repo-list__radio"
+              data-repo-radio
+              data-default-branch="<%= repo.defaultBranch %>"
+              <%= index === 0 ? 'checked' : '' %>
+              required
+            />
+            <span class="repo-list__text">
+              <span class="repo-list__name"><%= repo.fullName %></span>
+              <span class="repo-list__meta">
+                <%= repo.private ? 'Private' : 'Public' %> &middot; default branch
+                <%= repo.defaultBranch %>
+              </span>
+            </span>
+          </label>
+        </li>
+        <% }) %>
+      </ul>
+
+      <p class="repo-list__empty" data-repo-empty hidden>
+        No projects match that search. Try a different name.
+      </p>
+
+      <details class="guided-disclosure mt-4">
+        <summary class="guided-disclosure__toggle">Advanced options</summary>
+        <div class="form-field mt-4">
+          <label for="branch" class="form-label">Branch to publish</label>
+          <input
+            type="text"
+            id="branch"
+            name="branch"
+            class="form-input"
+            autocomplete="off"
+            data-repo-branch
+            aria-describedby="branch-hint"
+          />
+          <span id="branch-hint" class="form-hint">
+            Leave this alone to use the project's default branch.
+          </span>
+        </div>
+      </details>
+    </div>
+
+    <div class="card__footer">
+      <button type="submit" class="button button--primary" data-pending-label="Setting up...">
+        Continue
+      </button>
+      <a href="/projects/new" class="button button--secondary">Back</a>
+    </div>
+  </form>
+  <% } %>
+<% } %>

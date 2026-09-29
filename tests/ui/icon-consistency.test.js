@@ -90,10 +90,27 @@ describe('icon consistency', () => {
     assert.match(files.domains, /name: 'external'/);
   });
 
-  it('uses shared feature icons on the public landing page', () => {
-    ['repository', 'deploy', 'environment', 'domain', 'users', 'audit'].forEach((name) => {
-      assert.match(files.landing, new RegExp(`name: '${name}'`));
-    });
+  it('draws every landing page feature icon from the shared partial', () => {
+    const featureIcons = files.landing.match(/<p class="feature-icon">[\s\S]*?<\/p>/g) ?? [];
+
+    assert.ok(featureIcons.length > 0);
+    assert.deepEqual(
+      featureIcons.filter((markup) => !markup.includes("include('../partials/icon'")),
+      [],
+    );
+  });
+
+  it('only asks the shared partial for icons it defines', () => {
+    const requested = [...files.landing.matchAll(/name: '([a-z-]+)'/g)].map((match) => match[1]);
+
+    assert.ok(requested.length > 0);
+    assert.deepEqual(
+      requested.filter((name) => !files.icon.includes(`${name}: '`)),
+      [],
+    );
+  });
+
+  it('keeps decorative glyphs off the landing page', () => {
     assert.doesNotMatch(files.landing, /[⎇▶⚿◈◑◷]/);
   });
 });

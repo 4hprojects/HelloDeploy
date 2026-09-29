@@ -1,0 +1,152 @@
+<div class="page-header">
+  <h1 class="page-header__title">What Can You Deploy With HelloDeploy?</h1>
+  <p class="page-header__subtitle">
+    HelloDeploy is being built as a general web application deployment platform, but a runtime
+    is only listed as supported once a complete deployment has been tested end to end. Do not
+    assume a language or framework works because it is popular — check the table below.
+  </p>
+</div>
+
+<div class="card">
+  <div class="card__body">
+    <h2>What the statuses mean</h2>
+    <dl class="detail-list">
+      <dt>Supported</dt>
+      <dd>Verified through a complete deployment: install, build, start, routing, and logs.</dd>
+      <dt>Testing</dt>
+      <dd>HelloDeploy recognises the framework, but it is still being evaluated and may not be ready for general use.</dd>
+      <dt>Planned</dt>
+      <dd>Intended, but there is no deployment path for it today.</dd>
+    </dl>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Runtimes and frameworks</h2>
+    <div class="table-wrapper">
+      <table class="table">
+        <thead>
+          <tr>
+            <th scope="col">Runtime or framework</th>
+            <th scope="col">Status</th>
+            <th scope="col">How it is deployed</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Static HTML, CSS and JavaScript</th>
+            <td>Supported</td>
+            <td>Served as static files. No build or start command needed.</td>
+          </tr>
+          <tr>
+            <th scope="row">Node.js</th>
+            <td>Supported</td>
+            <td>Runs your start command. You set the port your application listens on.</td>
+          </tr>
+          <tr>
+            <th scope="row">Express</th>
+            <td>Supported</td>
+            <td>Detected from your dependencies. Runs your start command; port 3000 is assumed unless you change it.</td>
+          </tr>
+          <tr>
+            <th scope="row">React</th>
+            <td>Supported</td>
+            <td>Built to static files and served as a static site. Create React App and Vite are both recognised.</td>
+          </tr>
+          <tr>
+            <th scope="row">Vue</th>
+            <td>Testing</td>
+            <td>Built to static files and served as a static site. Vite and Vue CLI are both recognised.</td>
+          </tr>
+          <tr>
+            <th scope="row">Next.js</th>
+            <td>Testing</td>
+            <td>Runs as a Node server. Requires <code class="code-inline">output: 'standalone'</code> in your Next.js config — see below.</td>
+          </tr>
+          <tr>
+            <th scope="row">Python, Flask, FastAPI, Django</th>
+            <td>Planned</td>
+            <td>No deployment path yet.</td>
+          </tr>
+          <tr>
+            <th scope="row">PHP, Laravel</th>
+            <td>Planned</td>
+            <td>No deployment path yet.</td>
+          </tr>
+          <tr>
+            <th scope="row">Java, Spring Boot</th>
+            <td>Planned</td>
+            <td>No deployment path yet.</td>
+          </tr>
+          <tr>
+            <th scope="row">Your own Dockerfile</th>
+            <td>Planned</td>
+            <td>HelloDeploy builds the container image itself. A Dockerfile in your repository is ignored.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body">
+    <h2>Things worth knowing before you deploy</h2>
+
+    <h3>Read the port from the environment</h3>
+    <p class="text-sm text-muted">
+      HelloDeploy sets a <code class="code-inline">PORT</code> environment variable when your
+      application starts, matching the application port on your project. Read it
+      (<code class="code-inline">process.env.PORT</code>) rather than hardcoding a number.
+      <code class="code-inline">PORT</code> is managed by the platform, so it cannot be set as
+      one of your own environment variables — nor can
+      <code class="code-inline">NODE_ENV</code>, <code class="code-inline">HOST</code> or
+      <code class="code-inline">HOSTNAME</code>.
+    </p>
+
+    <h3>Dependencies install with npm</h3>
+    <p class="text-sm text-muted">
+      Builds run <code class="code-inline">npm ci</code>, which needs a
+      <code class="code-inline">package-lock.json</code> committed to your repository. If your
+      project locks with pnpm or Yarn, HelloDeploy warns you before deployment and asks for an
+      npm lockfile.
+    </p>
+
+    <h3>Next.js needs standalone output</h3>
+    <p class="text-sm text-muted">
+      HelloDeploy deploys Next.js from its standalone build output, so your
+      <code class="code-inline">next.config</code> needs
+      <code class="code-inline">output: 'standalone'</code>. Without it, the build produces
+      files HelloDeploy cannot start.
+    </p>
+
+    <h3>React and Vue deploy as static sites</h3>
+    <p class="text-sm text-muted">
+      A React or Vue single-page application is built and then served as static files, so it
+      has no start command and no application port. If your project needs a running server,
+      deploy that server as a Node or Express project.
+    </p>
+
+    <h3>HelloDeploy manages containerisation</h3>
+    <p class="text-sm text-muted">
+      HelloDeploy generates the container image for your project. A Dockerfile in your
+      repository is ignored, and arbitrary container images, Docker Compose files, and
+      privileged containers are not supported.
+    </p>
+  </div>
+</div>
+
+<div class="card mt-8">
+  <div class="card__body text-center">
+    <h2 class="feature-title">Not sure whether your project fits?</h2>
+    <p class="text-sm text-muted">
+      Connect a repository and HelloDeploy will tell you what it detected, what it assumed, and
+      what it cannot work out — before anything is deployed.
+    </p>
+    <div class="button-group mt-4">
+      <a href="/auth/create-account" class="button button--primary">Get Started</a>
+      <a href="/how-it-works" class="button button--secondary">How Deployment Works</a>
+    </div>
+  </div>
+</div>

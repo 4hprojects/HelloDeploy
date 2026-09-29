@@ -10,7 +10,13 @@ import {
   validateJobPayload,
   JobPayloadValidationError,
   getFailureCopy,
+  FailureCode,
+  RecoveryAction,
   DEPLOYMENT_FAILURE_COPY,
+  DeploymentStage,
+  DEPLOYMENT_STAGE_ORDER,
+  DEPLOYMENT_STAGE_COPY,
+  getStageCopy,
 } from '@hellodeploy/contracts';
 
 describe('contracts — enums', () => {
@@ -205,5 +211,109 @@ describe('contracts — getFailureCopy', () => {
   it('falls back to a generic message when no code is given', () => {
     const copy = getFailureCopy(undefined);
     assert.equal(copy.message, 'Something went wrong during deployment.');
+  });
+});
+
+describe('deployment stage copy', () => {
+  it('orders every stage in the enum exactly once', () => {
+    assert.deepEqual([...DEPLOYMENT_STAGE_ORDER].sort(), Object.values(DeploymentStage).sort());
+  });
+
+  it('gives every ordered stage plain-language copy', () => {
+    const missing = DEPLOYMENT_STAGE_ORDER.filter((stage) => !DEPLOYMENT_STAGE_COPY[stage]);
+    assert.deepEqual(missing, []);
+  });
+
+  it('describes what each stage is doing', () => {
+    const undescribed = DEPLOYMENT_STAGE_ORDER.filter(
+      (stage) => !DEPLOYMENT_STAGE_COPY[stage].description,
+    );
+    assert.deepEqual(undescribed, []);
+  });
+
+  it('avoids infrastructure vocabulary in stage labels', () => {
+    const leaked = DEPLOYMENT_STAGE_ORDER.filter((stage) =>
+      /nginx|docker|container|port|proxy|pm2/i.test(
+        `${DEPLOYMENT_STAGE_COPY[stage].label} ${DEPLOYMENT_STAGE_COPY[stage].description}`,
+      ),
+    );
+    assert.deepEqual(leaked, []);
+  });
+
+  it('falls back to generic copy for an unrecognized stage', () => {
+    assert.equal(getStageCopy('SOME_FUTURE_STAGE').label, 'Working');
+  });
+});
+
+describe('failure code coverage', () => {
+  it('gives every code in the enum plain-language copy', () => {
+    const missing = Object.values(FailureCode).filter((code) => !DEPLOYMENT_FAILURE_COPY[code]);
+    assert.deepEqual(missing, []);
+  });
+
+  it('has no copy for a code outside the enum', () => {
+    const codes = Object.values(FailureCode);
+    const orphaned = Object.keys(DEPLOYMENT_FAILURE_COPY).filter((key) => !codes.includes(key));
+    assert.deepEqual(orphaned, []);
+  });
+
+  it('offers a next action for every code', () => {
+    const actionless = Object.values(FailureCode).filter(
+      (code) => !DEPLOYMENT_FAILURE_COPY[code].action,
+    );
+    assert.deepEqual(actionless, []);
+  });
+});
+
+describe('every failure offers a way forward', () => {
+  it('names recovery steps for every code', () => {
+    const missing = Object.values(FailureCode).filter(
+      (code) => !Array.isArray(DEPLOYMENT_FAILURE_COPY[code].actions),
+    );
+    assert.deepEqual(missing, []);
+  });
+
+  it('uses only known recovery steps', () => {
+    const known = new Set(Object.values(RecoveryAction));
+    const unknown = Object.values(FailureCode).flatMap((code) =>
+      DEPLOYMENT_FAILURE_COPY[code].actions.filter((action) => !known.has(action)),
+    );
+
+    assert.deepEqual(unknown, []);
+  });
+
+  it('gives an unrecognised code somewhere to go', () => {
+    assert.ok(getFailureCopy('SOME_FUTURE_CODE').actions.length > 0);
+  });
+
+  it('does not offer a retry for a failure a retry cannot fix', () => {
+    // The source release is gone; retrying the rollback would fail the same way.
+    assert.ok(
+      !DEPLOYMENT_FAILURE_COPY[FailureCode.ROLLBACK_SOURCE_INVALID].actions.includes(
+        RecoveryAction.RETRY,
+      ),
+    );
+  });
+
+  it('sends a lost GitHub connection to the repository, not to a retry alone', () => {
+    assert.equal(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.REPO_ACCESS_REVOKED].actions[0],
+      RecoveryAction.REPOSITORY,
+    );
+  });
+
+  it('sends a missing secret to the settings first', () => {
+    assert.equal(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.SECRET_DECRYPTION_FAILED].actions[0],
+      RecoveryAction.ENVIRONMENT,
+    );
+  });
+
+  it('sends an unusable address to the address field', () => {
+    assert.ok(
+      DEPLOYMENT_FAILURE_COPY[FailureCode.SUBDOMAIN_INVALID].actions.includes(
+        RecoveryAction.ADDRESS,
+      ),
+    );
   });
 });

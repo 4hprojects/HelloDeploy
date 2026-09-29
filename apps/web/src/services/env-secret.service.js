@@ -1,6 +1,6 @@
 import { EnvironmentSecret } from '@hellodeploy/database';
 import { encrypt, decrypt } from '@hellodeploy/security';
-import { AuditOutcome } from '@hellodeploy/contracts';
+import { AuditOutcome, isPlatformManagedEnv, platformManagedReason } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { parse } from 'dotenv';
 
@@ -84,10 +84,28 @@ export async function importEnvFile(projectId, content, actorId, opts = {}) {
     return parsed;
   }
 
+  // A .env file routinely carries PORT or NODE_ENV. Skip those rather than
+  // failing the whole import, and name what was skipped — silently dropping
+  // them while reporting a full count would misreport what was stored.
+  const skipped = [];
+  let stored = 0;
+
   for (const [name, value] of parsed.entries) {
-    await setSecret(projectId, name, value, actorId, opts);
+    if (isPlatformManagedEnv(name)) {
+      skipped.push(name.toUpperCase());
+      continue;
+    }
+
+    const result = await setSecret(projectId, name, value, actorId, opts);
+    if (!result.success) {
+      return { success: false, error: `${name}: ${result.error}` };
+    }
+    stored += 1;
   }
-  return { success: true, count: parsed.entries.length };
+
+  return skipped.length > 0
+    ? { success: true, count: stored, skipped }
+    : { success: true, count: stored };
 }
 
 function normalizeBulkSecretRows(rows) {
@@ -135,7 +153,10 @@ export async function bulkUpdateSecrets(projectId, rows, actorId, opts = {}) {
   }
 
   for (const row of updates) {
-    const result = await setSecret(projectId, row.name, row.value, actorId, opts);
+    const result = await setSecret(projectId, row.name, row.value, actorId, {
+      ...opts,
+      allowPlatformManaged: true,
+    });
     if (!result.success) {
       return result;
     }
@@ -183,10 +204,25 @@ export async function revealSecretValue(projectId, name, actorId, opts = {}) {
  *
  * @returns {{ success: boolean, error?: string }}
  */
+/**
+ * Store a secret.
+ *
+ * @param {object} opts
+ *   opts.allowPlatformManaged — permit a name HelloDeploy sets itself. Advanced
+ *   mode passes this after warning; Simple mode does not, because setting PORT
+ *   or NODE_ENV by hand usually stops the website responding and the release
+ *   rolls back with an error that looks unrelated.
+ */
 export async function setSecret(projectId, name, value, actorId, opts = {}) {
   const nameError = validateSecretName(name);
   if (nameError) {
     return { success: false, error: nameError };
+  }
+  if (isPlatformManagedEnv(name) && !opts.allowPlatformManaged) {
+    return {
+      success: false,
+      error: `${platformManagedReason(name)} Switch to Advanced mode if you really need to set ${name.toUpperCase()} yourself.`,
+    };
   }
   if (!value || typeof value !== 'string') {
     return { success: false, error: 'Secret value is required.' };
