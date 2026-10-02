@@ -1,61 +1,37 @@
 <div class="page-header page-header--actions">
-  <div>
-    <h1 class="page-header__title">Dashboard</h1>
-    <p class="page-header__subtitle">Welcome back, <%= locals.user?.firstName ?? 'there' %>.</p>
-  </div>
+  <div><h1 class="page-header__title">Dashboard</h1><p class="page-header__subtitle">Welcome back, <%= locals.user?.firstName ?? 'there' %>.</p></div>
   <a href="/projects/new" class="button button--primary">New Project</a>
 </div>
 
-<% if (projects.length === 0) { %>
-<div class="empty-state">
-  <div class="empty-state__icon"><%- include('../partials/icon', { name: 'projects' }) %></div>
-  <h2 class="empty-state__title">No projects yet</h2>
-  <p class="empty-state__description">Start with a project, then connect source code and run detection before the first deploy.</p>
-  <ul class="empty-state__steps">
-    <li>Create a project name and slug.</li>
-    <li>Connect the GitHub repository you want to deploy.</li>
-    <li>Run detection, add required secrets, and deploy when ready.</li>
-  </ul>
-  <div class="empty-state__actions">
-    <a href="/projects/new" class="button button--primary">Create Project</a>
+<div data-dashboard-status-url="/dashboard/status" data-dashboard-active="<%= activeDeployments.length %>">
+  <div class="sr-only" aria-live="polite" data-dashboard-live></div>
+  <div class="dashboard-notices mb-6" data-dashboard-notices>
+    <% notices.forEach(notice => { %><div class="alert alert--warning" role="status"><%= notice.message %></div><% }) %>
   </div>
+
+  <% if (rows.length === 0) { %>
+  <div class="empty-state"><h2 class="empty-state__title">Create your first project</h2><p class="empty-state__description">Choose its permanent address, connect a supported repository, and follow the guided setup to a healthy release.</p><ol class="empty-state__steps"><li>Create a permanent project address</li><li>Connect the GitHub repository</li><li>Review detection and deploy</li></ol><div class="empty-state__actions"><a href="/projects/new" class="button button--primary">Create Project</a><a href="/docs/getting-started" class="button button--secondary">Read the guide</a></div></div>
+  <% } else { %>
+  <section class="mb-6" aria-labelledby="health-title">
+    <div class="section-heading"><h2 id="health-title">Project health</h2><a href="/projects">Browse all projects</a></div>
+    <div class="stats-grid stats-grid--sm">
+      <% [['live','Live'],['deploying','Deploying'],['needs_attention','Needs attention'],['failed','Failed']].forEach(([key,label]) => { %>
+      <a class="stat-card stat-card--sm stat-card--link" href="/projects?status=<%= key %>"><span class="stat-card__value"><%= healthCounts[key] || 0 %></span><span class="stat-card__label"><%= label %></span></a>
+      <% }) %>
+    </div>
+  </section>
+
+  <div class="dashboard-grid">
+    <section class="card" aria-labelledby="attention-title"><div class="card__header"><h2 class="card__title" id="attention-title">Needs attention</h2></div><div class="card__body">
+      <% if (needsAttention.length === 0) { %><p class="text-sm text-muted">No project action is required right now.</p><% } else { %><ul class="activity-list" role="list"><% needsAttention.forEach(row => { %><li><a href="/projects/<%= row.project.slug %>"><strong><%= row.project.name %></strong><span><%= row.derivedState.label %></span></a></li><% }) %></ul><% } %>
+    </div></section>
+    <section class="card" aria-labelledby="active-title"><div class="card__header"><h2 class="card__title" id="active-title">Active deployments</h2></div><div class="card__body" data-dashboard-active-list>
+      <% if (activeDeployments.length === 0) { %><p class="text-sm text-muted">No deployments are running.</p><% } else { %><ul class="activity-list" role="list"><% activeDeployments.forEach(row => { %><li data-deployment-id="<%= row.latestDeployment._id %>"><a href="/projects/<%= row.project.slug %>/deployments/<%= row.latestDeployment._id %>"><strong><%= row.project.name %> #<%= row.latestDeployment.sequenceNumber %></strong><span data-deployment-status><%= statusPresentation('deployment', row.latestDeployment.status).label %></span></a></li><% }) %></ul><% } %>
+    </div></section>
+  </div>
+
+  <section class="card mt-6" aria-labelledby="recent-title"><div class="card__header"><h2 class="card__title" id="recent-title">Recent deployment activity</h2></div><div class="card__body"><% if (recentEvents.length === 0) { %><p class="text-sm text-muted">Deployment activity will appear here.</p><% } else { %><ul class="activity-list" role="list"><% recentEvents.forEach(row => { %><li><a href="/projects/<%= row.project.slug %>/deployments/<%= row.latestDeployment._id %>"><strong><%= row.project.name %> #<%= row.latestDeployment.sequenceNumber %></strong><span><%= statusPresentation('deployment', row.latestDeployment.status).label %> · <%= new Date(row.latestDeployment.updatedAt).toLocaleString('en-GB') %></span></a></li><% }) %></ul><% } %></div></section>
+
+  <section class="card mt-6" aria-labelledby="snapshot-title"><div class="card__header"><h2 class="card__title" id="snapshot-title">Project snapshot</h2><a href="/projects" class="button button--ghost button--sm">Search and filter</a></div><div class="project-card-grid card__body"><% rows.slice(0, 6).forEach(row => { %><a class="project-summary-card" href="/projects/<%= row.project.slug %>"><strong><%= row.project.name %></strong><span><%= row.derivedState.label %></span><small><%= row.repository?.fullName || 'No repository connected' %></small></a><% }) %></div></section>
+  <% } %>
 </div>
-<% } else { %>
-<div class="card">
-  <div class="card__header">
-    <span class="card__title">Your Projects</span>
-    <a href="/projects" class="button button--ghost button--sm">View all</a>
-  </div>
-  <div class="table-wrapper table-responsive table-responsive--flush">
-    <table class="table table--responsive">
-      <thead>
-        <tr>
-          <th scope="col">Name</th>
-          <th scope="col">Status</th>
-          <th scope="col">Role</th>
-          <th scope="col">Created</th>
-          <th scope="col"><span class="sr-only">Actions</span></th>
-        </tr>
-      </thead>
-      <tbody>
-        <% projects.slice(0, 5).forEach(({ project, role }) => { %>
-        <tr>
-          <td data-label="Name">
-            <a href="/projects/<%= project.slug %>" class="table-link"><%= project.name %></a>
-            <span class="text-muted text-xs d-block"><%= project.slug %></span>
-          </td>
-          <td data-label="Status">
-            <%- include('../partials/status-badge', { status: project.status }) %>
-          </td>
-          <td data-label="Role"><span class="role-pill"><%= role %></span></td>
-          <td class="text-muted text-sm" data-label="Created"><%= new Date(project.createdAt).toLocaleDateString('en-GB') %></td>
-          <td class="text-right" data-label="Actions">
-            <a href="/projects/<%= project.slug %>" class="button button--ghost button--sm">Open</a>
-          </td>
-        </tr>
-        <% }) %>
-      </tbody>
-    </table>
-  </div>
-</div>
-<% } %>

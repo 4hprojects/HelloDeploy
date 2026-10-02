@@ -34,7 +34,7 @@
             <% if (m.role === 'OWNER') { %>
             <span class="role-pill role-pill--owner">Owner</span>
             <% } else { %>
-            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" class="d-inline">
+            <form method="POST" action="/projects/<%= project.slug %>/members/<%= m.userId._id %>/role" class="d-inline" data-confirm="Change this member's role? Maintainers can deploy and roll back; Viewers are read-only." data-confirm-title="Change member role" data-confirm-accept-label="Change Role">
               <%- include('../../partials/csrf-field') %>
               <select name="role" class="form-select form-select--inline" data-auto-submit aria-label="Change role">
                 <option value="MAINTAINER" <%= m.role === 'MAINTAINER' ? 'selected' : '' %>>Maintainer</option>
@@ -117,7 +117,7 @@
   </div>
 </div>
 
-<div class="card card--danger">
+<div class="card card--danger" id="transfer-ownership">
   <div class="card__body">
     <h2 class="card__title mb-2">Transfer Ownership</h2>
     <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
@@ -139,6 +139,11 @@
             </option>
             <% }) %>
           </select>
+        </div>
+        <div class="form-field form-field--floating">
+          <label for="currentPassword" class="form-label form-label--required">Your current password</label>
+          <input id="currentPassword" name="currentPassword" type="password" class="form-input" autocomplete="current-password" required aria-describedby="ownership-password-hint">
+          <span class="form-hint text-xs text-muted" id="ownership-password-hint">Required to confirm this permanent privilege change.</span>
         </div>
         <div class="form-field align-self-end">
           <button type="submit" class="button button--danger">Transfer Ownership</button>

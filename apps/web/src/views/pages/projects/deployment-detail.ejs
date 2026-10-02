@@ -2,7 +2,7 @@
   <div>
     <h1 class="page-header__title">
       Deployment #<%= deployment.sequenceNumber %>
-      <%- include('../../partials/status-badge', { status: deployment.status }) %>
+      <span data-detail-status><%- include('../../partials/status-badge', { status: deployment.status, statusKind: 'deployment' }) %></span>
     </h1>
     <p class="page-header__subtitle text-muted text-sm">
       <a href="/projects/<%= project.slug %>/deployments" class="table-link">&larr; All Deployments</a>
@@ -11,10 +11,10 @@
   <% const canAct = membership.role === 'OWNER' || membership.role === 'MAINTAINER'; %>
   <% const isActive = ['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(deployment.status); %>
   <% const isRetryable = ['FAILED','CANCELLED'].includes(deployment.status); %>
-  <div class="button-group">
+  <div class="button-group" data-terminal-actions>
     <% if (isActive && canAct) { %>
     <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/cancel"
-          data-confirm="Cancel this deployment before it completes?"
+          data-confirm="Stop this deployment? Completed build work will be discarded and the current live release will remain unchanged."
           data-confirm-title="Cancel deployment"
           data-confirm-accept-label="Cancel Deployment"
           data-confirm-pending-label="Cancelling..."
@@ -24,12 +24,20 @@
     </form>
     <% } %>
     <% if (isRetryable && canAct) { %>
-    <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry">
+    <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry" data-confirm="Retry recorded commit <%= deployment.commitSha.slice(0, 7) %> with current configuration and build cache?">
       <%- include('../../partials/csrf-field') %>
-      <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying..." data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
+      <input type="hidden" name="source" value="same"><button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying...">Retry same commit</button>
+    </form>
+    <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/retry" data-confirm="Resolve the latest production-branch commit and deploy it with current configuration and build cache?">
+      <%- include('../../partials/csrf-field') %><input type="hidden" name="source" value="latest"><button type="submit" class="button button--ghost button--sm" data-pending-label="Resolving...">Retry latest</button>
     </form>
     <% } %>
   </div>
+</div>
+
+<div class="alert alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
+  <strong><%= deployment.status === 'HEALTHY' ? 'Deployment completed successfully.' : deployment.status === 'FAILED' ? 'Deployment did not go live.' : deployment.status === 'CANCELLED' ? 'Deployment was cancelled.' : 'Deployment is in progress.' %></strong>
+  <p class="text-sm mt-1"><%= isCurrentRelease ? 'This is the release currently serving the platform URL.' : project.activeDeploymentId ? 'Another healthy deployment is currently serving traffic.' : 'No healthy release is currently live.' %></p>
 </div>
 
 <!-- Deployment info cards -->
@@ -48,7 +56,7 @@
       <p class="text-muted text-xs mb-1">Trigger</p>
       <p class="text-sm font-medium"><%= deployment.triggerType %></p>
       <% if (deployment.sourceDeploymentId) { %>
-      <p class="text-muted text-xs">from deployment #<%= deployment.sourceDeploymentId %></p>
+      <p class="text-muted text-xs">Rollback from current release to target <%= rollbackSource ? `#${rollbackSource.sequenceNumber} (${rollbackSource.commitSha.slice(0, 7)})` : deployment.sourceDeploymentId %></p>
       <% } %>
     </div>
   </div>
@@ -58,9 +66,9 @@
       <% if (deployment.startedAt && deployment.completedAt) { %>
         <% const ms = new Date(deployment.completedAt) - new Date(deployment.startedAt); %>
         <% const secs = Math.round(ms / 1000); %>
-        <p class="text-sm font-medium"><%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %></p>
+      <p class="text-sm font-medium" data-detail-duration><%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %></p>
       <% } else if (deployment.startedAt) { %>
-        <p class="text-sm font-medium text-muted">In progress…</p>
+        <p class="text-sm font-medium text-muted" data-detail-duration>In progress…</p>
       <% } else { %>
         <p class="text-sm text-muted">—</p>
       <% } %>
@@ -117,7 +125,7 @@
           const firstEvent = firstEventForStage(stage);
           const latestEvent = latestEventForStage(stage);
           const startedAt = stageTime(stage, firstEvent);
-          const statusText = state === 'active' ? 'In progress' : state === 'complete' ? 'Complete' : state === 'failed' ? deployment.status.replace('_', ' ') : 'Pending';
+          const statusText = state === 'active' ? 'In progress' : state === 'complete' ? 'Complete' : state === 'failed' ? statusPresentation('deployment', deployment.status).label : 'Pending';
           const message = state === 'failed' && failureCopy ? failureCopy.message : latestEvent?.messageRedacted ?? stage.detail;
         %>
         <div class="deployment-stage deployment-stage--<%= state %>" data-stage-key="<%= stage.key %>">
@@ -174,6 +182,12 @@
 <div class="card" id="log-card">
   <div class="card__header">
     <h2 class="card__title text-sm">Deployment Logs</h2>
+    <div class="button-group button-group--sm">
+      <label class="form-label sr-only" for="log-search">Search visible logs</label><input class="form-input form-input--sm" id="log-search" type="search" placeholder="Search logs" data-log-search>
+      <button type="button" class="button button--ghost button--sm" data-log-follow aria-pressed="true">Following live</button>
+      <button type="button" class="button button--ghost button--sm" data-log-copy>Copy visible</button>
+      <a class="button button--ghost button--sm" href="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs/download">Download</a>
+    </div>
     <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
     <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
     <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>

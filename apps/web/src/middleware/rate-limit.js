@@ -11,6 +11,12 @@ const RATE_LIMIT_REDIS_REQUIRED_MESSAGE = 'Redis-backed rate limiting is require
 let _redisClient = null;
 
 function getRedisClient() {
+  // Test processes use an isolated in-memory store. Attempting to create an
+  // ioredis client here does not fail synchronously when Redis is absent; it
+  // instead retries forever and can starve browser fixtures in CI.
+  if (env.NODE_ENV === 'test') {
+    return null;
+  }
   if (_redisClient) {
     return _redisClient;
   }

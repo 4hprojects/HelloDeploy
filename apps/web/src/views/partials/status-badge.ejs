@@ -1,6 +1,6 @@
 <%
 // Maps any status value to its CSS modifier and display label.
-const STATUS_MAP = {
+const LEGACY_STATUS_MAP = {
   DRAFT:               { mod: 'draft',     label: 'Draft',                  hint: 'Draft item is still being configured.' },
   ACTIVE:              { mod: 'healthy',   label: 'Active',                 hint: 'Active item is approved and available for normal use.' },
   SUSPENDED:           { mod: 'suspended', label: 'Suspended',              hint: 'Suspended item is paused by an administrator.' },
@@ -25,6 +25,13 @@ const STATUS_MAP = {
   ROLLED_BACK:         { mod: 'stopped',   label: 'Rolled Back',            hint: 'A retained healthy release was restored.' },
 };
 const _status = typeof status !== 'undefined' ? status : '';
-const { mod, label, hint } = STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
+const kind = typeof statusKind !== 'undefined' ? statusKind :
+  ['QUEUED','VALIDATING','BUILDING','DEPLOYING','HEALTHY','CANCELLED','ROLLED_BACK'].includes(_status) ? 'deployment' :
+  ['PENDING_VERIFICATION','VERIFYING','VERIFIED','PENDING_ADMIN_APPROVAL','ACTIVATING','REMOVING','REMOVED'].includes(_status) ? 'domain' :
+  ['PENDING','APPROVED','CHANGES_REQUESTED','REJECTED'].includes(_status) ? 'approval' : 'project';
+const canonical = locals.statusPresentation ? locals.statusPresentation(kind, _status) : null;
+const fallback = LEGACY_STATUS_MAP[_status] || { mod: 'draft', label: _status, hint: `Status: ${_status}` };
+const { label, hint } = canonical || fallback;
+const mod = canonical?.tone || fallback.mod;
 %>
 <span class="status-badge status-badge--<%= mod %>" tabindex="0" aria-label="<%= label %>: <%= hint %>" data-tooltip="<%= hint %>"><%= label %></span>

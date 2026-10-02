@@ -6,6 +6,24 @@
   </p>
 </div>
 
+<section class="card mb-6" aria-labelledby="platform-release-title">
+  <div class="card__header">
+    <h2 class="card__title" id="platform-release-title">Platform release</h2>
+    <span class="badge <%= server.platformRelease?.matchesExpected === true ? 'badge--success' : 'badge--warning' %>">
+      <%= server.platformRelease?.matchesExpected === true ? 'Expected release' : 'Verify release' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <dl class="detail-list">
+      <dt>Running SHA</dt><dd><code class="code-inline"><%= server.platformRelease?.actualSha || 'Unavailable' %></code></dd>
+      <dt>Expected SHA</dt><dd><code class="code-inline"><%= server.platformRelease?.expectedSha || 'Metadata unavailable' %></code></dd>
+      <dt>Process started</dt><dd><%= server.platformRelease?.processStartedAt ? new Date(server.platformRelease.processStartedAt).toLocaleString('en-GB') : 'Unavailable' %></dd>
+      <dt>Environment</dt><dd><%= server.platformRelease?.environment || 'Unknown' %></dd>
+    </dl>
+    <p class="form-hint mt-4">Release metadata is written by install, upgrade, and rollback workflows. The web process does not need Docker access.</p>
+  </div>
+</section>
+
 <!-- Maintenance mode -->
 <div class="card mb-6">
   <div class="card__header">

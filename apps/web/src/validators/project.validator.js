@@ -1,4 +1,9 @@
-import { ProjectRole } from '@hellodeploy/contracts';
+import {
+  ProjectRole,
+  isReservedSubdomain,
+  isValidSubdomainLabel,
+  normalizeSubdomainLabel,
+} from '@hellodeploy/contracts';
 
 const INVITE_ROLES = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
 
@@ -14,6 +19,15 @@ export function validateCreateProject(body) {
     errors.name = 'Project name must be 100 characters or fewer.';
   } else if (!/^[a-zA-Z0-9]/.test(name)) {
     errors.name = 'Project name must start with a letter or digit.';
+  }
+
+  const slug = normalizeSubdomainLabel(body.slug);
+  if (!slug) {
+    errors.slug = 'Project address is required.';
+  } else if (slug !== body.slug?.trim().toLowerCase() || !isValidSubdomainLabel(slug)) {
+    errors.slug = 'Use lowercase letters, numbers, and single hyphens only.';
+  } else if (isReservedSubdomain(slug)) {
+    errors.slug = 'That project address is reserved by HelloDeploy.';
   }
 
   return { errors, hasErrors: Object.keys(errors).length > 0 };

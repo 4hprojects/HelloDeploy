@@ -18,11 +18,21 @@ import githubRoutes from './routes/pages/github.routes.js';
 import webhookRoutes from './routes/api/webhook.routes.js';
 import deployHookRoutes from './routes/api/deploy-hook.routes.js';
 import helmet from 'helmet';
-import { getDashboard } from './controllers/dashboard.controller.js';
+import { getDashboard, getDashboardStatusJson } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
+import {
+  getDocsIndex,
+  getDocsTopic,
+  getSupportedApps,
+  getPilot,
+  getPublicStatus,
+  getRobots,
+  getSitemap,
+} from './controllers/public.controller.js';
+import { postWebVital } from './controllers/telemetry.controller.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -110,6 +120,13 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
 
   // Static assets (served before rate limiting to avoid counting static hits).
   // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.
+  app.use(
+    '/assets-dist',
+    express.static(join(__dirname, '..', 'public', 'assets-dist'), {
+      maxAge: '1y',
+      immutable: true,
+    }),
+  );
   app.use(express.static(join(__dirname, '..', 'public'), { maxAge: '1h' }));
 
   // ── Webhook route — must be registered BEFORE express.json() parses the body.
@@ -131,6 +148,12 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.use(sessionMiddleware);
   app.use(csrfMiddleware);
   app.use(localsMiddleware);
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && req.accepts('html')) {
+      res.setHeader('Cache-Control', 'no-cache');
+    }
+    next();
+  });
   app.use(maintenanceModeMiddleware);
   if (env.isProduction()) {
     app.use(generalLimiter);
@@ -149,7 +172,17 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
     res.render('pages/index', { title: 'HelloDeploy' });
   });
 
+  app.get('/docs', getDocsIndex);
+  app.get('/docs/:topic', getDocsTopic);
+  app.get('/supported-apps', getSupportedApps);
+  app.get('/pilot', getPilot);
+  app.get('/status', getPublicStatus);
+  app.get('/robots.txt', getRobots);
+  app.get('/sitemap.xml', getSitemap);
+
   app.get('/dashboard', requireAuth, getDashboard);
+  app.get('/dashboard/status', requireAuth, getDashboardStatusJson);
+  app.post('/telemetry/web-vitals', postWebVital);
 
   // ── Public policy pages ────────────────────────────────────────────────────
   app.get('/legal', (_req, res) => res.render('pages/legal', { title: 'Legal' }));

@@ -34,11 +34,23 @@ jobs:
       - name: Format check
         run: npm run format:check
 
+      - name: Build and verify production assets
+        run: npm run assets:build && npm run assets:verify && npm run assets:budget
+
       - name: Validate development/test configuration
         run: NODE_ENV=test npm run config:check
 
       - name: Test (with coverage report)
         run: npm run test:coverage
+
+      - name: Install browser test runtime
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser, accessibility, responsive, and visual tests
+        run: npm run test:browser
+
+      - name: Lighthouse lab budgets
+        run: npm run performance:lab
 
       - name: Audit production dependencies
         run: npm audit --omit=dev --audit-level=moderate

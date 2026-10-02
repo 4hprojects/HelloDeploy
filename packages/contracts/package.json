@@ -8,6 +8,8 @@
     ".": "./src/index.js",
     "./enums": "./src/enums.js",
     "./jobs": "./src/jobs.js",
-    "./api": "./src/api.js"
+    "./api": "./src/api.js",
+    "./status-presentation": "./src/status-presentation.js",
+    "./subdomains": "./src/subdomains.js"
   }
 }

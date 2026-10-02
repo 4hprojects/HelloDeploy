@@ -70,9 +70,9 @@ describe('form pending states', () => {
     );
   });
 
-  it('loads the decision-preservation script through a fresh asset version', () => {
-    assert.match(files.mainLayout, /app\.js\?v=20260730-submit-decision/);
-    assert.match(files.authLayout, /app\.js\?v=20260730-submit-decision/);
+  it('loads the decision-preservation script through the asset manifest', () => {
+    assert.match(files.mainLayout, /assetPath\('js\/app\.js'\)/);
+    assert.match(files.authLayout, /assetPath\('js\/app\.js'\)/);
   });
 
   it('uses action-specific labels with a safe fallback', () => {

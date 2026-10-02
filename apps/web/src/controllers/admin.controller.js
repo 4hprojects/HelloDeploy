@@ -23,6 +23,7 @@ import { collectServerStats } from '../services/server-stats.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
+import { getUxMetrics } from '../services/product-analytics.service.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
@@ -43,6 +44,14 @@ export const getAdminServer = asyncHandler(async (req, res) => {
     title: 'Server & Queue',
     server,
     maintenance,
+  });
+});
+
+export const getAdminUxMetrics = asyncHandler(async (req, res) => {
+  const metrics = await getUxMetrics(req.query.days);
+  res.render('pages/admin/ux-metrics', {
+    title: 'UX Metrics',
+    metrics,
   });
 });
 

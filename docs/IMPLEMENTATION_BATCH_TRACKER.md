@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-09-02
+Updated: 2026-10-02
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -13,6 +13,17 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
 | Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
 | Release state    | NO-GO for customer application hosting                                                                                               |
+
+### UI/UX improvement program — repository-local lane
+
+The nine-phase UI/UX pack was implemented locally as six ordered batches on
+2026-10-02. This includes production-truth metadata, privacy-minimized measurement,
+public discovery, onboarding/project discovery, deployment polling and recovery,
+settings/admin improvements, hashed assets, responsive/accessibility corrections,
+and deterministic browser/visual/performance gates. See the pack's
+`IMPLEMENTATION_EVIDENCE.md` and the 2026-10-01 worklog entry for exact evidence.
+This does not change the NO-GO state above: deployment, supported-host, external DNS,
+real-device, crawler, and five-user usability evidence remains outstanding.
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did

@@ -19,6 +19,7 @@ import {
   validateResetCode,
   validateNewPassword,
 } from '../validators/auth.validator.js';
+import { recordProductEvent } from '../services/product-analytics.service.js';
 
 // ─── Turnstile verification ────────────────────────────────────────────────────
 
@@ -66,12 +67,32 @@ function redirectByRole(role) {
   return '/dashboard';
 }
 
+function maskEmail(value) {
+  if (typeof value !== 'string' || !value.includes('@')) {
+    return null;
+  }
+  const [local, domain] = value.split('@');
+  return `${local.slice(0, 1)}${'*'.repeat(Math.max(2, Math.min(6, local.length - 1)))}@${domain}`;
+}
+
+function verificationRender(req, extra = {}) {
+  const email = req.session?.pendingVerificationEmail ?? null;
+  return authRenderOpts({
+    title: 'Verify Email',
+    maskedEmail: maskEmail(email),
+    verificationEmail: email,
+    resendAvailableAt: req.session?.verificationResendAvailableAt ?? null,
+    ...extra,
+  });
+}
+
 // ─── Create Account ────────────────────────────────────────────────────────────
 
 export function getCreateAccount(req, res) {
   if (req.session?.user) {
     return res.redirect(redirectByRole(req.session.user.platformRole));
   }
+  recordProductEvent({ name: 'signup_started' });
   res.render('pages/auth/create-account', authRenderOpts({ title: 'Create Account' }));
 }
 
@@ -114,7 +135,7 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
     );
   }
 
-  await registerUser({
+  const registration = await registerUser({
     firstName: req.body.firstName.trim(),
     lastName: req.body.lastName.trim(),
     email: req.body.email.trim().toLowerCase(),
@@ -122,6 +143,10 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
+
+  if (registration?.user?.email) {
+    req.session.pendingVerificationEmail = registration.user.email;
+  }
 
   // Always show "check your email" — never confirm or deny whether email exists
   res.redirect('/auth/verify-email?submitted=1');
@@ -133,28 +158,19 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
   const { token, submitted, resent, rateLimited } = req.query;
 
   if (submitted) {
-    return res.render(
-      'pages/auth/verify-email',
-      authRenderOpts({ title: 'Verify Email', submitted: true }),
-    );
+    return res.render('pages/auth/verify-email', verificationRender(req, { submitted: true }));
   }
 
   if (resent) {
-    return res.render(
-      'pages/auth/verify-email',
-      authRenderOpts({ title: 'Verify Email', resent: true }),
-    );
+    return res.render('pages/auth/verify-email', verificationRender(req, { resent: true }));
   }
 
   if (rateLimited) {
-    return res.render(
-      'pages/auth/verify-email',
-      authRenderOpts({ title: 'Verify Email', rateLimited: true }),
-    );
+    return res.render('pages/auth/verify-email', verificationRender(req, { rateLimited: true }));
   }
 
   if (!token) {
-    return res.render('pages/auth/verify-email', authRenderOpts({ title: 'Verify Email' }));
+    return res.render('pages/auth/verify-email', verificationRender(req));
   }
 
   const result = await verifyEmail({
@@ -164,10 +180,7 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    return res.render(
-      'pages/auth/verify-email',
-      authRenderOpts({ title: 'Verify Email', error: result.error }),
-    );
+    return res.render('pages/auth/verify-email', verificationRender(req, { error: result.error }));
   }
 
   // Session fixation protection — regenerate session ID after auth, same as sign-in
@@ -194,6 +207,10 @@ export const postResendVerification = asyncHandler(async (req, res) => {
       correlationId: req.correlationId,
     });
   }
+
+  req.session.pendingVerificationEmail =
+    email?.trim().toLowerCase() || req.session.pendingVerificationEmail;
+  req.session.verificationResendAvailableAt = Date.now() + 60_000;
 
   res.redirect('/auth/verify-email?resent=1');
 });

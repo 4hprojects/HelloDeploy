@@ -1,6 +1,6 @@
 <div class="page-header">
   <h1 class="page-header__title">New Project</h1>
-  <p class="page-header__subtitle">Name your project. You can change it later.</p>
+  <p class="page-header__subtitle">Choose a name and permanent project address.</p>
 </div>
 
 <div class="card card--form-narrow">
@@ -30,6 +30,20 @@
         <% } else { %>
         <span id="name-hint" class="form-hint">A slug will be generated automatically, e.g. <em>my-project</em>.</span>
         <% } %>
+      </div>
+
+      <div class="form-field form-field--floating">
+        <label for="slug" class="form-label form-label--required">Project address</label>
+        <input type="text" id="slug" name="slug"
+          class="form-input<%= errors.slug ? ' form-input--error' : '' %>"
+          value="<%= values.slug %>" maxlength="63" autocomplete="off" placeholder="my-project"
+          pattern="[a-z0-9](?:[a-z0-9-]*[a-z0-9])?" required
+          data-slug-availability-url="/projects/slug-availability"
+          aria-describedby="<%= errors.slug ? 'slug-error' : 'slug-hint slug-status' %>" />
+        <% if (errors.slug) { %><span id="slug-error" class="form-error" role="alert"><%= errors.slug %></span><% } else { %>
+        <span id="slug-hint" class="form-hint">This address cannot be changed after creation.</span><% } %>
+        <span id="slug-status" class="form-hint" aria-live="polite"></span>
+        <p class="project-url-preview"><code id="project-url-preview"><%= values.slug || 'my-project' %>.hellodeploy.online</code></p>
       </div>
 
       <div class="form-actions mt-6">

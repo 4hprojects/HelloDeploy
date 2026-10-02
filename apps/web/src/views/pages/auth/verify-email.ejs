@@ -1,32 +1,27 @@
 <div class="auth-form">
   <h1 class="auth-form__title">Verify Email</h1>
+  <% if (locals.maskedEmail) { %><p class="auth-form__subtitle">Link sent to <strong><%= maskedEmail %></strong></p><% } %>
+  <p class="text-sm text-muted">Verification links are valid for 24 hours. Delivery can take a few minutes; check spam or junk before resending.</p>
 
   <% if (typeof submitted !== 'undefined' && submitted) { %>
     <div class="alert alert--info" role="status">
       <strong>Check your inbox.</strong><br />
-      We sent a verification link to your email address. Click the link to activate your account.
+      We sent a verification link<%= locals.maskedEmail ? ` to ${maskedEmail}` : '' %>. Click it to activate your account.
     </div>
     <p class="mt-4">Didn't receive it? Check your spam folder, or:</p>
     <form method="POST" action="/auth/verify-email/resend" class="mt-4">
       <%- include('../../partials/csrf-field') %>
-      <%- include('../../partials/form-field', {
-        fieldId: 'email',
-        label: 'Email Address',
-        type: 'email',
-        name: 'email',
-        value: '',
-        autocomplete: 'email',
-        required: true,
-        error: null
-      }) %>
-      <button type="submit" class="button button--secondary mt-4" data-pending-label="Sending...">Resend Verification Email</button>
+      <% if (locals.verificationEmail) { %><input type="hidden" name="email" value="<%= verificationEmail %>"><% } %>
+      <button type="submit" class="button button--secondary mt-4" data-resend-verification data-cooldown-until="<%= locals.resendAvailableAt || (Date.now() + 60000) %>" data-pending-label="Sending...">Resend Verification Email</button>
     </form>
+    <p class="mt-4 text-sm">Entered the wrong address? <a href="/auth/create-account">Restart account creation</a>.</p>
 
   <% } else if (typeof resent !== 'undefined' && resent) { %>
     <div class="alert alert--success" role="status">
       Verification email sent. Please check your inbox.
     </div>
     <p class="mt-4"><a href="/auth/sign-in">Back to Sign In</a></p>
+    <p class="mt-2 text-sm">Still nothing? Wait for the resend cooldown, check spam, then try once more.</p>
 
   <% } else if (typeof rateLimited !== 'undefined' && rateLimited) { %>
     <div class="alert alert--error" role="alert">

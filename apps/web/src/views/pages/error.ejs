@@ -6,7 +6,9 @@
   <div class="card__body">
     <p><%= typeof message !== 'undefined' ? message : 'An error occurred.' %></p>
     <p class="mt-4">
-      <a href="/" class="button button--secondary">Go to Dashboard</a>
+      <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--primary"><%= locals.user ? 'Return to dashboard' : 'Return home' %></a>
+      <a href="<%= locals.currentPath || '/' %>" class="button button--secondary">Try again</a>
     </p>
+    <% if (locals.correlationId) { %><p class="form-hint mt-4">If you contact support, include reference <code class="code-inline"><%= correlationId %></code>.</p><% } %>
   </div>
 </div>

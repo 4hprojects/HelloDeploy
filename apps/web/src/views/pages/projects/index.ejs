@@ -1,52 +1,22 @@
-<div class="page-header page-header--actions">
-  <div>
-    <h1 class="page-header__title">Projects</h1>
-  </div>
-  <a href="/projects/new" class="button button--primary">New Project</a>
-</div>
+<%
+  const pageHref = (nextPage) => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => { if (value) params.set(key, value); });
+    params.set('page', String(nextPage));
+    return `/projects?${params.toString()}`;
+  };
+%>
+<div class="page-header page-header--actions"><div><h1 class="page-header__title">Projects</h1><p class="page-header__subtitle"><%= total %> project<%= total === 1 ? '' : 's' %> match this view.</p></div><a href="/projects/new" class="button button--primary">New Project</a></div>
 
-<% if (projects.length === 0) { %>
-<div class="empty-state">
-  <div class="empty-state__icon"><%- include('../../partials/icon', { name: 'projects' }) %></div>
-  <h2 class="empty-state__title">No projects yet</h2>
-  <p class="empty-state__description">Create a project, connect a repository, then prepare it for deployment.</p>
-  <ul class="empty-state__steps">
-    <li>Create the project shell.</li>
-    <li>Connect GitHub and choose the production branch.</li>
-    <li>Run detection, configure secrets, then deploy.</li>
-  </ul>
-  <div class="empty-state__actions">
-    <a href="/projects/new" class="button button--primary">Create Project</a>
-  </div>
-</div>
-<% } else { %>
-<div class="table-wrapper table-responsive">
-  <table class="table table--responsive">
-    <thead>
-      <tr>
-        <th scope="col">Name</th>
-        <th scope="col">Status</th>
-        <th scope="col">Role</th>
-        <th scope="col">Created</th>
-        <th scope="col"><span class="sr-only">Actions</span></th>
-      </tr>
-    </thead>
-    <tbody>
-      <% projects.forEach(({ project, role }) => { %>
-      <tr>
-        <td data-label="Name">
-          <a href="/projects/<%= project.slug %>" class="table-link"><strong><%= project.name %></strong></a>
-          <span class="text-muted text-xs d-block"><%= project.slug %></span>
-        </td>
-        <td data-label="Status"><%- include('../../partials/status-badge', { status: project.status }) %></td>
-        <td data-label="Role"><span class="role-pill"><%= role %></span></td>
-        <td class="text-muted text-sm" data-label="Created"><%= new Date(project.createdAt).toLocaleDateString('en-GB') %></td>
-        <td class="text-right" data-label="Actions">
-          <a href="/projects/<%= project.slug %>" class="button button--ghost button--sm">Open</a>
-        </td>
-      </tr>
-      <% }) %>
-    </tbody>
-  </table>
-</div>
+<form class="filter-bar" method="GET" action="/projects" role="search">
+  <div class="form-group"><label class="form-label" for="project-search">Search</label><input class="form-input" id="project-search" name="q" value="<%= filters.q %>" placeholder="Name, address, or repository"></div>
+  <div class="form-group"><label class="form-label" for="project-status">Status</label><select class="form-select" id="project-status" name="status"><option value="">All statuses</option><% [['setup','Setup'],['needs_attention','Needs attention'],['awaiting_review','Awaiting review'],['ready_to_deploy','Ready to deploy'],['deploying','Deploying'],['live','Live'],['failed','Failed'],['suspended','Suspended'],['archived','Archived']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
+  <div class="form-group"><label class="form-label" for="project-role">Role</label><select class="form-select" id="project-role" name="role"><option value="">All roles</option><% ['OWNER','MAINTAINER','VIEWER'].forEach(value => { %><option value="<%= value %>" <%= filters.role === value ? 'selected' : '' %>><%= value[0] + value.slice(1).toLowerCase() %></option><% }) %></select></div>
+  <div class="form-group"><label class="form-label" for="project-sort">Sort</label><select class="form-select" id="project-sort" name="sort"><% [['updated_desc','Recently updated'],['updated_asc','Oldest updated'],['name_asc','Name A–Z'],['name_desc','Name Z–A'],['state_asc','Status']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.sort === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
+  <button class="button button--secondary" type="submit">Apply</button><% if (filters.q || filters.role || filters.status || filters.sort !== 'updated_desc') { %><a class="button button--ghost" href="/projects">Clear</a><% } %>
+</form>
+
+<% if (rows.length === 0) { %><div class="empty-state"><h2 class="empty-state__title"><%= total === 0 && !filters.q && !filters.role && !filters.status ? 'No projects yet' : 'No matching projects' %></h2><p class="empty-state__description">Try clearing a filter, or create a project when you are ready.</p><ol class="empty-state__steps"><li>Choose a permanent project address</li><li>Connect a supported repository</li><li>Run detection, configure secrets, then deploy</li></ol><div class="empty-state__actions"><a class="button button--primary" href="/projects/new">Create Project</a></div></div><% } else { %>
+<div class="project-list" role="list"><% rows.forEach(row => { %><article class="project-list-card" role="listitem"><div><a class="project-list-card__title" href="/projects/<%= row.project.slug %>"><%= row.project.name %></a><p class="text-sm text-muted"><%= row.project.slug %><% if (row.repository) { %> · <%= row.repository.fullName %><% } %></p></div><div><span class="status-badge status-badge--<%= row.derivedState.tone %>"><%= row.derivedState.label %></span> <span class="role-pill"><%= row.role %></span></div><div class="text-sm text-muted">Updated <%= new Date(row.project.updatedAt).toLocaleDateString('en-GB') %></div><a href="/projects/<%= row.project.slug %>" class="button button--secondary button--sm">Open project</a></article><% }) %></div>
 <% } %>
+<% if (totalPages > 1) { %><nav class="pagination" aria-label="Projects pages"><% if (page > 1) { %><a class="button button--secondary button--sm" href="<%= pageHref(page - 1) %>">Previous</a><% } %><span>Page <%= page %> of <%= totalPages %></span><% if (page < totalPages) { %><a class="button button--secondary button--sm" href="<%= pageHref(page + 1) %>">Next</a><% } %></nav><% } %>

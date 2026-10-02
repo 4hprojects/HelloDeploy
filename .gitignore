@@ -9,6 +9,8 @@ node_modules/
 # Build output
 dist/
 build/
+apps/web/public/assets-dist/
+apps/web/public/asset-manifest.json
 .next/
 
 # Logs
@@ -32,6 +34,8 @@ Thumbs.db
 
 # Test coverage
 coverage/
+playwright-report/
+test-results/
 
 # Temporary build artifacts
 /var/lib/hellodeploy/

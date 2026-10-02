@@ -15,16 +15,27 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "assets:build": "node scripts/build-assets.js",
+    "assets:verify": "node scripts/verify-assets.js",
+    "assets:budget": "node scripts/check-ui-budgets.js",
+    "database:indexes:verify": "node scripts/verify-product-event-indexes.js",
     "config:check": "node scripts/validate-config.js",
     "host:baseline": "node scripts/capture-host-baseline.js",
     "production:check": "node scripts/check-public-production.js",
     "test": "node scripts/run-tests.js",
     "test:watch": "node scripts/run-tests.js --watch",
-    "test:coverage": "node scripts/run-tests.js --coverage"
+    "test:coverage": "node scripts/run-tests.js --coverage",
+    "test:browser": "playwright test",
+    "test:browser:update": "playwright test --update-snapshots",
+    "previews:capture": "node scripts/capture-product-previews.js",
+    "performance:lab": "node scripts/run-lighthouse-lab.js"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "concurrently": "^8.2.2",
     "eslint": "^9.18.0",
+    "lighthouse": "^13.5.0",
     "mongodb-memory-server": "^11.2.0",
     "prettier": "^3.4.2"
   },

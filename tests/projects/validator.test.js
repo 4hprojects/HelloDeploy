@@ -8,31 +8,31 @@ import {
 
 describe('validateCreateProject', () => {
   it('accepts a valid name', () => {
-    assert.ok(!validateCreateProject({ name: 'My App' }).hasErrors);
+    assert.ok(!validateCreateProject({ name: 'My App', slug: 'my-app' }).hasErrors);
   });
 
   it('rejects empty name', () => {
-    const { errors } = validateCreateProject({ name: '' });
+    const { errors } = validateCreateProject({ name: '', slug: 'my-app' });
     assert.ok(errors.name);
   });
 
   it('rejects single character name', () => {
-    const { errors } = validateCreateProject({ name: 'A' });
+    const { errors } = validateCreateProject({ name: 'A', slug: 'a-app' });
     assert.ok(errors.name);
   });
 
   it('rejects name over 100 characters', () => {
-    const { errors } = validateCreateProject({ name: 'A'.repeat(101) });
+    const { errors } = validateCreateProject({ name: 'A'.repeat(101), slug: 'my-app' });
     assert.ok(errors.name);
   });
 
   it('rejects name starting with a hyphen', () => {
-    const { errors } = validateCreateProject({ name: '-bad-start' });
+    const { errors } = validateCreateProject({ name: '-bad-start', slug: 'bad-start' });
     assert.ok(errors.name);
   });
 
   it('accepts name starting with a digit', () => {
-    assert.ok(!validateCreateProject({ name: '3d-renderer' }).hasErrors);
+    assert.ok(!validateCreateProject({ name: '3d-renderer', slug: '3d-renderer' }).hasErrors);
   });
 });
 

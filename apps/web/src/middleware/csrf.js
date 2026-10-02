@@ -49,6 +49,10 @@ export function csrfMiddleware(req, res, next) {
       hasSubmittedToken: Boolean(submittedToken),
     });
 
+    if (req.originalUrl === '/telemetry/web-vitals') {
+      return res.status(403).json({ error: 'Invalid or missing CSRF token.' });
+    }
+
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',

@@ -198,6 +198,26 @@
   background: var(--color-bg-muted);
   color: var(--color-status-archived);
 }
+.status-badge--success {
+  background: var(--color-green-light);
+  color: var(--color-status-healthy);
+}
+.status-badge--info {
+  background: var(--color-blue-light);
+  color: var(--color-status-building);
+}
+.status-badge--warning {
+  background: var(--color-warning-bg);
+  color: var(--color-status-pending);
+}
+.status-badge--danger {
+  background: var(--color-error-bg);
+  color: var(--color-status-failed);
+}
+.status-badge--neutral {
+  background: var(--color-bg-muted);
+  color: var(--color-text-muted);
+}
 
 /* ── Alert ───────────────────────────────────────────────────────── */
 .alert {
@@ -2427,4 +2447,270 @@
 .onboarding-list__step--done > span:not(.onboarding-list__icon) {
   color: var(--color-text-muted);
   text-decoration: line-through;
+}
+
+/* ── Canonical public and discovery layouts ────────────────────── */
+.public-hero {
+  min-height: 31rem;
+  display: grid;
+  place-items: center;
+}
+.public-hero .hero__title {
+  max-width: 56rem;
+  font-size: clamp(2.2rem, 5vw, 4.5rem);
+}
+.public-hero .hero__subtitle {
+  max-width: 45rem;
+}
+.pilot-badge,
+.section-eyebrow {
+  color: var(--color-orange);
+  font-size: var(--text-sm);
+  font-weight: var(--font-semibold);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.public-section,
+.product-preview,
+.public-cta {
+  padding: var(--space-12) 0;
+}
+.product-preview {
+  display: grid;
+  grid-template-columns: minmax(14rem, 0.7fr) minmax(0, 1.3fr);
+  gap: var(--space-8);
+  align-items: center;
+}
+.product-preview__frame {
+  margin: 0;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  background: var(--color-surface);
+}
+.product-preview__frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.product-preview__frame figcaption {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+}
+.compatibility-grid,
+.trust-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4);
+}
+.trust-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+.trust-grid > div {
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  display: grid;
+  gap: var(--space-2);
+}
+.trust-grid span {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.public-cta {
+  text-align: center;
+  border-top: 1px solid var(--color-border);
+}
+.public-cta .button-group {
+  justify-content: center;
+  margin-top: var(--space-4);
+}
+.public-hero .button-group,
+.public-cta .button-group {
+  flex-wrap: wrap;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-6);
+}
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+}
+.activity-list li {
+  border-bottom: 1px solid var(--color-border);
+  padding: var(--space-3) 0;
+}
+.activity-list li:last-child {
+  border-bottom: 0;
+}
+.activity-list a,
+.activity-list li > span {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.activity-list span span,
+.activity-list a span {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+  text-align: right;
+}
+.stat-card--link {
+  color: inherit;
+  text-decoration: none;
+}
+.stat-card--link:hover {
+  border-color: var(--color-blue);
+}
+.project-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+.project-summary-card {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  text-decoration: none;
+}
+.project-summary-card span,
+.project-summary-card small {
+  color: var(--color-text-muted);
+}
+
+.filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.filter-bar .form-group {
+  margin: 0;
+  min-width: 10rem;
+  flex: 1;
+}
+.project-list {
+  display: grid;
+  gap: var(--space-3);
+}
+.project-list-card {
+  display: grid;
+  grid-template-columns: minmax(12rem, 1fr) auto auto auto;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+}
+.project-list-card__title {
+  font-weight: var(--font-semibold);
+  color: var(--color-text);
+}
+.project-addresses {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.readiness-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.readiness-list__item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.form-input--sm {
+  min-width: 10rem;
+  padding: var(--space-1) var(--space-2);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 64rem) {
+  .trust-grid,
+  .project-card-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .project-list-card {
+    grid-template-columns: minmax(10rem, 1fr) auto;
+  }
+}
+@media (max-width: 48rem) {
+  .product-preview,
+  .compatibility-grid,
+  .trust-grid,
+  .dashboard-grid,
+  .project-card-grid {
+    grid-template-columns: 1fr;
+  }
+  .public-section,
+  .product-preview,
+  .public-cta {
+    padding: var(--space-8) 0;
+  }
+  .filter-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .filter-bar .form-group,
+  .filter-bar .button {
+    width: 100%;
+  }
+  .project-list-card {
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  .activity-list a,
+  .activity-list li > span {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-1);
+  }
+  .activity-list span span,
+  .activity-list a span {
+    text-align: left;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

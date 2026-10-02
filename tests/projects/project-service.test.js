@@ -37,12 +37,12 @@ describe('project.service — createProject', () => {
     assert.equal(membership.role, ProjectRole.OWNER);
   });
 
-  it('deduplicates slugs when two projects share a name', async () => {
+  it('rejects a duplicate immutable project slug', async () => {
     const { project: first } = await createProject({ name: 'Same Name', ownerId: objectId() });
-    const { project: second } = await createProject({ name: 'Same Name', ownerId: objectId() });
+    const second = await createProject({ name: 'Same Name', ownerId: objectId() });
     assert.equal(first.slug, 'same-name');
-    assert.notEqual(second.slug, first.slug);
-    assert.match(second.slug, /^same-name-/);
+    assert.equal(second.success, false);
+    assert.match(second.error, /already in use/i);
   });
 
   it('rejects creation beyond the owned-project quota (plan default: 1)', async () => {

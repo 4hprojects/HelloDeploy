@@ -56,8 +56,8 @@ describe('.env file upload UI', () => {
     assert.match(environment, /id="env-file-status"[\s\S]*aria-live="polite"/);
   });
 
-  it('loads a cache-busted client bundle so the file listener is current', () => {
-    assert.match(mainLayout, /\/js\/app\.js\?v=[^"']+/);
+  it('loads the manifest-resolved client bundle so the file listener is current', () => {
+    assert.match(mainLayout, /assetPath\('js\/app\.js'\)/);
   });
 
   it('prevents secret-management and reveal responses from being browser-cached', () => {

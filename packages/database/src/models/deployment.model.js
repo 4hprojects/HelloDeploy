@@ -15,6 +15,7 @@ const deploymentSchema = new Schema(
     requestedBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     commitSha: { type: String, required: true, maxlength: 40 },
     commitMessage: { type: String, default: null, maxlength: 500 },
+    branch: { type: String, default: null, maxlength: 255 },
     configurationVersion: { type: Number, required: true },
     status: {
       type: String,

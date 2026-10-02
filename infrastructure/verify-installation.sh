@@ -99,6 +99,12 @@ else
   fail "web readiness endpoint is unhealthy"
 fi
 
+if runuser -u hellodeploy-web -- bash -c "cd '$HD_HOME' && npm run database:indexes:verify" >/dev/null 2>&1; then
+  pass "privacy-minimized product-event indexes and 90-day TTL exist"
+else
+  fail "product-event indexes or 90-day TTL are missing"
+fi
+
 if (( FAILED > 0 )); then
   echo "$FAILED installation verification check(s) failed." >&2
   exit 1

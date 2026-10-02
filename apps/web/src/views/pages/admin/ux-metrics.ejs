@@ -1,0 +1,24 @@
+<div class="page-header page-header--actions">
+  <div><h1 class="page-header__title">UX Metrics</h1><p class="page-header__subtitle">Privacy-minimized activation, recovery, and field-performance signals.</p></div>
+  <nav class="button-group" aria-label="Metric period">
+    <% [7, 30, 90].forEach(days => { %><a class="button button--<%= metrics.days === days ? 'primary' : 'secondary' %> button--sm" href="/admin/ux-metrics?days=<%= days %>"><%= days %> days</a><% }) %>
+  </nav>
+</div>
+
+<section class="card mb-6" aria-labelledby="activation-title">
+  <div class="card__header"><h2 class="card__title" id="activation-title">Activation and recovery</h2></div>
+  <div class="card__body">
+    <div class="stats-grid stats-grid--sm">
+      <% [['Accounts created','signup_completed'],['Projects created','project_created'],['First deploys live','first_deploy_succeeded'],['First deploy failures','first_deploy_failed']].forEach(([label, key]) => { %>
+      <div class="stat-card stat-card--sm"><span class="stat-card__value"><%= metrics.counts[key] || 0 %></span><span class="stat-card__label"><%= label %></span></div>
+      <% }) %>
+    </div>
+  </div>
+</section>
+
+<section class="card" aria-labelledby="vitals-title">
+  <div class="card__header"><h2 class="card__title" id="vitals-title">Web Vitals p75</h2></div>
+  <div class="card__body table-wrapper"><table class="table"><thead><tr><th>Metric</th><th>Mobile</th><th>Desktop</th></tr></thead><tbody>
+    <% ['LCP','INP','CLS'].forEach(metric => { %><tr><th scope="row"><%= metric %></th><td><%= metrics.p75[`${metric}:mobile`] ?? 'No data' %></td><td><%= metrics.p75[`${metric}:desktop`] ?? 'No data' %></td></tr><% }) %>
+  </tbody></table><p class="form-hint mt-4">P75 values are calculated from bounded, first-party measurements. No IP address, repository name, URL, credential, or secret value is stored.</p></div>
+</section>

@@ -38,6 +38,7 @@
       <li><strong>Session cookie</strong> — a single <code>hellodeploy.sid</code> session cookie, set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>. It contains only a session identifier, not your personal data. Sessions expire after 24 hours of inactivity.</li>
       <li><strong>IP address</strong> — logged for rate limiting, brute-force protection, and security audit events. Not used for advertising or profiling.</li>
       <li><strong>Correlation IDs</strong> — random identifiers attached to each request for internal debugging. Not linked to your identity in logs.</li>
+      <li><strong>Product and performance events</strong> — allowlisted account, project, deployment milestone counts and bounded LCP, INP, and CLS measurements. These first-party events may include an account or project identifier when you are signed in, but never an IP address, repository name, URL, credential, environment value, or secret.</li>
     </ul>
 
     <h2>Data Retention</h2>
@@ -49,6 +50,7 @@
         <tr><td>Build and deployment logs</td><td>7 days</td></tr>
         <tr><td>Docker images (old releases)</td><td>Deleted when a fourth healthy release is created</td></tr>
         <tr><td>Audit events</td><td>90 days</td></tr>
+        <tr><td>Product and Web Vital events</td><td>90 days, then automatically deleted</td></tr>
         <tr><td>Account and project data</td><td>Until account deletion is requested</td></tr>
         <tr><td>Session data</td><td>24 hours of inactivity, or until sign-out</td></tr>
       </tbody>
@@ -66,7 +68,7 @@
         <tr><td>Cloudflare</td><td>DNS, TLS, and tunnel ingress</td><td>IP addresses and HTTP request metadata</td></tr>
       </tbody>
     </table>
-    <p>We do not sell your data or share it with any other third party.</p>
+    <p>We do not sell your data or share it with any other third party. Product measurement is processed server-side by HelloDeploy; no third-party analytics script is loaded.</p>
 
     <h2>Cookies</h2>
     <p>We use a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. We do not use tracking cookies, analytics cookies, or advertising cookies. See the <a href="/cookies">Cookie Policy</a> for details.</p>

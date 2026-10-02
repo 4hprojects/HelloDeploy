@@ -2,6 +2,16 @@
   <h1 class="auth-form__title">Create Account</h1>
   <p class="auth-form__subtitle">Already have an account? <a href="/auth/sign-in">Sign In</a></p>
 
+  <aside class="alert alert--info mb-6" aria-labelledby="account-expectations-title">
+    <strong id="account-expectations-title">Before you start</strong>
+    <ul class="mt-2">
+      <li>You will verify your email before entering the dashboard.</li>
+      <li>Your project needs a supported GitHub repository, required configuration, and pilot approval before its first deployment.</li>
+      <li>The active pilot is free within published service limits; it does not include an SLA or managed database.</li>
+    </ul>
+    <a href="/supported-apps">Check supported applications</a>
+  </aside>
+
   <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
 
   <form method="POST" action="/auth/create-account" novalidate id="create-account-form">

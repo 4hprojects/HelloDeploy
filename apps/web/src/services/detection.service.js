@@ -7,6 +7,7 @@ import {
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
+import { recordProductEvent } from './product-analytics.service.js';
 
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
@@ -213,6 +214,9 @@ const FILES_TO_FETCH = [
   'next.config.js',
   'next.config.mjs',
   'next.config.ts',
+  '.env.example',
+  '.env.sample',
+  '.env.template',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -328,6 +332,37 @@ function safeDetectionIssues(issues) {
   }));
 }
 
+/** Extract names only from conventional environment sample files. Values are never retained. */
+export function detectRequiredEnvironmentVariables(files) {
+  const names = new Set();
+  for (const path of ['.env.example', '.env.sample', '.env.template']) {
+    const content = files[path];
+    if (typeof content !== 'string') {
+      continue;
+    }
+    for (const line of content.split(/\r?\n/).slice(0, 500)) {
+      const match = line.match(/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/i);
+      if (match) {
+        names.add(match[1].toUpperCase());
+      }
+      if (names.size >= 100) {
+        break;
+      }
+    }
+  }
+  return [...names].sort();
+}
+
+function detectedConfiguration(result) {
+  return {
+    buildCommand: result.buildCommand ?? null,
+    startCommand: result.startCommand ?? null,
+    outputDirectory: result.outputDirectory ?? null,
+    applicationPort: result.applicationPort ?? null,
+    healthCheckPath: '/',
+  };
+}
+
 async function persistDetectionResult(projectId, result, checkedCommitSha = null) {
   await Project.updateOne(
     { _id: projectId },
@@ -338,6 +373,8 @@ async function persistDetectionResult(projectId, result, checkedCommitSha = null
           issues: safeDetectionIssues(result.issues),
           checkedCommitSha,
           checkedAt: new Date(),
+          detectedConfiguration: null,
+          requiredEnvironmentVariables: [],
         },
       },
     },
@@ -402,6 +439,8 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
   }
 
   const result = detectRuntime(files);
+  result.requiredEnvironmentVariables = detectRequiredEnvironmentVariables(files);
+  const detected = detectedConfiguration(result);
 
   // Persist detected config to project
   await Project.updateOne(
@@ -409,15 +448,14 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
     {
       $set: {
         runtimeType: result.runtimeType,
-        'buildConfiguration.buildCommand': result.buildCommand,
-        'buildConfiguration.startCommand': result.startCommand,
-        'buildConfiguration.outputDirectory': result.outputDirectory,
-        'buildConfiguration.applicationPort': result.applicationPort,
+        buildConfiguration: detected,
         detection: {
           status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
           issues: safeDetectionIssues(result.issues),
           checkedCommitSha: repo.lastCommitSha,
           checkedAt: new Date(),
+          detectedConfiguration: detected,
+          requiredEnvironmentVariables: result.requiredEnvironmentVariables,
         },
         configurationVersion: project.configurationVersion + 1,
       },
@@ -437,6 +475,12 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
       issueCount: result.issues.length,
       errorCount: result.issues.filter((i) => i.level === 'ERROR').length,
     },
+  });
+  await recordProductEvent({
+    name: 'detection_completed',
+    userId: actorId,
+    projectId,
+    properties: result.isValid ? null : { reason: 'fix_required' },
   });
 
   return result;

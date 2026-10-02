@@ -778,9 +778,266 @@
     });
   }
 
+  function initProjectSlug() {
+    const name = document.getElementById('name');
+    const slug = document.getElementById('slug');
+    const status = document.getElementById('slug-status');
+    const preview = document.getElementById('project-url-preview');
+    if (!name || !slug || !status || !preview) {
+      return;
+    }
+    let manuallyEdited = Boolean(slug.value);
+    let timer = null;
+    const normalize = (value) =>
+      value
+        .toLowerCase()
+        .trim()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 63);
+    async function check() {
+      const value = normalize(slug.value);
+      slug.value = value;
+      preview.textContent = `${value || 'my-project'}.hellodeploy.online`;
+      if (!value) {
+        status.textContent = '';
+        return;
+      }
+      status.textContent = 'Checking availability…';
+      try {
+        const response = await fetch(
+          `${slug.dataset.slugAvailabilityUrl}?slug=${encodeURIComponent(value)}`,
+          { headers: { Accept: 'application/json' } },
+        );
+        const data = await response.json();
+        status.textContent = data.available
+          ? 'Address is available.'
+          : 'Address is unavailable or reserved.';
+      } catch {
+        status.textContent =
+          'Availability could not be checked. It will be checked when you submit.';
+      }
+    }
+    name.addEventListener('input', () => {
+      if (!manuallyEdited) {
+        slug.value = normalize(name.value);
+      }
+      clearTimeout(timer);
+      timer = setTimeout(check, 250);
+    });
+    slug.addEventListener('input', () => {
+      manuallyEdited = true;
+      clearTimeout(timer);
+      timer = setTimeout(check, 250);
+    });
+    check();
+  }
+
+  function initWebVitals() {
+    if (!window.PerformanceObserver) {
+      return;
+    }
+    const token = document.querySelector('meta[name="csrf-token"]')?.content;
+    if (!token) {
+      return;
+    }
+    const values = {};
+    const page =
+      location.pathname === '/'
+        ? 'landing'
+        : location.pathname.startsWith('/dashboard')
+          ? 'dashboard'
+          : location.pathname.startsWith('/admin')
+            ? 'admin'
+            : location.pathname.includes('/deployments/')
+              ? 'deployment'
+              : location.pathname.startsWith('/projects/')
+                ? 'project'
+                : location.pathname === '/projects'
+                  ? 'projects'
+                  : null;
+    if (!page) {
+      return;
+    }
+
+    function observe(type, callback) {
+      try {
+        const observer = new PerformanceObserver((list) => callback(list.getEntries()));
+        observer.observe({ type, buffered: true });
+      } catch {
+        /* Metric is unsupported in this browser. */
+      }
+    }
+    observe('largest-contentful-paint', (entries) => {
+      const last = entries[entries.length - 1];
+      if (last) {
+        values.LCP = last.startTime;
+      }
+    });
+    let cls = 0;
+    observe('layout-shift', (entries) => {
+      entries.forEach((entry) => {
+        if (!entry.hadRecentInput) {
+          cls += entry.value;
+        }
+      });
+      values.CLS = cls;
+    });
+    observe('event', (entries) => {
+      entries.forEach((entry) => {
+        values.INP = Math.max(values.INP || 0, entry.duration || 0);
+      });
+    });
+
+    let sent = false;
+    function send() {
+      if (sent) {
+        return;
+      }
+      sent = true;
+      Object.entries(values).forEach(([metric, value]) => {
+        fetch('/telemetry/web-vitals', {
+          method: 'POST',
+          credentials: 'same-origin',
+          keepalive: true,
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': token },
+          body: JSON.stringify({ metric, value, page, viewportWidth: window.innerWidth }),
+        }).catch(() => {});
+      });
+    }
+    window.addEventListener('pagehide', send, { once: true });
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'hidden') {
+        send();
+      }
+    });
+  }
+
+  function initVerificationCooldown() {
+    document.querySelectorAll('[data-resend-verification]').forEach((button) => {
+      const original = button.textContent.trim();
+      const deadline = Number(button.dataset.cooldownUntil);
+      if (!Number.isFinite(deadline)) {
+        return;
+      }
+      function update() {
+        const seconds = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
+        button.disabled = seconds > 0;
+        button.textContent = seconds > 0 ? `Resend available in ${seconds}s` : original;
+        if (seconds > 0) {
+          window.setTimeout(update, 1000);
+        }
+      }
+      update();
+    });
+  }
+
+  function initDashboardPolling() {
+    const root = document.querySelector('[data-dashboard-status-url]');
+    if (!root || Number(root.dataset.dashboardActive) < 1) {
+      return;
+    }
+    const live = root.querySelector('[data-dashboard-live]');
+    const notices = root.querySelector('[data-dashboard-notices]');
+    const labels = {
+      QUEUED: 'Waiting to start',
+      VALIDATING: 'Checking setup',
+      BUILDING: 'Building app',
+      DEPLOYING: 'Publishing',
+      HEALTHY: 'Live',
+      FAILED: 'Failed',
+      CANCELLED: 'Cancelled',
+    };
+    let previous = '';
+    async function poll() {
+      try {
+        const response = await fetch(root.dataset.dashboardStatusUrl, {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          throw new Error('Status unavailable');
+        }
+        const payload = await response.json();
+        payload.activeDeployments.forEach((deployment) => {
+          const row = root.querySelector(`[data-deployment-id="${deployment.id}"]`);
+          const status = row?.querySelector('[data-deployment-status]');
+          if (status) {
+            status.textContent = labels[deployment.status] || deployment.status;
+          }
+        });
+        const signature = JSON.stringify(
+          payload.activeDeployments.map((item) => [item.id, item.status, item.stage]),
+        );
+        if (previous && signature !== previous && live) {
+          live.textContent = 'Deployment status updated.';
+        }
+        previous = signature;
+        if (notices) {
+          notices.textContent = payload.notices.map((item) => item.message).join(' ');
+        }
+        if (payload.activeDeployments.length > 0) {
+          window.setTimeout(poll, 5000);
+        } else if (live) {
+          live.textContent = 'All active deployments have finished.';
+        }
+      } catch {
+        window.setTimeout(poll, 10000);
+      }
+    }
+    window.setTimeout(poll, 5000);
+  }
+
   function initDeploymentLiveLogs() {
     const output = document.getElementById('log-output');
-    if (!output || !output.dataset.streamUrl) {
+    if (!output) {
+      return;
+    }
+
+    const search = document.querySelector('[data-log-search]');
+    const copy = document.querySelector('[data-log-copy]');
+    const follow = document.querySelector('[data-log-follow]');
+    let following = true;
+    function applySearch() {
+      const query = search?.value.trim().toLowerCase() || '';
+      output.querySelectorAll('.log-line').forEach((line) => {
+        line.hidden = Boolean(query) && !line.textContent.toLowerCase().includes(query);
+      });
+    }
+    search?.addEventListener('input', applySearch);
+    copy?.addEventListener('click', async () => {
+      const text = [...output.querySelectorAll('.log-line:not([hidden])')]
+        .map((line) => line.textContent.trim())
+        .join('\n');
+      try {
+        await navigator.clipboard.writeText(text);
+        copy.textContent = 'Copied';
+      } catch {
+        copy.textContent = 'Copy unavailable';
+      }
+      window.setTimeout(() => {
+        copy.textContent = 'Copy visible';
+      }, 1500);
+    });
+    follow?.addEventListener('click', () => {
+      following = !following;
+      follow.setAttribute('aria-pressed', String(following));
+      follow.textContent = following ? 'Following live' : 'Follow live';
+      if (following) {
+        output.scrollTop = output.scrollHeight;
+      }
+    });
+    output.addEventListener('scroll', () => {
+      if (output.scrollHeight - output.scrollTop - output.clientHeight > 40 && following) {
+        following = false;
+        if (follow) {
+          follow.setAttribute('aria-pressed', 'false');
+          follow.textContent = 'Follow live';
+        }
+      }
+    });
+    if (!output.dataset.streamUrl) {
       return;
     }
 
@@ -832,7 +1089,10 @@
       message.textContent = ev.message || '';
       line.append(stage, message);
       output.appendChild(line);
-      output.scrollTop = output.scrollHeight;
+      applySearch();
+      if (following) {
+        output.scrollTop = output.scrollHeight;
+      }
       updateTimeline(ev);
     }
 
@@ -873,9 +1133,21 @@
           }
           setReconnectVisible(false);
           source.close();
-          setTimeout(() => {
-            window.location.reload();
-          }, 1200);
+          const detailStatus = document.querySelector('[data-detail-status]');
+          const result = document.querySelector('[data-deployment-result]');
+          if (detailStatus) {
+            detailStatus.textContent =
+              data.status === 'HEALTHY' ? 'Live' : data.status.replaceAll('_', ' ').toLowerCase();
+          }
+          if (result) {
+            result.dataset.terminal = 'true';
+            result.querySelector('strong').textContent =
+              data.status === 'HEALTHY'
+                ? 'Deployment completed successfully.'
+                : data.status === 'FAILED'
+                  ? 'Deployment did not go live.'
+                  : 'Deployment finished.';
+          }
         } catch {
           // Ignore malformed SSE status payloads; the stream error handler will close if needed.
         }
@@ -903,6 +1175,76 @@
     }
 
     connectLogStream();
+  }
+
+  function initDeploymentListPolling() {
+    const table = document.querySelector('[data-deployment-list-status-url]');
+    if (!table) {
+      return;
+    }
+    const labels = {
+      QUEUED: 'Waiting to start',
+      VALIDATING: 'Checking setup',
+      BUILDING: 'Building app',
+      DEPLOYING: 'Publishing',
+      HEALTHY: 'Live',
+      FAILED: 'Failed',
+      CANCELLED: 'Cancelled',
+      ROLLED_BACK: 'Replaced',
+    };
+    function activeRows() {
+      return [...table.querySelectorAll('[data-deployment-row][data-terminal="false"]')];
+    }
+    async function poll() {
+      const rows = activeRows();
+      if (!rows.length) {
+        return;
+      }
+      const ids = rows.map((row) => row.dataset.deploymentId).join(',');
+      try {
+        const response = await fetch(
+          `${table.dataset.deploymentListStatusUrl}?ids=${encodeURIComponent(ids)}`,
+          {
+            credentials: 'same-origin',
+            headers: { Accept: 'application/json' },
+            cache: 'no-store',
+          },
+        );
+        if (!response.ok) {
+          throw new Error('Status unavailable');
+        }
+        const payload = await response.json();
+        payload.deployments.forEach((deployment) => {
+          const row = table.querySelector(`[data-deployment-id="${deployment.id}"]`);
+          if (!row) {
+            return;
+          }
+          row.dataset.terminal = String(deployment.terminal);
+          const status = row.querySelector('[data-deployment-status]');
+          const stage = row.querySelector('[data-deployment-stage]');
+          const duration = row.querySelector('[data-deployment-duration]');
+          if (status) {
+            status.textContent = labels[deployment.status] || deployment.status;
+          }
+          if (stage) {
+            stage.textContent = deployment.stage || '';
+          }
+          if (duration && deployment.durationMs !== null && deployment.durationMs !== undefined) {
+            duration.textContent = formatDuration(deployment.durationMs);
+          }
+        });
+      } catch {
+        /* Keep server-rendered state and retry. */
+      }
+      if (activeRows().length) {
+        window.setTimeout(poll, 5000);
+      }
+    }
+    function formatDuration(ms) {
+      const seconds = Math.max(0, Math.round(ms / 1000));
+      return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
+    }
+    window.setTimeout(poll, 5000);
   }
 
   function initEnvFileImport() {
@@ -1189,7 +1531,12 @@
     initPasswordToggles();
     initPasswordRequirements();
     initRepositoryBranchLoader();
+    initProjectSlug();
+    initWebVitals();
+    initVerificationCooldown();
+    initDashboardPolling();
     initDeploymentLiveLogs();
+    initDeploymentListPolling();
     initEnvFileImport();
     initSettingsSectionNavigation();
     initSettingsEditGroups();

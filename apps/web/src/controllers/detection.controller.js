@@ -3,7 +3,11 @@ import { projectReturnTarget } from '../utils/project-return-target.js';
 import { renderProjectSettings } from './project.controller.js';
 import { Project, Repository } from '@hellodeploy/database';
 import { runProjectDetection } from '../services/detection.service.js';
-import { updateBuildConfiguration, updateBuildFilters } from '../services/project.service.js';
+import {
+  resetBuildConfigurationToDetected,
+  updateBuildConfiguration,
+  updateBuildFilters,
+} from '../services/project.service.js';
 import {
   validateUpdateBuildConfiguration,
   validateUpdateBuildFilters,
@@ -99,6 +103,20 @@ export const postUpdateBuildConfiguration = asyncHandler(async (req, res) => {
 
   req.flash('success', 'Build configuration saved.');
   res.redirect(projectReturnTarget(req, `/projects/${project.slug}/detection`));
+});
+
+export const postResetBuildConfiguration = asyncHandler(async (req, res) => {
+  const result = await resetBuildConfigurationToDetected({
+    projectId: req.project._id,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+  req.flash(
+    result.success ? 'success' : 'error',
+    result.success ? 'Detected settings restored.' : result.error,
+  );
+  res.redirect(projectReturnTarget(req, `/projects/${req.project.slug}/detection`));
 });
 
 export const postUpdateBuildFilters = asyncHandler(async (req, res) => {
