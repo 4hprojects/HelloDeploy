@@ -40,6 +40,11 @@
     UNKNOWN: 'App type not recognized',
   };
   const bc = project.buildConfiguration || {};
+  const detectedBc = project.detection?.detectedConfiguration || null;
+  const configurationKeys = ['buildCommand', 'startCommand', 'outputDirectory', 'applicationPort', 'healthCheckPath'];
+  const hasCustomBuildConfiguration = Boolean(detectedBc && configurationKeys.some(key =>
+    String(bc[key] ?? '') !== String(detectedBc[key] ?? '')
+  ));
   const bcErrors = locals.bcErrors || {};
   const bcValues = locals.bcValues || null;
   const bf = project.buildFilters || {};
@@ -107,6 +112,22 @@
       </button>
       <p class="form-hint">Run this again after changing your repository or production branch.</p>
     </form>
+    <% if (detectedBc) { %>
+    <div class="mt-4">
+      <p class="form-hint">
+        Build settings: <strong><%= hasCustomBuildConfiguration ? 'Custom overrides' : 'Using detected values' %></strong>
+      </p>
+      <% if (hasCustomBuildConfiguration) { %>
+      <form method="POST" action="/projects/<%= project.slug %>/build-configuration/reset"
+        data-confirm="Replace custom build settings with the values detected from the repository?"
+        data-confirm-title="Reset build settings"
+        data-confirm-accept-label="Reset to detected">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--secondary button--sm">Reset to detected</button>
+      </form>
+      <% } %>
+    </div>
+    <% } %>
     <% } %>
   </div>
 </section>

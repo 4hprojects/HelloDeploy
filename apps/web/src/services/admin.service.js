@@ -7,6 +7,7 @@ import {
   Deployment,
   Domain,
   Repository,
+  AuditEvent,
   mongoose,
 } from '@hellodeploy/database';
 import {
@@ -44,15 +45,33 @@ function escapedSearchRegex(value) {
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
 export async function getAdminOverview() {
-  const [totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals] =
-    await Promise.all([
-      User.countDocuments(),
-      User.countDocuments({ status: UserStatus.ACTIVE }),
-      Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
-      ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
-      Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
-    ]);
-  return { totalUsers, activeUsers, totalProjects, pendingApprovals, pendingDomainApprovals };
+  const [
+    totalUsers,
+    activeUsers,
+    totalProjects,
+    pendingApprovals,
+    pendingDomainApprovals,
+    recentActivity,
+  ] = await Promise.all([
+    User.countDocuments(),
+    User.countDocuments({ status: UserStatus.ACTIVE }),
+    Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
+    ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
+    Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+    AuditEvent.find({ action: /^admin\./ })
+      .select('action outcome targetType createdAt')
+      .sort({ createdAt: -1 })
+      .limit(8)
+      .lean(),
+  ]);
+  return {
+    totalUsers,
+    activeUsers,
+    totalProjects,
+    pendingApprovals,
+    pendingDomainApprovals,
+    recentActivity,
+  };
 }
 
 // ─── User management ──────────────────────────────────────────────────────────

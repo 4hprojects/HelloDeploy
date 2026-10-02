@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
+const RELEASE_METADATA_PATH = '/var/lib/hellodeploy/platform-release.json';
 
 /**
  * Read the commit a checkout is on, without invoking git.
@@ -50,3 +51,24 @@ export function readReleaseSha(rootDir = REPO_ROOT) {
  * by the uptime workflow, and the answer cannot change without a restart.
  */
 export const releaseSha = readReleaseSha();
+
+export function readReleaseMetadata(path = RELEASE_METADATA_PATH) {
+  try {
+    const value = JSON.parse(readFileSync(path, 'utf8'));
+    if (!FULL_SHA_PATTERN.test(value.actualSha) || !FULL_SHA_PATTERN.test(value.expectedSha)) {
+      return null;
+    }
+    return {
+      actualSha: value.actualSha,
+      expectedSha: value.expectedSha,
+      matchesExpected: value.actualSha === value.expectedSha,
+      installedAt: typeof value.installedAt === 'string' ? value.installedAt : null,
+      previousSha: FULL_SHA_PATTERN.test(value.previousSha) ? value.previousSha : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+export const releaseMetadata = readReleaseMetadata();
+export const processStartedAt = new Date().toISOString();

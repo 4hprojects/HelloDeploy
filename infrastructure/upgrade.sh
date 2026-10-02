@@ -40,6 +40,13 @@ verify_release() {
 activate_checked_out_release() {
   section "Dependencies and configuration"
   npm ci --omit=dev || return 1
+  npm run assets:build || return 1
+  npm run assets:verify || return 1
+  local active_commit
+  active_commit=$(git rev-parse --verify HEAD) || return 1
+  node scripts/write-release-metadata.js --expected "$active_commit" || return 1
+  chown root:hellodeploy-config /var/lib/hellodeploy/platform-release.json || return 1
+  chmod 640 /var/lib/hellodeploy/platform-release.json || return 1
   sudo -u hellodeploy-web node scripts/validate-config.js --component web --require-production || return 1
   sudo -u hellodeploy-worker node scripts/validate-config.js --component worker --require-production || return 1
 

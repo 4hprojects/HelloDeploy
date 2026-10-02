@@ -23,6 +23,7 @@ import {
   postTransferOwnership,
   postUpdateDeploymentMode,
   postUpdateNotificationPreference,
+  getSlugAvailability,
 } from '../../controllers/project.controller.js';
 import {
   getRepository,
@@ -33,6 +34,7 @@ import {
 import {
   getDetection,
   postRunDetection,
+  postResetBuildConfiguration,
   postUpdateBuildConfiguration,
   postUpdateBuildFilters,
 } from '../../controllers/detection.controller.js';
@@ -66,6 +68,9 @@ import {
   postRetryDeployment,
   postRollback,
   sseDeploymentLogs,
+  getDeploymentStatuses,
+  getDeploymentStatus,
+  downloadDeploymentLogs,
 } from '../../controllers/deployment.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 import { requireEditableProject } from '../../middleware/require-editable-project.js';
@@ -83,6 +88,7 @@ for (const param of ['userId', 'deploymentId', 'domainId']) {
 // Project list and creation
 router.get('/', requireAuth, getProjectIndex);
 router.get('/new', requireAuth, getNewProject);
+router.get('/slug-availability', requireAuth, getSlugAvailability);
 router.post('/', requireAuth, postNewProject);
 
 // Project-scoped routes (require resolved project + membership)
@@ -216,6 +222,13 @@ router.post(
   postUpdateBuildConfiguration,
 );
 router.post(
+  '/:slug/build-configuration/reset',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postResetBuildConfiguration,
+);
+router.post(
   '/:slug/build-filters',
   requireAuth,
   ownerOnly,
@@ -233,7 +246,15 @@ router.post(
   postCreateDeployment,
 );
 router.post('/:slug/rollback', requireAuth, ownerOrMaintainer, deployActionLimiter, postRollback);
+router.get('/:slug/deployments/status', requireAuth, anyRole, getDeploymentStatuses);
 router.get('/:slug/deployments/:deploymentId', requireAuth, anyRole, getDeploymentDetail);
+router.get('/:slug/deployments/:deploymentId/status', requireAuth, anyRole, getDeploymentStatus);
+router.get(
+  '/:slug/deployments/:deploymentId/logs/download',
+  requireAuth,
+  anyRole,
+  downloadDeploymentLogs,
+);
 router.get('/:slug/deployments/:deploymentId/logs', requireAuth, anyRole, sseDeploymentLogs);
 router.post(
   '/:slug/deployments/:deploymentId/cancel',

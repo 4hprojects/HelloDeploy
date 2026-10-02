@@ -9,6 +9,7 @@ import {
   sendPasswordChangedEmail,
 } from './email.service.js';
 import { env } from '../config/env.js';
+import { recordProductEvent } from './product-analytics.service.js';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -84,6 +85,7 @@ export async function registerUser({
     sourceIp,
     correlationId,
   });
+  await recordProductEvent({ name: 'signup_completed', userId: user._id });
 
   return { user };
 }
@@ -120,6 +122,7 @@ export async function verifyEmail({ rawToken, sourceIp, correlationId }) {
     sourceIp,
     correlationId,
   });
+  await recordProductEvent({ name: 'verification_completed', userId: user._id });
 
   return { success: true, sessionUser: user.toSessionUser() };
 }

@@ -2169,3 +2169,27 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Production was not changed. Release and live-domain evidence require a reviewed
   immutable commit, existing upgrade controls, resubmission of the current domain,
   HTTPS checks for both hostnames, and one controlled redeployment.
+
+## 2026-10-02 — UI/UX Improvement Program (Repository-Local)
+
+- Implemented the nine-phase improvement pack as six repository-local batches while
+  preserving the Express/EJS architecture, existing authorization boundaries,
+  domain lifecycle, settings shell, and write-only secret handling.
+- Added canonical status contracts; release metadata and expected-SHA checks;
+  privacy-minimized 90-day product events and admin p75 metrics; public docs,
+  discovery and crawl routes; immutable user-chosen slugs; detected configuration
+  snapshots; operational dashboard/project discovery; deployment polling, retry,
+  log, and recovery controls; admin operational views; hashed immutable assets;
+  public error/availability handling; and expanded uptime checks.
+- Added Playwright, axe, deterministic real-app fixture seeding, visual snapshots,
+  sanitized 1280×800 product and 1200×630 social previews, byte/request budgets, and
+  Lighthouse lab checks. The first browser run exposed and corrected a deployment
+  table render failure and 320/360px landing overflow.
+- Focused verification passed 42 compatibility tests and 7 new contract/analytics/
+  discovery tests. The complete Node suite passed 1,146 tests across 234 suites with
+  no failures or skips; Playwright/axe/visual QA passed 10 tests. Lighthouse reported
+  a 0.98 performance score, 2,326ms LCP, 0 CLS, 0ms TBT, seven requests, and 244,681
+  transfer bytes. Lint, formatting, configuration, asset integrity/budgets, the
+  production dependency audit, and diff validation passed.
+- Production was not changed. Fixture results are not production, supported-host,
+  real-device, external DNS/crawler, or representative-user evidence.

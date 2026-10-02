@@ -251,6 +251,11 @@ chmod -R u=rwX,g=rX,o= "$HD_HOME"
 cd "$HD_HOME"
 info "Installing npm dependencies…"
 npm ci --omit=dev
+npm run assets:build
+npm run assets:verify
+node scripts/write-release-metadata.js --expected "$RELEASE_COMMIT"
+chown root:"$HD_CONFIG_GROUP" "$HD_DATA/platform-release.json"
+chmod 640 "$HD_DATA/platform-release.json"
 
 # ─── secrets / setup ─────────────────────────────────────────────────────────
 

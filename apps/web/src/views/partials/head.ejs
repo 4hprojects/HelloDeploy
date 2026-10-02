@@ -1,7 +1,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="HelloDeploy — self-hosted web application deployment" />
+  <% const meta = locals.pageMetadata || {}; %>
+  <meta name="description" content="<%= meta.description || 'Manage application deployments with HelloDeploy.' %>" />
+  <meta name="robots" content="<%= meta.robots || 'noindex,nofollow' %>" />
+  <% if (meta.canonicalUrl) { %><link rel="canonical" href="<%= meta.canonicalUrl %>" /><% } %>
   <title><%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %></title>
 
   <link rel="icon" href="/assets/icons/favicon.ico" sizes="any" />
@@ -12,12 +15,15 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="HelloDeploy" />
   <meta property="og:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
-  <meta property="og:description" content="Self-hosted web application deployment platform" />
-  <meta property="og:image" content="/assets/icons/icon-512.png" />
-  <meta name="twitter:card" content="summary" />
+  <meta property="og:description" content="<%= meta.description || 'Manage application deployments with HelloDeploy.' %>" />
+  <meta property="og:url" content="<%= meta.canonicalUrl || '' %>" />
+  <meta property="og:image" content="<%= meta.imageUrl || '/assets/icons/icon-512.png' %>" />
+  <meta name="twitter:card" content="summary_large_image" />
   <meta name="twitter:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
-  <meta name="twitter:image" content="/assets/icons/icon-512.png" />
+  <meta name="twitter:description" content="<%= meta.description || 'Manage application deployments with HelloDeploy.' %>" />
+  <meta name="twitter:image" content="<%= meta.imageUrl || '/assets/icons/icon-512.png' %>" />
   <meta name="theme-color" content="#ffffff" />
+  <meta name="csrf-token" content="<%= typeof csrfToken !== 'undefined' ? csrfToken : '' %>" />
 
   <!-- Theme applied before stylesheet parse to prevent flash -->
   <script nonce="<%= cspNonce %>">
@@ -64,5 +70,5 @@
     })();
   </script>
 
-  <link rel="stylesheet" href="/css/main.css?v=20260713-settings-phase2" />
+  <link rel="stylesheet" href="<%= assetPath('css/main.css') %>" />
 </head>

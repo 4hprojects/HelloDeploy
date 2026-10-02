@@ -1,11 +1,11 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
-import { Deployment, Project, Repository } from '@hellodeploy/database';
+import { Deployment, EnvironmentSecret, Project, Repository, User } from '@hellodeploy/database';
+import { verifyPassword } from '@hellodeploy/auth';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
 import {
   createProject,
-  getUserProjects,
   updateProject,
   archiveProject,
   deleteProject,
@@ -18,6 +18,7 @@ import {
   transferOwnership,
   submitForReview,
   getLatestApprovalRequest,
+  checkSlugAvailability,
 } from '../services/project.service.js';
 import {
   validateCreateProject,
@@ -36,14 +37,15 @@ import {
 } from '../services/project-overview.service.js';
 import { buildProjectSettingsView } from '../services/project-settings-view.service.js';
 import { env } from '../config/env.js';
+import { getProjectDiscovery } from '../services/project-discovery.service.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
 export const getProjectIndex = asyncHandler(async (req, res) => {
-  const userProjects = await getUserProjects(req.session.user.id);
+  const discovery = await getProjectDiscovery(req.session.user.id, req.query);
   res.render('pages/projects/index', {
     title: 'Projects',
-    projects: userProjects,
+    ...discovery,
   });
 });
 
@@ -53,7 +55,7 @@ export function getNewProject(req, res) {
   res.render('pages/projects/new', {
     title: 'New Project',
     errors: {},
-    values: { name: '' },
+    values: { name: '', slug: '' },
   });
 }
 
@@ -64,12 +66,13 @@ export const postNewProject = asyncHandler(async (req, res) => {
     return res.render('pages/projects/new', {
       title: 'New Project',
       errors,
-      values: { name: req.body.name ?? '' },
+      values: { name: req.body.name ?? '', slug: req.body.slug ?? '' },
     });
   }
 
   const result = await createProject({
     name: req.body.name.trim(),
+    slug: req.body.slug,
     ownerId: req.session.user.id,
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -78,8 +81,8 @@ export const postNewProject = asyncHandler(async (req, res) => {
   if (!result.success) {
     return res.render('pages/projects/new', {
       title: 'New Project',
-      errors: { form: result.error },
-      values: { name: req.body.name ?? '' },
+      errors: result.field ? { [result.field]: result.error } : { form: result.error },
+      values: { name: req.body.name ?? '', slug: req.body.slug ?? '' },
     });
   }
 
@@ -87,19 +90,35 @@ export const postNewProject = asyncHandler(async (req, res) => {
   res.redirect(`/projects/${result.project.slug}`);
 });
 
+export const getSlugAvailability = asyncHandler(async (req, res) => {
+  const result = await checkSlugAvailability(req.query.slug);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    ...result,
+    url: result.slug ? `https://${result.slug}${env.PLATFORM_SUBDOMAIN_SUFFIX}` : null,
+  });
+});
+
 // ─── Show project ──────────────────────────────────────────────────────────────
 
 async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
 
-  const [repository, deployments, latestApproval, activeDeployment] = await Promise.all([
-    project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
-    getDeployments(project._id, 5),
-    getLatestApprovalRequest(project._id),
-    project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
-  ]);
+  const [repository, deployments, latestApproval, activeDeployment, secretRecords, domains] =
+    await Promise.all([
+      project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
+      getDeployments(project._id, 5),
+      getLatestApprovalRequest(project._id),
+      project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
+      EnvironmentSecret.find({ projectId: project._id }).select('name').lean(),
+      getProjectDomains(project._id),
+    ]);
 
-  const approvalReadiness = assessInitialApprovalReadiness({ project, repository });
+  const approvalReadiness = assessInitialApprovalReadiness({
+    project,
+    repository,
+    configuredEnvironmentVariables: secretRecords.map(({ name }) => name),
+  });
   const appUrl = buildApplicationUrl({
     subdomain: project.platformSubdomain ?? project.slug,
     deploymentDomain: env.DEPLOYMENT_DOMAIN,
@@ -125,6 +144,8 @@ async function renderProjectOverview(req, res, extras = {}) {
     latestApproval,
     approvalReadiness,
     overviewState,
+    platformAppUrl: appUrl,
+    activeDomain: domains.find((domain) => domain.status === 'ACTIVE') ?? null,
     approvalErrors: {},
     approvalValues: { purpose: latestApproval?.purpose ?? '' },
     ...extras,
@@ -446,6 +467,11 @@ export const postUpdateMemberRole = asyncHandler(async (req, res) => {
 });
 
 export const postTransferOwnership = asyncHandler(async (req, res) => {
+  const owner = await User.findById(req.session.user.id).select('+passwordHash');
+  if (!owner || !(await verifyPassword(owner.passwordHash, req.body.currentPassword ?? ''))) {
+    req.flash('error', 'Current password is incorrect. Ownership was not transferred.');
+    return res.redirect(`/projects/${req.project.slug}/members#transfer-ownership`);
+  }
   const result = await transferOwnership({
     projectId: req.project._id,
     newOwnerId: req.body.newOwnerId,

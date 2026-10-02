@@ -86,7 +86,16 @@ export function buildProjectOverviewState({
   );
   const blockingFinding = attentionFindings.find((finding) => finding.status === 'BLOCKING');
 
+  const environmentFinding = approvalReadiness?.findings?.find(
+    (finding) => finding.code === 'required_environment',
+  );
   const milestones = [
+    {
+      key: 'project',
+      label: 'Project address chosen',
+      done: Boolean(project.slug),
+      href: base,
+    },
     {
       key: 'source',
       label: 'Source connected',
@@ -100,6 +109,12 @@ export function buildProjectOverviewState({
       href: `${base}/detection`,
     },
     {
+      key: 'environment',
+      label: 'Required variables set',
+      done: !environmentFinding || environmentFinding.status === 'PASS',
+      href: canConfigure(membershipRole) ? `${base}/environment` : null,
+    },
+    {
       key: 'approval',
       label: 'Project approved',
       done: approvalComplete,
@@ -110,8 +125,14 @@ export function buildProjectOverviewState({
         : null,
     },
     {
+      key: 'deployment',
+      label: 'First deployment started',
+      done: deployments.length > 0,
+      href: `${base}/deployments`,
+    },
+    {
       key: 'live',
-      label: 'App is live',
+      label: 'First healthy release live',
       done: appLive,
       href: appLive ? appUrl : `${base}/deployments`,
     },

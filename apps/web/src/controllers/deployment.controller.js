@@ -1,7 +1,7 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentTrigger, getFailureCopy } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
-import { DeploymentEvent } from '@hellodeploy/database';
+import { Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
 import { subscribeDeployLogs } from '../services/deploy-log-stream.js';
 import {
@@ -25,6 +25,8 @@ async function renderDeploymentList(req, res, extras = {}) {
   const { deployments, total, totalPages } = await getDeploymentsPaginated(project._id, {
     page,
     limit: DEPLOYMENTS_PER_PAGE,
+    result: req.query.result,
+    branch: req.query.branch,
   });
 
   // Identify HEALTHY deployments eligible for rollback outside the paginated list.
@@ -39,6 +41,10 @@ async function renderDeploymentList(req, res, extras = {}) {
     page,
     totalPages,
     total,
+    filters: {
+      result: typeof req.query.result === 'string' ? req.query.result : '',
+      branch: typeof req.query.branch === 'string' ? req.query.branch.slice(0, 255) : '',
+    },
     ...extras,
   });
 }
@@ -55,6 +61,9 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
   }
 
   const events = await getDeploymentEvents(deploymentId);
+  const rollbackSource = deployment.sourceDeploymentId
+    ? await Deployment.findById(deployment.sourceDeploymentId).lean()
+    : null;
   const failureCopy = deployment.failureCode ? getFailureCopy(deployment.failureCode) : null;
 
   res.render('pages/projects/deployment-detail', {
@@ -64,6 +73,8 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     deployment,
     events,
     failureCopy,
+    rollbackSource,
+    isCurrentRelease: project.activeDeploymentId?.toString() === deployment._id.toString(),
   });
 });
 
@@ -119,6 +130,7 @@ export const postRetryDeployment = asyncHandler(async (req, res) => {
   const project = req.project;
 
   const result = await retryDeployment(deploymentId, project._id, req.session.user.id, {
+    source: req.body.source,
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
@@ -128,8 +140,73 @@ export const postRetryDeployment = asyncHandler(async (req, res) => {
     return res.redirect(`/projects/${project.slug}/deployments`);
   }
 
-  req.flash('success', `Retry deployment #${result.deployment.sequenceNumber} queued.`);
+  req.flash(
+    'success',
+    `${req.body.source === 'latest' ? 'Latest-commit retry' : 'Same-commit retry'} #${result.deployment.sequenceNumber} queued.`,
+  );
   res.redirect(`/projects/${project.slug}/deployments/${result.deployment._id}`);
+});
+
+function deploymentStatusPayload(deployment) {
+  const terminal = isTerminal(deployment.status);
+  return {
+    id: deployment._id.toString(),
+    status: deployment.status,
+    stage: deployment.currentStage,
+    terminal,
+    startedAt: deployment.startedAt,
+    completedAt: deployment.completedAt,
+    durationMs: deployment.startedAt
+      ? new Date(deployment.completedAt ?? Date.now()) - new Date(deployment.startedAt)
+      : null,
+    failureCode: terminal ? deployment.failureCode : null,
+    failureSummary: terminal ? deployment.failureSummary : null,
+  };
+}
+
+export const getDeploymentStatuses = asyncHandler(async (req, res) => {
+  const ids =
+    typeof req.query.ids === 'string'
+      ? req.query.ids
+          .split(',')
+          .filter((id) => /^[0-9a-f]{24}$/i.test(id))
+          .slice(0, 20)
+      : [];
+  const deployments = await Promise.all(ids.map((id) => getDeployment(id)));
+  const authorized = deployments.filter(
+    (deployment) => deployment?.projectId.toString() === req.project._id.toString(),
+  );
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({ deployments: authorized.map(deploymentStatusPayload) });
+});
+
+export const getDeploymentStatus = asyncHandler(async (req, res) => {
+  const deployment = await getDeployment(req.params.deploymentId);
+  if (!deployment || deployment.projectId.toString() !== req.project._id.toString()) {
+    return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Deployment not found.' } });
+  }
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(deploymentStatusPayload(deployment));
+});
+
+export const downloadDeploymentLogs = asyncHandler(async (req, res) => {
+  const deployment = await getDeployment(req.params.deploymentId);
+  if (!deployment || deployment.projectId.toString() !== req.project._id.toString()) {
+    return res.status(404).render('pages/404', { title: 'Page Not Found' });
+  }
+  const events = await getDeploymentEvents(deployment._id, { limit: 1_000 });
+  const body = events
+    .map(
+      (event) =>
+        `${new Date(event.createdAt).toISOString()} [${event.stage}] [${event.level}] ${event.messageRedacted}`,
+    )
+    .join('\n');
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${req.project.slug}-deployment-${deployment.sequenceNumber}.log"`,
+  );
+  res.type('text/plain').send(`${body}\n`);
 });
 
 export const postRollback = asyncHandler(async (req, res) => {

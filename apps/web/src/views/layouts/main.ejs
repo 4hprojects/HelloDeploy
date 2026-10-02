@@ -4,8 +4,8 @@
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <%- include('../partials/header') %>
-  <div class="layout">
-    <%- include('../partials/sidebar') %>
+  <div class="layout<%= locals.user ? '' : ' layout--public' %>">
+    <% if (locals.user) { %><%- include('../partials/sidebar') %><% } %>
     <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
     <main class="layout__main" id="main-content" tabindex="-1">
       <%- include('../partials/flash-banner') %>
@@ -13,6 +13,6 @@
     </main>
   </div>
   <%- include('../partials/footer') %>
-  <script src="/js/app.js?v=20260730-submit-decision" defer></script>
+  <script src="<%= assetPath('js/app.js') %>" defer></script>
 </body>
 </html>

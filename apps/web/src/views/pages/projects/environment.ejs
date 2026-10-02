@@ -7,6 +7,32 @@
   </div>
 </div>
 
+<%
+  const detectedRequiredNames = project.detection?.requiredEnvironmentVariables || [];
+  const storedSecretNames = new Set(secrets.map(secret => secret.name));
+%>
+<% if (detectedRequiredNames.length > 0) { %>
+<section class="card mb-6" aria-labelledby="detected-variables-title">
+  <div class="card__header">
+    <span class="card__title" id="detected-variables-title">Variables detected from the repository</span>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Names came from an environment sample file. Sample values were not stored. Set every missing name before deploying.
+    </p>
+    <ul class="readiness-list" role="list">
+      <% detectedRequiredNames.forEach(name => { const isSet = storedSecretNames.has(name); %>
+      <li class="readiness-list__item">
+        <code class="code-inline"><%= name %></code>
+        <span class="status-badge status-badge--<%= isSet ? 'success' : 'warning' %>"><%= isSet ? 'Set' : 'Missing' %></span>
+      </li>
+      <% }) %>
+    </ul>
+    <p class="form-hint mt-4">Environment changes apply on the next deployment; they do not change the live app immediately.</p>
+  </div>
+</section>
+<% } %>
+
 <div class="card">
   <div class="card__header">
     <span class="card__title">Upload .env File</span>

@@ -67,6 +67,7 @@
   <% } %>
   <a href="/admin/server" class="button button--secondary">Server &amp; Queue</a>
   <a href="/admin/audit-events" class="button button--secondary">Audit Log</a>
+  <a href="/admin/ux-metrics" class="button button--secondary">UX Metrics</a>
   <% if (stats.pendingApprovals > 0) { %>
   <a href="/admin/approval-requests" class="button button--primary">
     Review Requests (<%= stats.pendingApprovals %>)
@@ -75,3 +76,10 @@
   <a href="/admin/approval-requests" class="button button--secondary">Approval Requests</a>
   <% } %>
 </div>
+
+<div class="dashboard-grid mt-6">
+  <section class="card" aria-labelledby="pending-work-title"><div class="card__header"><h2 class="card__title" id="pending-work-title">Pending work</h2></div><div class="card__body"><ul class="activity-list" role="list"><li><a href="/admin/approval-requests"><strong>Project reviews</strong><span><%= stats.pendingApprovals %> waiting</span></a></li><li><a href="/admin/domains"><strong>Domain reviews</strong><span><%= stats.pendingDomainApprovals %> waiting</span></a></li></ul></div></section>
+  <section class="card" aria-labelledby="operations-health-title"><div class="card__header"><h2 class="card__title" id="operations-health-title">Operational health</h2></div><div class="card__body"><ul class="activity-list" role="list"><li><a href="/admin/server"><strong>Deployment worker</strong><span><%= server?.worker?.ready ? 'Ready' : 'Unavailable' %></span></a></li><li><a href="/admin/server"><strong>Queue</strong><span><%= server?.queue?.paused ? 'Paused' : server?.queue ? 'Active' : 'Unavailable' %></span></a></li><li><a href="/admin/server"><strong>Release identity</strong><span><%= server?.platformRelease?.matchesExpected ? 'Matches expected SHA' : 'Verify metadata' %></span></a></li></ul></div></section>
+</div>
+
+<section class="card mt-6" aria-labelledby="recent-admin-title"><div class="card__header"><h2 class="card__title" id="recent-admin-title">Recent admin activity</h2><a href="/admin/audit-events" class="button button--ghost button--sm">Full audit log</a></div><div class="card__body"><% if (!stats.recentActivity.length) { %><p class="text-sm text-muted">No recent admin actions.</p><% } else { %><ul class="activity-list" role="list"><% stats.recentActivity.forEach(event => { %><li><span><strong><%= event.action.replaceAll('.', ' ') %></strong><span><%= event.outcome %> · <%= new Date(event.createdAt).toLocaleString('en-GB') %></span></span></li><% }) %></ul><% } %></div></section>

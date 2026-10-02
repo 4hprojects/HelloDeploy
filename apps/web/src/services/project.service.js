@@ -1,4 +1,4 @@
-import { randomBytes, timingSafeEqual } from 'node:crypto';
+import { timingSafeEqual } from 'node:crypto';
 import {
   Project,
   ProjectMembership,
@@ -17,6 +17,9 @@ import {
   ApprovalStatus,
   AuditOutcome,
   JobType,
+  normalizeSubdomainLabel,
+  isReservedSubdomain,
+  isValidSubdomainLabel,
 } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -24,51 +27,55 @@ import { generateToken, hashToken } from '@hellodeploy/security';
 import { getDeploymentQueue } from '../queue/client.js';
 import { checkCanCreateProject, checkCanAddMember } from './quota.service.js';
 import { assessInitialApprovalReadiness } from './approval-readiness.service.js';
+import { recordProductEvent } from './product-analytics.service.js';
 
-function slugify(name) {
-  return (
-    name
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 50) || 'project'
-  );
-}
-
-async function reserveSlug(name) {
-  const base = slugify(name);
-  if (!(await Project.exists({ slug: base }))) {
-    return base;
-  }
-
-  for (let i = 0; i < 5; i++) {
-    const candidate = `${base.slice(0, 46)}-${randomBytes(2).toString('hex')}`;
-    if (!(await Project.exists({ slug: candidate }))) {
-      return candidate;
-    }
-  }
-
-  throw new Error('Could not reserve a unique slug. Please try a different project name.');
+export async function checkSlugAvailability(value) {
+  const slug = normalizeSubdomainLabel(value);
+  const valid = isValidSubdomainLabel(slug) && !isReservedSubdomain(slug);
+  return { slug, available: valid && !(await Project.exists({ slug })) };
 }
 
 // ─── Project CRUD ──────────────────────────────────────────────────────────────
 
-export async function createProject({ name, ownerId, sourceIp, correlationId }) {
+export async function createProject({
+  name,
+  slug: requestedSlug,
+  ownerId,
+  sourceIp,
+  correlationId,
+}) {
   const canCreate = await checkCanCreateProject(ownerId);
   if (!canCreate) {
     return { success: false, error: 'You have reached your project limit.' };
   }
 
-  const slug = await reserveSlug(name);
+  const slug = normalizeSubdomainLabel(requestedSlug ?? name);
+  if (!isValidSubdomainLabel(slug) || isReservedSubdomain(slug)) {
+    return {
+      success: false,
+      error: 'Choose a valid, non-reserved project address.',
+      field: 'slug',
+    };
+  }
+  if (await Project.exists({ slug })) {
+    return { success: false, error: 'That project address is already in use.', field: 'slug' };
+  }
 
-  const project = await Project.create({
-    name,
-    slug,
-    ownerId,
-    status: ProjectStatus.DRAFT,
-    platformSubdomain: slug,
-  });
+  let project;
+  try {
+    project = await Project.create({
+      name,
+      slug,
+      ownerId,
+      status: ProjectStatus.DRAFT,
+      platformSubdomain: slug,
+    });
+  } catch (error) {
+    if (error?.code === 11000) {
+      return { success: false, error: 'That project address is already in use.', field: 'slug' };
+    }
+    throw error;
+  }
 
   await ProjectMembership.create({
     projectId: project._id,
@@ -87,6 +94,7 @@ export async function createProject({ name, ownerId, sourceIp, correlationId }) 
     correlationId,
     metadata: { name, slug },
   });
+  await recordProductEvent({ name: 'project_created', userId: ownerId, projectId: project._id });
 
   return { success: true, project };
 }
@@ -188,6 +196,39 @@ export async function updateBuildConfiguration({
     metadata: { buildConfiguration: project.buildConfiguration },
   });
 
+  return { success: true, project: project.toObject() };
+}
+
+export async function resetBuildConfigurationToDetected({
+  projectId,
+  actorId,
+  sourceIp,
+  correlationId,
+}) {
+  const project = await Project.findById(projectId);
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+  if (project.status === ProjectStatus.ARCHIVED) {
+    return { success: false, error: 'Archived projects cannot be edited.' };
+  }
+  const detected = project.detection?.detectedConfiguration;
+  if (!detected) {
+    return { success: false, error: 'Run app setup detection before resetting.' };
+  }
+
+  project.buildConfiguration = detected.toObject?.() ?? { ...detected };
+  project.configurationVersion += 1;
+  await project.save();
+  await writeAuditEvent({
+    action: 'project.build_configuration_reset',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: project._id.toString(),
+    sourceIp,
+    correlationId,
+  });
   return { success: true, project: project.toObject() };
 }
 
@@ -528,9 +569,22 @@ export async function submitForReview({ projectId, actorId, purpose, sourceIp, c
     return { success: false, error: 'A review request is already pending for this project.' };
   }
 
-  const repository = project.repositoryId ? await Repository.findById(project.repositoryId) : null;
-  const readiness = assessInitialApprovalReadiness({ project, repository });
+  const [repository, secretRecords] = await Promise.all([
+    project.repositoryId ? Repository.findById(project.repositoryId) : null,
+    EnvironmentSecret.find({ projectId }).select('name').lean(),
+  ]);
+  const readiness = assessInitialApprovalReadiness({
+    project,
+    repository,
+    configuredEnvironmentVariables: secretRecords.map(({ name }) => name),
+  });
   if (!readiness.isReady) {
+    await recordProductEvent({
+      name: 'readiness_blocked',
+      userId: actorId,
+      projectId,
+      properties: { reason: readiness.findings.find((item) => item.status === 'BLOCKING')?.code },
+    });
     return {
       success: false,
       error: 'Complete the required items before submitting your project.',
@@ -570,6 +624,7 @@ export async function submitForReview({ projectId, actorId, purpose, sourceIp, c
       commitSha: readiness.currentCommitSha,
     },
   });
+  await recordProductEvent({ name: 'approval_submitted', userId: actorId, projectId });
 
   return { success: true, request };
 }

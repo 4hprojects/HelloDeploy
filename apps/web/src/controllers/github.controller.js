@@ -12,6 +12,7 @@ import {
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
+import { recordProductEvent } from '../services/product-analytics.service.js';
 import {
   getInstallationUrl,
   listInstallationRepos,
@@ -174,6 +175,7 @@ export const getGithubCallback = asyncHandler(async (req, res) => {
 
   const returnSlug = sessionState?.projectSlug;
   req.flash('success', 'GitHub connected successfully.');
+  await recordProductEvent({ name: 'github_connected', userId: req.session.user.id });
   req.session.save(() => {
     res.redirect(returnSlug ? `/projects/${returnSlug}/repository` : '/dashboard');
   });
@@ -369,6 +371,12 @@ export const postConnectRepository = asyncHandler(async (req, res) => {
   });
 
   req.flash('success', `Repository ${fullName} connected on branch ${productionBranch}.`);
+  await recordProductEvent({
+    name: 'repository_selected',
+    userId: req.session.user.id,
+    projectId: project._id,
+    properties: { source: 'GITHUB_APP' },
+  });
   res.redirect(`/projects/${project.slug}`);
 });
 
@@ -461,6 +469,12 @@ async function connectPublicRepository(req, res) {
     },
   });
   req.flash('success', `Public repository ${source.fullName} connected. Run detection next.`);
+  await recordProductEvent({
+    name: 'repository_selected',
+    userId: req.session.user.id,
+    projectId: project._id,
+    properties: { source: 'PUBLIC_GIT' },
+  });
   return res.redirect(`/projects/${project.slug}`);
 }
 

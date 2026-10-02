@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Project, Repository, Deployment } from '@hellodeploy/database';
+import { Project, Repository, Deployment, EnvironmentSecret } from '@hellodeploy/database';
 import {
   DeploymentMode,
   DeploymentStatus,
@@ -13,7 +13,8 @@ import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deploy
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
-import { getPublicGithubLatestCommit } from './github.service.js';
+import { getLatestCommit, getPublicGithubLatestCommit } from './github.service.js';
+import { recordProductEvent } from './product-analytics.service.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
@@ -176,6 +177,19 @@ export async function createDeployment({
     return { success: false, error: 'Run project detection before deploying.' };
   }
 
+  const requiredNames = project.detection?.requiredEnvironmentVariables ?? [];
+  if (requiredNames.length > 0) {
+    const configured = await EnvironmentSecret.find({ projectId }).distinct('name');
+    const configuredNames = new Set(configured);
+    const missing = requiredNames.filter((name) => !configuredNames.has(name));
+    if (missing.length > 0) {
+      return {
+        success: false,
+        error: `Set required environment variables before deploying: ${missing.join(', ')}.`,
+      };
+    }
+  }
+
   const repo = await Repository.findById(project.repositoryId).lean();
   if (!repo || repo.accessStatus !== 'ACTIVE') {
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
@@ -239,10 +253,14 @@ export async function createDeployment({
     commitSha: targetCommitSha,
     // The commit message is only known for the tracked latest commit.
     commitMessage: commitShaOverride ? null : repo.lastCommitMessage,
+    branch: project.productionBranch,
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
   });
+  if (seqNum === 1) {
+    await recordProductEvent({ name: 'first_deploy_started', userId: actorId, projectId });
+  }
 
   // ── Enqueue job ─────────────────────────────────────────────────────────────
   const queue = getDeploymentQueue();
@@ -367,6 +385,36 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
   }
 
+  const source = opts.source === 'latest' ? 'latest' : 'same';
+  let commitSha = original.commitSha;
+  let commitMessage = original.commitMessage;
+  if (source === 'latest') {
+    try {
+      const latest =
+        repo.sourceType === RepositorySourceType.PUBLIC_GIT
+          ? await getPublicGithubLatestCommit(repo, project.productionBranch ?? repo.defaultBranch)
+          : await getLatestCommit(
+              repo.installationId,
+              repo.fullName,
+              project.productionBranch ?? repo.defaultBranch,
+            );
+      commitSha = latest.sha;
+      commitMessage = latest.message;
+      await Repository.updateOne(
+        { _id: repo._id },
+        {
+          $set: {
+            lastCommitSha: latest.sha,
+            lastCommitMessage: latest.message,
+            lastCommitAt: latest.committedAt ?? new Date(),
+          },
+        },
+      );
+    } catch {
+      return { success: false, error: 'Could not resolve the latest production-branch commit.' };
+    }
+  }
+
   // One-active-deployment check
   const active = await findInFlightDeployment(original.projectId);
   if (active) {
@@ -374,15 +422,16 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   }
 
   const seqNum = await nextSequenceNumber(Deployment, original.projectId);
-  const imageTag = buildImageTag(project.slug, original.commitSha, seqNum);
+  const imageTag = buildImageTag(project.slug, commitSha, seqNum);
 
   const deployment = await Deployment.create({
     projectId: original.projectId,
     sequenceNumber: seqNum,
     triggerType: DeploymentTrigger.MANUAL,
     requestedBy: actorId,
-    commitSha: original.commitSha,
-    commitMessage: original.commitMessage,
+    commitSha,
+    commitMessage,
+    branch: project.productionBranch,
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
@@ -409,7 +458,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     buildDeploymentJobPayload({
       project: { ...project, _id: original.projectId },
       deployment,
-      commitSha: original.commitSha,
+      commitSha,
       repositoryId: project.repositoryId,
       runtimeType: project.runtimeType,
       imageTag,
@@ -431,7 +480,8 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     metadata: {
       projectId: original.projectId.toString(),
       originalDeploymentId: deploymentId.toString(),
-      commitSha: original.commitSha.slice(0, 7),
+      commitSha: commitSha.slice(0, 7),
+      source,
     },
   });
 
@@ -491,6 +541,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     requestedBy: actorId,
     commitSha: targetDeployment.commitSha,
     commitMessage: targetDeployment.commitMessage,
+    branch: targetDeployment.branch ?? project.productionBranch,
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.DEPLOYING,
     sourceDeploymentId: targetDeploymentId,
@@ -563,14 +614,24 @@ export async function getDeployments(projectId, limit = 20) {
   return Deployment.find({ projectId }).sort({ sequenceNumber: -1 }).limit(limit).lean();
 }
 
-export async function getDeploymentsPaginated(projectId, { page = 1, limit = 20 } = {}) {
+export async function getDeploymentsPaginated(
+  projectId,
+  { page = 1, limit = 20, result = '', branch = '' } = {},
+) {
   const safeLimit = Math.max(1, Number.parseInt(limit, 10) || 20);
   const requestedPage = Math.max(1, Number.parseInt(page, 10) || 1);
-  const total = await Deployment.countDocuments({ projectId });
+  const query = { projectId };
+  if (Object.values(DeploymentStatus).includes(result)) {
+    query.status = result;
+  }
+  if (typeof branch === 'string' && branch.trim()) {
+    query.branch = branch.trim().slice(0, 255);
+  }
+  const total = await Deployment.countDocuments(query);
   const totalPages = Math.max(1, Math.ceil(total / safeLimit));
   const safePage = Math.min(requestedPage, totalPages);
   const skip = (safePage - 1) * safeLimit;
-  const deployments = await Deployment.find({ projectId })
+  const deployments = await Deployment.find(query)
     .sort({ sequenceNumber: -1 })
     .skip(skip)
     .limit(safeLimit)

@@ -13,7 +13,11 @@ function finding(code, label, status, message) {
   return { code, label, status, message };
 }
 
-export function assessInitialApprovalReadiness({ project, repository }) {
+export function assessInitialApprovalReadiness({
+  project,
+  repository,
+  configuredEnvironmentVariables = [],
+}) {
   const findings = [];
   const add = (code, label, ready, readyMessage, blockingMessage) => {
     findings.push(
@@ -112,6 +116,19 @@ export function assessInitialApprovalReadiness({ project, repository }) {
     'The required build and runtime settings are present.',
     'Review the recommended values in Advanced build settings and fix the highlighted fields.',
   );
+
+  const configuredNames = new Set(configuredEnvironmentVariables);
+  const requiredNames = project.detection?.requiredEnvironmentVariables ?? [];
+  if (requiredNames.length > 0) {
+    const missingNames = requiredNames.filter((name) => !configuredNames.has(name));
+    add(
+      'required_environment',
+      'Required environment variables',
+      missingNames.length === 0,
+      `All ${requiredNames.length} detected variable names are set.`,
+      `Set the missing variables: ${missingNames.join(', ')}.`,
+    );
+  }
 
   const deploymentModeReady = project.deploymentMode !== DeploymentMode.APPROVAL_REQUIRED;
   add(

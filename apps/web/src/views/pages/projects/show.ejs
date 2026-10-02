@@ -18,26 +18,21 @@
     FAILURE_ONLY: 'Failures only',
     NONE: 'None',
   };
-  const deploymentStatusCopy = {
-    QUEUED: 'Waiting to start',
-    VALIDATING: 'Checking setup',
-    BUILDING: 'Building app',
-    DEPLOYING: 'Publishing',
-    HEALTHY: 'Live',
-    FAILED: 'Failed',
-    CANCELLED: 'Cancelled',
-    ROLLED_BACK: 'Replaced',
-  };
 %>
 
 <div class="page-header page-header--actions">
   <div>
     <h1 class="page-header__title"><%= project.name %></h1>
-    <p class="page-header__subtitle text-muted text-sm"><%= project.slug %></p>
+    <p class="page-header__subtitle text-muted text-sm"><%= repository?.fullName || 'No repository connected' %><% if (project.productionBranch) { %> · <%= project.productionBranch %><% } %></p>
+    <div class="project-addresses mt-2">
+      <% const activeProjectDomain = locals.activeDomain; const fallbackUrl = locals.platformAppUrl || overviewState.appUrl || ''; const primaryUrl = activeProjectDomain ? `https://${activeProjectDomain.hostnameNormalized}` : fallbackUrl; %>
+      <span><strong><%= activeProjectDomain ? 'Custom address' : 'Platform address' %>:</strong> <a href="<%= primaryUrl %>" target="_blank" rel="noopener noreferrer"><%= primaryUrl.replace(/^https:\/\//, '') %></a></span>
+      <button type="button" class="button button--ghost button--sm" data-copy-value="<%= primaryUrl %>" data-copy-label="Application address"><span>Copy</span></button>
+      <% if (activeProjectDomain) { %><span class="text-sm text-muted">Fallback: <a href="<%= fallbackUrl %>" target="_blank" rel="noopener noreferrer"><%= fallbackUrl.replace(/^https:\/\//, '') %></a></span><% } %>
+      <span class="sr-only" aria-live="polite" data-copy-status></span>
+    </div>
   </div>
-  <% if (membership.role === 'OWNER') { %>
-  <a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a>
-  <% } %>
+  <div class="button-group"><span class="status-badge status-badge--<%= overviewState.tone %>"><%= overviewState.title %></span><% if (membership.role === 'OWNER') { %><a href="/projects/<%= project.slug %>/settings" class="button button--secondary">Settings</a><% } %></div>
 </div>
 
 <section class="project-home-summary project-home-summary--<%= overviewState.tone %><%= overviewState.appLive ? ' project-home-summary--single' : '' %>"
@@ -191,7 +186,7 @@
     <li class="project-activity">
       <div class="project-activity__main">
         <span class="project-activity__title">Deployment #<%= deployment.sequenceNumber %></span>
-        <span class="project-activity__status"><%= deploymentStatusCopy[deployment.status] || deployment.status %></span>
+        <span class="project-activity__status"><%= locals.statusPresentation ? locals.statusPresentation('deployment', deployment.status).label : deployment.status %></span>
         <% if (deployment.failureSummary) { %>
         <p class="project-activity__message"><%= deployment.failureSummary %></p>
         <% } else if (deployment.commitMessage) { %>

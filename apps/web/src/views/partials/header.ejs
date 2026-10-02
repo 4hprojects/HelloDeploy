@@ -1,14 +1,25 @@
 <header class="header" role="banner">
   <div class="header__inner">
+    <% if (locals.user) { %>
     <button type="button" class="header__menu-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar" data-tooltip="Open or close the navigation menu">
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
     </button>
+    <% } %>
     <a href="/" class="header__brand" aria-label="HelloDeploy home">
       <%- include('brand-logo') %>
     </a>
     <nav class="header__nav" aria-label="Primary navigation">
+      <% if (!locals.user) { %>
+      <a href="/#product">Product</a>
+      <a href="/#how-it-works">How It Works</a>
+      <a href="/docs">Docs</a>
+      <a href="/supported-apps">Supported Apps</a>
+      <a href="/status">Status</a>
+      <a href="/auth/sign-in">Sign In</a>
+      <a href="/auth/create-account" class="button button--primary button--sm">Create Account</a>
+      <% } %>
       <button type="button" class="header__theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" aria-pressed="false" data-tooltip="Switch to dark theme">
         <%- include('icon', { name: 'sun', className: 'theme-icon theme-icon--light' }) %>
         <%- include('icon', { name: 'moon', className: 'theme-icon theme-icon--dark' }) %>

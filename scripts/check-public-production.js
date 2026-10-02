@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 
 const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=strict'];
-const ALLOWED_HEALTH_KEYS = ['service', 'status', 'timestamp'];
+const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
 const REQUIRED_READY_CHECKS = ['mongodb', 'queue', 'redis'];
 
@@ -34,13 +34,26 @@ function sessionCookieAttributes(headers) {
 }
 
 export async function readExpectedPublicAssets() {
+  try {
+    const manifest = JSON.parse(
+      await readFile(new URL('../apps/web/public/asset-manifest.json', import.meta.url), 'utf8'),
+    );
+    const assets = Object.values(manifest.assets ?? {}).filter(
+      (value) => typeof value === 'string' && value.startsWith('/assets-dist/'),
+    );
+    if (assets.length > 0) {
+      return assets;
+    }
+  } catch {
+    // Development checkouts may intentionally use source assets.
+  }
   const files = [
     new URL('../apps/web/src/views/layouts/main.ejs', import.meta.url),
     new URL('../apps/web/src/views/partials/head.ejs', import.meta.url),
   ];
   const sources = await Promise.all(files.map((file) => readFile(file, 'utf8')));
   const assets = sources.flatMap((source) =>
-    [...source.matchAll(/["'](\/[^"']+\?v=[^"']+)["']/g)].map((match) => match[1]),
+    [...source.matchAll(/["'](\/(?:css|js)\/[^"']+)["']/g)].map((match) => match[1]),
   );
   return [...new Set(assets)];
 }
@@ -48,7 +61,7 @@ export async function readExpectedPublicAssets() {
 export async function checkPublicProduction(
   baseUrl,
   fetchImpl = fetch,
-  { expectedAssets = [] } = {},
+  { expectedAssets = [], expectedSha = null } = {},
 ) {
   const parsedBase = new URL(baseUrl);
   if (parsedBase.protocol !== 'https:') {
@@ -65,6 +78,14 @@ export async function checkPublicProduction(
   const homepage = await request('/');
   const homepageBody = await homepage.text();
   checks.push({ name: 'homepage', ok: homepage.status === 200, detail: `HTTP ${homepage.status}` });
+  checks.push({
+    name: 'public-page-markers',
+    ok:
+      homepageBody.includes('<h1') &&
+      homepageBody.includes('rel="canonical"') &&
+      homepageBody.includes('property="og:title"'),
+    detail: 'H1, canonical, and social metadata',
+  });
   if (expectedAssets.length > 0) {
     const missingAssets = expectedAssets.filter((asset) => !homepageBody.includes(asset));
     checks.push({
@@ -74,6 +95,12 @@ export async function checkPublicProduction(
         missingAssets.length === 0
           ? 'expected assets present'
           : `${missingAssets.length} expected asset(s) missing`,
+    });
+    const assetResponses = await Promise.all(expectedAssets.map((asset) => request(asset)));
+    checks.push({
+      name: 'frontend-assets',
+      ok: assetResponses.every((response) => response.status === 200),
+      detail: `${assetResponses.filter((response) => response.status === 200).length}/${assetResponses.length} available`,
     });
   }
   checks.push({
@@ -121,8 +148,17 @@ export async function checkPublicProduction(
       health.status === 200 &&
       exactKeys(healthBody, ALLOWED_HEALTH_KEYS) &&
       healthBody.status === 'ok' &&
-      healthBody.service === 'web',
-    detail: health.status === 200 ? 'sanitized response' : `HTTP ${health.status}`,
+      healthBody.service === 'web' &&
+      /^[0-9a-f]{40}$/.test(healthBody.commit ?? '') &&
+      (!expectedSha || healthBody.commit === expectedSha),
+    detail:
+      health.status === 200
+        ? expectedSha
+          ? healthBody?.commit === expectedSha
+            ? 'expected release SHA'
+            : 'release SHA mismatch'
+          : 'sanitized response with release SHA'
+        : `HTTP ${health.status}`,
   });
 
   const ready = await request('/ready');
@@ -147,20 +183,47 @@ export async function checkPublicProduction(
     detail: ready.status === 200 ? 'sanitized dependencies ready' : `HTTP ${ready.status}`,
   });
 
+  for (const pathname of ['/robots.txt', '/sitemap.xml']) {
+    const response = await request(pathname);
+    const body = await response.text();
+    checks.push({
+      name: pathname.slice(1).replace('.', '-'),
+      ok:
+        response.status === 200 &&
+        (pathname === '/robots.txt'
+          ? body.includes('Sitemap:') && body.includes('Disallow: /admin')
+          : body.includes('<urlset') && body.includes('<loc>')),
+      detail: `HTTP ${response.status}`,
+    });
+  }
+
   return checks;
 }
 
 async function main() {
-  const baseUrl = process.argv[2] ?? process.env.PUBLIC_BASE_URL;
+  const cli = process.argv.slice(2);
+  const expectedIndex = cli.indexOf('--expected-sha');
+  const expectedSha =
+    (expectedIndex >= 0 ? cli[expectedIndex + 1] : null) ??
+    process.env.HELLODEPLOY_EXPECTED_RELEASE_COMMIT ??
+    null;
+  const baseUrl =
+    cli.find((value, index) => !value.startsWith('--') && index !== expectedIndex + 1) ??
+    process.env.PUBLIC_BASE_URL;
   if (!baseUrl) {
-    process.stderr.write('Usage: npm run production:check -- https://your-domain.example\n');
+    process.stderr.write(
+      'Usage: npm run production:check -- https://your-domain.example --expected-sha <full-sha>\n',
+    );
     process.exitCode = 2;
     return;
   }
 
   try {
+    if (expectedSha && !/^[0-9a-f]{40}$/.test(expectedSha)) {
+      throw new Error('Expected SHA must be a full lowercase 40-character commit SHA.');
+    }
     const expectedAssets = await readExpectedPublicAssets();
-    const checks = await checkPublicProduction(baseUrl, fetch, { expectedAssets });
+    const checks = await checkPublicProduction(baseUrl, fetch, { expectedAssets, expectedSha });
     for (const check of checks) {
       process.stdout.write(`[${check.ok ? 'pass' : 'fail'}] ${check.name}: ${check.detail}\n`);
     }

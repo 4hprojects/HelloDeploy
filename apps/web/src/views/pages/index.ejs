@@ -1,116 +1,38 @@
-<div class="hero">
+<section class="hero public-hero" id="product">
   <div class="hero__content">
-    <h1 class="hero__title">Deploy web apps from GitHub in minutes</h1>
-    <p class="hero__subtitle">
-      HelloDeploy is a self-hosted platform that builds, deploys, and manages your
-      web applications — with zero vendor lock-in.
-    </p>
-    <div class="button-group mt-6">
-      <a href="/auth/create-account" class="button button--primary button--lg">Get Started</a>
-      <a href="/auth/sign-in" class="button button--secondary button--lg">Sign In</a>
-    </div>
-    <p class="text-sm text-muted mt-4">
-      Free to use. This instance is an active pilot operated by Henson Sagorsor as an
-      MIT capstone project, running on shared infrastructure — see the <a href="/terms">Terms</a>
-      for details. Features and availability may change.
-    </p>
+    <span class="pilot-badge">Free active pilot</span>
+    <h1 class="hero__title">Deploy your web app from GitHub without managing the deployment steps yourself.</h1>
+    <p class="hero__subtitle">Connect a repository, review the detected setup, deploy, and get a live URL from one dashboard.</p>
+    <div class="button-group mt-6"><a href="/auth/create-account" class="button button--primary button--lg">Create Account</a><a href="#how-it-works" class="button button--secondary button--lg">See How It Works</a></div>
+    <p class="mt-4"><a href="/supported-apps">View supported applications</a></p>
   </div>
-</div>
+</section>
 
-<div class="text-center mt-8">
-  <h2 class="feature-title">How it works</h2>
-</div>
-<div class="feature-grid mt-4">
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">1</p>
-      <h2 class="feature-title">Connect</h2>
-      <p class="text-sm text-muted">Connect a GitHub repository. HelloDeploy detects the runtime and suggests build settings.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">2</p>
-      <h2 class="feature-title">Configure</h2>
-      <p class="text-sm text-muted">Review or adjust the build command, start command, and environment variables.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">3</p>
-      <h2 class="feature-title">Deploy</h2>
-      <p class="text-sm text-muted">Push to your production branch, or deploy manually. HelloDeploy builds a container image.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon">4</p>
-      <h2 class="feature-title">Live</h2>
-      <p class="text-sm text-muted">HelloDeploy health-checks the new release and routes traffic to it at a live URL.</p>
-    </div>
-  </div>
-</div>
+<section class="product-preview" aria-labelledby="preview-title">
+  <div><p class="section-eyebrow">One dashboard, one next step</p><h2 id="preview-title">See what is live and what needs attention.</h2><p class="text-muted">Deployment state, the application address, and the recommended next action stay together.</p></div>
+  <figure class="product-preview__frame"><img src="/assets/product/dashboard-preview.png" width="1280" height="800" alt="HelloDeploy dashboard showing project health, an active deployment, and recent activity" loading="eager"><figcaption>Real HelloDeploy interface with sanitized demonstration data.</figcaption></figure>
+</section>
 
-<div class="feature-grid mt-8">
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></p>
-      <h2 class="feature-title">GitHub integration</h2>
-      <p class="text-sm text-muted">Connect any repository. Push to your production branch and HelloDeploy builds and deploys automatically.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></p>
-      <h2 class="feature-title">Live deployment logs</h2>
-      <p class="text-sm text-muted">Watch builds in real time. Roll back to any healthy deployment with a single click.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></p>
-      <h2 class="feature-title">Encrypted secrets</h2>
-      <p class="text-sm text-muted">Environment variables are encrypted with AES-256-GCM and injected at runtime — never stored in plaintext.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></p>
-      <h2 class="feature-title">Custom domains</h2>
-      <p class="text-sm text-muted">Point your own domain at any project. DNS verification and admin review keep things secure.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'users' }) %></p>
-      <h2 class="feature-title">Team access</h2>
-      <p class="text-sm text-muted">Invite collaborators as Owner, Maintainer, or Viewer. Transfer ownership when the time comes.</p>
-    </div>
-  </div>
-  <div class="card">
-    <div class="card__body">
-      <p class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></p>
-      <h2 class="feature-title">Audit log</h2>
-      <p class="text-sm text-muted">Every deployment, config change, and access event is recorded with actor, IP, and outcome.</p>
-    </div>
-  </div>
-</div>
+<section class="public-section" aria-labelledby="compatibility-title">
+  <p class="section-eyebrow">Compatibility</p><h2 id="compatibility-title">Can HelloDeploy deploy your project?</h2>
+  <div class="compatibility-grid mt-4"><div class="card"><div class="card__body"><h3>Supported</h3><ul><li>Static HTML/CSS/JS</li><li>Node.js and Express</li><li>React and Vue static builds</li><li>Constrained Next.js</li></ul></div></div><div class="card"><div class="card__body"><h3>Not currently supported</h3><ul><li>Python, PHP, or Java</li><li>Docker Compose</li><li>Arbitrary images</li><li>Privileged containers</li></ul></div></div></div>
+  <a href="/supported-apps" class="button button--secondary mt-4">View full support matrix</a>
+</section>
 
-<div class="card mt-8">
-  <div class="card__body">
-    <h2 class="feature-title">What you can deploy</h2>
-    <p class="text-sm text-muted mt-2">Version 1 supports:</p>
-    <ul class="text-sm text-muted mt-2">
-      <li>Static sites</li>
-      <li>Node.js applications</li>
-      <li>Express applications</li>
-      <li>React static builds</li>
-      <li>Vue static builds</li>
-      <li>Constrained Next.js applications</li>
-    </ul>
-    <p class="text-sm text-muted mt-4">
-      Not yet supported: Python, PHP, Java, Docker Compose, arbitrary container images, or
-      privileged containers.
-    </p>
-  </div>
-</div>
+<section class="public-section" id="how-it-works" aria-labelledby="how-title"><p class="section-eyebrow">How it works</p><h2 id="how-title">From repository to live URL</h2><div class="feature-grid mt-4">
+  <% [['1','Connect repository','Choose a public repository or authorize the GitHub App.'],['2','Confirm app setup','Review the detected application type and settings.'],['3','Deploy','Publish an approved commit while HelloDeploy reports progress.'],['4','Open the live app','Use the project address after health checks pass.']].forEach(step => { %><div class="card"><div class="card__body"><p class="feature-icon"><%= step[0] %></p><h3 class="feature-title"><%= step[1] %></h3><p class="text-sm text-muted"><%= step[2] %></p></div></div><% }) %>
+</div></section>
+
+<section class="public-section" aria-labelledby="handles-title"><p class="section-eyebrow">What HelloDeploy handles</p><h2 id="handles-title">The common deployment work, in one place</h2><div class="feature-grid mt-4">
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></p><h3 class="feature-title">Connect</h3><p class="text-sm text-muted">Repository access and app detection.</p></div></div>
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></p><h3 class="feature-title">Deploy</h3><p class="text-sm text-muted">Progress, health checks, history, and rollback.</p></div></div>
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></p><h3 class="feature-title">Configure</h3><p class="text-sm text-muted">Write-only environment values with detected names.</p></div></div>
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></p><h3 class="feature-title">Publish</h3><p class="text-sm text-muted">A platform address and verified custom domains.</p></div></div>
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'users' }) %></p><h3 class="feature-title">Collaborate</h3><p class="text-sm text-muted">Clear project roles and ownership controls.</p></div></div>
+  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></p><h3 class="feature-title">Review</h3><p class="text-sm text-muted">An audit history of important actions.</p></div></div>
+</div></section>
+
+<section class="public-section" aria-labelledby="trust-title"><p class="section-eyebrow">Trust and expectations</p><h2 id="trust-title">Clear controls without exaggerated promises</h2><div class="trust-grid mt-4"><div><strong>Encrypted secrets</strong><span>Protected at rest and redacted from logs.</span></div><div><strong>Verified accounts</strong><span>Email verification before platform access.</span></div><div><strong>Isolated releases</strong><span>Bounded, non-privileged application containers.</span></div><div><strong>Audit history</strong><span>Important configuration and admin actions recorded.</span></div><div><strong>Pilot service</strong><span>Free within published limits, without an SLA.</span></div><div><strong>Named operator</strong><span>Operated by Henson Sagorsor / 4HProjects.</span></div></div></section>
+
+<section class="public-cta"><h2>Want to check the workflow before signing up?</h2><div class="button-group"><a href="/docs/getting-started" class="button button--primary">Read Getting Started</a><a href="/service-limits" class="button button--secondary">View Service Limits</a></div></section>
+<section class="public-cta public-cta--final"><h2>Ready to deploy a supported project?</h2><div class="button-group"><a href="/auth/create-account" class="button button--primary button--lg">Create Account</a><a href="/auth/sign-in" class="button button--secondary button--lg">Sign In</a></div></section>

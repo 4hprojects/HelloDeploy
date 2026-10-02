@@ -4,9 +4,11 @@
 
 <div class="card">
   <div class="card__body">
-    <p>The page you are looking for does not exist.</p>
+    <p>The page may have moved, the link may be incomplete, or you may not have access to it.</p>
     <p class="mt-4">
-      <a href="/" class="button button--secondary">Go to Dashboard</a>
+      <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--primary"><%= locals.user ? 'Go to dashboard' : 'Go to home page' %></a>
+      <a href="/docs" class="button button--secondary">Browse documentation</a>
     </p>
+    <% if (locals.correlationId) { %><p class="form-hint mt-4">Reference: <code class="code-inline"><%= correlationId %></code></p><% } %>
   </div>
 </div>

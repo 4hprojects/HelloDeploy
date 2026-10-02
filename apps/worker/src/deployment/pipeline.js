@@ -1,4 +1,4 @@
-import { Project, Deployment, DeploymentEvent, Domain } from '@hellodeploy/database';
+import { Project, Deployment, DeploymentEvent, Domain, ProductEvent } from '@hellodeploy/database';
 import {
   DeploymentStatus,
   RuntimeType,
@@ -124,6 +124,21 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   publishDeployEvent(deploymentId, { type: 'status', status: toStatus });
 
   const freshDeployment = await Deployment.findById(deploymentId).lean();
+  if (
+    freshDeployment?.sequenceNumber === 1 &&
+    [DeploymentStatus.HEALTHY, DeploymentStatus.FAILED].includes(toStatus)
+  ) {
+    ProductEvent.create({
+      name:
+        toStatus === DeploymentStatus.HEALTHY ? 'first_deploy_succeeded' : 'first_deploy_failed',
+      userId: project?.ownerId ?? null,
+      projectId: project?._id ?? null,
+      properties:
+        toStatus === DeploymentStatus.FAILED
+          ? { reason: freshDeployment.failureCode ?? 'unknown' }
+          : null,
+    }).catch(() => {});
+  }
 
   // A failed activation leaves behind a freshly built image that will never
   // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal

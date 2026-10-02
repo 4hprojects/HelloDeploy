@@ -21,6 +21,12 @@
   <% } %>
 </div>
 
+<form method="GET" class="filter-bar mb-6" aria-label="Filter deployment history">
+  <div class="form-group"><label class="form-label" for="deployment-result">Result</label><select class="form-select" id="deployment-result" name="result"><option value="">All results</option><% ['HEALTHY','FAILED','CANCELLED','ROLLED_BACK'].forEach(value => { %><option value="<%= value %>" <%= filters.result === value ? 'selected' : '' %>><%= statusPresentation('deployment', value).label %></option><% }) %></select></div>
+  <div class="form-group"><label class="form-label" for="deployment-branch">Branch</label><input class="form-input" id="deployment-branch" name="branch" value="<%= filters.branch %>" placeholder="Production branch"></div>
+  <button type="submit" class="button button--secondary">Apply</button><% if (filters.result || filters.branch) { %><a href="/projects/<%= project.slug %>/deployments" class="button button--ghost">Clear</a><% } %>
+</form>
+
 <% if (canDeploy) { %>
 <div class="card mb-4">
   <div class="card__header">
@@ -120,7 +126,7 @@
 <div class="card">
   <div class="card__body">
     <div class="table-wrapper table-responsive table-responsive--flush">
-    <table class="table table--responsive">
+    <table class="table table--responsive" data-deployment-list-status-url="/projects/<%= project.slug %>/deployments/status">
       <thead>
         <tr>
           <th scope="col">#</th>
@@ -134,13 +140,13 @@
       </thead>
       <tbody>
         <% deployments.forEach(d => { %>
-        <tr>
+        <tr data-deployment-row data-deployment-id="<%= d._id %>" data-terminal="<%= ['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(d.status) %>">
           <td class="text-muted text-sm" data-label="#">
             <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="table-link">
               #<%= d.sequenceNumber %>
             </a>
           </td>
-          <td data-label="Status"><%- include('../../partials/status-badge', { status: d.status }) %></td>
+          <td data-label="Status"><span data-deployment-status><%- include('../../partials/status-badge', { status: d.status, statusKind: 'deployment' }) %></span><span class="text-muted text-xs d-block" data-deployment-stage><%= d.currentStage || '' %></span></td>
           <td data-label="Commit">
             <code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code>
             <% if (d.commitMessage) { %>
@@ -153,7 +159,7 @@
               <%= new Date(d.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
             <% } else { %> — <% } %>
           </td>
-          <td class="text-muted text-sm" data-label="Duration">
+          <td class="text-muted text-sm" data-label="Duration" data-deployment-duration>
             <% if (d.startedAt && d.completedAt) { %>
               <% const secs = Math.round((new Date(d.completedAt) - new Date(d.startedAt)) / 1000); %>
               <%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %>
@@ -167,7 +173,7 @@
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
-                    data-confirm="Cancel this deployment before it completes?"
+                    data-confirm="Stop this deployment? Any build work already completed will be discarded, and the current live release will remain unchanged."
                     data-confirm-title="Cancel deployment"
                     data-confirm-accept-label="Cancel Deployment"
                     data-confirm-pending-label="Cancelling..."
@@ -177,9 +183,14 @@
               </form>
               <% } %>
               <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
-              <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry">
+              <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry" data-confirm="Retry the recorded commit <%= d.commitSha.slice(0, 7) %> with the current project configuration? Build cache will be used.">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying..." data-tooltip="Queue another deployment attempt for this commit.">Retry</button>
+                <input type="hidden" name="source" value="same">
+                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying...">Retry same commit</button>
+              </form>
+              <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry" data-confirm="Resolve and deploy the latest production-branch commit with the current project configuration? Build cache will be used.">
+                <%- include('../../partials/csrf-field') %><input type="hidden" name="source" value="latest">
+                <button type="submit" class="button button--ghost button--sm" data-pending-label="Resolving...">Retry latest</button>
               </form>
               <% } %>
             </div>

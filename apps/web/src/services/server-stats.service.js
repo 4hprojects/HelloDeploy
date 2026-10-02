@@ -5,6 +5,7 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { getDeploymentQueue } from '../queue/client.js';
 import { env } from '../config/env.js';
 import { checkWorkerReadiness } from './worker-readiness.service.js';
+import { processStartedAt, releaseMetadata, releaseSha } from '../utils/release-sha.js';
 
 // Docker daemon connectivity is intentionally not checked here: the web
 // process has no Docker socket access by design (privilege isolation from
@@ -60,6 +61,16 @@ export async function collectServerStats(deps = {}) {
     uptime: {
       seconds: uptimeSecs,
       human: formatUptime(uptimeSecs),
+    },
+    platformRelease: {
+      actualSha: releaseMetadata?.actualSha ?? releaseSha,
+      expectedSha: releaseMetadata?.expectedSha ?? null,
+      matchesExpected: releaseMetadata
+        ? releaseMetadata.matchesExpected && releaseMetadata.actualSha === releaseSha
+        : null,
+      installedAt: releaseMetadata?.installedAt ?? null,
+      processStartedAt,
+      environment: env.NODE_ENV,
     },
     collectedAt: new Date().toISOString(),
   };

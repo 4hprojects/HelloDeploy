@@ -75,13 +75,12 @@ describe('responsive tables', () => {
     assert.match(auditEvents, /data-label="Outcome"/);
   });
 
-  it('updates project tables with responsive wrappers and cell labels', () => {
+  it('updates project tables with responsive wrappers and uses cards for discovery', () => {
     for (const template of [
       projectDeployments,
       projectDomains,
       projectMembers,
       projectEnvironment,
-      projectIndex,
     ]) {
       assert.match(template, /table-responsive/);
       assert.match(template, /table--responsive/);
@@ -92,6 +91,8 @@ describe('responsive tables', () => {
     assert.match(projectDomains, /data-label="Domain"/);
     assert.match(projectMembers, /data-label="Member"/);
     assert.match(projectEnvironment, /data-label="Last updated"/);
-    assert.match(projectIndex, /data-label="Name"/);
+    assert.match(projectIndex, /project-list-card/);
+    assert.match(projectIndex, /role="listitem"/);
+    assert.doesNotMatch(projectIndex, /<table/);
   });
 });

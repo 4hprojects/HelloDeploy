@@ -63,6 +63,15 @@ const detectionSchema = new Schema(
     issues: { type: [detectionIssueSchema], default: [] },
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
+    detectedConfiguration: { type: buildConfigurationSchema, default: null },
+    requiredEnvironmentVariables: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: (names) => names.length <= 100,
+        message: 'Too many detected environment variable names.',
+      },
+    },
   },
   { _id: false },
 );
