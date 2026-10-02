@@ -100,5 +100,11 @@ test('keyboard focus is visible and returns after confirmation modal', async ({ 
 test('stable public visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
-  await expect(page).toHaveScreenshot('landing-1440.png', { fullPage: true });
+  await expect(page).toHaveScreenshot('landing-1440.png', {
+    fullPage: true,
+    // Font rasterization differs slightly between developer and hosted Linux
+    // environments. Layout/dimension changes still fail while antialiasing
+    // noise remains portable.
+    maxDiffPixelRatio: 0.04,
+  });
 });

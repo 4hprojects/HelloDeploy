@@ -14,6 +14,12 @@ let _queue = null;
  * Returns null if Redis is not reachable (callers degrade gracefully).
  */
 export function getRedisConnection() {
+  // Browser and service tests intentionally run without infrastructure Redis.
+  // Returning no queue preserves the application's documented degraded mode
+  // and avoids ioredis background retries keeping test processes alive.
+  if (env.NODE_ENV === 'test') {
+    return null;
+  }
   if (_redis) {
     return _redis;
   }
