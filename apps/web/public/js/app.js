@@ -41,18 +41,20 @@
     const sidebar = document.getElementById('sidebar');
     const backdrop = document.getElementById('sidebar-backdrop');
     const main = document.getElementById('main-content');
-    const mobileQuery = window.matchMedia('(max-width: 48rem)');
+    const mobileQuery = window.matchMedia('(max-width: 63.999rem)');
 
     if (!sidebarToggle || !sidebar || !backdrop) {
       return;
     }
 
     function focusableSidebarItems() {
-      return Array.prototype.slice.call(
-        sidebar.querySelectorAll(
-          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-        ),
-      );
+      return Array.prototype.slice
+        .call(
+          sidebar.querySelectorAll(
+            'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        )
+        .filter((item) => item.getClientRects().length && !item.closest('[hidden]'));
     }
 
     function setDrawerOpen(open, restoreFocus) {
@@ -65,6 +67,12 @@
       sidebarToggle.setAttribute('aria-expanded', String(open));
       document.body.classList.toggle('sidebar-drawer-open', open);
 
+      sidebar.inert =
+        !open && (mobileQuery.matches || sidebar.classList.contains('sidebar--public'));
+      const footer = document.querySelector('.footer');
+      if (footer) {
+        footer.inert = open;
+      }
       if (open) {
         sidebar.removeAttribute('aria-hidden');
         if (main) {
@@ -113,6 +121,12 @@
       }
     });
 
+    sidebar.addEventListener('submit', () => {
+      if (mobileQuery.matches) {
+        setDrawerOpen(false, true);
+      }
+    });
+
     document.addEventListener('keydown', (e) => {
       if (!sidebar.classList.contains('sidebar--open')) {
         return;
@@ -141,7 +155,10 @@
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
+      } else if (
+        !e.shiftKey &&
+        (document.activeElement === last || !sidebar.contains(document.activeElement))
+      ) {
         e.preventDefault();
         first.focus();
       }

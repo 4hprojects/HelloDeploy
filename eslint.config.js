@@ -46,14 +46,23 @@ export default [
     },
   },
   {
-    files: ['apps/web/public/**/*.js'],
+    files: ['apps/web/public/**/*.js', 'apps/web/src/pwa/**/*.js'],
     languageOptions: {
       globals: {
         ...globals.browser,
+        ...globals.serviceworker,
       },
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', 'apps/web/public/assets-dist/'],
+    ignores: [
+      'node_modules/',
+      'dist/',
+      'build/',
+      'coverage/',
+      'apps/web/public/assets-dist/',
+      'test-results/',
+      'playwright-report/',
+    ],
   },
 ];

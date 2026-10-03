@@ -1,0 +1,8 @@
+<details class="docs-navigation">
+  <summary>Documentation navigation</summary>
+  <nav aria-label="Documentation topics"><ul>
+    <% (locals.docTopics || []).forEach(([slug, label]) => { %>
+    <li><a href="/docs/<%= slug %>" <%- locals.currentPath === `/docs/${slug}` ? 'aria-current="page"' : '' %>><%= label %></a></li>
+    <% }); %>
+  </ul></nav>
+</details>

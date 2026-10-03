@@ -258,7 +258,7 @@
 /* ── Responsive ──────────────────────────────────────────────────── */
 
 /* Tablet (48rem = 768px) */
-@media (max-width: 48rem) {
+@media (max-width: 63.999rem) {
   .sidebar {
     display: none; /* Phase 10 will add drawer/toggle */
   }
@@ -346,7 +346,7 @@
 .sidebar-backdrop {
   display: none;
 }
-@media (max-width: 48rem) {
+@media (max-width: 63.999rem) {
   .header__menu-toggle {
     display: flex;
   }

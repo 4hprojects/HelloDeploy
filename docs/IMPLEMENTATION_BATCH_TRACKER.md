@@ -25,6 +25,24 @@ and deterministic browser/visual/performance gates. See the pack's
 This does not change the NO-GO state above: deployment, supported-host, external DNS,
 real-device, crawler, and five-user usability evidence remains outstanding.
 
+### Responsive UI/PWA pack — repository-local lane
+
+The UI/PWA pack implementation is repository-local: shared public/application
+navigation and a keyboard-accessible drawer below 1024px; shared layout/touch
+primitives; collapsible documentation navigation; narrow-screen form/table fixes;
+and manifest, maskable artwork, explicit static-only service-worker caching,
+installation help, offline fallback, and consent-based updates. Session-rendered
+HTML, including documentation, and private APIs/logs are never put in Cache Storage.
+
+Local implementation and verification are complete: 1,171 repository tests across
+236 suites and 27 Chromium browser checks pass, including the ten-width matrix,
+offline/logout isolation, and consent-based worker updates. Lint, formatting, asset
+verification/budgets, and Lighthouse lab budgets pass (97/100; 2,454ms LCP, 34ms TBT).
+See [UI/PWA operation](UI_PWA.md) and the
+2026-10-03 UI/PWA worklog entry. Real-device installation, standalone authentication
+and deep links, production HTTPS/proxy delivery, and supported-host evidence remain
+open; this does not change the overall NO-GO or production release state.
+
 ### Platform workflow automation — repository-local lane
 
 Automatic initial project approval and Super Admin-triggered platform deployment

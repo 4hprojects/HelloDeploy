@@ -119,6 +119,23 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.use(expressEjsLayouts);
   app.set('layout', 'layouts/main');
 
+  // A stable root URL gives the worker application-wide scope. Never cache its script immutably.
+  app.get('/sw.js', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Service-Worker-Allowed', '/');
+    res.sendFile(join(__dirname, '..', 'public', 'assets-dist', 'sw.js'), (error) => {
+      if (error && !res.headersSent) {
+        res
+          .status(error.status || 503)
+          .type('text/plain')
+          .send('Service worker build unavailable.');
+      }
+    });
+  });
+  app.get('/offline', (_req, res) => {
+    res.sendFile(join(__dirname, '..', 'public', 'offline.html'));
+  });
+
   // Static assets (served before rate limiting to avoid counting static hits).
   // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.
   app.use(
