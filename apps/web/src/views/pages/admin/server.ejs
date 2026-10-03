@@ -24,6 +24,72 @@
   </div>
 </section>
 
+<section class="card mb-6"
+         aria-labelledby="platform-deployment-title"
+         data-platform-release-status-url="/admin/server/releases/status"
+         data-platform-release-active="<%= releases.active ? 'true' : 'false' %>"
+         data-platform-release-signature="<%= JSON.stringify(releases.history.map(item => [item._id.toString(), item.status])) %>">
+  <div class="card__header">
+    <h2 class="card__title" id="platform-deployment-title">Platform deployment</h2>
+    <% if (releases.active) { %>
+    <span class="badge badge--warning"><%= releases.active.status %></span>
+    <% } else if (releases.candidate?.eligible && !releases.candidate.sameAsRunning) { %>
+    <span class="badge badge--success">Ready</span>
+    <% } else { %>
+    <span class="badge badge--neutral">Unavailable</span>
+    <% } %>
+  </div>
+  <div class="card__body">
+    <div aria-live="polite" class="sr-only" data-platform-release-live></div>
+    <% if (releases.candidate?.available) { %>
+    <dl class="detail-list mb-4">
+      <dt>Latest main SHA</dt><dd><code class="code-inline"><%= releases.candidate.sha %></code></dd>
+      <% releases.candidate.checks.forEach(check => { %>
+      <dt><%= check.name %></dt><dd><%= check.status === 'completed' ? check.conclusion : check.status %></dd>
+      <% }) %>
+    </dl>
+    <% } else { %>
+    <p class="text-muted text-sm mb-4"><%= releases.candidate?.reason || 'Release candidate unavailable.' %></p>
+    <% } %>
+
+    <% if (user?.platformRole === 'SUPER_ADMIN' && releases.candidate?.eligible && !releases.candidate.sameAsRunning && !releases.active) { %>
+    <form method="POST" action="/admin/server/releases"
+          data-confirm="Deploy exact commit <%= releases.candidate.sha %> to hellodeploy.online? The dashboard may briefly restart."
+          data-confirm-title="Deploy platform release"
+          data-confirm-accept-label="Deploy Release"
+          data-confirm-pending-label="Requesting..."
+          data-confirm-variant="warning">
+      <%- include('../../partials/csrf-field') %>
+      <input type="hidden" name="candidateSha" value="<%= releases.candidate.sha %>">
+      <button type="submit" class="button button--warning">Deploy latest release</button>
+    </form>
+    <% } else if (user?.platformRole !== 'SUPER_ADMIN') { %>
+    <p class="text-muted text-sm">Only a Super Admin can deploy the platform.</p>
+    <% } else if (releases.candidate?.sameAsRunning) { %>
+    <p class="text-muted text-sm">The latest eligible release is already running.</p>
+    <% } %>
+
+    <% if (releases.history.length > 0) { %>
+    <h3 class="mt-6 mb-2">Recent requests</h3>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr><th scope="col">Release</th><th scope="col">Status</th><th scope="col">Requested</th><th scope="col">Workflow</th></tr></thead>
+        <tbody>
+          <% releases.history.forEach(item => { %>
+          <tr>
+            <td><code class="code-inline"><%= item.candidateSha.slice(0, 7) %></code></td>
+            <td><%= item.status.replaceAll('_', ' ') %><% if (item.failureCode) { %> · <%= item.failureCode.replaceAll('_', ' ') %><% } %></td>
+            <td><%= new Date(item.createdAt).toLocaleString('en-GB') %></td>
+            <td><% if (item.workflowRunUrl) { %><a href="<%= item.workflowRunUrl %>" target="_blank" rel="noopener noreferrer">View run</a><% } else { %>Pending<% } %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</section>
+
 <!-- Maintenance mode -->
 <div class="card mb-6">
   <div class="card__header">

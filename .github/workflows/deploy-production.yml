@@ -1,0 +1,130 @@
+name: Deploy Production
+run-name: Deploy ${{ inputs.release_sha }} (${{ inputs.request_id }})
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_sha:
+        description: Exact reviewed main commit
+        required: true
+        type: string
+      request_id:
+        description: HelloDeploy release request identifier
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: hellodeploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy production
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Validate inputs
+        shell: bash
+        env:
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_REQUEST_ID: ${{ inputs.request_id }}
+          WORKFLOW_REF: ${{ github.ref }}
+        run: |
+          [[ "$RELEASE_SHA" =~ ^[a-f0-9]{40}$ ]]
+          [[ "$RELEASE_REQUEST_ID" =~ ^[a-f0-9]{24}$ ]]
+          [[ "$WORKFLOW_REF" == 'refs/heads/main' ]]
+
+      - name: Check out release tooling
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ inputs.release_sha }}
+          fetch-depth: 1
+
+      - name: Verify latest main and required checks
+        id: qualify
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const sha = '${{ inputs.release_sha }}';
+            const branch = await github.rest.repos.getBranch({ ...context.repo, branch: 'main' });
+            if (branch.data.commit.sha !== sha) {
+              core.setFailed('The requested SHA is no longer the latest main commit.');
+              return;
+            }
+            const checks = await github.paginate(github.rest.checks.listForRef, {
+              ...context.repo,
+              ref: sha,
+              per_page: 100,
+            });
+            for (const name of [
+              'Lint & Test (22.x)',
+              'CodeQL Analysis (javascript-typescript)',
+            ]) {
+              const latest = checks
+                .filter(check => check.name === name && check.status === 'completed')
+                .sort((a, b) => {
+                  const completedDifference =
+                    new Date(b.completed_at ?? 0) - new Date(a.completed_at ?? 0);
+                  return completedDifference || Number(b.id ?? 0) - Number(a.id ?? 0);
+                })[0];
+              if (latest?.conclusion !== 'success') {
+                core.setFailed(`Latest required check did not pass: ${name}`);
+              }
+            }
+
+      - name: Record qualification failure
+        if: failure()
+        env:
+          RELEASE_REQUEST_ID: ${{ inputs.request_id }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_CALLBACK_BASE_URL: ${{ secrets.PLATFORM_RELEASE_CALLBACK_URL }}
+          RELEASE_CALLBACK_SECRET: ${{ secrets.PLATFORM_RELEASE_CALLBACK_SECRET }}
+        run: node scripts/send-platform-release-callback.js --status FAILED --sequence 1 --failure-code QUALIFICATION_FAILED
+
+      - name: Record deployment start
+        if: success()
+        env:
+          RELEASE_REQUEST_ID: ${{ inputs.request_id }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_CALLBACK_BASE_URL: ${{ secrets.PLATFORM_RELEASE_CALLBACK_URL }}
+          RELEASE_CALLBACK_SECRET: ${{ secrets.PLATFORM_RELEASE_CALLBACK_SECRET }}
+        run: node scripts/send-platform-release-callback.js --status RUNNING --sequence 1
+
+      - name: Deploy immutable release
+        if: success()
+        id: deploy
+        env:
+          RELEASE_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          RELEASE_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          SSH_PRIVATE_KEY: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.PRODUCTION_SSH_KNOWN_HOSTS }}
+        run: |
+          set +e
+          install -d -m 0700 ~/.ssh && \
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519 && \
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts && \
+          chmod 0600 ~/.ssh/id_ed25519 ~/.ssh/known_hosts && \
+          ssh -o BatchMode=yes -o StrictHostKeyChecking=yes "$RELEASE_USER@$RELEASE_HOST" \
+            "deploy ${{ inputs.release_sha }} ${{ inputs.request_id }}"
+          code=$?
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      - name: Record deployment result
+        if: steps.deploy.outcome == 'success'
+        env:
+          RELEASE_REQUEST_ID: ${{ inputs.request_id }}
+          RELEASE_SHA: ${{ inputs.release_sha }}
+          RELEASE_CALLBACK_BASE_URL: ${{ secrets.PLATFORM_RELEASE_CALLBACK_URL }}
+          RELEASE_CALLBACK_SECRET: ${{ secrets.PLATFORM_RELEASE_CALLBACK_SECRET }}
+        run: |
+          case '${{ steps.deploy.outputs.code }}' in
+            0) node scripts/send-platform-release-callback.js --status SUCCEEDED --sequence 2 ;;
+            20) node scripts/send-platform-release-callback.js --status ROLLED_BACK --sequence 2 --failure-code ROLLBACK_VERIFIED ; exit 1 ;;
+            21) node scripts/send-platform-release-callback.js --status FAILED --sequence 2 --failure-code ROLLBACK_FAILED ; exit 1 ;;
+            *) node scripts/send-platform-release-callback.js --status FAILED --sequence 2 --failure-code DEPLOYMENT_FAILED ; exit 1 ;;
+          esac

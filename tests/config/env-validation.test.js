@@ -136,6 +136,11 @@ describe('production worker routing validation', () => {
     GITHUB_APP_PRIVATE_KEY_PATH: '',
     GITHUB_APP_PRIVATE_KEY: '',
     GITHUB_WEBHOOK_SECRET: '',
+    PLATFORM_RELEASE_AUTOMATION_ENABLED: 'false',
+    PLATFORM_RELEASE_GITHUB_REPOSITORY: '',
+    PLATFORM_RELEASE_WORKFLOW_FILE: '',
+    PLATFORM_RELEASE_GITHUB_TOKEN_PATH: '',
+    PLATFORM_RELEASE_CALLBACK_SECRET: '',
   };
 
   function validateWorker(overrides) {
@@ -154,6 +159,20 @@ describe('production worker routing validation', () => {
   it('accepts the local Nginx helper routing mode', () => {
     const result = validateWorker({ NGINX_ENABLED: 'true' });
     assert.equal(result.status, 0, result.stdout || result.stderr);
+  });
+
+  it('does not require the worker to read the web-only platform release token', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      PLATFORM_RELEASE_AUTOMATION_ENABLED: 'true',
+      PLATFORM_RELEASE_GITHUB_REPOSITORY: '4hprojects/HelloDeploy',
+      PLATFORM_RELEASE_WORKFLOW_FILE: 'deploy-production.yml',
+      PLATFORM_RELEASE_GITHUB_TOKEN_PATH: '/root/web-only-release-token',
+      PLATFORM_RELEASE_CALLBACK_SECRET: 'worker-must-not-need-this-secret-value',
+    });
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+    assert.doesNotMatch(result.stdout, /platform-release-automation/);
+    assert.doesNotMatch(result.stderr, /web-only-release-token/);
   });
 
   it('does not permit the removed acknowledgement to bypass V1 routing', () => {
@@ -288,6 +307,26 @@ describe('production worker routing validation', () => {
       output.results[0].checks.find((check) => check.name === 'github-app'),
       { name: 'github-app', status: 'incomplete' },
     );
+  });
+
+  it('fails closed when platform release automation is incomplete', () => {
+    const sentinel = 'release-secret-must-not-appear';
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...baseEnv,
+        SESSION_SECRET: 's'.repeat(64),
+        PLATFORM_RELEASE_AUTOMATION_ENABLED: 'true',
+        PLATFORM_RELEASE_GITHUB_REPOSITORY: '4hprojects/HelloDeploy',
+        PLATFORM_RELEASE_WORKFLOW_FILE: 'deploy-production.yml',
+        PLATFORM_RELEASE_GITHUB_TOKEN_PATH: '',
+        PLATFORM_RELEASE_CALLBACK_SECRET: sentinel,
+      },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /PLATFORM_RELEASE_GITHUB_TOKEN_PATH/);
+    assert.doesNotMatch(result.stdout, new RegExp(sentinel));
+    assert.doesNotMatch(result.stderr, new RegExp(sentinel));
   });
 
   it('keeps invalid configuration values out of failure diagnostics', () => {

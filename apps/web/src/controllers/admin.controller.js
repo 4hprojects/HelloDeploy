@@ -24,6 +24,12 @@ import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.s
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
 import { getUxMetrics } from '../services/product-analytics.service.js';
+import {
+  getPlatformReleaseDashboard,
+  getPlatformReleaseRequests,
+  requestPlatformRelease,
+  serializeReleaseRequest,
+} from '../services/platform-release.service.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
@@ -39,12 +45,45 @@ export const getAdminIndex = asyncHandler(async (req, res) => {
 // ─── Server dashboard ──────────────────────────────────────────────────────────
 
 export const getAdminServer = asyncHandler(async (req, res) => {
-  const [server, maintenance] = await Promise.all([collectServerStats(), getMaintenanceMode()]);
+  const [server, maintenance, releases] = await Promise.all([
+    collectServerStats(),
+    getMaintenanceMode(),
+    getPlatformReleaseDashboard(),
+  ]);
   res.render('pages/admin/server', {
     title: 'Server & Queue',
     server,
     maintenance,
+    releases,
   });
+});
+
+export const getPlatformReleaseStatus = asyncHandler(async (_req, res) => {
+  const releases = await getPlatformReleaseRequests();
+  const history = releases.history.map(serializeReleaseRequest);
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    active: releases.active ? serializeReleaseRequest(releases.active) : null,
+    history,
+    signature: JSON.stringify(history.map(({ id, status }) => [id, status])),
+  });
+});
+
+export const postPlatformRelease = asyncHandler(async (req, res) => {
+  const result = await requestPlatformRelease({
+    candidateSha: req.body.candidateSha,
+    requestedBy: req.session.user.id,
+    actorRole: req.session.user.platformRole,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+  req.flash(
+    result.success ? 'success' : 'error',
+    result.success
+      ? `Deployment requested for ${result.request.candidateSha.slice(0, 7)}.`
+      : result.error,
+  );
+  res.redirect('/admin/server');
 });
 
 export const getAdminUxMetrics = asyncHandler(async (req, res) => {

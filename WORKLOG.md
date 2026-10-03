@@ -2210,3 +2210,37 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Verification: 32 focused workflow/state/UI tests pass; repository lint and
   formatting pass; the complete suite passes 1,147 tests across 234 suites with no
   failures, skips, cancellations, or todos; `git diff --check` passes.
+
+## 2026-10-03 — Super Admin Platform Release Automation
+
+- Added a fail-closed Super Admin deployment control for the latest fully green
+  `main` SHA. Requests are persisted with a single-active-release constraint,
+  auditable lifecycle states, polling history, and a link to the GitHub Actions run.
+- Added a protected production workflow that revalidates the exact `main` head and
+  required CI/CodeQL checks, uses pinned-host SSH, and can invoke only a validated
+  forced command through a locked release identity. The web process receives no SSH,
+  sudo, Docker, or Git-write authority.
+- Added timestamped HMAC callbacks with timing-safe verification, replay/sequence
+  rejection, exact request/SHA matching, transition fencing, bounded inputs, and
+  sanitized failure codes. Stable upgrade exit codes distinguish success, verified
+  rollback, and critical rollback failure.
+- Added protected-token configuration validation, optional installed-host release
+  identity checks, bootstrap/runbook documentation, and preservation of the existing
+  manual immutable upgrade and rollback path. Automation remains disabled by default.
+- Verification: 57 focused release, callback-security, configuration, installer, and
+  rollback checks pass. Shell syntax, lint, formatting, configuration validation,
+  hashed asset verification/budgets, the 10-test browser/accessibility/visual suite,
+  and the zero-vulnerability production audit pass. The complete suite passes 1,164
+  tests across 236 suites with no failures, skips, cancellations, or todos.
+- Lighthouse's first synthetic run exceeded only the TBT budget under host load
+  (470ms); the immediate clean rerun passed with a 0.96 score, 2,653ms LCP, 0 CLS,
+  103ms TBT, seven requests, and 245,860 transferred bytes. Field measurements remain
+  required before production acceptance.
+- Production was not changed. Enabling the control still requires a reviewed merge,
+  one manual bootstrap upgrade, protected GitHub environment secrets, the restricted
+  host identity, and a controlled live release proof.
+- Organized the remaining program in GitHub milestone #1 and issues #60–#68. PR #69
+  contains the isolated automatic-approval change; its local gate and GitHub CI pass.
+  Its CodeQL job is blocked by repository capability rather than a code finding:
+  private CodeQL requires GitHub Team or Enterprise with GitHub Code Security. No
+  branch-protection, environment, host, or production workaround was applied.

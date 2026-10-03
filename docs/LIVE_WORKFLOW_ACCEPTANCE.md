@@ -1,7 +1,7 @@
 # Live Workflow Acceptance Checklist
 
-Updated: 2026-08-08T20:12:45+08:00 (rows below spot-corrected 2026-08-18 where
-directly evidenced — not a full re-verification pass)
+Updated: 2026-10-03 (production rows remain historical unless explicitly dated;
+this is not a new full production re-verification pass)
 
 For current live release-gate status, see
 [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
@@ -11,6 +11,14 @@ live since this file's last full pass; the two rows below directly affected by
 those events are corrected. The rest of this matrix was not re-verified row by
 row for this correction — treat unflagged rows as of 2026-08-08 unless the
 Production Plan says otherwise.
+
+The current acceptance program is tracked by GitHub milestone **Production
+Readiness and UI/UX Acceptance** and issues #60–#68. Automatic approval PR #69
+has passed its local gate and GitHub CI, but private-repository CodeQL is blocked
+until the account has GitHub Team or Enterprise plus GitHub Code Security. The
+platform-release implementation remains repository-local and disabled; no
+production environment, secret, restricted release identity, or live release was
+created from this work.
 
 ## Status Contract
 
@@ -100,6 +108,16 @@ Use a user-guided session or restricted staging account. Do not share credential
 | Rollback      | Previous full commit, dependencies, units, ingress, services, readiness, and queue state restore           | Critical rollback-verification failure; keep queue paused              | Blocked |
 | Backup        | Required state is complete, checksummed, encrypted, access-controlled, and stored off-host                 | Missing database/route/config state or failed integrity check          | Passed  |
 | Restore       | Second clean host restores the platform and representative project with recorded RPO/RTO                   | Integrity, startup, route, or representative-project failure           | Blocked |
+
+## Platform Release Automation
+
+| Check                   | Expected result                                                                     | Status  | Evidence or next action                                                                                         |
+| ----------------------- | ----------------------------------------------------------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| Automatic approval PR   | Reviewed PR, green CI and CodeQL, and protected merge                               | Blocked | PR #69 CI passes; independent approval and private CodeQL capability remain required                            |
+| Platform release PR     | Separate reviewed PR from merged PR #69 with exact current check names              | Blocked | Local implementation and focused tests pass; it cannot be opened against the intended base before PR #69 merges |
+| Branch and environment  | Protected `main` plus production environment restricted to `main`                   | Blocked | Private branch protection requires a paid plan; private CodeQL additionally requires GitHub Code Security       |
+| Host release identity   | Forced command, no shell/PTY/forwarding, narrow sudo, and verified rollback results | Blocked | Must be installed only after reviewed immutable merge and protected GitHub environment setup                    |
+| First automated release | Exact eligible SHA reaches `SUCCEEDED` and production verification passes           | Blocked | Depends on the preceding governance, review, secret, backup, host, and bootstrap gates                          |
 
 ## Production Decision
 

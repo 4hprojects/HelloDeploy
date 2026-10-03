@@ -55,6 +55,24 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | `GITHUB_APP_PRIVATE_KEY`      | web, worker | PEM contents, inline                                                     |
 | `GITHUB_WEBHOOK_SECRET`       | web         | HMAC secret validating `X-Hub-Signature-256` on `/api/webhooks/github`   |
 
+## Platform release automation
+
+This optional group enables the Super Admin deployment control. When enabled, every
+value is required and validation fails closed. The GitHub token must be stored in a
+root-owned regular file that is not group-writable and has no permissions for other
+users. Scope it to this repository with Contents/Checks read and Actions read/write.
+The worker does not read this token. For a private repository, configure a GitHub plan
+that supports branch protection and environment secrets; the required private CodeQL
+gate additionally needs GitHub Team or Enterprise with GitHub Code Security.
+
+| Variable                              | Used by | Purpose                                                        |
+| ------------------------------------- | ------- | -------------------------------------------------------------- |
+| `PLATFORM_RELEASE_AUTOMATION_ENABLED` | web     | Enables candidate discovery, dispatch, and signed callbacks    |
+| `PLATFORM_RELEASE_GITHUB_REPOSITORY`  | web     | Fixed `owner/repository` containing the platform source        |
+| `PLATFORM_RELEASE_WORKFLOW_FILE`      | web     | Fixed workflow filename; defaults to `deploy-production.yml`   |
+| `PLATFORM_RELEASE_GITHUB_TOKEN_PATH`  | web     | Protected file containing the repository-scoped dispatch token |
+| `PLATFORM_RELEASE_CALLBACK_SECRET`    | web     | At least 32 characters; authenticates workflow status updates  |
+
 ## Worker build/deploy
 
 | Variable                | Required (prod) | Default                         | Purpose                                                    |

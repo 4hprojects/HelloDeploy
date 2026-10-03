@@ -22,6 +22,8 @@ import {
   getAdminQuota,
   postAdminSetQuota,
   getAdminUxMetrics,
+  getPlatformReleaseStatus,
+  postPlatformRelease,
 } from '../../controllers/admin.controller.js';
 import {
   getAdminDomains,
@@ -58,6 +60,7 @@ router.post('/domains/:domainId/reject', postRejectDomain);
 router.post('/domains/:domainId/tunnel', postSetDomainTunnel);
 
 router.get('/server', getAdminServer);
+router.get('/server/releases/status', getPlatformReleaseStatus);
 router.get('/ux-metrics', getAdminUxMetrics);
 // Queue pause/resume is a platform-wide operational lever (stalls every
 // project's deploys), same class of impact as maintenance mode below.
@@ -65,6 +68,7 @@ router.post('/server/queue/pause', requireSuperAdmin, postPauseQueue);
 router.post('/server/queue/resume', requireSuperAdmin, postResumeQueue);
 router.post('/server/maintenance/enable', requireSuperAdmin, postEnableMaintenance);
 router.post('/server/maintenance/disable', requireSuperAdmin, postDisableMaintenance);
+router.post('/server/releases', requireSuperAdmin, postPlatformRelease);
 
 router.get('/audit-events', getAdminAuditEvents);
 router.get('/audit-events/export', getAdminAuditExport);

@@ -17,6 +17,7 @@ import adminRoutes from './routes/pages/admin.routes.js';
 import githubRoutes from './routes/pages/github.routes.js';
 import webhookRoutes from './routes/api/webhook.routes.js';
 import deployHookRoutes from './routes/api/deploy-hook.routes.js';
+import platformReleaseCallbackRoutes from './routes/api/platform-release-callback.routes.js';
 import helmet from 'helmet';
 import { getDashboard, getDashboardStatusJson } from './controllers/dashboard.controller.js';
 import { logger } from '@hellodeploy/observability';
@@ -133,6 +134,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   //    express.raw() on this route preserves the raw Buffer for HMAC verification.
   //    Also registered before CSRF so GitHub can POST without a CSRF token.
   app.use('/api/webhooks', webhookRoutes);
+  app.use('/api/internal/platform-releases', platformReleaseCallbackRoutes);
 
   // ── Core middleware stack ──────────────────────────────────────────────────
   app.use(correlationIdMiddleware);

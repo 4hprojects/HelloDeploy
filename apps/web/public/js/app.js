@@ -1520,6 +1520,39 @@
     window.setTimeout(poll, 2000);
   }
 
+  function initPlatformReleasePolling() {
+    const root = document.querySelector('[data-platform-release-status-url]');
+    if (!root || root.dataset.platformReleaseActive !== 'true') {
+      return;
+    }
+    const initialSignature = root.dataset.platformReleaseSignature || '';
+    const live = root.querySelector('[data-platform-release-live]');
+    async function poll() {
+      try {
+        const response = await fetch(root.dataset.platformReleaseStatusUrl, {
+          credentials: 'same-origin',
+          headers: { Accept: 'application/json' },
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          throw new Error('Release status request failed.');
+        }
+        const payload = await response.json();
+        if (payload.signature !== initialSignature) {
+          if (live) {
+            live.textContent = 'Platform deployment status updated.';
+          }
+          window.location.reload();
+          return;
+        }
+      } catch {
+        // Keep the server-rendered state during transient status failures.
+      }
+      window.setTimeout(poll, 5000);
+    }
+    window.setTimeout(poll, 5000);
+  }
+
   function init() {
     initThemeToggle();
     initSidebarDrawer();
@@ -1542,6 +1575,7 @@
     initSettingsEditGroups();
     initDnsCopyButtons();
     initDomainStatusPolling();
+    initPlatformReleasePolling();
   }
 
   if (document.readyState === 'loading') {

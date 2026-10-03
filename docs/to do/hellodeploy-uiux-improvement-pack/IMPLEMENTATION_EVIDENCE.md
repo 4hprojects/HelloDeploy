@@ -1,6 +1,6 @@
 # UI/UX Improvement Program — Repository Implementation Evidence
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 
 ## Repository-local status
 
@@ -49,10 +49,12 @@ checks before recording any production completion.
 
 ## Latest local result
 
-- Node suite: 1,146 passed across 234 suites; zero failed or skipped.
+- Node suite: 1,164 passed across 236 suites; zero failed or skipped.
 - Browser/axe/visual suite: 10 passed.
-- Assets: 93,116-byte CSS and 48,799-byte JavaScript, within explicit budgets.
-- Lighthouse lab: 0.98 performance score, 2,326ms LCP, 0 CLS, 0ms TBT,
-  seven requests, and 244,681 transferred bytes.
+- Assets: 93,116-byte CSS and 49,982-byte JavaScript, within explicit budgets.
+- Lighthouse lab: the first run failed the synthetic TBT budget under host load
+  (0.85 score, 2,522ms LCP, 470ms TBT); the immediate clean rerun passed with a
+  0.96 score, 2,653ms LCP, 0 CLS, 103ms TBT, seven requests, and 245,860
+  transferred bytes. This remains lab evidence; field Web Vitals are authoritative.
 - Lint, formatting, configuration validation, production dependency audit, manifest
   integrity, and `git diff --check`: passed.

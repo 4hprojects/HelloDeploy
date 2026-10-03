@@ -1,18 +1,18 @@
 # Implementation Batch Tracker
 
-Updated: 2026-10-02
+Updated: 2026-10-03
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
-| Field            | Value                                                                                                                                |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 are paused on the pilot build correction |
-| Release progress | Production runs `c8806013588e93bdc08314ea51868f5d826842ea`; managed-route WebSocket map correction passes locally                    |
-| Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
-| Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
-| Release state    | NO-GO for customer application hosting                                                                                               |
+| Field            | Value                                                                                                                                      |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| Overall status   | P2 protected recovery, production normalization, reboot, and database migration pass; P3/P4 production-readiness acceptance is In Progress |
+| Release progress | Production runs `c8806013588e93bdc08314ea51868f5d826842ea`; new approval/release controls remain repository-local                          |
+| Current batch    | Automatic approval PR #69 is in review; platform-release hardening and its local verification are active                                   |
+| Next action      | Enable eligible private-repository CodeQL and branch protection, merge PR #69, then open the platform-release PR                           |
+| Release state    | NO-GO for customer application hosting                                                                                                     |
 
 ### UI/UX improvement program — repository-local lane
 
@@ -24,6 +24,26 @@ and deterministic browser/visual/performance gates. See the pack's
 `IMPLEMENTATION_EVIDENCE.md` and the 2026-10-01 worklog entry for exact evidence.
 This does not change the NO-GO state above: deployment, supported-host, external DNS,
 real-device, crawler, and five-user usability evidence remains outstanding.
+
+### Platform workflow automation — repository-local lane
+
+Automatic initial project approval and Super Admin-triggered platform deployment
+are implemented locally. A release request can target only the latest green `main`
+SHA, dispatches a protected GitHub Actions workflow, and reaches the host through a
+restricted forced SSH command before using the existing backup, queue-drain,
+verification, and rollback workflow. Signed callbacks persist progress and distinguish
+success, verified rollback, and critical failure. The feature is disabled by default.
+No GitHub production environment, host release identity, protected dispatch token, or
+live deployment was configured, so this does not change the production release or the
+NO-GO status above.
+
+The work is organized under GitHub milestone **Production Readiness and UI/UX
+Acceptance** with issues #60–#68. PR #69 contains only automatic approval. Its local
+quality gate and GitHub CI pass, while CodeQL is an account-configuration blocker:
+GitHub does not permit CodeQL uploads for a private repository on Free or Pro. The
+repository must move to Team or Enterprise with GitHub Code Security, or the
+governance decision must change, before the required CodeQL and protected merge gate
+can pass. No direct merge or production workaround is permitted.
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did

@@ -67,6 +67,17 @@ export const ApprovalStatus = Object.freeze({
   REJECTED: 'REJECTED',
 });
 
+/** Platform self-deployment request lifecycle */
+export const PlatformReleaseStatus = Object.freeze({
+  REQUESTED: 'REQUESTED',
+  DISPATCHED: 'DISPATCHED',
+  RUNNING: 'RUNNING',
+  SUCCEEDED: 'SUCCEEDED',
+  ROLLED_BACK: 'ROLLED_BACK',
+  FAILED: 'FAILED',
+  DISPATCH_FAILED: 'DISPATCH_FAILED',
+});
+
 /** Project detection readiness */
 export const DetectionStatus = Object.freeze({
   NOT_RUN: 'NOT_RUN',

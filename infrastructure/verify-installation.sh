@@ -68,6 +68,25 @@ if [[ -f "$ENV_FILE" ]]; then
       fail "web cannot read GitHub private key required by current signing flow"
     fi
   fi
+  RELEASE_AUTOMATION_ENABLED=$(awk -F= '$1 == "PLATFORM_RELEASE_AUTOMATION_ENABLED" {print $2; exit}' "$ENV_FILE")
+  if [[ "$RELEASE_AUTOMATION_ENABLED" == "true" ]]; then
+    check_user hellodeploy-release
+    check_metadata /usr/local/sbin/hellodeploy-release-command "root:root:755" "release forced command"
+    check_metadata /usr/local/sbin/hellodeploy-run-upgrade "root:root:755" "release upgrade wrapper"
+    check_metadata /etc/sudoers.d/hellodeploy-release "root:root:440" "release sudo policy"
+    check_metadata /var/lib/hellodeploy-release/.ssh/authorized_keys "hellodeploy-release:hellodeploy-release:600" "release authorized keys"
+    if grep -q '^restrict,command="/usr/local/sbin/hellodeploy-release-command" ssh-' /var/lib/hellodeploy-release/.ssh/authorized_keys 2>/dev/null; then
+      pass "release SSH key is restricted to the forced command"
+    else
+      fail "release SSH key is not restricted to the forced command"
+    fi
+    RELEASE_TOKEN_PATH=$(awk -F= '$1 == "PLATFORM_RELEASE_GITHUB_TOKEN_PATH" {sub(/^[^=]*=/, ""); print; exit}' "$ENV_FILE")
+    if [[ -n "$RELEASE_TOKEN_PATH" ]] && can_read_as hellodeploy-web "$RELEASE_TOKEN_PATH"; then
+      pass "web can read the protected platform release token"
+    else
+      fail "web cannot read the protected platform release token"
+    fi
+  fi
 fi
 
 SERVICES=(hellodeploy-nginx-helper hellodeploy-worker hellodeploy-web)

@@ -48,6 +48,18 @@ function componentChecks(component, config) {
         ]),
       },
       {
+        name: 'platform-release-automation',
+        status:
+          process.env.PLATFORM_RELEASE_AUTOMATION_ENABLED === 'true'
+            ? groupStatus([
+                process.env.PLATFORM_RELEASE_GITHUB_REPOSITORY,
+                process.env.PLATFORM_RELEASE_WORKFLOW_FILE,
+                process.env.PLATFORM_RELEASE_GITHUB_TOKEN_PATH,
+                process.env.PLATFORM_RELEASE_CALLBACK_SECRET,
+              ])
+            : 'disabled',
+      },
+      {
         name: 'turnstile',
         status: groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY]),
       },

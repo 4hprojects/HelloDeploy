@@ -33,6 +33,18 @@ install_service_units() {
   systemctl daemon-reload || return 1
 }
 
+install_release_automation_commands() {
+  if ! grep -q '^PLATFORM_RELEASE_AUTOMATION_ENABLED=true$' "$HD_HOME/.env"; then
+    return 0
+  fi
+  install -m 0755 -o root -g root infrastructure/release-command.sh /usr/local/sbin/hellodeploy-release-command || return 1
+  install -m 0755 -o root -g root infrastructure/run-platform-upgrade.sh /usr/local/sbin/hellodeploy-run-upgrade || return 1
+  printf '%s\n' 'hellodeploy-release ALL=(root) NOPASSWD: /usr/local/sbin/hellodeploy-run-upgrade *' \
+    > /etc/sudoers.d/hellodeploy-release || return 1
+  chmod 0440 /etc/sudoers.d/hellodeploy-release || return 1
+  visudo -cf /etc/sudoers.d/hellodeploy-release >/dev/null || return 1
+}
+
 verify_release() {
   bash infrastructure/verify-installation.sh
 }
@@ -51,6 +63,7 @@ activate_checked_out_release() {
   sudo -u hellodeploy-worker node scripts/validate-config.js --component worker --require-production || return 1
 
   section "Service and ingress configuration"
+  install_release_automation_commands || return 1
   install_service_units || return 1
   bash infrastructure/nginx/configure-platform-ingress.sh "$HD_HOME/.env" || return 1
 
@@ -153,12 +166,13 @@ if ! activate_checked_out_release; then
   error "Rolling back to $PREV_COMMIT…"
   if rollback_release "$PREV_COMMIT"; then
     error "Rollback verified at $PREV_COMMIT. Investigate the logs: journalctl -u 'hellodeploy-*'"
+    exit 20
   else
     KEEP_QUEUE_PAUSED=true
     error "CRITICAL: rollback to $PREV_COMMIT failed verification. Services may be unavailable."
     error "Inspect immediately: journalctl -u 'hellodeploy-*'"
+    exit 21
   fi
-  exit 1
 fi
 
 resume_upgrade_queue

@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { accessSync, constants as fsConstants } from 'node:fs';
+import { accessSync, constants as fsConstants, lstatSync } from 'node:fs';
 import {
   assertAllOrNoneEnvironment,
   assertPairedEnvironment,
@@ -83,6 +83,45 @@ if (production) {
       throw new ConfigurationError('GITHUB_APP_PRIVATE_KEY_PATH must reference a readable file.');
     }
   }
+  if (process.env.PLATFORM_RELEASE_AUTOMATION_ENABLED === 'true') {
+    for (const name of [
+      'PLATFORM_RELEASE_GITHUB_REPOSITORY',
+      'PLATFORM_RELEASE_WORKFLOW_FILE',
+      'PLATFORM_RELEASE_GITHUB_TOKEN_PATH',
+      'PLATFORM_RELEASE_CALLBACK_SECRET',
+    ]) {
+      required(name);
+    }
+    try {
+      accessSync(process.env.PLATFORM_RELEASE_GITHUB_TOKEN_PATH, fsConstants.R_OK);
+      const tokenStat = lstatSync(process.env.PLATFORM_RELEASE_GITHUB_TOKEN_PATH);
+      if (
+        tokenStat.isSymbolicLink() ||
+        !tokenStat.isFile() ||
+        tokenStat.uid !== 0 ||
+        (tokenStat.mode & 0o027) !== 0
+      ) {
+        throw new Error('unsafe token file');
+      }
+    } catch {
+      throw new ConfigurationError(
+        'PLATFORM_RELEASE_GITHUB_TOKEN_PATH must reference a readable protected file.',
+      );
+    }
+    if (
+      !/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(process.env.PLATFORM_RELEASE_GITHUB_REPOSITORY)
+    ) {
+      throw new ConfigurationError('PLATFORM_RELEASE_GITHUB_REPOSITORY is invalid.');
+    }
+    if (!/^[A-Za-z0-9_.-]+\.ya?ml$/.test(process.env.PLATFORM_RELEASE_WORKFLOW_FILE)) {
+      throw new ConfigurationError('PLATFORM_RELEASE_WORKFLOW_FILE is invalid.');
+    }
+    if (process.env.PLATFORM_RELEASE_CALLBACK_SECRET.length < 32) {
+      throw new ConfigurationError(
+        'PLATFORM_RELEASE_CALLBACK_SECRET must be at least 32 characters.',
+      );
+    }
+  }
 }
 
 export const env = {
@@ -125,6 +164,19 @@ export const env = {
   GITHUB_APP_PRIVATE_KEY_PATH: optional('GITHUB_APP_PRIVATE_KEY_PATH', ''),
   GITHUB_APP_PRIVATE_KEY: optional('GITHUB_APP_PRIVATE_KEY', ''),
   GITHUB_WEBHOOK_SECRET: optional('GITHUB_WEBHOOK_SECRET', ''),
+
+  PLATFORM_RELEASE_AUTOMATION_ENABLED:
+    optional('PLATFORM_RELEASE_AUTOMATION_ENABLED', 'false') === 'true',
+  PLATFORM_RELEASE_GITHUB_REPOSITORY: optional(
+    'PLATFORM_RELEASE_GITHUB_REPOSITORY',
+    '4hprojects/HelloDeploy',
+  ),
+  PLATFORM_RELEASE_WORKFLOW_FILE: optional(
+    'PLATFORM_RELEASE_WORKFLOW_FILE',
+    'deploy-production.yml',
+  ),
+  PLATFORM_RELEASE_GITHUB_TOKEN_PATH: optional('PLATFORM_RELEASE_GITHUB_TOKEN_PATH', ''),
+  PLATFORM_RELEASE_CALLBACK_SECRET: optional('PLATFORM_RELEASE_CALLBACK_SECRET', ''),
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',

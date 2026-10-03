@@ -147,6 +147,7 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 - Backup with a separately verified Atlas/external snapshot: `sudo bash infrastructure/backup.sh --skip-database`
 - Restore: `sudo bash infrastructure/restore.sh <backup-directory>`
 - Upgrade: `sudo bash infrastructure/upgrade.sh --ref vMAJOR.MINOR.PATCH`
+- Restricted release identity: `sudo bash infrastructure/install-release-automation.sh --public-key-file <github-actions-public-key>`
 - Installed-host verification: `sudo bash infrastructure/verify-installation.sh`
 - Rollback: use the previous release and `docs/OPERATIONS_RUNBOOKS.md`
 - Uninstall: `sudo bash infrastructure/uninstall.sh`
@@ -158,3 +159,19 @@ Backups must include MongoDB data, protected configuration, Nginx route files, C
 `--skip-database` is an explicit acknowledgement that a current external database snapshot has already been verified. For non-interactive upgrades backed by external snapshots, set `HELLODEPLOY_DATABASE_BACKUP_MODE=external`; the default `local` mode requires `mongodump` to succeed. Backup directories contain secrets and must be transferred to an encrypted, access-controlled off-host destination.
 
 Production upgrades must target an immutable release tag or full commit SHA according to [`RELEASE_POLICY.md`](RELEASE_POLICY.md); do not deploy an unreviewed moving branch.
+
+### Optional Super Admin deployment control
+
+After the release containing this feature is installed manually, create a dedicated
+SSH key pair for the GitHub `production` environment. Install only its public key
+with `install-release-automation.sh`; the resulting locked system account has no
+interactive SSH path and accepts only `deploy <full-sha> <request-id>` through its
+forced command. Store the private key,
+pinned `known_hosts` entry, host, user, callback URL, and callback secret as protected
+GitHub environment secrets. Configure the web variables in `ENVIRONMENT.md`, validate
+both service configurations, then restart the web service. The control remains
+disabled unless the complete configuration is present.
+
+Do not enable this control for a private repository until its plan supports protected
+branches and private environment secrets. The required private CodeQL check needs
+GitHub Team or Enterprise with GitHub Code Security; GitHub Pro alone is not enough.

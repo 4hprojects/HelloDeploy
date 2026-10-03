@@ -6,6 +6,7 @@
 - Production releases use annotated semantic-version tags in the form `vMAJOR.MINOR.PATCH` (for example, `v1.2.3`).
 - A release tag must point to one reviewed commit on `main`. Do not move or reuse a published tag.
 - Production checkout, deployment records, and operator logs must record the tag and its full 40-character commit SHA.
+- The Super Admin deployment control may dispatch only the latest `main` commit after the newest completed `Lint & Test (22.x)` and `CodeQL Analysis (javascript-typescript)` checks pass. It deploys that immutable full SHA and never creates commits, tags, or pushes.
 
 ## Release gate
 
@@ -30,5 +31,6 @@ git status --short
 - If upgrade verification fails, restore the exact recorded commit using its full SHA, restore compatible dependencies with `npm ci --omit=dev`, and verify service health and routing.
 - Never use an abbreviated SHA as the authoritative rollback reference.
 - Keep the failed release and rollback outcome in operational logs for incident review.
+- A one-click deployment still uses the same backup, queue drain, verification, and rollback gates as a terminal-driven upgrade.
 
 The lifecycle scripts must enforce these rules before production release readiness can be marked complete. Until then, operators must supply and verify immutable references explicitly.

@@ -38,8 +38,9 @@ describe('live workflow documentation', () => {
     assert.match(tracker, /Overall status\s+\|.*P2.*P3\/P4.*(?:In Progress|paused)/i);
     assert.match(
       tracker,
-      /Current batch\s+\|.*(?:Phase 2|dashboard recovery).*drift.*production normalization/i,
+      /Current batch\s+\|.*automatic approval PR #69.*platform-release hardening/i,
     );
+    assert.match(tracker, /Next action\s+\|.*CodeQL.*branch protection.*merge PR #69/i);
     assert.match(tracker, /Release state\s+\| NO-GO for customer application hosting/);
     assert.match(checklist, /Current decision: \*\*NO-GO for customer application hosting\*\*/);
     assert.match(checklist, /Public dashboard availability[\s\S]{0,120}not[\s\S]{0,40}evidence/i);

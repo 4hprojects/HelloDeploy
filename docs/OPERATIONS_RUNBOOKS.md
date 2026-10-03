@@ -221,6 +221,22 @@ Do not rely on Docker images as the only backup. Source repositories and reprodu
 
 `infrastructure/upgrade.sh` automatically checks out the previous full commit when candidate installation or verification fails. It reinstalls locked dependencies, validates both service configurations, restores the previous service units and platform ingress, restarts services, and runs the complete installed-host verifier. It resumes the deployment queue only when the script paused it and rollback verifies successfully. Treat a `CRITICAL: rollback ... failed verification` message as an outage: keep the queue paused and inspect `journalctl -u 'hellodeploy-*'` before attempting another change.
 
+### Super Admin one-click upgrade
+
+The Server page can dispatch the latest green `main` SHA only when platform release
+automation is fully configured. Confirm the displayed SHA and required checks before
+selecting **Deploy latest release**. GitHub Actions revalidates the same SHA and checks,
+connects using the restricted forced-command identity, and runs the upgrade procedure
+above. Follow progress through the persisted request and linked workflow run.
+
+- `SUCCEEDED`: the candidate passed installed-host verification and the prior queue state was restored.
+- `ROLLED_BACK`: candidate verification failed, but the previous release was restored and verified.
+- `FAILED` with `ROLLBACK_FAILED`: treat as an outage and keep the queue paused.
+- `DISPATCH_FAILED`: GitHub did not accept the request; no host upgrade started.
+
+The web process never receives an SSH key, sudo permission, or authority to create or
+push Git commits. Terminal-driven upgrade and rollback remain the recovery path.
+
 ## Rollback
 
 1. Enable maintenance mode and pause the queue.

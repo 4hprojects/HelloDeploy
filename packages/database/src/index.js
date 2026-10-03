@@ -11,4 +11,5 @@ export { Deployment } from './models/deployment.model.js';
 export { DeploymentEvent } from './models/deployment-event.model.js';
 export { Domain } from './models/domain.model.js';
 export { PlatformSetting } from './models/platform-setting.model.js';
+export { PlatformReleaseRequest } from './models/platform-release-request.model.js';
 export { ProductEvent, PRODUCT_EVENT_NAMES } from './models/product-event.model.js';
