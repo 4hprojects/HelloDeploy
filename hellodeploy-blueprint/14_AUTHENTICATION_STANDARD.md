@@ -61,7 +61,7 @@ Activate normal User account
 Access dashboard and create project draft
 ```
 
-Account approval is not required for normal users. The first project deployment requires approval.
+Account approval is not required for normal users. A project must pass the automated initial approval checks before its first deployment.
 
 ## Sign-In Flow
 

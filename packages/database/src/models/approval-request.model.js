@@ -33,6 +33,11 @@ const approvalRequestSchema = new Schema(
     },
     reviewedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     reviewedAt: { type: Date, default: null },
+    decisionSource: {
+      type: String,
+      enum: ['ADMIN', 'AUTOMATIC'],
+      default: null,
+    },
     adminNote: { type: String, default: null, maxlength: 1000 },
     purpose: { type: String, default: null, trim: true, maxlength: 500 },
     snapshotConfigurationVersion: { type: Number, default: null, min: 1 },

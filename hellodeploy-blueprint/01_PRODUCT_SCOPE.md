@@ -61,7 +61,7 @@ The operator with platform-wide control, including quotas, server operations, po
 
 ### Deployments
 
-- First deployment requires approval
+- First deployment requires successful automated approval checks
 - Manual deployment is default
 - Optional automatic deployment for the configured branch when connected through the GitHub App
 - Deploy latest commit

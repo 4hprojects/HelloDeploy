@@ -29,11 +29,11 @@ Controls:
 
 ## Initial Approval
 
-1. Owner submits project for review.
+1. Owner submits the application purpose and requests approval.
 2. Validator checks repository access, supported runtime, package scripts, port rules, secret exposure indicators, repository size, and requested quotas.
-3. Admin reviews findings and application purpose.
-4. Admin approves or requests changes with an owner-visible note.
-5. Approved project receives a configuration version and may deploy.
+3. If every required check passes, the system atomically records the approval evidence and activates the project.
+4. If a required check fails, the project remains a draft and the owner receives actionable findings.
+5. Existing pending requests remain available to Admins, who can approve or request changes with an owner-visible note.
 
 ## Manual Deployment
 

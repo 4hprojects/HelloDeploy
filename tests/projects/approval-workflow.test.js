@@ -74,6 +74,19 @@ async function submitReadyProject(project) {
   });
 }
 
+async function createPendingApproval(project, overrides = {}) {
+  return ApprovalRequest.create({
+    projectId: project._id,
+    requestedBy: project.ownerId,
+    requestType: 'INITIAL_DEPLOYMENT',
+    purpose: 'Lets customers view and manage their support requests.',
+    snapshotConfigurationVersion: project.configurationVersion,
+    snapshotCommitSha: COMMIT,
+    validationFindings: [],
+    ...overrides,
+  });
+}
+
 describe('initial project approval workflow', () => {
   before(startApprovalTestDb);
   after(stopApprovalTestDb);
@@ -125,31 +138,42 @@ describe('initial project approval workflow', () => {
     }
   });
 
-  it('snapshots safe review details and prevents duplicate pending submissions', async () => {
+  it('snapshots safe details and automatically approves a ready project atomically', async () => {
     const { project } = await createReadyProject();
     const submitted = await submitReadyProject(project);
     assert.equal(submitted.success, true);
 
-    const request = await getLatestApprovalRequest(project._id);
+    const [request, savedProject] = await Promise.all([
+      getLatestApprovalRequest(project._id),
+      Project.findById(project._id).lean(),
+    ]);
     assert.equal(request.purpose, 'Lets customers view and manage their support requests.');
     assert.equal(request.snapshotConfigurationVersion, project.configurationVersion);
     assert.equal(request.snapshotCommitSha, COMMIT);
+    assert.equal(request.status, ApprovalStatus.APPROVED);
+    assert.equal(request.decisionSource, 'AUTOMATIC');
+    assert.ok(request.reviewedAt);
+    assert.equal(request.reviewedBy, null);
     assert.ok(request.validationFindings.every((finding) => !('value' in finding)));
+    assert.equal(savedProject.status, ProjectStatus.ACTIVE);
 
+    const queue = await getApprovalRequests();
+    assert.equal(queue.requests.length, 0);
+
+    const duplicate = await submitReadyProject(project);
+    assert.equal(duplicate.success, false);
+    assert.match(duplicate.error, /only draft projects/i);
+  });
+
+  it('keeps the admin path for a current pending snapshot', async () => {
+    const { project } = await createReadyProject();
+    const request = await createPendingApproval(project);
     const queue = await getApprovalRequests();
     assert.equal(queue.requests[0].snapshotState.isCurrent, true);
     assert.equal(queue.requests[0].projectId.repositoryId.fullName, 'owner/customer-portal');
 
-    const duplicate = await submitReadyProject(project);
-    assert.equal(duplicate.success, false);
-    assert.match(duplicate.error, /already pending/i);
-  });
-
-  it('approves a current snapshot and activates the project atomically', async () => {
-    const { project } = await createReadyProject();
-    const submitted = await submitReadyProject(project);
     const reviewed = await reviewApprovalRequest({
-      requestId: submitted.request._id,
+      requestId: request._id,
       decision: ApprovalStatus.APPROVED,
       note: '',
       adminId: approvalObjectId(),
@@ -159,19 +183,29 @@ describe('initial project approval workflow', () => {
     assert.equal(reviewed.success, true);
     const [savedProject, savedRequest] = await Promise.all([
       Project.findById(project._id).lean(),
-      ApprovalRequest.findById(submitted.request._id).lean(),
+      ApprovalRequest.findById(request._id).lean(),
     ]);
     assert.equal(savedProject.status, ProjectStatus.ACTIVE);
     assert.equal(savedRequest.status, ApprovalStatus.APPROVED);
+    assert.equal(savedRequest.decisionSource, 'ADMIN');
+  });
+
+  it('allows only one simultaneous automatic approval', async () => {
+    const { project } = await createReadyProject();
+    const approvals = await Promise.all([submitReadyProject(project), submitReadyProject(project)]);
+
+    assert.equal(approvals.filter(({ success }) => success).length, 1);
+    assert.equal(await ApprovalRequest.countDocuments({ projectId: project._id }), 1);
+    assert.equal((await Project.findById(project._id).lean()).status, ProjectStatus.ACTIVE);
   });
 
   it('blocks approval after repository or configuration changes', async () => {
     const first = await createReadyProject();
-    const firstSubmission = await submitReadyProject(first.project);
+    const firstRequest = await createPendingApproval(first.project);
     first.repository.lastCommitSha = 'b'.repeat(40);
     await first.repository.save();
     const repositoryChanged = await reviewApprovalRequest({
-      requestId: firstSubmission.request._id,
+      requestId: firstRequest._id,
       decision: ApprovalStatus.APPROVED,
       adminId: approvalObjectId(),
       adminRole: 'ADMIN',
@@ -181,10 +215,10 @@ describe('initial project approval workflow', () => {
 
     await clearApprovalTestDb();
     const second = await createReadyProject();
-    const secondSubmission = await submitReadyProject(second.project);
+    const secondRequest = await createPendingApproval(second.project);
     await Project.updateOne({ _id: second.project._id }, { $inc: { configurationVersion: 1 } });
     const configurationChanged = await reviewApprovalRequest({
-      requestId: secondSubmission.request._id,
+      requestId: secondRequest._id,
       decision: ApprovalStatus.APPROVED,
       adminId: approvalObjectId(),
       adminRole: 'ADMIN',
@@ -195,9 +229,9 @@ describe('initial project approval workflow', () => {
 
   it('requires a note for changes and allows the owner to resubmit', async () => {
     const { project } = await createReadyProject();
-    const submitted = await submitReadyProject(project);
+    const request = await createPendingApproval(project);
     const missingNote = await reviewApprovalRequest({
-      requestId: submitted.request._id,
+      requestId: request._id,
       decision: ApprovalStatus.CHANGES_REQUESTED,
       note: '',
       adminId: approvalObjectId(),
@@ -206,7 +240,7 @@ describe('initial project approval workflow', () => {
     assert.equal(missingNote.success, false);
 
     const changed = await reviewApprovalRequest({
-      requestId: submitted.request._id,
+      requestId: request._id,
       decision: ApprovalStatus.CHANGES_REQUESTED,
       note: 'Add a clear health endpoint and check the app again.',
       adminId: approvalObjectId(),
@@ -216,7 +250,8 @@ describe('initial project approval workflow', () => {
 
     const resubmitted = await submitReadyProject(project);
     assert.equal(resubmitted.success, true);
-    assert.notEqual(resubmitted.request._id.toString(), submitted.request._id.toString());
+    assert.notEqual(resubmitted.request._id.toString(), request._id.toString());
+    assert.equal(resubmitted.request.status, ApprovalStatus.APPROVED);
   });
 
   it('returns legacy and missing-project requests but never approves them', async () => {
@@ -244,16 +279,16 @@ describe('initial project approval workflow', () => {
 
   it('allows only one simultaneous admin decision', async () => {
     const { project } = await createReadyProject();
-    const submitted = await submitReadyProject(project);
+    const request = await createPendingApproval(project);
     const decisions = await Promise.all([
       reviewApprovalRequest({
-        requestId: submitted.request._id,
+        requestId: request._id,
         decision: ApprovalStatus.APPROVED,
         adminId: approvalObjectId(),
         adminRole: 'ADMIN',
       }),
       reviewApprovalRequest({
-        requestId: submitted.request._id,
+        requestId: request._id,
         decision: ApprovalStatus.CHANGES_REQUESTED,
         note: 'Please check the production settings again.',
         adminId: approvalObjectId(),
@@ -264,7 +299,7 @@ describe('initial project approval workflow', () => {
 
     const [savedProject, savedRequest] = await Promise.all([
       Project.findById(project._id).lean(),
-      ApprovalRequest.findById(submitted.request._id).lean(),
+      ApprovalRequest.findById(request._id).lean(),
     ]);
     if (savedRequest.status === ApprovalStatus.APPROVED) {
       assert.equal(savedProject.status, ProjectStatus.ACTIVE);

@@ -638,6 +638,7 @@ export async function reviewApprovalRequest({
             status: decision,
             reviewedBy: adminId,
             reviewedAt: new Date(),
+            decisionSource: 'ADMIN',
             adminNote: normalizedNote || null,
           },
         },

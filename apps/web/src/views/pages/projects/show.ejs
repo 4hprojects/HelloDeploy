@@ -150,8 +150,8 @@
 <section class="project-home-section" id="submit-review" aria-labelledby="submit-review-title">
   <div class="project-home-section__heading">
     <div>
-      <h2 id="submit-review-title"><%= latestApproval ? 'Resubmit for review' : 'Submit for review' %></h2>
-      <p class="text-sm text-muted">Give the administrator a short, nontechnical description of the app.</p>
+      <h2 id="submit-review-title"><%= latestApproval ? 'Check and approve again' : 'Check and approve' %></h2>
+      <p class="text-sm text-muted">Add a short, nontechnical description. HelloDeploy will approve the project when every required check passes.</p>
     </div>
   </div>
   <% if (approvalErrors?.form) { %><div class="alert alert--danger mb-4" role="alert"><%= approvalErrors.form %></div><% } %>
@@ -165,8 +165,8 @@
       <p class="form-hint" id="approval-purpose-hint">Use one or two sentences. Do not include passwords or other secrets.</p>
       <% if (approvalErrors?.purpose) { %><span class="form-error" id="approval-purpose-error" role="alert"><%= approvalErrors.purpose %></span><% } %>
     </div>
-    <button type="submit" class="button button--primary" data-pending-label="Submitting...">
-      <%= latestApproval ? 'Resubmit for review' : 'Submit for review' %>
+    <button type="submit" class="button button--primary" data-pending-label="Checking...">
+      <%= latestApproval ? 'Check and approve again' : 'Check and approve' %>
     </button>
   </form>
 </section>

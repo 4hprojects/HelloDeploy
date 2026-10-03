@@ -543,15 +543,6 @@ export async function getLatestApprovalRequest(projectId) {
 }
 
 export async function submitForReview({ projectId, actorId, purpose, sourceIp, correlationId }) {
-  const project = await Project.findById(projectId);
-  if (!project) {
-    return { success: false, error: 'Project not found.' };
-  }
-
-  if (project.status !== ProjectStatus.DRAFT) {
-    return { success: false, error: 'Only draft projects can be submitted for review.' };
-  }
-
   const normalizedPurpose = purpose?.trim() ?? '';
   if (normalizedPurpose.length < 10 || normalizedPurpose.length > 500) {
     return {
@@ -561,72 +552,115 @@ export async function submitForReview({ projectId, actorId, purpose, sourceIp, c
     };
   }
 
-  const existing = await ApprovalRequest.findOne({
-    projectId,
-    status: ApprovalStatus.PENDING,
-  });
-  if (existing) {
-    return { success: false, error: 'A review request is already pending for this project.' };
+  const session = await mongoose.startSession();
+  let result = { success: false, error: 'This project could not be approved.' };
+  try {
+    await session.withTransaction(async () => {
+      const project = await Project.findById(projectId).session(session);
+      if (!project) {
+        result = { success: false, error: 'Project not found.' };
+        return;
+      }
+      if (project.status !== ProjectStatus.DRAFT) {
+        result = { success: false, error: 'Only draft projects can be approved.' };
+        return;
+      }
+
+      const existing = await ApprovalRequest.findOne({
+        projectId,
+        status: ApprovalStatus.PENDING,
+      }).session(session);
+      if (existing) {
+        result = { success: false, error: 'A review request is already pending for this project.' };
+        return;
+      }
+
+      const repository = project.repositoryId
+        ? await Repository.findById(project.repositoryId).session(session)
+        : null;
+      const secretRecords = await EnvironmentSecret.find({ projectId })
+        .select('name')
+        .session(session)
+        .lean();
+      const readiness = assessInitialApprovalReadiness({
+        project,
+        repository,
+        configuredEnvironmentVariables: secretRecords.map(({ name }) => name),
+      });
+      if (!readiness.isReady) {
+        result = {
+          success: false,
+          error: 'Complete the required items before approving your project.',
+          readiness,
+        };
+        return;
+      }
+
+      const activated = await Project.updateOne(
+        { _id: project._id, status: ProjectStatus.DRAFT },
+        { $set: { status: ProjectStatus.ACTIVE } },
+        { session },
+      );
+      if (activated.modifiedCount !== 1) {
+        result = { success: false, error: 'The project changed while it was being approved.' };
+        return;
+      }
+
+      const [request] = await ApprovalRequest.create(
+        [
+          {
+            projectId,
+            requestedBy: actorId,
+            requestType: 'INITIAL_DEPLOYMENT',
+            purpose: normalizedPurpose,
+            status: ApprovalStatus.APPROVED,
+            reviewedAt: new Date(),
+            decisionSource: 'AUTOMATIC',
+            snapshotConfigurationVersion: project.configurationVersion,
+            snapshotCommitSha: readiness.currentCommitSha,
+            validationFindings: readiness.findings,
+          },
+        ],
+        { session },
+      );
+      result = { success: true, request, readiness };
+    });
+  } finally {
+    await session.endSession();
   }
 
-  const [repository, secretRecords] = await Promise.all([
-    project.repositoryId ? Repository.findById(project.repositoryId) : null,
-    EnvironmentSecret.find({ projectId }).select('name').lean(),
-  ]);
-  const readiness = assessInitialApprovalReadiness({
-    project,
-    repository,
-    configuredEnvironmentVariables: secretRecords.map(({ name }) => name),
-  });
-  if (!readiness.isReady) {
+  if (!result.success && result.readiness) {
     await recordProductEvent({
       name: 'readiness_blocked',
       userId: actorId,
       projectId,
-      properties: { reason: readiness.findings.find((item) => item.status === 'BLOCKING')?.code },
+      properties: {
+        reason: result.readiness.findings.find((item) => item.status === 'BLOCKING')?.code,
+      },
     });
-    return {
-      success: false,
-      error: 'Complete the required items before submitting your project.',
-      readiness,
-    };
   }
-
-  let request;
-  try {
-    request = await ApprovalRequest.create({
-      projectId,
-      requestedBy: actorId,
-      requestType: 'INITIAL_DEPLOYMENT',
-      purpose: normalizedPurpose,
-      snapshotConfigurationVersion: project.configurationVersion,
-      snapshotCommitSha: readiness.currentCommitSha,
-      validationFindings: readiness.findings,
-    });
-  } catch (err) {
-    if (err?.code === 11000) {
-      return { success: false, error: 'A review request is already pending for this project.' };
-    }
-    throw err;
+  if (!result.success) {
+    return result;
   }
 
   await writeAuditEvent({
-    action: 'project.review_requested',
+    action: 'project.auto_approved',
     outcome: AuditOutcome.SUCCESS,
     actorId,
     targetType: 'project',
-    targetId: project._id.toString(),
+    targetId: projectId.toString(),
     sourceIp,
     correlationId,
     metadata: {
-      approvalRequestId: request._id.toString(),
-      configurationVersion: project.configurationVersion,
-      commitSha: readiness.currentCommitSha,
+      approvalRequestId: result.request._id.toString(),
+      configurationVersion: result.request.snapshotConfigurationVersion,
+      commitSha: result.readiness.currentCommitSha,
+      decisionSource: 'AUTOMATIC',
     },
   });
   await recordProductEvent({ name: 'approval_submitted', userId: actorId, projectId });
 
-  return { success: true, request };
+  return result;
 }
 
 // ─── Membership ────────────────────────────────────────────────────────────────

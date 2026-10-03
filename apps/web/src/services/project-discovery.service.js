@@ -55,7 +55,7 @@ export function deriveProjectState({ project, repository, latestDeployment, late
     return state('awaiting_review', 'Awaiting review', 'pending');
   }
   if (project.status === ProjectStatus.DRAFT) {
-    return state('needs_attention', 'Submit for review', 'warning');
+    return state('needs_attention', 'Ready for approval', 'warning');
   }
   if (latestDeployment && ACTIVE_DEPLOYMENT_STATUSES.includes(latestDeployment.status)) {
     return state('deploying', 'Deploying', 'info');

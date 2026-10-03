@@ -360,7 +360,7 @@ export const postSubmitForReview = asyncHandler(async (req, res) => {
       approvalReadiness: result.readiness,
     });
   } else {
-    req.flash('success', 'Your project has been submitted for review.');
+    req.flash('success', 'Your project passed the checks and was approved automatically.');
   }
 
   return res.redirect(`/projects/${req.project.slug}`);
