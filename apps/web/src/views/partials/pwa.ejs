@@ -1,0 +1,15 @@
+<div class="pwa-notices">
+<div class="pwa-banner" id="pwa-offline" role="status" hidden>You are offline. Deployment information may be outdated. Reconnect before making changes.</div>
+<div class="pwa-banner" id="pwa-update" role="status" hidden>
+  <span>A new version of HelloDeploy is available.</span>
+  <button type="button" class="button button--primary" id="pwa-update-now">Update Now</button>
+  <button type="button" class="button button--secondary" id="pwa-update-later">Later</button>
+</div>
+</div>
+<dialog class="pwa-dialog" id="pwa-help" aria-labelledby="pwa-help-title">
+  <h2 id="pwa-help-title">Install HelloDeploy</h2>
+  <div data-ios-guide hidden><p>On Safari for iPhone or iPad:</p><ol><li>Tap Share.</li><li>Choose Add to Home Screen.</li><li>Tap Add.</li></ol></div>
+  <p data-browser-guide>Use your browser's install option if available. If HelloDeploy is already installed, open it from your home screen or applications.</p>
+  <form method="dialog" data-pending="off"><button class="button button--primary" autofocus>Close</button></form>
+</dialog>
+<script src="<%= assetPath('js/pwa.js') %>" defer></script>

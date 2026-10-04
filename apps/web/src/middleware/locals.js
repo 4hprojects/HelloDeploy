@@ -8,12 +8,16 @@
 import { env } from '../config/env.js';
 import { getStatusPresentation } from '@hellodeploy/contracts';
 import { publicPageMetadata } from '../config/public-pages.js';
+import { navigationFor } from '../config/navigation.js';
+import { PUBLIC_DOC_TOPICS } from '../config/public-pages.js';
 import { assetPath } from '../utils/assets.js';
 
 export function localsMiddleware(req, res, next) {
   res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
   res.locals.user = req.session?.user ?? null;
   res.locals.currentPath = req.path;
+  res.locals.navigation = navigationFor(res.locals.user, req.path);
+  res.locals.docTopics = PUBLIC_DOC_TOPICS;
   res.locals.correlationId = req.correlationId ?? null;
   res.locals.turnstileSiteKey = env.TURNSTILE_SITE_KEY ?? '';
   res.locals.statusPresentation = getStatusPresentation;

@@ -1,3 +1,5 @@
 .claude/
 # The imported UI/UX planning pack is preserved as authored user work.
 docs/to do/hellodeploy-uiux-improvement-pack/
+# Preserve the imported responsive UI/PWA specification as authored.
+docs/to do/hellodeploy-ui-pwa-implementation/

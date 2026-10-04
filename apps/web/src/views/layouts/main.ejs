@@ -5,14 +5,15 @@
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <%- include('../partials/header') %>
   <div class="layout<%= locals.user ? '' : ' layout--public' %>">
-    <% if (locals.user) { %><%- include('../partials/sidebar') %><% } %>
+    <%- include('../partials/sidebar') %>
     <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
-    <main class="layout__main" id="main-content" tabindex="-1">
+    <main class="layout__main page-container" id="main-content" tabindex="-1">
       <%- include('../partials/flash-banner') %>
       <%- body %>
     </main>
   </div>
   <%- include('../partials/footer') %>
   <script src="<%= assetPath('js/app.js') %>" defer></script>
+  <%- include('../partials/pwa') %>
 </body>
 </html>

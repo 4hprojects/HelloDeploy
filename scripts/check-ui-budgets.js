@@ -7,6 +7,7 @@ const manifest = JSON.parse(await readFile(new URL('asset-manifest.json', public
 const budgets = {
   'css/main.css': 110_000,
   'js/app.js': 65_000,
+  'js/pwa.js': 12_000,
 };
 
 let failed = false;

@@ -3,12 +3,20 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public');
-const sourceAssets = { 'css/main.css': '/css/main.css', 'js/app.js': '/js/app.js' };
+const sourceAssets = {
+  'css/main.css': '/css/main.css',
+  'js/app.js': '/js/app.js',
+  'js/pwa.js': '/js/pwa.js',
+};
 
 function loadManifest() {
   try {
     const parsed = JSON.parse(readFileSync(join(publicDir, 'asset-manifest.json'), 'utf8'));
-    if (!parsed?.assets?.['css/main.css'] || !parsed?.assets?.['js/app.js']) {
+    if (
+      !parsed?.assets?.['css/main.css'] ||
+      !parsed?.assets?.['js/app.js'] ||
+      !parsed?.assets?.['js/pwa.js']
+    ) {
       throw new Error('entries missing');
     }
     return parsed.assets;

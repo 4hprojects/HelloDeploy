@@ -2244,3 +2244,85 @@ recovery remain unexecuted until their declared operational preconditions pass.
   Its CodeQL job is blocked by repository capability rather than a code finding:
   private CodeQL requires GitHub Team or Enterprise with GitHub Code Security. No
   branch-protection, environment, host, or production workaround was applied.
+
+## 2026-10-03 — Responsive UI and PWA implementation
+
+- Implemented the approved responsive UI/PWA pack with the existing Express/EJS,
+  CSS, and JavaScript stack. No new runtime dependency or application API was added.
+  Preserved the imported untracked specifications and excluded their authored
+  formatting using the repository's existing planning-pack convention.
+- Consolidated desktop/mobile navigation data, retained project/admin permission
+  checks, added authenticated Docs and installation help, removed primary Status,
+  and extended the keyboard/focus/scroll-safe drawer to public pages below 1024px.
+  Added shared container/grid/touch tokens and collapsible documentation navigation.
+- Browser inspection found and corrected pre-existing 320–360px service-limits
+  table overflow, 320px registration overflow, and clipped mobile deployment actions.
+  Reviewed 320px drawer and 1024px desktop captures. Reviewed and updated the 1440px
+  visual baseline for the intentionally changed navbar and shared container spacing.
+- Added explicit manifest identity/scope and maskable SVG artwork using the existing
+  512px brand image on an opaque background. Verified the original artwork's maximum
+  radius (192.71px) is within the 512px maskable safe radius (204.8px).
+- Extended the asset build/verification/budgets with isolated PWA JavaScript and a
+  generated root-scoped worker. Only explicit public static assets are cached;
+  auth, private APIs, logs/SSE, and session-dependent HTML remain network-only.
+  Added anonymous offline fallback/retry, offline warnings, user-initiated install,
+  iOS Safari guidance, standalone hiding, and consent-based updates with dirty-form
+  confirmation and protection against unsolicited reloads in other tabs.
+- Verification completed: `node --test tests/pwa/*.test.js tests/ui/*.test.js`
+  (135 passed);
+  `node --test tests/security/csp.test.js tests/security/csrf.test.js tests/security/session-fixation.test.js tests/security/authorization.test.js tests/deployment/log-viewer-safety.test.js`
+  (41 passed);
+  `npm test` (1,171 passed, 236 suites, zero failures/skips/cancellations/todos);
+  lint, formatting, asset build/verification/budgets, and diff whitespace checks.
+- Early browser runs exposed the narrow-screen issues above, the real sign-in rate
+  limiter across repeated fixture clients, and an outdated visual baseline. Tests
+  now use distinct synthetic proxy client addresses without disabling the limiter.
+  Worker update testing changes only the ignored generated worker artifact and
+  restores it in `finally`; Playwright cannot intercept updated worker scripts.
+  One concurrent broad browser run ended with SIGTERM after the viewport matrix;
+  it is not recorded as a pass. The separate final `npm run test:browser` run passes
+  all 27 checks (2.7 minutes), including all ten viewport widths, accepted/dismissed
+  install events, simulated iOS/standalone state, real worker offline/reconnect and
+  logout behavior, and a two-tab update scenario with dirty-form confirmation.
+- `npm run assets:build`, `npm run assets:verify`, and `npm run assets:budget` pass.
+  Final assets are 96,490 bytes CSS (110,000 budget), 50,516 bytes application JS
+  (65,000 budget), and 5,311 bytes PWA JS (12,000 budget). Worker cache version and
+  allowlisted files validate; the browser update test restores the generated worker.
+- `npm run lint`, `npm run format:check`, and `git diff --check` pass. The final
+  `npm run performance:lab` passes with score 0.97, LCP 2,454ms, CLS 0.04385, TBT
+  34ms, eight page requests, and 259,089 transferred bytes. These are synthetic lab
+  measurements, not field or installed-device evidence. No TypeScript check applies
+  to this JavaScript application, and no environment configuration was changed.
+- No commit, push, deployment, production configuration, or infrastructure change
+  was performed. Physical iOS/Android/desktop installation, standalone deep links
+  and authentication, production HTTPS delivery, and supported-host deployment
+  gates remain unverified. Cached documentation and the optional install promotion
+  are intentionally omitted. Operational behavior is documented in `docs/UI_PWA.md`.
+
+## 2026-10-03 — UI/PWA publication preparation
+
+- The user authorized pushing the completed UI/PWA implementation. Isolated its
+  changes on `feat/responsive-ui-pwa`, based on the already-published
+  `feat/super-admin-platform-release` branch at `955bdf5`, to preserve the tested
+  baseline and avoid modifying either earlier feature branch.
+- The review target is the parent feature branch, so the UI/PWA pull request shows
+  only this implementation. Mainline promotion must retain the reviewed dependency
+  sequence. The original untracked UI/PWA specification folder remains untouched.
+- Rechecked remote release prerequisites: PR #69 remains open, with successful
+  `Lint & Test (22.x)` and failing `CodeQL Analysis (javascript-typescript)`.
+  `gh api repos/4hprojects/HelloDeploy/branches/main/protection` returns HTTP 403
+  with an account-upgrade requirement. No merge, deployment, or protection bypass
+  is authorized by these results. The release policy still requires reviewed main
+  commits, passing required checks, and the operational release gates.
+
+- Publication completed: implementation commit
+  `24295aa74293bc29cada47ee021345e7e5165c9a` was pushed to
+  `origin/feat/responsive-ui-pwa`, and draft PR #70 was opened at
+  <https://github.com/4hprojects/HelloDeploy/pull/70> against the existing parent
+  feature branch. Commit hooks passed lint and formatting; the only remaining
+  untracked files are the original UI/PWA specification folder.
+- GitHub reports the PR open and draft, with an empty check rollup. Both current
+  workflows filter pull requests to `main`, so the stacked PR has no remote CI or
+  CodeQL result. Retarget after the dependency reviews/merges and obtain the required
+  checks before releasing. Local verification remains the 1,171-test/27-browser
+  evidence recorded above. No production mutation was attempted.

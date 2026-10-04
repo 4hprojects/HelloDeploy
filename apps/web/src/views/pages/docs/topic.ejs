@@ -1,3 +1,4 @@
+<%- include('../../partials/docs-navigation') %>
 <div class="page-header"><h1 class="page-header__title"><%= topic.title %></h1><p class="page-header__subtitle"><a href="/docs">Documentation</a> / <%= topic.title %></p></div>
 <article class="card prose"><div class="card__body">
   <ul><% topic.points.forEach(point => { %><li><%= point %></li><% }) %></ul>

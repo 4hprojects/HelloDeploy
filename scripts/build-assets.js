@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'apps', 'web', 'public');
 const outputDir = join(publicDir, 'assets-dist');
 const manifestPath = join(publicDir, 'asset-manifest.json');
-const sources = ['css/main.css', 'js/app.js'];
+const sources = ['css/main.css', 'js/app.js', 'js/pwa.js'];
 
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
@@ -34,6 +34,32 @@ for (const source of sources) {
   await writeFile(join(outputDir, outputName), contents);
   manifest.assets[source] = `/assets-dist/${outputName}`;
 }
+
+// Generate the worker from the exact bytes deployed with this asset build.
+const staticPaths = [
+  '/offline.html',
+  '/css/offline.css',
+  '/js/offline.js',
+  '/site.webmanifest',
+  '/assets/icons/icon-192.png',
+  '/assets/icons/icon-512.png',
+  '/assets/icons/apple-touch-icon.png',
+  '/assets/icons/icon-maskable.svg',
+  '/assets/brand/mark.png',
+];
+const workerTemplate = await readFile(join(root, 'apps/web/src/pwa/service-worker.js'), 'utf8');
+const versionHash = createHash('sha256').update(workerTemplate);
+for (const path of [...Object.values(manifest.assets), ...staticPaths]) {
+  versionHash.update(path).update(await readFile(join(publicDir, path)));
+}
+const precache = {
+  version: versionHash.digest('hex').slice(0, 16),
+  assets: [...Object.values(manifest.assets), ...staticPaths],
+};
+await writeFile(
+  join(outputDir, 'sw.js'),
+  workerTemplate.replace('/* PRECACHE_CONFIG */ null', JSON.stringify(precache)),
+);
 
 await writeFile(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
 process.stdout.write(`Built ${sources.length} hashed assets.\n`);

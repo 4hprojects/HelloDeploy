@@ -25,6 +25,31 @@ and deterministic browser/visual/performance gates. See the pack's
 This does not change the NO-GO state above: deployment, supported-host, external DNS,
 real-device, crawler, and five-user usability evidence remains outstanding.
 
+### Responsive UI/PWA pack — draft PR #70
+
+The UI/PWA pack is pushed on `feat/responsive-ui-pwa` in
+[draft PR #70](https://github.com/4hprojects/HelloDeploy/pull/70), stacked on
+`feat/super-admin-platform-release` to isolate its diff on the tested baseline.
+It provides shared public/application
+navigation and a keyboard-accessible drawer below 1024px; shared layout/touch
+primitives; collapsible documentation navigation; narrow-screen form/table fixes;
+and manifest, maskable artwork, explicit static-only service-worker caching,
+installation help, offline fallback, and consent-based updates. Session-rendered
+HTML, including documentation, and private APIs/logs are never put in Cache Storage.
+
+Local implementation and verification are complete: 1,171 repository tests across
+236 suites and 27 Chromium browser checks pass, including the ten-width matrix,
+offline/logout isolation, and consent-based worker updates. Lint, formatting, asset
+verification/budgets, and Lighthouse lab budgets pass (97/100; 2,454ms LCP, 34ms TBT).
+See [UI/PWA operation](UI_PWA.md) and the
+2026-10-03 UI/PWA worklog entry. Real-device installation, standalone authentication
+and deep links, production HTTPS/proxy delivery, and supported-host evidence remain
+open; this does not change the overall NO-GO or production release state. The
+stacked PR has no remote check evidence: CI and CodeQL currently target `main` PRs.
+Next: review/land the existing dependencies, retarget this PR to `main`, and obtain
+the required passing checks before release. The verified CodeQL/account-protection
+blockers remain; no main merge or deployment was performed.
+
 ### Platform workflow automation — repository-local lane
 
 Automatic initial project approval and Super Admin-triggered platform deployment

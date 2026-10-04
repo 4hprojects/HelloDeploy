@@ -122,6 +122,8 @@
 
   /* ── Layout ────────────────────────────────────────────────── */
   --sidebar-width: 240px;
+  --touch-target-min: 44px;
+  --page-padding: clamp(1rem, 3vw, 2rem);
   --header-height: 56px;
   --content-max-width: 1200px;
 

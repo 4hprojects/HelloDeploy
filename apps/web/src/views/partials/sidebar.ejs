@@ -1,27 +1,15 @@
 <% var _path = locals.currentPath || ''; %>
 <% var _user = locals.user || null; %>
-<nav class="sidebar" id="sidebar" aria-label="Application navigation">
+<nav class="sidebar<%= _user ? '' : ' sidebar--public' %>" id="sidebar" aria-label="Application navigation">
   <ul class="sidebar__nav" role="list">
-    <li>
-      <a
-        href="/dashboard"
-        class="sidebar__link"
-        <%= _path === '/dashboard' ? 'aria-current="page"' : '' %>
-      >
-        <%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %>
-        <span>Dashboard</span>
-      </a>
-    </li>
-    <li>
-      <a
-        href="/projects"
-        class="sidebar__link"
-        <%= _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
-      >
-        <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
-        <span>Projects</span>
-      </a>
-    </li>
+    <% (locals.navigation || []).forEach(item => { %>
+    <li><a href="<%= item.href %>" class="sidebar__link" <%- item.active ? 'aria-current="page"' : '' %>>
+      <% if (item.icon) { %><%- include('icon', { name: item.icon, className: 'sidebar__icon' }) %><% } %>
+      <span><%= item.label %></span>
+    </a></li>
+    <% }); %>
+    <li><button type="button" class="sidebar__link sidebar__link--button" data-pwa-install hidden>Install HelloDeploy</button></li>
+    <% if (_user) { %><li><button type="button" class="sidebar__link sidebar__link--button" data-pwa-help>Installation help</button></li><% } %>
   </ul>
 
   <% if (locals.currentProject && currentProject) { %>
@@ -111,6 +99,7 @@
   </div>
   <% } %>
 
+  <% if (_user) { %>
   <div class="sidebar__section">
     <ul class="sidebar__nav" role="list">
       <li>
@@ -132,4 +121,5 @@
       </li>
     </ul>
   </div>
+  <% } %>
 </nav>
