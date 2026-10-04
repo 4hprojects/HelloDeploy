@@ -286,6 +286,33 @@ export async function deleteSecret(projectId, name, actorId, opts = {}) {
 }
 
 /**
+ * Delete every environment secret for a project.
+ *
+ * @returns {{ success: boolean, count?: number, error?: string }}
+ */
+export async function deleteAllSecrets(projectId, actorId, opts = {}) {
+  const secrets = await listSecretNames(projectId);
+  if (secrets.length === 0) {
+    return { success: false, error: 'There are no secrets to delete.' };
+  }
+
+  const result = await EnvironmentSecret.deleteMany({ projectId });
+
+  await writeAuditEvent({
+    action: 'project.secrets_cleared',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: projectId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { count: result.deletedCount, names: secrets.map((secret) => secret.name) },
+  });
+
+  return { success: true, count: result.deletedCount };
+}
+
+/**
  * Decrypt all secrets for a project into a plain key-value map.
  * FOR INTERNAL USE ONLY — called by the deployment worker, never by web controllers.
  * Never send the output of this function to a client.

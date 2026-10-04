@@ -135,6 +135,15 @@
         <a href="/projects/<%= project.slug %>/environment" class="button button--ghost button--sm">Cancel editing</a>
         <% } else { %>
         <a href="/projects/<%= project.slug %>/environment?edit=all" class="button button--secondary button--sm">Edit</a>
+        <form method="POST" action="/projects/<%= project.slug %>/environment/delete-all"
+              data-confirm="Delete all <%= secrets.length %> secret<%= secrets.length === 1 ? '' : 's' %> for <%= project.name %>? This cannot be undone. Your live app keeps its current values until you deploy again."
+              data-confirm-title="Delete all secrets"
+              data-confirm-accept-label="Delete All Secrets"
+              data-confirm-pending-label="Deleting..."
+              data-confirm-variant="danger">
+          <%- include('../../partials/csrf-field') %>
+          <button type="submit" class="button button--danger button--sm">Delete all</button>
+        </form>
         <% } %>
       <% } %>
     </div>

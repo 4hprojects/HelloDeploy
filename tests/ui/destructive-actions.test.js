@@ -87,6 +87,7 @@ describe('destructive and risky action UX', () => {
     assert.match(files.repository, /data-confirm-title="Disconnect repository"/);
     assert.match(files.projectShow, /data-confirm-title="Archive project"/);
     assert.match(files.environment, /data-confirm-title="Delete secret"/);
+    assert.match(files.environment, /data-confirm-title="Delete all secrets"/);
     assert.match(files.domains, /data-confirm-title="Remove domain"/);
     assert.match(files.members, /data-confirm-title="Remove member"/);
     assert.match(files.members, /data-confirm-title="Transfer ownership"/);
