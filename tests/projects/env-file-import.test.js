@@ -5,6 +5,7 @@ import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worke
 
 import {
   bulkUpdateSecrets,
+  deleteAllSecrets,
   MAX_ENV_FILE_BYTES,
   MAX_ENV_FILE_SECRETS,
   getDecryptedSecrets,
@@ -169,5 +170,39 @@ describe('.env file import', () => {
     const missing = await revealSecretValue(projectId, 'MISSING_KEY', actorId);
     assert.equal(missing.success, false);
     assert.match(missing.error, /not found/i);
+  });
+});
+
+describe('deleting all secrets', () => {
+  before(startTestDb);
+  beforeEach(clearTestDb);
+  after(stopTestDb);
+
+  it('removes every secret for the project', async () => {
+    const projectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+
+    await deleteAllSecrets(projectId, actorId);
+
+    assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 0);
+  });
+
+  it('leaves secrets of other projects untouched', async () => {
+    const projectId = objectId();
+    const otherProjectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=first', actorId);
+    await importEnvFile(otherProjectId, 'OTHER_KEY=kept', actorId);
+
+    await deleteAllSecrets(projectId, actorId);
+
+    assert.deepEqual(await getDecryptedSecrets(otherProjectId), { OTHER_KEY: 'kept' });
+  });
+
+  it('rejects clearing a project that has no secrets', async () => {
+    const result = await deleteAllSecrets(objectId(), objectId());
+
+    assert.deepEqual(result, { success: false, error: 'There are no secrets to delete.' });
   });
 });

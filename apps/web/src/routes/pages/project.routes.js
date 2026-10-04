@@ -50,6 +50,7 @@ import {
   postBulkUpdateSecrets,
   postRevealSecret,
   postDeleteSecret,
+  postDeleteAllSecrets,
 } from '../../controllers/env-secret.controller.js';
 import {
   getDomains,
@@ -285,6 +286,13 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postBulkUpdateSecrets,
+);
+router.post(
+  '/:slug/environment/delete-all',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postDeleteAllSecrets,
 );
 router.post(
   '/:slug/environment/:name/reveal',

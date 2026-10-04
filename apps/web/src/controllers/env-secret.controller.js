@@ -3,6 +3,7 @@ import {
   listSecretNames,
   setSecret,
   deleteSecret,
+  deleteAllSecrets,
   validateSecretName,
   importEnvFile,
   bulkUpdateSecrets,
@@ -184,6 +185,23 @@ export const postDeleteSecret = asyncHandler(async (req, res) => {
     req.flash('error', result.error);
   } else {
     req.flash('success', `Secret ${name} deleted.`);
+  }
+
+  res.redirect(`/projects/${project.slug}/environment`);
+});
+
+export const postDeleteAllSecrets = asyncHandler(async (req, res) => {
+  const project = req.project;
+
+  const result = await deleteAllSecrets(project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `${result.count} secret${result.count === 1 ? '' : 's'} deleted.`);
   }
 
   res.redirect(`/projects/${project.slug}/environment`);
