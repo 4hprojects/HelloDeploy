@@ -22,6 +22,10 @@
   padding: 0 var(--space-6);
 }
 
+.header__inner--app {
+  max-width: none;
+}
+
 .header__brand {
   display: flex;
   align-items: center;
@@ -77,6 +81,11 @@
   background: var(--color-bg-subtle);
   border-right: 1px solid var(--color-border);
   padding: var(--space-6) 0;
+  position: sticky;
+  top: var(--header-height);
+  align-self: flex-start;
+  height: calc(100dvh - var(--header-height));
+  overflow-y: auto;
 }
 
 .sidebar__nav {
@@ -128,7 +137,8 @@
   flex: 1;
   min-width: 0;
   padding: var(--space-8) var(--space-8);
-  max-width: calc(var(--content-max-width) - var(--sidebar-width));
+  max-width: var(--app-content-max-width);
+  margin-inline: auto;
 }
 
 .layout--public {
@@ -146,6 +156,10 @@
   border-top: 1px solid var(--color-border);
   padding: var(--space-6);
   text-align: center;
+}
+
+.footer--app {
+  margin-left: var(--sidebar-width);
 }
 
 .footer__text {
@@ -282,6 +296,9 @@
   .header__nav > a:not(.button) {
     display: none;
   }
+  .footer--app {
+    margin-left: 0;
+  }
   .footer__links {
     grid-template-columns: 1fr;
     gap: var(--space-6);
@@ -302,6 +319,13 @@
 @media (min-width: 64rem) {
   .layout__main {
     padding: var(--space-8) var(--space-12);
+  }
+}
+
+/* Wide desktop (90rem = 1440px) */
+@media (min-width: 90rem) {
+  .layout__main {
+    padding: var(--space-10) var(--space-16);
   }
 }
 

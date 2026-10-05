@@ -2335,6 +2335,22 @@
   }
 }
 
+/* ── Card grid ───────────────────────────────────────────────────── */
+.card-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.card-grid--3 {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+@media (max-width: 48rem) {
+  .card-grid--3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Log viewer ──────────────────────────────────────────────────── */
 .log-viewer {
   font-family: ui-monospace, 'Cascadia Code', 'Fira Code', monospace;
@@ -2346,6 +2362,14 @@
   overflow-y: auto;
   max-height: 32rem;
   border-radius: 0 0 var(--radius-md) var(--radius-md);
+}
+
+/* Build logs are the main content of the page; give them the viewport on large screens. */
+@media (min-width: 80rem) {
+  .log-viewer {
+    max-height: max(32rem, calc(100dvh - var(--header-height) - 10rem));
+    font-size: var(--text-sm);
+  }
 }
 .log-line {
   display: flex;

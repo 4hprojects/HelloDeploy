@@ -1,5 +1,5 @@
 <header class="header" role="banner">
-  <div class="header__inner">
+  <div class="header__inner<%= locals.user ? ' header__inner--app' : '' %>">
     <% if (locals.user) { %>
     <button type="button" class="header__menu-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar" data-tooltip="Open or close the navigation menu">
       <span class="hamburger-line"></span>
