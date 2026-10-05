@@ -5,8 +5,41 @@
 /* ── Auth form container ─────────────────────────────────────────── */
 .auth-form {
   width: 100%;
-  max-width: 400px;
+  max-width: 440px;
   margin: 0 auto;
+}
+
+/* Fields separated by non-field siblings (a row, the checklist) miss the
+   .form-field + .form-field spacing, so restore it here. */
+.auth-form .form-row + .form-field,
+.auth-form .password-requirements + .form-field {
+  margin-top: var(--space-4);
+}
+
+/* ── Pre-signup notice ───────────────────────────────────────────── */
+.auth-notice {
+  display: block;
+  line-height: var(--leading-normal);
+}
+
+.auth-notice__title {
+  display: block;
+  font-size: var(--text-base);
+}
+
+.auth-notice__list {
+  margin-top: var(--space-2);
+  padding-left: var(--space-5);
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.auth-notice__link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  font-weight: var(--font-medium);
 }
 
 .auth-form__title {
@@ -26,6 +59,12 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+/* Grid gap already spaces the columns; the sibling margin would push the
+   second field down out of line with the first. */
+.form-row > .form-field + .form-field {
+  margin-top: 0;
 }
 
 .form-row--between {
@@ -77,9 +116,9 @@
 /* ── Password requirements checklist ────────────────────────────── */
 .password-requirements {
   margin-top: var(--space-2);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-1) var(--space-4);
   padding: 0;
   list-style: none;
 }

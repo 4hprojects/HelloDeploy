@@ -124,6 +124,7 @@
   --sidebar-width: 240px;
   --header-height: 56px;
   --content-max-width: 1200px;
+  --app-content-max-width: 90rem;
 
   /* ── Transitions ───────────────────────────────────────────── */
   --transition-fast: 150ms ease;
