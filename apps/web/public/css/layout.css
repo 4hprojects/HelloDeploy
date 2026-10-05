@@ -327,7 +327,7 @@
 
 /* Wide desktop (90rem = 1440px) */
 @media (min-width: 90rem) {
-  .layout__main {
+  .layout:not(.layout--public) .layout__main {
     padding: var(--space-10) var(--space-16);
   }
 }
