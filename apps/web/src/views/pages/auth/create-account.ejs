@@ -15,9 +15,11 @@
   <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
 
   <% if (googleAuthEnabled) { %>
-  <a class="button button--secondary button--full auth-provider-button" href="/auth/google/start?intent=create-account">
-    Continue with Google
-  </a>
+  <%- include('../../partials/google-auth-button', {
+    href: '/auth/google/start?intent=create-account',
+    label: 'Continue with Google',
+    fullWidth: true
+  }) %>
   <div class="auth-divider" role="separator"><span>or create an account with a password</span></div>
   <% } %>
 

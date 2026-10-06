@@ -123,7 +123,10 @@
     <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
     <% if (googleOnlyOwner && !sensitiveAuthRecent) { %>
       <p class="mb-4">Reconfirm the Google account linked to HelloDeploy before making this permanent privilege change.</p>
-      <a class="button button--secondary" href="/auth/google/reauthenticate?returnTo=<%= encodeURIComponent('/projects/' + project.slug + '/members#transfer-ownership') %>">Reconfirm with Google</a>
+      <%- include('../../partials/google-auth-button', {
+        href: `/auth/google/reauthenticate?returnTo=${encodeURIComponent(`/projects/${project.slug}/members#transfer-ownership`)}`,
+        label: 'Reconfirm with Google'
+      }) %>
     <% } else { %>
     <form method="POST" action="/projects/<%= project.slug %>/transfer-ownership"
           data-confirm="Transfer ownership? You will become a Maintainer and lose owner privileges."

@@ -30,12 +30,14 @@
 .header__brand {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   text-decoration: none;
 }
 
 .header__nav {
   display: flex;
   align-items: center;
+  flex-shrink: 0;
   gap: var(--space-4);
 }
 
@@ -48,6 +50,7 @@
 .header__links a {
   color: #e2e8f0;
   font-size: var(--text-sm);
+  white-space: nowrap;
   text-decoration: none;
   /* Reserve the underline's space so the current link doesn't shift its row. */
   border-bottom: 2px solid transparent;
@@ -311,38 +314,6 @@
   .header__inner {
     padding: 0 var(--space-4);
   }
-  .header__nav {
-    gap: var(--space-2);
-  }
-  .header__links {
-    position: absolute;
-    top: var(--header-height);
-    left: 0;
-    right: 0;
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: var(--space-2) var(--space-4) var(--space-4);
-    background: var(--color-navy);
-    border-bottom: 1px solid var(--color-navy-mid);
-    box-shadow: var(--shadow-lg);
-  }
-  .header__links:not(.header__links--open) {
-    display: none;
-  }
-  .header__links a {
-    padding: var(--space-3) var(--space-2);
-    font-size: var(--text-base);
-    border-bottom: 1px solid var(--color-navy-mid);
-  }
-  .header__links a:last-child {
-    border-bottom: none;
-  }
-  .header__links a[aria-current='page'] {
-    border-bottom-color: var(--color-navy-mid);
-    box-shadow: inset 3px 0 0 var(--color-orange);
-    padding-left: var(--space-4);
-  }
   .footer--app {
     margin-left: 0;
   }
@@ -352,11 +323,13 @@
   }
 }
 
-@media (max-width: 22.5rem) {
+@media (max-width: 30rem) {
   .brand-logo__wordmark {
     display: none;
   }
+}
 
+@media (max-width: 22.5rem) {
   .header__inner {
     padding-inline: var(--space-3);
   }
@@ -379,6 +352,8 @@
 /* ── Mobile sidebar toggle ───────────────────────────────────────── */
 .header__menu-toggle {
   display: none;
+  min-width: 40px;
+  min-height: 40px;
   background: none;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
@@ -417,6 +392,47 @@
 .sidebar-backdrop {
   display: none;
 }
+
+/* Keep public navigation compact until the full row has comfortable room.
+   This breakpoint is independent from the app sidebar drawer breakpoint. */
+@media (max-width: 63.9375rem) {
+  .header__nav {
+    gap: var(--space-2);
+  }
+  .header__links {
+    position: absolute;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--space-2) var(--space-4) var(--space-4);
+    background: var(--color-navy);
+    border-bottom: 1px solid var(--color-navy-mid);
+    box-shadow: var(--shadow-lg);
+  }
+  .header__links:not(.header__links--open) {
+    display: none;
+  }
+  .header__links a {
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--text-base);
+    border-bottom: 1px solid var(--color-navy-mid);
+  }
+  .header__links a:last-child {
+    border-bottom: none;
+  }
+  .header__links a[aria-current='page'] {
+    border-bottom-color: var(--color-navy-mid);
+    box-shadow: inset 3px 0 0 var(--color-orange);
+    padding-left: var(--space-4);
+  }
+  .header__menu-toggle--public {
+    display: flex;
+  }
+}
+
 @media (max-width: 48rem) {
   .header__menu-toggle {
     display: flex;
@@ -458,6 +474,8 @@
 /* The header is navy in both themes, so the toggle uses fixed light-on-navy
    colours rather than theme tokens, matching the menu toggle beside it. */
 .header__theme-toggle {
+  min-width: 40px;
+  min-height: 40px;
   background: none;
   border: 1px solid rgb(255 255 255 / 0.18);
   border-radius: var(--radius-md);
@@ -468,6 +486,9 @@
   gap: var(--space-1);
   font-size: var(--text-sm);
   color: #e2e8f0;
+}
+.header__nav > .button {
+  min-height: 40px;
 }
 .header__theme-toggle:hover {
   background: rgb(255 255 255 / 0.08);

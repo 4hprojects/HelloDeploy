@@ -13,6 +13,11 @@ const authLayout = await readFile(
   new URL('../../apps/web/src/views/layouts/auth.ejs', import.meta.url),
   'utf8',
 );
+const layoutCss = await readFile(
+  new URL('../../apps/web/public/css/layout.css', import.meta.url),
+  'utf8',
+);
+const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
 
 function renderHeader(locals) {
   return ejs.renderFile(headerPath, { user: null, currentPath: '/', ...locals });
@@ -41,6 +46,12 @@ describe('shared header navigation', () => {
   it('gives signed-out visitors a menu toggle for the collapsible links', async () => {
     const html = await renderHeader({});
     assert.match(html, /id="public-nav-toggle"[^>]*aria-controls="public-nav"/);
+  });
+
+  it('keeps the public menu compact until the desktop breakpoint', () => {
+    assert.match(layoutCss, /@media \(max-width: 63\.9375rem\)/);
+    assert.match(layoutCss, /\.header__menu-toggle--public\s*{[\s\S]*display: flex;/);
+    assert.match(appJs, /matchMedia\('\(min-width: 64rem\)'\)/);
   });
 
   it('omits the sidebar toggle for a signed-in user on a page without a sidebar', async () => {

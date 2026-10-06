@@ -66,7 +66,7 @@
       }
     });
 
-    window.matchMedia('(min-width: 48.0625rem)').addEventListener('change', (e) => {
+    window.matchMedia('(min-width: 64rem)').addEventListener('change', (e) => {
       if (e.matches) {
         setOpen(false);
       }

@@ -2193,3 +2193,40 @@ recovery remain unexecuted until their declared operational preconditions pass.
   production dependency audit, and diff validation passed.
 - Production was not changed. Fixture results are not production, supported-host,
   real-device, external DNS/crawler, or representative-user evidence.
+
+## 2026-10-06 — Responsive Navigation Balance
+
+- Kept public navigation compact through 1023px and enabled the full, non-wrapping
+  link row at the existing 1024px desktop breakpoint. The signed-in sidebar still
+  switches independently at 768px.
+- Collapsed the wordmark through 480px while preserving the visible Create Account
+  action, and normalized header CTA, theme, and menu controls to a 40px minimum
+  target.
+- Added browser coverage at 320, 360, 390, 480, 481, 768, 769, 1023, 1024, 1280,
+  and 1440px, including compact-menu interaction, Escape focus restoration,
+  breakpoint resize reset, auth headers, dark theme, and the signed-in app shell.
+- Asset integrity and budgets pass at 108,008 bytes CSS and 49,849 bytes JavaScript.
+  Lint and formatting pass; all 1,207 Node tests across 246 suites and all 27
+  Playwright/axe/visual tests pass. The existing 1440px visual baseline was reviewed
+  and remains valid. No production or external environment was changed.
+
+## 2026-10-07 — Password Recovery Security and Delivery Diagnostics
+
+- Added an action-bound Cloudflare Turnstile check to password-reset initiation while
+  preserving the existing five-per-hour network limit and neutral response for
+  unknown, inactive, Google-only, and eligible password accounts.
+- Reset email delivery now distinguishes provider-accepted, skipped, and failed
+  outcomes internally. Accepted sends log only the email kind, correlation ID, and
+  provider message ID; recipient addresses, reset codes, and message previews are no
+  longer logged. Provider failures are audited without changing the browser response.
+- Updated reset-code guidance and the authentication/environment documentation to
+  describe the neutral response, Turnstile control, and operator diagnostics.
+- Forty-one focused authentication, Turnstile, rate-limit, and security tests pass. Lint,
+  formatting, configuration validation, and all 1,217 Node tests across 249 suites
+  pass with no failures or skips. The initial browser run exposed that dotenv loaded
+  configured developer Turnstile keys into the deterministic fixture; the fixture now
+  explicitly disables the external challenge, and the complete 27-test Playwright,
+  axe, and visual suite passes.
+- Verification used injected provider responses and did not send a real email or
+  claim inbox delivery. The configured Resend sender domain was confirmed verified
+  through a read-only provider check; production was not changed.

@@ -21,22 +21,22 @@ function getResendClient() {
 }
 
 /**
- * Send an email. In development without RESEND_API_KEY, logs to stdout instead.
- * @returns {Promise<void>}
+ * Send an email without putting recipient addresses or message content in logs.
+ * The optional dependencies keep provider behavior deterministic in tests.
  */
-async function sendEmail({ to, subject, html, text }) {
-  const client = getResendClient();
-
+async function sendEmail(
+  { to, subject, html, text, kind, correlationId },
+  { client = getResendClient(), log = logger } = {},
+) {
   if (!client) {
-    logger.info('[email] DEV MODE — email not sent (no RESEND_API_KEY)', {
-      to,
-      subject,
-      preview: text?.slice(0, 200),
+    log.info('[email] Email skipped because the provider is not configured', {
+      kind,
+      correlationId,
     });
-    return;
+    return { status: 'skipped', providerMessageId: null };
   }
 
-  const { error } = await client.emails.send({
+  const { data, error } = await client.emails.send({
     from: env.EMAIL_FROM,
     to,
     subject,
@@ -45,14 +45,24 @@ async function sendEmail({ to, subject, html, text }) {
   });
 
   if (error) {
-    logger.error('[email] Failed to send email', { to, subject, error: error.message });
-    throw new Error(`Email delivery failed: ${error.message}`);
+    log.error('[email] Email provider rejected the request', {
+      kind,
+      correlationId,
+      providerErrorType: error.name ?? 'provider_error',
+    });
+    throw new Error('Email provider rejected the request.');
   }
+
+  const providerMessageId = typeof data?.id === 'string' ? data.id : null;
+  log.info('[email] Email accepted by provider', { kind, correlationId, providerMessageId });
+  return { status: 'accepted', providerMessageId };
 }
 
-export async function sendVerificationEmail({ to, firstName, verificationUrl }) {
-  await sendEmail({
+export async function sendVerificationEmail({ to, firstName, verificationUrl, correlationId }) {
+  return sendEmail({
     to,
+    kind: 'email-verification',
+    correlationId,
     subject: 'Verify your HelloDeploy email address',
     html: `
       <p>Hi ${firstName},</p>
@@ -65,19 +75,27 @@ export async function sendVerificationEmail({ to, firstName, verificationUrl }) 
   });
 }
 
-export async function sendPasswordResetEmail({ to, firstName, resetCode }) {
-  await sendEmail({
-    to,
-    subject: 'Reset your HelloDeploy password',
-    html: `
+export async function sendPasswordResetEmail(
+  { to, firstName, resetCode, correlationId },
+  dependencies,
+) {
+  return sendEmail(
+    {
+      to,
+      kind: 'password-reset',
+      correlationId,
+      subject: 'Reset your HelloDeploy password',
+      html: `
       <p>Hi ${firstName},</p>
       <p>You requested a password reset. Enter the code below on the HelloDeploy website:</p>
       <p style="font-size:24px;font-weight:bold;letter-spacing:4px;">${resetCode}</p>
       <p>This code expires in 1 hour and can only be used once.</p>
       <p>If you did not request a password reset, you can ignore this email.</p>
     `,
-    text: `Hi ${firstName},\n\nYour password reset code: ${resetCode}\n\nThis code expires in 1 hour.`,
-  });
+      text: `Hi ${firstName},\n\nYour password reset code: ${resetCode}\n\nThis code expires in 1 hour.`,
+    },
+    dependencies,
+  );
 }
 
 export function buildProjectPausedEmail({ to, firstName, projectName, projectUrl }) {
@@ -98,12 +116,18 @@ export function buildProjectPausedEmail({ to, firstName, projectName, projectUrl
 }
 
 export async function sendProjectPausedEmail(options) {
-  await sendEmail(buildProjectPausedEmail(options));
+  return sendEmail({
+    ...buildProjectPausedEmail(options),
+    kind: 'project-paused',
+    correlationId: options.correlationId,
+  });
 }
 
-export async function sendPasswordChangedEmail({ to, firstName }) {
-  await sendEmail({
+export async function sendPasswordChangedEmail({ to, firstName, correlationId }) {
+  return sendEmail({
     to,
+    kind: 'password-changed',
+    correlationId,
     subject: 'Your HelloDeploy password has been changed',
     html: `
       <p>Hi ${firstName},</p>

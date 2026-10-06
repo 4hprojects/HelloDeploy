@@ -14,6 +14,14 @@ const googleCompleteAccount = await readFile(
   new URL('../../apps/web/src/views/pages/auth/google-complete-account.ejs', import.meta.url),
   'utf8',
 );
+const forgotPassword = await readFile(
+  new URL('../../apps/web/src/views/pages/auth/forgot-password.ejs', import.meta.url),
+  'utf8',
+);
+const verifyResetCode = await readFile(
+  new URL('../../apps/web/src/views/pages/auth/verify-reset-code.ejs', import.meta.url),
+  'utf8',
+);
 const authStyles = await readFile(
   new URL('../../apps/web/public/css/auth.css', import.meta.url),
   'utf8',
@@ -24,7 +32,7 @@ const controller = await readFile(
 );
 
 describe('Turnstile authentication UI', () => {
-  it('renders configured, action-bound widgets on sign-in and account creation', () => {
+  it('renders configured, action-bound widgets on public authentication forms', () => {
     assert.match(signIn, /if \(turnstileSiteKey\)/);
     assert.match(signIn, /class="cf-turnstile[^"]*".*data-action="sign-in"/);
     assert.match(createAccount, /if \(turnstileSiteKey\)/);
@@ -33,10 +41,12 @@ describe('Turnstile authentication UI', () => {
       googleCompleteAccount,
       /class="cf-turnstile[^"]*".*data-action="google-create-account"/,
     );
+    assert.match(forgotPassword, /if \(turnstileSiteKey\)/);
+    assert.match(forgotPassword, /class="cf-turnstile[^"]*".*data-action="forgot-password"/);
   });
 
   it('keeps auth verification visible, responsive, and stable above submission', () => {
-    for (const template of [signIn, createAccount, googleCompleteAccount]) {
+    for (const template of [signIn, createAccount, googleCompleteAccount, forgotPassword]) {
       assert.match(template, /class="auth-verification"/);
       assert.match(template, /data-size="flexible"/);
       assert.match(template, /data-theme="auto"/);
@@ -47,8 +57,14 @@ describe('Turnstile authentication UI', () => {
     assert.match(authStyles, /\.auth-verification \.cf-turnstile\s*{[^}]*width:\s*100%/s);
   });
 
-  it('validates both password flows against their matching server-side actions', () => {
+  it('validates public password forms against their matching server-side actions', () => {
     assert.match(controller, /expectedAction: 'sign-in'/);
     assert.match(controller, /expectedAction: 'create-account'/);
+    assert.match(controller, /expectedAction: 'forgot-password'/);
+  });
+
+  it('keeps reset-code guidance neutral for unknown and ineligible accounts', () => {
+    assert.match(verifyResetCode, /If an eligible account exists/);
+    assert.match(verifyResetCode, /inbox and spam folder/);
   });
 });

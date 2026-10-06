@@ -593,17 +593,43 @@ export function getForgotPassword(req, res) {
   res.render('pages/auth/forgot-password', authRenderOpts({ title: 'Forgot Password' }));
 }
 
-export const postForgotPassword = asyncHandler(async (req, res) => {
+const forgotPasswordDependencies = {
+  verifyTurnstile: verifyTurnstileToken,
+  initiateReset: initiatePasswordReset,
+};
+
+export async function handleForgotPassword(
+  req,
+  res,
+  { verifyTurnstile, initiateReset } = forgotPasswordDependencies,
+) {
   const { errors, hasErrors } = validateForgotPassword(req.body);
+  const values = { email: req.body.email ?? '' };
 
   if (hasErrors) {
     return res.render(
       'pages/auth/forgot-password',
-      authRenderOpts({ title: 'Forgot Password', errors }),
+      authRenderOpts({ title: 'Forgot Password', errors, values }),
     );
   }
 
-  await initiatePasswordReset({
+  const turnstileOk = await verifyTurnstile({
+    token: req.body['cf-turnstile-response'],
+    sourceIp: req.ip,
+    expectedAction: 'forgot-password',
+  });
+  if (!turnstileOk) {
+    return res.render(
+      'pages/auth/forgot-password',
+      authRenderOpts({
+        title: 'Forgot Password',
+        errors: { form: 'Bot protection check failed. Please try again.' },
+        values,
+      }),
+    );
+  }
+
+  await initiateReset({
     email: req.body.email.trim().toLowerCase(),
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -614,7 +640,9 @@ export const postForgotPassword = asyncHandler(async (req, res) => {
   req.session.save(() => {
     res.redirect('/auth/verify-reset-code');
   });
-});
+}
+
+export const postForgotPassword = asyncHandler((req, res) => handleForgotPassword(req, res));
 
 // ─── Verify Reset Code ─────────────────────────────────────────────────────────
 

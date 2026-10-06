@@ -11,9 +11,11 @@
   <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
 
   <% if (googleAuthEnabled) { %>
-  <a class="button button--secondary button--full auth-provider-button" href="/auth/google/start?intent=sign-in<% if (typeof returnTo !== 'undefined' && returnTo) { %>&amp;returnTo=<%= encodeURIComponent(returnTo) %><% } %>">
-    Continue with Google
-  </a>
+  <%- include('../../partials/google-auth-button', {
+    href: `/auth/google/start?intent=sign-in${typeof returnTo !== 'undefined' && returnTo ? `&returnTo=${encodeURIComponent(returnTo)}` : ''}`,
+    label: 'Continue with Google',
+    fullWidth: true
+  }) %>
   <div class="auth-divider" role="separator"><span>or use your password</span></div>
   <% } %>
 

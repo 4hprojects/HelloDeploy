@@ -104,12 +104,14 @@ Use a three-step flow:
 Controls:
 
 - Neutral response whether or not the email exists
+- Cloudflare Turnstile on the initial email submission when configured
 - Hashed, expiring, single-use code
 - Attempt limit and resend cooldown
 - Rate limits by account and network indicators
 - Reset invalidates other reset codes
 - Successful reset may revoke existing sessions according to policy
 - Confirmation email after password change
+- Provider acceptance is logged with a correlation ID and provider message ID, never the recipient or reset code
 
 ## Authentication Page Layout
 

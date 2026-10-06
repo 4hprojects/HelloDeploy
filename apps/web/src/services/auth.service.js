@@ -73,7 +73,12 @@ export async function registerUser({
   });
 
   const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({ to: user.email, firstName: user.firstName, verificationUrl });
+  await sendVerificationEmail({
+    to: user.email,
+    firstName: user.firstName,
+    verificationUrl,
+    correlationId,
+  });
 
   await writeAuditEvent({
     action: 'auth.register',
@@ -143,7 +148,12 @@ export async function resendVerificationEmail({ email, sourceIp, correlationId }
   await user.save();
 
   const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({ to: user.email, firstName: user.firstName, verificationUrl });
+  await sendVerificationEmail({
+    to: user.email,
+    firstName: user.firstName,
+    verificationUrl,
+    correlationId,
+  });
 
   await writeAuditEvent({
     action: 'auth.verification_resent',
@@ -263,7 +273,10 @@ export async function signIn({ email, password, sourceIp, userAgent, correlation
  * Step 1: Accept email, send 6-digit code.
  * Always silent — same response whether email exists or not.
  */
-export async function initiatePasswordReset({ email, sourceIp, correlationId }) {
+export async function initiatePasswordReset(
+  { email, sourceIp, correlationId },
+  { sendResetEmail = sendPasswordResetEmail, writeAudit = writeAuditEvent } = {},
+) {
   const user = await User.findOne({
     email: email.toLowerCase(),
     status: UserStatus.ACTIVE,
@@ -281,9 +294,39 @@ export async function initiatePasswordReset({ email, sourceIp, correlationId }) 
   user.passwordResetAttempts = 0;
   await user.save();
 
-  await sendPasswordResetEmail({ to: user.email, firstName: user.firstName, resetCode: code });
+  try {
+    const delivery = await sendResetEmail({
+      to: user.email,
+      firstName: user.firstName,
+      resetCode: code,
+      correlationId,
+    });
 
-  await writeAuditEvent({
+    if (delivery?.status !== 'accepted') {
+      await writeAudit({
+        action: 'auth.password_reset_initiated',
+        outcome: AuditOutcome.FAILURE,
+        actorId: user._id.toString(),
+        sourceIp,
+        correlationId,
+        metadata: { deliveryStatus: delivery?.status ?? 'unknown' },
+      });
+      return;
+    }
+  } catch {
+    // Keep the browser response identical for eligible and unknown accounts.
+    await writeAudit({
+      action: 'auth.password_reset_initiated',
+      outcome: AuditOutcome.FAILURE,
+      actorId: user._id.toString(),
+      sourceIp,
+      correlationId,
+      metadata: { deliveryStatus: 'failed' },
+    });
+    return;
+  }
+
+  await writeAudit({
     action: 'auth.password_reset_initiated',
     outcome: AuditOutcome.SUCCESS,
     actorId: user._id.toString(),
@@ -356,7 +399,11 @@ export async function completePasswordReset({ email, newPassword, sourceIp, corr
   user.configVersion += 1;
   await user.save();
 
-  await sendPasswordChangedEmail({ to: user.email, firstName: user.firstName });
+  await sendPasswordChangedEmail({
+    to: user.email,
+    firstName: user.firstName,
+    correlationId,
+  });
 
   await writeAuditEvent({
     action: 'auth.password_reset_completed',

@@ -25,6 +25,14 @@ and deterministic browser/visual/performance gates. See the pack's
 This does not change the NO-GO state above: deployment, supported-host, external DNS,
 real-device, crawler, and five-user usability evidence remains outstanding.
 
+**2026-10-06 responsive-navigation follow-up:** The public header now keeps its
+compact menu through 1023px, switches to the single-line desktop row at 1024px,
+collapses the wordmark through 480px, and uses consistent 40px header controls.
+The signed-in sidebar retains its independent 768px drawer boundary. Static UI
+checks, asset integrity and budgets, all 1,207 Node tests, and all 27 deterministic
+browser/axe/visual tests pass. This is repository-local fixture evidence, not a
+real-device or production validation.
+
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did
 not because both units remained disabled after the earlier transient-candidate

@@ -10,6 +10,10 @@ process.env.PLATFORM_DOMAIN = `127.0.0.1:${process.env.PORT}`;
 process.env.PLATFORM_SUBDOMAIN_SUFFIX = '.example.test';
 process.env.DEPLOYMENT_DOMAIN = 'example.test';
 process.env.SESSION_SECRET = 'browser-fixture-session-secret';
+// The deterministic fixture cannot solve an external Turnstile challenge. Set
+// both values explicitly so dotenv cannot inherit configured developer keys.
+process.env.TURNSTILE_SITE_KEY = '';
+process.env.TURNSTILE_SECRET_KEY = '';
 
 const { mkdir, rm } = await import('node:fs/promises');
 const { join } = await import('node:path');
