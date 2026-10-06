@@ -1,6 +1,49 @@
-<div class="page-header"><h1 class="page-header__title">Documentation</h1><p class="page-header__subtitle">Check the workflow before creating an account.</p></div>
-<div class="docs-grid">
-  <% topics.forEach(([slug, label]) => { %>
-  <a class="card card--link" href="/docs/<%= slug %>"><div class="card__body"><h2 class="card__title"><%= label %></h2><p class="text-sm text-muted mt-2">Read the <%= label.toLowerCase() %> guide.</p></div></a>
-  <% }) %>
+<section class="docs-landing-hero" aria-labelledby="docs-title">
+  <div>
+    <p class="section-eyebrow">Documentation</p>
+    <h1 class="page-header__title" id="docs-title">Deploy your first application with a clear path.</h1>
+    <p class="docs-landing-hero__lead">Start with compatibility, connect GitHub, confirm the detected setup, and follow one release through health checks to a live URL.</p>
+    <div class="button-group mt-6">
+      <% if (locals.user) { %>
+      <a href="/projects/new" class="button button--primary">Create Project</a>
+      <% } else { %>
+      <a href="/auth/create-account" class="button button--primary">Create Account</a>
+      <% } %>
+      <a href="/supported-apps" class="button button--secondary">Check Supported Applications</a>
+    </div>
+  </div>
+  <aside class="docs-prerequisites" aria-labelledby="docs-prerequisites-title">
+    <h2 id="docs-prerequisites-title">Before you start</h2>
+    <ul>
+      <li>A GitHub repository you can share</li>
+      <li>A supported application and npm lockfile</li>
+      <li>The production branch you want to publish</li>
+      <li>External service values the app needs at runtime</li>
+    </ul>
+  </aside>
+</section>
+
+<section class="docs-section" aria-labelledby="quick-start-title">
+  <p class="section-eyebrow">First deployment path</p>
+  <h2 class="docs-section__heading" id="quick-start-title">Start here, then move through each guide in order</h2>
+  <ol class="docs-quick-start mt-6">
+    <% quickStart.forEach((topic, index) => { %>
+    <li><a href="/docs/<%= topic.slug %>" class="docs-quick-start__link"><span class="docs-quick-start__number" aria-hidden="true"><%= index + 1 %></span><span><strong><%= topic.title %></strong><span><%= topic.summary %></span></span></a></li>
+    <% }) %>
+  </ol>
+</section>
+
+<div class="docs-catalog-header">
+  <p class="section-eyebrow">Browse by topic</p>
+  <h2>All documentation</h2>
 </div>
+<% sections.forEach((section, sectionIndex) => { %>
+<section class="docs-section" aria-labelledby="docs-section-<%= sectionIndex %>">
+  <h2 class="docs-section__title" id="docs-section-<%= sectionIndex %>"><%= section.title %></h2>
+  <div class="feature-grid">
+    <% section.topics.forEach((topic) => { %>
+    <a class="card card--link" href="/docs/<%= topic.slug %>"><div class="card__body"><h3 class="card__title"><%= topic.title %></h3><p class="text-sm text-muted mt-2"><%= topic.summary %></p></div></a>
+    <% }) %>
+  </div>
+</section>
+<% }) %>

@@ -198,8 +198,24 @@ if (!skip('TURNSTILE_SECRET_KEY')) {
   );
 }
 
-// ── Section 8: worker paths ───────────────────────────────────────────────────
-console.log(`\n${BOLD}8. Worker directories${RESET}`);
+// ── Section 8: Google authentication ─────────────────────────────────────────
+console.log(`\n${BOLD}8. Google authentication (optional)${RESET}`);
+console.log(`  ${DIM}Configure both values or leave both empty.${RESET}`);
+console.log(`  ${DIM}Authorized redirect URI: https://${domain}/auth/google/callback${RESET}`);
+if (!skip('GOOGLE_CLIENT_ID')) {
+  config.GOOGLE_CLIENT_ID = await ask(rl, 'OAuth web client ID', existing.GOOGLE_CLIENT_ID || '');
+}
+if (!skip('GOOGLE_CLIENT_SECRET')) {
+  config.GOOGLE_CLIENT_SECRET = await ask(
+    rl,
+    'OAuth web client secret',
+    existing.GOOGLE_CLIENT_SECRET || '',
+    true,
+  );
+}
+
+// ── Section 9: worker paths ───────────────────────────────────────────────────
+console.log(`\n${BOLD}9. Worker directories${RESET}`);
 if (!skip('BUILD_WORKSPACE_ROOT')) {
   config.BUILD_WORKSPACE_ROOT = await ask(
     rl,

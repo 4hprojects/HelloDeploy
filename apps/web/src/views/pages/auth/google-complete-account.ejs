@@ -1,0 +1,31 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Complete Account</h1>
+  <p class="auth-form__subtitle">Review your details for <strong><%= email %></strong>.</p>
+
+  <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
+
+  <form method="POST" action="/auth/google/complete-account" novalidate id="google-complete-account-form">
+    <%- include('../../partials/csrf-field') %>
+    <div class="form-row">
+      <%- include('../../partials/form-field', {
+        fieldId: 'firstName', label: 'First Name', type: 'text', name: 'firstName',
+        value: values.firstName, autocomplete: 'given-name', required: true,
+        error: typeof errors !== 'undefined' ? errors.firstName : null
+      }) %>
+      <%- include('../../partials/form-field', {
+        fieldId: 'lastName', label: 'Last Name', type: 'text', name: 'lastName',
+        value: values.lastName, autocomplete: 'family-name', required: true,
+        error: typeof errors !== 'undefined' ? errors.lastName : null
+      }) %>
+    </div>
+    <%- include('../../partials/policy-consent', {
+      error: typeof errors !== 'undefined' ? errors.acceptTerms : null
+    }) %>
+    <% if (turnstileSiteKey) { %>
+    <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>" data-action="google-create-account"></div>
+    <% } %>
+    <button type="submit" class="button button--primary button--full mt-6" data-pending-label="Creating...">
+      Create Account
+    </button>
+  </form>
+</div>

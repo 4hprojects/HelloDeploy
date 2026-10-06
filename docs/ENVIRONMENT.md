@@ -27,8 +27,12 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | `SESSION_SECRET`              | web         | **yes**         | dev placeholder | Session cookie signing secret                                                                                   |
 | `HELLODEPLOY_MASTER_KEY`      | web, worker | **yes**         | dev placeholder | Base64-encoded 32-byte master key encrypting environment secrets (`scripts/generate-secrets.js` can create one) |
 | `HELLODEPLOY_MASTER_KEY_NEXT` | web, worker | no              | —               | Distinct base64-encoded 32-byte key set only during rotation; startup validates it before secret access         |
-| `TURNSTILE_SITE_KEY`          | web         | no              | —               | Cloudflare Turnstile site key (bot protection on auth forms); Turnstile disabled when unset                     |
-| `TURNSTILE_SECRET_KEY`        | web         | no              | —               | Cloudflare Turnstile server secret                                                                              |
+| `TURNSTILE_SITE_KEY`          | web         | no              | —               | Cloudflare Turnstile site key (bot protection on sign-in and account creation); must be paired with the secret  |
+| `TURNSTILE_SECRET_KEY`        | web         | no              | —               | Cloudflare Turnstile server secret; must be paired with the site key                                            |
+| `GOOGLE_CLIENT_ID`            | web         | no              | —               | Google OAuth 2.0 web client ID; must be paired with `GOOGLE_CLIENT_SECRET`                                      |
+| `GOOGLE_CLIENT_SECRET`        | web         | no              | —               | Google OAuth 2.0 web client secret; must be paired with `GOOGLE_CLIENT_ID`                                      |
+
+To enable Google authentication, create an OAuth 2.0 **Web application** client in Google Cloud, configure its consent screen, and register the exact authorized redirect URI `https://<PLATFORM_DOMAIN>/auth/google/callback`. For local development, register `http://localhost:3000/auth/google/callback` as a separate redirect URI. Set both Google variables or leave both empty; partial configuration fails startup validation. HelloDeploy requests only `openid email profile` and does not retain Google access or refresh tokens.
 
 ## Platform / routing
 

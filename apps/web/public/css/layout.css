@@ -16,6 +16,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: var(--space-3);
   height: 100%;
   max-width: var(--content-max-width);
   margin: 0 auto;
@@ -38,14 +39,28 @@
   gap: var(--space-4);
 }
 
-.header__nav > a:not(.button) {
+.header__links {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.header__links a {
   color: #e2e8f0;
   font-size: var(--text-sm);
   text-decoration: none;
+  /* Reserve the underline's space so the current link doesn't shift its row. */
+  border-bottom: 2px solid transparent;
+  padding-block: 2px;
 }
 
-.header__nav > a:hover {
+.header__links a:hover {
   color: #fff;
+}
+
+.header__links a[aria-current='page'] {
+  color: #fff;
+  border-bottom-color: var(--color-orange);
 }
 
 /* ── Brand logo ──────────────────────────────────────────────────── */
@@ -204,7 +219,7 @@
 .auth-layout {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
-  min-height: 100vh;
+  min-height: calc(100dvh - var(--header-height));
 }
 
 .auth-layout__brand-panel {
@@ -296,8 +311,37 @@
   .header__inner {
     padding: 0 var(--space-4);
   }
-  .header__nav > a:not(.button) {
+  .header__nav {
+    gap: var(--space-2);
+  }
+  .header__links {
+    position: absolute;
+    top: var(--header-height);
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+    padding: var(--space-2) var(--space-4) var(--space-4);
+    background: var(--color-navy);
+    border-bottom: 1px solid var(--color-navy-mid);
+    box-shadow: var(--shadow-lg);
+  }
+  .header__links:not(.header__links--open) {
     display: none;
+  }
+  .header__links a {
+    padding: var(--space-3) var(--space-2);
+    font-size: var(--text-base);
+    border-bottom: 1px solid var(--color-navy-mid);
+  }
+  .header__links a:last-child {
+    border-bottom: none;
+  }
+  .header__links a[aria-current='page'] {
+    border-bottom-color: var(--color-navy-mid);
+    box-shadow: inset 3px 0 0 var(--color-orange);
+    padding-left: var(--space-4);
   }
   .footer--app {
     margin-left: 0;
@@ -411,9 +455,11 @@
 }
 
 /* ── Dark mode toggle ────────────────────────────────────────────── */
+/* The header is navy in both themes, so the toggle uses fixed light-on-navy
+   colours rather than theme tokens, matching the menu toggle beside it. */
 .header__theme-toggle {
   background: none;
-  border: 1px solid var(--color-border);
+  border: 1px solid rgb(255 255 255 / 0.18);
   border-radius: var(--radius-md);
   padding: var(--space-1) var(--space-2);
   cursor: pointer;
@@ -421,15 +467,11 @@
   align-items: center;
   gap: var(--space-1);
   font-size: var(--text-sm);
-  color: var(--color-text-muted);
+  color: #e2e8f0;
 }
 .header__theme-toggle:hover {
-  border-color: var(--color-border-strong);
-}
-.header__theme-toggle[aria-pressed='true'] {
-  background: var(--color-bg-muted);
-  border-color: var(--color-border-strong);
-  color: var(--color-text);
+  background: rgb(255 255 255 / 0.08);
+  color: #fff;
 }
 [data-theme='light'] .theme-icon--dark {
   display: none;

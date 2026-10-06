@@ -54,7 +54,7 @@ describe('P2 dashboard traffic cutover', () => {
     assert.match(cutover, /ACCESS_LOG_LINES_AFTER <= ACCESS_LOG_LINES_BEFORE/);
     assert.match(cutover, /may still be bypassing Nginx/);
     assert.match(cutover, /hellodeploy\\\.sid=/);
-    assert.match(cutover, /secure httponly samesite=strict/);
+    assert.match(cutover, /secure httponly samesite=lax/);
   });
 
   it('never stops or restarts the PM2 process, and never resumes the queue', () => {

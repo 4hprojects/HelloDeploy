@@ -121,6 +121,10 @@
   <div class="card__body">
     <h2 class="card__title mb-2">Transfer Ownership</h2>
     <p class="text-sm text-muted mb-4">Transfer ownership to an existing project member. You will become a Maintainer.</p>
+    <% if (googleOnlyOwner && !sensitiveAuthRecent) { %>
+      <p class="mb-4">Reconfirm the Google account linked to HelloDeploy before making this permanent privilege change.</p>
+      <a class="button button--secondary" href="/auth/google/reauthenticate?returnTo=<%= encodeURIComponent('/projects/' + project.slug + '/members#transfer-ownership') %>">Reconfirm with Google</a>
+    <% } else { %>
     <form method="POST" action="/projects/<%= project.slug %>/transfer-ownership"
           data-confirm="Transfer ownership? You will become a Maintainer and lose owner privileges."
           data-confirm-title="Transfer ownership"
@@ -140,15 +144,16 @@
             <% }) %>
           </select>
         </div>
-        <div class="form-field form-field--floating">
+        <% if (!googleOnlyOwner) { %><div class="form-field form-field--floating">
           <label for="currentPassword" class="form-label form-label--required">Your current password</label>
           <input id="currentPassword" name="currentPassword" type="password" class="form-input" autocomplete="current-password" required aria-describedby="ownership-password-hint">
           <span class="form-hint text-xs text-muted" id="ownership-password-hint">Required to confirm this permanent privilege change.</span>
-        </div>
+        </div><% } %>
         <div class="form-field align-self-end">
           <button type="submit" class="button button--danger">Transfer Ownership</button>
         </div>
       </div>
     </form>
+    <% } %>
   </div>
 </div>

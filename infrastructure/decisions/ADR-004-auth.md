@@ -13,7 +13,7 @@ Use **email + password** authentication with server-side sessions.
 
 - Sessions stored in MongoDB (TTL-indexed) — no JWT
 - Passwords hashed with **bcrypt** (≥12 rounds) or **Argon2id**
-- Sessions delivered via **HTTP-only, SameSite=Strict, Secure** cookies
+- Sessions delivered via **HTTP-only, SameSite=Lax, Secure** cookies so server-side OAuth callbacks retain their transaction session
 - **GitHub OAuth** is for repository integration only — not for sign-in
 - No third-party sign-in providers in V1 (Google, GitHub login deferred)
 

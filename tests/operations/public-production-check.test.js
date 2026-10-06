@@ -13,7 +13,7 @@ function response(body, { status = 200, headers = {} } = {}) {
 const EXPECTED_ASSETS = ['/js/app.js?v=test-release', '/css/main.css?v=test-release'];
 const RELEASE_SHA = 'a'.repeat(40);
 
-function productionFetch({ cookie = 'Secure; HttpOnly; SameSite=Strict', ready = true } = {}) {
+function productionFetch({ cookie = 'Secure; HttpOnly; SameSite=Lax', ready = true } = {}) {
   return async (url) => {
     switch (new URL(url).pathname) {
       case '/':
@@ -76,7 +76,7 @@ describe('public production check', () => {
   it('reports a missing Secure attribute without exposing the cookie value', async () => {
     const checks = await checkPublicProduction(
       'https://hellodeploy.test',
-      productionFetch({ cookie: 'HttpOnly; SameSite=Strict' }),
+      productionFetch({ cookie: 'HttpOnly; SameSite=Lax' }),
       { expectedAssets: EXPECTED_ASSETS },
     );
     const cookieCheck = checks.find((check) => check.name === 'session-cookie');

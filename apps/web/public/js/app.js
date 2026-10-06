@@ -36,6 +36,43 @@
     syncThemeToggle();
   }
 
+  function initPublicNav() {
+    const toggle = document.getElementById('public-nav-toggle');
+    const links = document.getElementById('public-nav');
+    if (!toggle || !links) {
+      return;
+    }
+
+    function setOpen(open) {
+      links.classList.toggle('header__links--open', open);
+      toggle.setAttribute('aria-expanded', String(open));
+    }
+
+    toggle.addEventListener('click', () => {
+      setOpen(!links.classList.contains('header__links--open'));
+    });
+
+    // In-page anchors (Product, How It Works) don't navigate away, so close explicitly.
+    links.addEventListener('click', (e) => {
+      if (e.target.closest('a')) {
+        setOpen(false);
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && links.classList.contains('header__links--open')) {
+        setOpen(false);
+        toggle.focus();
+      }
+    });
+
+    window.matchMedia('(min-width: 48.0625rem)').addEventListener('change', (e) => {
+      if (e.matches) {
+        setOpen(false);
+      }
+    });
+  }
+
   function initSidebarDrawer() {
     const sidebarToggle = document.getElementById('sidebar-toggle');
     const sidebar = document.getElementById('sidebar');
@@ -1522,6 +1559,7 @@
 
   function init() {
     initThemeToggle();
+    initPublicNav();
     initSidebarDrawer();
     initTooltips();
     initScrollTop();

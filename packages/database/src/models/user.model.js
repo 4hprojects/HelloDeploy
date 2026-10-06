@@ -29,8 +29,15 @@ const userSchema = new Schema(
     },
     passwordHash: {
       type: String,
-      required: true,
+      default: null,
       select: false, // Never returned by default queries
+    },
+    // Stable OpenID Connect subject. Email is deliberately not used as the
+    // provider identity because a Google account's email can change.
+    googleSubject: {
+      type: String,
+      default: null,
+      maxlength: 255,
     },
     platformRole: {
       type: String,
@@ -118,7 +125,20 @@ const userSchema = new Schema(
 
 // Additional indexes (email unique index is implicit from schema field definition)
 userSchema.index({ status: 1, platformRole: 1 });
+userSchema.index(
+  { googleSubject: 1 },
+  {
+    unique: true,
+    partialFilterExpression: { googleSubject: { $type: 'string' } },
+  },
+);
 userSchema.index({ emailVerificationExpiresAt: 1 }, { expireAfterSeconds: 0, sparse: true });
+
+userSchema.pre('validate', function requireAuthenticationMethod() {
+  if (this.isNew && !this.passwordHash && !this.googleSubject) {
+    this.invalidate('passwordHash', 'A password or Google identity is required.');
+  }
+});
 
 /**
  * Safe representation for session storage and API responses.

@@ -37,7 +37,7 @@
       <% settingsSections.forEach((section, index) => { %>
       <li>
         <a href="<%= section.href %>" class="settings-section-nav__link"
-          data-settings-section-link <%= index === 0 ? 'aria-current="location"' : '' %>>
+          data-settings-section-link <%- index === 0 ? 'aria-current="location"' : '' %>>
           <%= section.label %>
         </a>
       </li>

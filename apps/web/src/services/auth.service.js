@@ -267,6 +267,7 @@ export async function initiatePasswordReset({ email, sourceIp, correlationId }) 
   const user = await User.findOne({
     email: email.toLowerCase(),
     status: UserStatus.ACTIVE,
+    passwordHash: { $type: 'string' },
   });
 
   if (!user) {
@@ -300,6 +301,7 @@ export async function verifyPasswordResetCode({ email, code, sourceIp, correlati
   const user = await User.findOne({
     email: normalizedEmail,
     status: UserStatus.ACTIVE,
+    passwordHash: { $type: 'string' },
     passwordResetExpiresAt: { $gt: new Date() },
   }).select('+passwordResetTokenHash');
 
@@ -342,6 +344,7 @@ export async function completePasswordReset({ email, newPassword, sourceIp, corr
   const user = await User.findOne({
     email: email.toLowerCase(),
     status: UserStatus.ACTIVE,
+    passwordHash: { $type: 'string' },
   }).select('+passwordHash');
 
   if (!user) {

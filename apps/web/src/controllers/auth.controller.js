@@ -1,7 +1,8 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { isSafeReturnPath } from '../utils/safe-redirect.js';
-import { PlatformRole } from '@hellodeploy/contracts';
-import { logger } from '@hellodeploy/observability';
+import { AuditOutcome, PlatformRole } from '@hellodeploy/contracts';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
+import { generateRawToken } from '@hellodeploy/security';
 import { env } from '../config/env.js';
 import {
   registerUser,
@@ -13,46 +14,55 @@ import {
   completePasswordReset,
 } from '../services/auth.service.js';
 import {
+  completeGoogleAccount,
+  createGoogleAuthorization,
+  exchangeGoogleCode,
+  linkGoogleAccount,
+  resolveGoogleIdentity,
+  verifyGoogleReauthentication,
+} from '../services/google-auth.service.js';
+import {
   validateRegistration,
   validateSignIn,
   validateForgotPassword,
   validateResetCode,
   validateNewPassword,
+  validateGoogleAccountCompletion,
 } from '../validators/auth.validator.js';
 import { recordProductEvent } from '../services/product-analytics.service.js';
-
-// ─── Turnstile verification ────────────────────────────────────────────────────
-
-async function verifyTurnstile(token, sourceIp) {
-  const secret = env.TURNSTILE_SECRET_KEY;
-  if (!secret) {
-    // Skip in development when no key is configured
-    return true;
-  }
-  try {
-    const body = new URLSearchParams({
-      secret,
-      response: token,
-      remoteip: sourceIp ?? '',
-    });
-    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
-      method: 'POST',
-      body,
-    });
-    const data = await res.json();
-    return data.success === true;
-  } catch (err) {
-    // A Turnstile outage silently failing every sign-in would be hard to spot
-    // without this trail.
-    logger.warn('Turnstile verification request failed', { error: err.message });
-    return false;
-  }
-}
+import { verifyTurnstile as verifyTurnstileToken } from '../services/turnstile.service.js';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
+const GOOGLE_FLOW_TTL_MS = 10 * 60 * 1000;
+
 function authRenderOpts(extra = {}) {
   return { layout: 'layouts/auth', ...extra };
+}
+
+function pendingGoogleIdentity(req) {
+  const pending = req.session?.pendingGoogleIdentity;
+  if (!pending || pending.expiresAt <= Date.now()) {
+    if (req.session) {
+      delete req.session.pendingGoogleIdentity;
+    }
+    return null;
+  }
+  return pending.identity;
+}
+
+function establishSession(req, res, sessionUser, returnTo, message) {
+  req.session.regenerate((err) => {
+    if (err) {
+      return res.redirect('/auth/sign-in?error=session');
+    }
+    req.session.user = sessionUser;
+    req.session.authenticatedAt = Date.now();
+    if (message) {
+      req.flash('success', message);
+    }
+    req.session.save(() => res.redirect(returnTo || redirectByRole(sessionUser.platformRole)));
+  });
 }
 
 function safeRedirect(req, fallback) {
@@ -119,7 +129,11 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
     return res.redirect('/auth/create-account?submitted=1');
   }
 
-  const turnstileOk = await verifyTurnstile(req.body['cf-turnstile-response'], req.ip);
+  const turnstileOk = await verifyTurnstileToken({
+    token: req.body['cf-turnstile-response'],
+    sourceIp: req.ip,
+    expectedAction: 'create-account',
+  });
   if (!turnstileOk) {
     return res.render(
       'pages/auth/create-account',
@@ -222,11 +236,22 @@ export function getSignIn(req, res) {
     return res.redirect(redirectByRole(req.session.user.platformRole));
   }
   const flashSuccess = res.locals.flash?.success ?? null;
-  res.render('pages/auth/sign-in', authRenderOpts({ title: 'Sign In', success: flashSuccess }));
+  const flashError = res.locals.flash?.error ?? null;
+  const returnTo = isSafeReturnPath(req.query.returnTo) ? req.query.returnTo : '';
+  res.render(
+    'pages/auth/sign-in',
+    authRenderOpts({
+      title: 'Sign In',
+      success: flashSuccess,
+      returnTo,
+      errors: flashError ? { form: flashError } : {},
+    }),
+  );
 }
 
 export const postSignIn = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateSignIn(req.body);
+  const returnTo = isSafeReturnPath(req.body.returnTo) ? req.body.returnTo : '';
 
   if (hasErrors) {
     return res.render(
@@ -235,6 +260,24 @@ export const postSignIn = asyncHandler(async (req, res) => {
         title: 'Sign In',
         errors,
         values: { email: req.body.email ?? '' },
+        returnTo,
+      }),
+    );
+  }
+
+  const turnstileOk = await verifyTurnstileToken({
+    token: req.body['cf-turnstile-response'],
+    sourceIp: req.ip,
+    expectedAction: 'sign-in',
+  });
+  if (!turnstileOk) {
+    return res.render(
+      'pages/auth/sign-in',
+      authRenderOpts({
+        title: 'Sign In',
+        errors: { form: 'Bot protection check failed. Please try again.' },
+        values: { email: req.body.email ?? '' },
+        returnTo,
       }),
     );
   }
@@ -257,6 +300,7 @@ export const postSignIn = asyncHandler(async (req, res) => {
         title: 'Sign In',
         errors: { form: result.error },
         values: { email: req.body.email ?? '' },
+        returnTo,
         ...extra,
       }),
     );
@@ -272,10 +316,266 @@ export const postSignIn = asyncHandler(async (req, res) => {
       );
     }
     req.session.user = sessionUser;
+    req.session.authenticatedAt = Date.now();
     req.session.save(() => {
       res.redirect(safeRedirect(req, redirectByRole(sessionUser.platformRole)));
     });
   });
+});
+
+// ─── Google OpenID Connect ───────────────────────────────────────────────────
+
+export const getGoogleStart = asyncHandler(async (req, res) => {
+  if (!env.isGoogleAuthConfigured()) {
+    await writeAuditEvent({
+      action: 'auth.google.configuration_missing',
+      outcome: AuditOutcome.FAILURE,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+    req.flash('error', 'Google authentication is not configured.');
+    return res.redirect('/auth/sign-in');
+  }
+
+  const intent = ['create-account', 'sign-in', 'reauthenticate'].includes(req.query.intent)
+    ? req.query.intent
+    : 'sign-in';
+  if (intent === 'reauthenticate' && !req.session?.user) {
+    return res.redirect('/auth/sign-in');
+  }
+  const state = generateRawToken(32);
+  const nonce = generateRawToken(32);
+  const { url, codeVerifier } = await createGoogleAuthorization({ state, nonce, intent });
+  req.session.googleAuthTransaction = {
+    state,
+    nonce,
+    codeVerifier,
+    intent,
+    userId: intent === 'reauthenticate' ? req.session.user.id : null,
+    returnTo: isSafeReturnPath(req.query.returnTo) ? req.query.returnTo : null,
+    expiresAt: Date.now() + GOOGLE_FLOW_TTL_MS,
+  };
+  req.session.save(() => res.redirect(url));
+});
+
+export function getGoogleReauthenticate(req, res) {
+  if (!req.session?.user) {
+    return res.redirect('/auth/sign-in');
+  }
+  const returnTo = isSafeReturnPath(req.query.returnTo) ? req.query.returnTo : '/dashboard';
+  return res.redirect(
+    `/auth/google/start?intent=reauthenticate&returnTo=${encodeURIComponent(returnTo)}`,
+  );
+}
+
+export const getGoogleCallback = asyncHandler(async (req, res) => {
+  const transaction = req.session?.googleAuthTransaction;
+  delete req.session.googleAuthTransaction;
+
+  if (
+    !transaction ||
+    transaction.expiresAt <= Date.now() ||
+    typeof req.query.state !== 'string' ||
+    req.query.state !== transaction.state
+  ) {
+    await writeAuditEvent({
+      action: 'auth.google.transaction_invalid',
+      outcome: AuditOutcome.DENIED,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+    req.flash('error', 'Google authentication expired or could not be verified. Please try again.');
+    return res.redirect('/auth/sign-in');
+  }
+  if (req.query.error || !req.query.code) {
+    await writeAuditEvent({
+      action: 'auth.google.cancelled',
+      outcome: AuditOutcome.FAILURE,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+    req.flash('error', 'Google authentication was cancelled.');
+    return res.redirect('/auth/sign-in');
+  }
+
+  let identity;
+  try {
+    identity = await exchangeGoogleCode({
+      code: req.query.code,
+      codeVerifier: transaction.codeVerifier,
+      expectedNonce: transaction.nonce,
+    });
+  } catch {
+    logger.warn('Google authentication failed', {
+      correlationId: req.correlationId,
+    });
+    await writeAuditEvent({
+      action: 'auth.google.callback_failed',
+      outcome: AuditOutcome.FAILURE,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+    req.flash('error', 'Google authentication failed. Please try again.');
+    return res.redirect('/auth/sign-in');
+  }
+
+  if (transaction.intent === 'reauthenticate') {
+    const matches = await verifyGoogleReauthentication({
+      userId: transaction.userId,
+      identity,
+      sourceIp: req.ip,
+      correlationId: req.correlationId,
+    });
+    if (!matches || req.session?.user?.id !== transaction.userId) {
+      req.flash('error', 'Please choose the Google account linked to your HelloDeploy account.');
+      return res.redirect(transaction.returnTo || '/dashboard');
+    }
+    req.session.authenticatedAt = Date.now();
+    req.flash('success', 'Google identity reconfirmed. You may now complete the sensitive action.');
+    return req.session.save(() => res.redirect(transaction.returnTo || '/dashboard'));
+  }
+
+  const result = await resolveGoogleIdentity({
+    identity,
+    sourceIp: req.ip,
+    userAgent: req.headers['user-agent'],
+    correlationId: req.correlationId,
+  });
+  if (result.kind === 'authenticated') {
+    return establishSession(req, res, result.sessionUser, transaction.returnTo);
+  }
+  if (result.kind === 'denied') {
+    req.flash('error', result.error);
+    return res.redirect('/auth/sign-in');
+  }
+
+  if (result.kind === 'complete') {
+    await recordProductEvent({ name: 'signup_started' });
+  }
+
+  req.session.pendingGoogleIdentity = {
+    identity,
+    returnTo: transaction.returnTo,
+    expiresAt: Date.now() + GOOGLE_FLOW_TTL_MS,
+  };
+  req.session.save(() =>
+    res.redirect(
+      result.kind === 'link' ? '/auth/google/link-account' : '/auth/google/complete-account',
+    ),
+  );
+});
+
+export function getGoogleCompleteAccount(req, res) {
+  const identity = pendingGoogleIdentity(req);
+  if (!identity) {
+    return res.redirect('/auth/create-account');
+  }
+  return res.render(
+    'pages/auth/google-complete-account',
+    authRenderOpts({
+      title: 'Complete Account',
+      email: identity.email,
+      values: { firstName: identity.firstName, lastName: identity.lastName },
+    }),
+  );
+}
+
+export const postGoogleCompleteAccount = asyncHandler(async (req, res) => {
+  const identity = pendingGoogleIdentity(req);
+  if (!identity) {
+    return res.redirect('/auth/create-account');
+  }
+  const { errors, hasErrors } = validateGoogleAccountCompletion(req.body);
+  if (!hasErrors) {
+    const turnstileOk = await verifyTurnstileToken({
+      token: req.body['cf-turnstile-response'],
+      sourceIp: req.ip,
+      expectedAction: 'google-create-account',
+    });
+    if (!turnstileOk) {
+      errors.form = 'Bot protection check failed. Please try again.';
+    }
+  }
+  if (Object.keys(errors).length > 0) {
+    return res.render(
+      'pages/auth/google-complete-account',
+      authRenderOpts({
+        title: 'Complete Account',
+        email: identity.email,
+        errors,
+        values: { firstName: req.body.firstName ?? '', lastName: req.body.lastName ?? '' },
+      }),
+    );
+  }
+
+  const returnTo = req.session.pendingGoogleIdentity.returnTo;
+  const result = await completeGoogleAccount({
+    identity,
+    firstName: req.body.firstName.trim(),
+    lastName: req.body.lastName.trim(),
+    sourceIp: req.ip,
+    userAgent: req.headers['user-agent'],
+    correlationId: req.correlationId,
+  });
+  if (!result.success) {
+    delete req.session.pendingGoogleIdentity;
+    req.flash('error', result.error);
+    return res.redirect('/auth/sign-in');
+  }
+  return establishSession(req, res, result.sessionUser, returnTo, 'Welcome to HelloDeploy!');
+});
+
+export function getGoogleLinkAccount(req, res) {
+  const identity = pendingGoogleIdentity(req);
+  if (!identity) {
+    return res.redirect('/auth/sign-in');
+  }
+  return res.render(
+    'pages/auth/google-link-account',
+    authRenderOpts({ title: 'Link Google Account', email: identity.email }),
+  );
+}
+
+export const postGoogleLinkAccount = asyncHandler(async (req, res) => {
+  const identity = pendingGoogleIdentity(req);
+  if (!identity) {
+    return res.redirect('/auth/sign-in');
+  }
+  if (!req.body.password) {
+    return res.render(
+      'pages/auth/google-link-account',
+      authRenderOpts({
+        title: 'Link Google Account',
+        email: identity.email,
+        errors: { password: 'Password is required.' },
+      }),
+    );
+  }
+  const returnTo = req.session.pendingGoogleIdentity.returnTo;
+  const result = await linkGoogleAccount({
+    identity,
+    password: req.body.password,
+    sourceIp: req.ip,
+    userAgent: req.headers['user-agent'],
+    correlationId: req.correlationId,
+  });
+  if (!result.success) {
+    return res.render(
+      'pages/auth/google-link-account',
+      authRenderOpts({
+        title: 'Link Google Account',
+        email: identity.email,
+        errors: { form: result.error },
+      }),
+    );
+  }
+  return establishSession(
+    req,
+    res,
+    result.sessionUser,
+    returnTo,
+    'Google is now linked to your account.',
+  );
 });
 
 // ─── Sign Out ──────────────────────────────────────────────────────────────────

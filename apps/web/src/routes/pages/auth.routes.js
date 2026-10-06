@@ -22,6 +22,15 @@ router.get('/sign-in', authCtrl.getSignIn);
 router.post('/sign-in', signInLimiter, authCtrl.postSignIn);
 router.post('/sign-out', authCtrl.postSignOut);
 
+// Google OpenID Connect
+router.get('/google/start', signInLimiter, authCtrl.getGoogleStart);
+router.get('/google/callback', signInLimiter, authCtrl.getGoogleCallback);
+router.get('/google/complete-account', authCtrl.getGoogleCompleteAccount);
+router.post('/google/complete-account', registrationLimiter, authCtrl.postGoogleCompleteAccount);
+router.get('/google/link-account', authCtrl.getGoogleLinkAccount);
+router.post('/google/link-account', signInLimiter, authCtrl.postGoogleLinkAccount);
+router.get('/google/reauthenticate', signInLimiter, authCtrl.getGoogleReauthenticate);
+
 // Password Recovery (3 steps)
 router.get('/forgot-password', authCtrl.getForgotPassword);
 router.post('/forgot-password', passwordResetLimiter, authCtrl.postForgotPassword);

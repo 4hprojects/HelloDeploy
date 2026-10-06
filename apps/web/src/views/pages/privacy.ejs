@@ -14,6 +14,7 @@
     <ul>
       <li><strong>Name and email address</strong> — provided at registration. Used to identify your account and send service notifications (email verification, password reset, deployment alerts).</li>
       <li><strong>Password</strong> — stored as an Argon2id hash. Your plaintext password is never stored or logged.</li>
+      <li><strong>Google identity</strong> — when you continue with Google, we store Google&rsquo;s stable account identifier together with the verified email and name you review. We do not store Google access tokens or refresh tokens.</li>
     </ul>
 
     <h3>GitHub Data</h3>
@@ -35,7 +36,7 @@
 
     <h3>Session and Technical Data</h3>
     <ul>
-      <li><strong>Session cookie</strong> — a single <code>hellodeploy.sid</code> session cookie, set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Strict</code>. It contains only a session identifier, not your personal data. Sessions expire after 24 hours of inactivity.</li>
+      <li><strong>Session cookie</strong> — a single <code>hellodeploy.sid</code> session cookie, set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Lax</code>. It contains only a session identifier, not your personal data. Sessions expire after 24 hours of inactivity.</li>
       <li><strong>IP address</strong> — logged for rate limiting, brute-force protection, and security audit events. Not used for advertising or profiling.</li>
       <li><strong>Correlation IDs</strong> — random identifiers attached to each request for internal debugging. Not linked to your identity in logs.</li>
       <li><strong>Product and performance events</strong> — allowlisted account, project, deployment milestone counts and bounded LCP, INP, and CLS measurements. These first-party events may include an account or project identifier when you are signed in, but never an IP address, repository name, URL, credential, environment value, or secret.</li>
@@ -64,6 +65,7 @@
       <tbody>
         <tr><td>MongoDB Atlas</td><td>Database hosting</td><td>All stored data listed above</td></tr>
         <tr><td>GitHub</td><td>Source repository access</td><td>Installation ID; repository names and commit metadata</td></tr>
+        <tr><td>Google</td><td>Optional account authentication</td><td>Authentication request; Google returns your stable account identifier, verified email, and profile name</td></tr>
         <tr><td>Resend</td><td>Transactional email</td><td>Your email address and name</td></tr>
         <tr><td>Cloudflare</td><td>DNS, TLS, and tunnel ingress</td><td>IP addresses and HTTP request metadata</td></tr>
       </tbody>

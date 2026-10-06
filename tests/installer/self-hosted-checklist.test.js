@@ -37,8 +37,12 @@ describe('self-hosted checklist', () => {
     const turnstile = checklist.integrationEnvironment.find((group) =>
       group.name.startsWith('Cloudflare Turnstile'),
     );
+    const google = checklist.integrationEnvironment.find((group) =>
+      group.name.startsWith('Google authentication'),
+    );
     assert.ok(github.keys.includes('GITHUB_WEBHOOK_SECRET'));
     assert.deepEqual(turnstile.keys, ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY']);
+    assert.deepEqual(google.keys, ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET']);
   });
 
   it('supports public IP mode', () => {
@@ -74,6 +78,7 @@ describe('self-hosted checklist', () => {
     assert.match(setupSource, /Deployment domain \(wildcard app base\)/);
     assert.match(setupSource, /Configure the complete group or leave every value empty/);
     assert.match(setupSource, /githubAppStarted \? '\/etc\/hellodeploy\/github-app\.pem' : ''/);
+    assert.match(setupSource, /auth\/google\/callback/);
     assert.match(envExample, /Configure both keys or leave both empty/);
     assert.match(envExample, /GITHUB_APP_PRIVATE_KEY_PATH=\n/);
     assert.match(envExample, /REDIS_URL=rediss:\/\//);

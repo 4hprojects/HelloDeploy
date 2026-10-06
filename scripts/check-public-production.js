@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
 import { readFile } from 'node:fs/promises';
 
-const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=strict'];
+const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=lax'];
 const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
 const REQUIRED_READY_CHECKS = ['mongodb', 'queue', 'redis'];

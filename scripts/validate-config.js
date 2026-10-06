@@ -51,6 +51,10 @@ function componentChecks(component, config) {
         name: 'turnstile',
         status: groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY]),
       },
+      {
+        name: 'google-auth',
+        status: groupStatus([process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]),
+      },
       { name: 'email', status: process.env.RESEND_API_KEY ? 'configured' : 'disabled' },
     ];
   }

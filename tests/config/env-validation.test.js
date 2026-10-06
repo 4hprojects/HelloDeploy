@@ -65,6 +65,36 @@ describe('environment validation', () => {
     );
   });
 
+  it('rejects partial Google authentication configuration', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        GOOGLE_CLIENT_ID: 'client-id',
+        GOOGLE_CLIENT_SECRET: '',
+      },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /GOOGLE_CLIENT_SECRET/);
+  });
+
+  it('rejects partial Turnstile configuration', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        TURNSTILE_SITE_KEY: 'site-key',
+        TURNSTILE_SECRET_KEY: '',
+      },
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /TURNSTILE_SECRET_KEY/);
+  });
+
   it('requires strong production session and encryption secrets', () => {
     const masterKey = Buffer.alloc(32, 7).toString('base64');
     assert.doesNotThrow(() =>

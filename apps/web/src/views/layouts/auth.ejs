@@ -2,13 +2,15 @@
 <html lang="en" data-theme="light">
 <%- include('../partials/head', { title }) %>
 <body class="auth-body">
-  <div class="auth-layout">
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+  <%- include('../partials/header', { hasSidebar: false }) %>
+  <main class="auth-layout" id="main-content" tabindex="-1">
     <%- include('../partials/auth-brand-panel') %>
     <div class="auth-layout__form-panel">
       <%- body %>
       <%- include('../partials/auth-footer') %>
     </div>
-  </div>
+  </main>
   <script src="<%= assetPath('js/app.js') %>" defer></script>
   <% if (typeof turnstileSiteKey !== 'undefined' && turnstileSiteKey) { %>
   <script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
