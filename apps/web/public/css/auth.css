@@ -110,6 +110,26 @@
   flex-shrink: 0;
 }
 
+/* Keep bot verification aligned with the form and reserve its rendered height
+   so the primary action does not jump while Cloudflare initializes. */
+.auth-verification {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 65px;
+  margin-top: var(--space-4);
+}
+
+.auth-verification .cf-turnstile {
+  width: 100%;
+}
+
+@media (max-width: 30rem) {
+  .auth-layout__form-panel {
+    padding-inline: var(--space-2);
+  }
+}
+
 /* ── Password wrapper (input + toggle) ──────────────────────────── */
 .password-wrapper {
   position: relative;
