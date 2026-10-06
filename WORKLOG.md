@@ -2193,3 +2193,20 @@ recovery remain unexecuted until their declared operational preconditions pass.
   production dependency audit, and diff validation passed.
 - Production was not changed. Fixture results are not production, supported-host,
   real-device, external DNS/crawler, or representative-user evidence.
+
+## 2026-10-02 — Automatic Initial Project Approval
+
+- Replaced the new-project administrator wait with an atomic automatic approval:
+  when the existing repository, commit, detection, runtime configuration,
+  environment-variable, and deployment-mode checks all pass, HelloDeploy records
+  an approved snapshot and activates the draft in one MongoDB transaction.
+- Approval records now distinguish `AUTOMATIC` and `ADMIN` decisions. Existing
+  pending requests retain the administrator approval and changes-requested path,
+  while blocked automatic requests remain drafts and return the existing actionable
+  readiness findings.
+- Updated project overview and discovery copy, the user guide, and the approval
+  workflow/product contracts. Production and the current readiness status were not
+  changed.
+- Verification: 32 focused workflow/state/UI tests pass; repository lint and
+  formatting pass; the complete suite passes 1,147 tests across 234 suites with no
+  failures, skips, cancellations, or todos; `git diff --check` passes.

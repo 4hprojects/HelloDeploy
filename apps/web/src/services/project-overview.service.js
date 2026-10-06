@@ -282,11 +282,11 @@ export function buildProjectOverviewState({
       ...result,
       phase: 'SETUP',
       tone: 'ready',
-      eyebrow: 'Ready for review',
-      title: 'Your app is ready to submit',
-      description: 'Add a short description so an administrator can review the project.',
+      eyebrow: 'Ready for approval',
+      title: 'Your app is ready to approve',
+      description: 'Add a short description, then HelloDeploy will verify and approve it.',
       primaryAction: canConfigure(membershipRole)
-        ? getAction('Submit for review', '#submit-review')
+        ? getAction('Check and approve', '#submit-review')
         : null,
     };
   }

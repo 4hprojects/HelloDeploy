@@ -96,7 +96,7 @@ describe('project overview lifecycle state', () => {
   it('shows ready, pending, and changes-requested review states', () => {
     const ready = fixture();
     assert.equal(ready.canSubmit, true);
-    assert.equal(ready.primaryAction.label, 'Submit for review');
+    assert.equal(ready.primaryAction.label, 'Check and approve');
 
     const pending = fixture({
       latestApproval: { status: ApprovalStatus.PENDING },

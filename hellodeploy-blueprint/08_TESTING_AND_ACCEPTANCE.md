@@ -28,7 +28,7 @@
 
 - Registration through verified login
 - Project creation with both Public Git and GitHub App connection paths
-- Approval and manual deployment
+- Automatic initial approval and manual deployment
 - Optional automatic deployment
 - Failed deployment preserving current release
 - Rollback
@@ -114,7 +114,7 @@ Measure rather than assume:
 1. Register and verify a general user.
 2. Connect a GitHub repository.
 3. Create a project and accept detected settings.
-4. Submit for approval.
+4. Pass automatic initial approval.
 5. Super Admin applies a project quota override.
 6. Owner manually deploys.
 7. Application becomes reachable through a HelloDeploy subdomain.

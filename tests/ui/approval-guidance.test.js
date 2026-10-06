@@ -40,8 +40,10 @@ describe('initial project approval guidance', () => {
     assert.match(ownerView, /What needs attention/);
     assert.match(ownerView, /item\.status !== 'PASS'|attentionFindings/);
     assert.match(ownerView, /Administrator note/);
-    assert.match(ownerView, /Resubmit for review/);
+    assert.match(ownerView, /Check and approve again/);
+    assert.match(ownerView, /approve the project when every required check passes/);
     assert.match(projectController, /submitForReview\(\{[\s\S]*?purpose: req\.body\.purpose/);
+    assert.match(projectController, /approved automatically/);
   });
 
   it('gives admins the submitted source, configuration, findings, and two decisions', () => {

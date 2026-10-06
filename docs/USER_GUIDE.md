@@ -43,7 +43,7 @@ The legal policy bundle is available at `/legal`. It links to the Terms of Servi
 
 The slug is used for the platform subdomain. For example, a project with slug `my-app` is expected to use a platform-managed hostname such as `my-app.hellodeploy.online` after approval and routing.
 
-New projects start as drafts. A draft must be configured and submitted for review before it can deploy.
+New projects start as drafts. A draft must be configured and pass automatic approval checks before it can deploy.
 
 ## Use the Project Overview
 
@@ -127,16 +127,16 @@ Common examples:
 
 Do not commit secrets to your GitHub repository.
 
-## Submit for Review
+## Approve a Project
 
-The first deployment requires administrative review.
+The first deployment requires the project to pass HelloDeploy's automated readiness checks.
 
 1. Complete repository connection, a current successful app check, and required runtime configuration.
 2. Open the project overview.
-3. Briefly describe what the application does, then select **Submit for review**.
-4. Wait for an Admin or Super Admin decision.
+3. Briefly describe what the application does, then select **Check and approve**.
+4. When every required check passes, HelloDeploy records the evidence and approves the project immediately.
 
-An Admin can **Approve** or **Request changes**. Requested changes and the administrator note appear on the project overview. Fix the reported issues, run the app check again, and resubmit. Repository commits or configuration changes after submission require a fresh submission before approval.
+If a check fails, the project remains a draft and the overview explains what to fix. Existing requests that were already waiting for administrator review remain in the admin queue and retain the **Approve** and **Request changes** actions.
 
 ## Deployment Modes
 

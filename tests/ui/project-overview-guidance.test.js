@@ -71,11 +71,11 @@ describe('guided project overview', () => {
       overviewState: {
         phase: 'SETUP',
         tone: 'ready',
-        eyebrow: 'Ready for review',
-        title: 'Your app is ready to submit',
-        description: 'Add a short description so an administrator can review the project.',
+        eyebrow: 'Ready for approval',
+        title: 'Your app is ready to approve',
+        description: 'Add a short description, then HelloDeploy will verify and approve it.',
         primaryAction: {
-          label: 'Submit for review',
+          label: 'Check and approve',
           href: '#submit-review',
           method: 'GET',
           external: false,
@@ -91,7 +91,7 @@ describe('guided project overview', () => {
     assert.match(html, /data-overview-phase="SETUP"/);
     assert.equal((html.match(/<li class="project-milestone/g) ?? []).length, 4);
     assert.match(html, /What does this application do\?/);
-    assert.ok(html.indexOf('Submit for review') < html.indexOf('Project details'));
+    assert.ok(html.indexOf('Check and approve') < html.indexOf('Project details'));
     assert.doesNotMatch(html, /Quick Links/);
   });
 
@@ -126,7 +126,7 @@ describe('guided project overview', () => {
 
     assert.match(html, /Please explain who uses this application/);
     assert.match(html, /Tracks support requests for the operations team/);
-    assert.match(html, /Resubmit for review/);
+    assert.match(html, /Check and approve again/);
   });
 
   it('shows a safe live address and recent failed-update guidance', async () => {
