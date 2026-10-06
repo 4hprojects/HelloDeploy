@@ -58,7 +58,9 @@
     </div>
 
     <% if (turnstileSiteKey) { %>
-    <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>" data-action="sign-in"></div>
+    <div class="auth-verification">
+      <div class="cf-turnstile" data-sitekey="<%= turnstileSiteKey %>" data-action="sign-in" data-size="flexible" data-theme="auto" data-appearance="always"></div>
+    </div>
     <% } %>
 
     <button type="submit" class="button button--primary button--full mt-6" id="submit-btn" data-pending-label="Signing in...">
