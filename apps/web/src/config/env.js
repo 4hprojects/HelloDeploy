@@ -51,6 +51,19 @@ const deploymentDomain = production
   ? parseHostnameEnv('DEPLOYMENT_DOMAIN', deploymentDomainRaw)
   : deploymentDomainRaw;
 
+assertPairedEnvironment(
+  'GOOGLE_CLIENT_ID',
+  process.env.GOOGLE_CLIENT_ID,
+  'GOOGLE_CLIENT_SECRET',
+  process.env.GOOGLE_CLIENT_SECRET,
+);
+assertPairedEnvironment(
+  'TURNSTILE_SITE_KEY',
+  process.env.TURNSTILE_SITE_KEY,
+  'TURNSTILE_SECRET_KEY',
+  process.env.TURNSTILE_SECRET_KEY,
+);
+
 if (production) {
   if (platformSubdomainSuffix !== `.${deploymentDomain}`) {
     throw new ConfigurationError(
@@ -58,12 +71,6 @@ if (production) {
     );
   }
   assertProductionSecrets({ sessionSecret, masterKey, nextMasterKey });
-  assertPairedEnvironment(
-    'TURNSTILE_SITE_KEY',
-    process.env.TURNSTILE_SITE_KEY,
-    'TURNSTILE_SECRET_KEY',
-    process.env.TURNSTILE_SECRET_KEY,
-  );
   assertAllOrNoneEnvironment(
     [
       ['GITHUB_APP_ID', process.env.GITHUB_APP_ID],
@@ -106,6 +113,9 @@ export const env = {
   TURNSTILE_SITE_KEY: optional('TURNSTILE_SITE_KEY', ''),
   TURNSTILE_SECRET_KEY: optional('TURNSTILE_SECRET_KEY', ''),
 
+  GOOGLE_CLIENT_ID: optional('GOOGLE_CLIENT_ID', ''),
+  GOOGLE_CLIENT_SECRET: optional('GOOGLE_CLIENT_SECRET', ''),
+
   // Master encryption key for environment secrets (base64-encoded 32 bytes).
   // Required in production; a dev-only placeholder is used in development.
   HELLODEPLOY_MASTER_KEY: masterKey,
@@ -128,6 +138,8 @@ export const env = {
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
+  isGoogleAuthConfigured: () =>
+    !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
   isGithubConfigured: () =>
     !!(
       process.env.GITHUB_APP_ID &&

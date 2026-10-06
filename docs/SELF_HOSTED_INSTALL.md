@@ -130,6 +130,8 @@ The setup wizard and secret generator populate the production `.env`. Required k
 - `RESEND_API_KEY`
 - `TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
+- `GOOGLE_CLIENT_ID` (optional, paired with `GOOGLE_CLIENT_SECRET`)
+- `GOOGLE_CLIENT_SECRET` (optional, paired with `GOOGLE_CLIENT_ID`)
 - `BUILD_WORKSPACE_ROOT`
 - `RELEASE_METADATA_ROOT`
 - `PROJECT_VOLUME_ROOT`

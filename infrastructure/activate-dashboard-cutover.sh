@@ -247,7 +247,7 @@ if [[ -z "$COOKIE_LINE" ]]; then
   fail "Public dashboard did not set the session cookie after cutover."
 fi
 COOKIE_LOWER=$(printf '%s' "$COOKIE_LINE" | tr '[:upper:]' '[:lower:]')
-for attribute in secure httponly samesite=strict; do
+for attribute in secure httponly samesite=lax; do
   if [[ "$COOKIE_LOWER" != *"$attribute"* ]]; then
     fail "Public session cookie is missing required attribute: $attribute."
   fi

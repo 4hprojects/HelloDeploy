@@ -85,6 +85,31 @@
   width: 100%;
 }
 
+.auth-provider-button {
+  justify-content: center;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin: var(--space-5) 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  content: '';
+  flex: 1;
+  border-top: 1px solid var(--color-border);
+}
+
+.auth-divider span {
+  flex-shrink: 0;
+}
+
 /* ── Password wrapper (input + toggle) ──────────────────────────── */
 .password-wrapper {
   position: relative;

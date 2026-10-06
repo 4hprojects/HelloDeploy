@@ -149,7 +149,7 @@ if [[ -z "$COOKIE_LINE" ]]; then
   fail "Candidate web did not set the session cookie."
 fi
 COOKIE_LOWER=$(printf '%s' "$COOKIE_LINE" | tr '[:upper:]' '[:lower:]')
-for attribute in secure httponly samesite=strict; do
+for attribute in secure httponly samesite=lax; do
   if [[ "$COOKIE_LOWER" != *"$attribute"* ]]; then
     fail "Candidate session cookie is missing required attribute: $attribute."
   fi

@@ -1,0 +1,76 @@
+<section class="hero public-hero how-it-works-hero" aria-labelledby="how-it-works-title">
+  <div class="hero__content">
+    <p class="section-eyebrow">How it works</p>
+    <h1 class="hero__title" id="how-it-works-title">From a GitHub repository to a healthy live application.</h1>
+    <p class="hero__subtitle">HelloDeploy guides you through setup, checks each release before it receives traffic, and keeps deployment history and recovery actions in one dashboard.</p>
+    <div class="button-group mt-6">
+      <a href="/auth/create-account" class="button button--primary button--lg">Create Account</a>
+      <a href="/supported-apps" class="button button--secondary button--lg">View Supported Apps</a>
+    </div>
+  </div>
+</section>
+
+<section class="public-section" aria-labelledby="journey-title">
+  <p class="section-eyebrow">Your deployment journey</p>
+  <h2 id="journey-title">Six clear steps from setup to operation</h2>
+  <ol class="workflow-list mt-6">
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">1</span>
+      <div><h3>Create and verify your account</h3><p>Register, verify your email address, and open the dashboard where your projects and deployment activity live.</p></div>
+    </li>
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">2</span>
+      <div><h3>Connect a GitHub repository</h3><p>Use a public HTTPS repository for manual deployments or authorize the GitHub App for private repositories and optional automatic deployments.</p></div>
+    </li>
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">3</span>
+      <div><h3>Review the detected setup</h3><p>Confirm the application type, production branch, build and start commands, port, and any encrypted environment values your application needs.</p></div>
+    </li>
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">4</span>
+      <div><h3>Request initial approval</h3><p>HelloDeploy checks the repository and configuration against the supported runtime and resource policies before the first deployment is allowed.</p></div>
+    </li>
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">5</span>
+      <div><h3>Deploy an exact commit</h3><p>Choose the latest or an available commit. The dashboard reports progress while HelloDeploy builds and checks a candidate release.</p></div>
+    </li>
+    <li class="workflow-step">
+      <span class="workflow-step__number" aria-hidden="true">6</span>
+      <div><h3>Open and operate the live app</h3><p>After health checks pass, use the project address, follow later deployments, review history, and recover with a retained release when needed.</p></div>
+    </li>
+  </ol>
+</section>
+
+<section class="public-section" aria-labelledby="deployment-safety-title">
+  <p class="section-eyebrow">Deployment safety</p>
+  <h2 id="deployment-safety-title">The live release changes only after the candidate is ready</h2>
+  <div class="deployment-safety-grid mt-6">
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'server' }) %></span> Build in a controlled container</h3><p class="text-muted">HelloDeploy checks out the selected commit and builds it with bounded time and resource limits.</p></div></article>
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></span> Start a candidate release</h3><p class="text-muted">The new container starts separately so it can be inspected without replacing the version already serving traffic.</p></div></article>
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'check' }) %></span> Verify, then switch traffic</h3><p class="text-muted">Health checks must pass before routing moves atomically to the candidate and the release is marked healthy.</p></div></article>
+  </div>
+  <div class="deployment-safety-note mt-6" role="note">
+    <span class="deployment-safety-note__icon"><%- include('../partials/icon', { name: 'info' }) %></span>
+    <div><h3>If a deployment fails</h3><p>The failed candidate does not replace the current healthy release. HelloDeploy records a safe failure summary and recommended next action so you can correct the issue and try again.</p></div>
+  </div>
+</section>
+
+<section class="public-section" aria-labelledby="after-launch-title">
+  <p class="section-eyebrow">After launch</p>
+  <h2 id="after-launch-title">Keep shipping without losing sight of what is live</h2>
+  <div class="feature-grid mt-6">
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'activity' }) %></span> Deployments and history</h3><p class="text-muted">Deploy newer commits manually or automatically where supported, and inspect the status and redacted logs for each attempt.</p></div></article>
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'overview' }) %></span> Rollback</h3><p class="text-muted">Choose a retained healthy release. HelloDeploy starts and checks it before switching traffic back.</p></div></article>
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></span> Addresses and domains</h3><p class="text-muted">Use the assigned platform address and, where available, verify a custom domain with guided DNS instructions.</p></div></article>
+    <article class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></span> Application data</h3><p class="text-muted">Connect an external database through encrypted environment values. HelloDeploy does not host, administer, or back up that database.</p></div></article>
+  </div>
+</section>
+
+<section class="public-cta public-cta--final" aria-labelledby="how-it-works-cta-title">
+  <h2 id="how-it-works-cta-title">Ready to take a supported project through the workflow?</h2>
+  <div class="button-group">
+    <a href="/auth/create-account" class="button button--primary button--lg">Create Account</a>
+    <a href="/docs/getting-started" class="button button--secondary">Read Getting Started</a>
+    <a href="/service-limits" class="button button--secondary">View Service Limits</a>
+  </div>
+</section>

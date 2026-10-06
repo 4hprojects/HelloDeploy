@@ -1,16 +1,80 @@
-export const PUBLIC_DOC_TOPICS = Object.freeze([
-  ['getting-started', 'Getting Started'],
-  ['supported-applications', 'Supported Applications'],
-  ['github-connection', 'GitHub Connection'],
-  ['environment-variables', 'Environment Variables'],
-  ['deployment-process', 'Deployment Process'],
-  ['domains', 'Domains'],
-  ['deploy-hooks', 'Deploy Hooks'],
-  ['rollback', 'Rollback'],
-  ['troubleshooting', 'Troubleshooting'],
-  ['service-limits', 'Service Limits'],
-  ['faq', 'FAQ'],
+export const DOC_SECTIONS = Object.freeze([
+  {
+    title: 'Get started',
+    topics: [
+      {
+        slug: 'getting-started',
+        title: 'Getting Started',
+        summary: 'From a new account to your first healthy deployment.',
+      },
+      {
+        slug: 'supported-applications',
+        title: 'Supported Applications',
+        summary: 'Static sites, Node.js, React and Vue builds, and constrained Next.js.',
+      },
+      {
+        slug: 'github-connection',
+        title: 'GitHub Connection',
+        summary: 'Connect a public repository or install the GitHub App.',
+      },
+    ],
+  },
+  {
+    title: 'Configure & deploy',
+    topics: [
+      {
+        slug: 'environment-variables',
+        title: 'Environment Variables',
+        summary: 'Add encrypted values your application needs at runtime.',
+      },
+      {
+        slug: 'deployment-process',
+        title: 'Deployment Process',
+        summary: 'How a commit becomes a health-checked live release.',
+      },
+      {
+        slug: 'domains',
+        title: 'Domains',
+        summary: 'Your platform address and verified custom domains.',
+      },
+      {
+        slug: 'deploy-hooks',
+        title: 'Deploy Hooks',
+        summary: 'A secret URL that starts a deployment.',
+      },
+    ],
+  },
+  {
+    title: 'Operate',
+    topics: [
+      {
+        slug: 'rollback',
+        title: 'Rollback',
+        summary: 'Restore a retained healthy release from deployment history.',
+      },
+      {
+        slug: 'troubleshooting',
+        title: 'Troubleshooting',
+        summary: 'What to check when an app does not become healthy.',
+      },
+    ],
+  },
+  {
+    title: 'Reference',
+    topics: [
+      {
+        slug: 'service-limits',
+        title: 'Service Limits',
+        summary: 'Project, deployment, resource, and retention limits for the pilot.',
+      },
+      { slug: 'faq', title: 'FAQ', summary: 'Pricing, databases, and what the pilot supports.' },
+    ],
+  },
 ]);
+
+export const PUBLIC_DOC_TOPICS = Object.freeze(
+  DOC_SECTIONS.flatMap((section) => section.topics.map((topic) => [topic.slug, topic.title])),
+);
 
 export const PUBLIC_PAGES = Object.freeze([
   {
@@ -18,6 +82,12 @@ export const PUBLIC_PAGES = Object.freeze([
     title: 'Deploy web apps from GitHub',
     description:
       'Connect a supported GitHub project, review its setup, deploy it, and open a live URL from one dashboard.',
+  },
+  {
+    path: '/how-it-works',
+    title: 'How It Works',
+    description:
+      'Follow the HelloDeploy journey from connecting a GitHub repository through approval, deployment, health checks, and a live URL.',
   },
   {
     path: '/docs',

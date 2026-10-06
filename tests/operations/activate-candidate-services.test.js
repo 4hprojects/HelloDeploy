@@ -52,7 +52,7 @@ describe('P2 candidate service activation', () => {
     assert.match(activation, /X-Forwarded-Proto: https/);
     assert.match(activation, /curl -sS --max-time 20 -D -/);
     assert.match(activation, /set-cookie:.*hellodeploy\\\.sid=/);
-    assert.match(activation, /secure httponly samesite=strict/);
+    assert.match(activation, /secure httponly samesite=lax/);
     assert.match(activation, /check-worker-readiness\.js/);
     assert.doesNotMatch(activation, /https:\/\/hellodeploy\.online/);
     assert.doesNotMatch(activation, /https:\/\/hellorun\.online/);

@@ -26,6 +26,7 @@ import { releaseSha } from './utils/release-sha.js';
 import {
   getDocsIndex,
   getDocsTopic,
+  getHowItWorks,
   getSupportedApps,
   getPilot,
   getPublicStatus,
@@ -172,6 +173,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
     res.render('pages/index', { title: 'HelloDeploy' });
   });
 
+  app.get('/how-it-works', getHowItWorks);
   app.get('/docs', getDocsIndex);
   app.get('/docs/:topic', getDocsTopic);
   app.get('/supported-apps', getSupportedApps);

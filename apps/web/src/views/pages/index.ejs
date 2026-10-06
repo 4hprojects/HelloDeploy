@@ -3,7 +3,7 @@
     <span class="pilot-badge">Free active pilot</span>
     <h1 class="hero__title">Deploy your web app from GitHub without managing the deployment steps yourself.</h1>
     <p class="hero__subtitle">Connect a repository, review the detected setup, deploy, and get a live URL from one dashboard.</p>
-    <div class="button-group mt-6"><a href="/auth/create-account" class="button button--primary button--lg">Create Account</a><a href="#how-it-works" class="button button--secondary button--lg">See How It Works</a></div>
+    <div class="button-group mt-6"><a href="/auth/create-account" class="button button--primary button--lg">Create Account</a><a href="/how-it-works" class="button button--secondary button--lg">See How It Works</a></div>
     <p class="mt-4"><a href="/supported-apps">View supported applications</a></p>
   </div>
 </section>
@@ -20,16 +20,16 @@
 </section>
 
 <section class="public-section" id="how-it-works" aria-labelledby="how-title"><p class="section-eyebrow">How it works</p><h2 id="how-title">From repository to live URL</h2><div class="feature-grid mt-4">
-  <% [['1','Connect repository','Choose a public repository or authorize the GitHub App.'],['2','Confirm app setup','Review the detected application type and settings.'],['3','Deploy','Publish an approved commit while HelloDeploy reports progress.'],['4','Open the live app','Use the project address after health checks pass.']].forEach(step => { %><div class="card"><div class="card__body"><p class="feature-icon"><%= step[0] %></p><h3 class="feature-title"><%= step[1] %></h3><p class="text-sm text-muted"><%= step[2] %></p></div></div><% }) %>
-</div></section>
+  <% [['1','Connect repository','Choose a public repository or authorize the GitHub App.'],['2','Confirm app setup','Review the detected application type and settings.'],['3','Deploy','Publish an approved commit while HelloDeploy reports progress.'],['4','Open the live app','Use the project address after health checks pass.']].forEach(step => { %><div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%= step[0] %></span> <%= step[1] %></h3><p class="text-sm text-muted"><%= step[2] %></p></div></div><% }) %>
+</div><a href="/how-it-works" class="button button--secondary mt-4">Explore the full workflow</a></section>
 
 <section class="public-section" aria-labelledby="handles-title"><p class="section-eyebrow">What HelloDeploy handles</p><h2 id="handles-title">The common deployment work, in one place</h2><div class="feature-grid mt-4">
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></p><h3 class="feature-title">Connect</h3><p class="text-sm text-muted">Repository access and app detection.</p></div></div>
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></p><h3 class="feature-title">Deploy</h3><p class="text-sm text-muted">Progress, health checks, history, and rollback.</p></div></div>
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></p><h3 class="feature-title">Configure</h3><p class="text-sm text-muted">Write-only environment values with detected names.</p></div></div>
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></p><h3 class="feature-title">Publish</h3><p class="text-sm text-muted">A platform address and verified custom domains.</p></div></div>
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'users' }) %></p><h3 class="feature-title">Collaborate</h3><p class="text-sm text-muted">Clear project roles and ownership controls.</p></div></div>
-  <div class="card"><div class="card__body"><p class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></p><h3 class="feature-title">Review</h3><p class="text-sm text-muted">An audit history of important actions.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></span> Connect</h3><p class="text-sm text-muted">Repository access and app detection.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'deploy' }) %></span> Deploy</h3><p class="text-sm text-muted">Progress, health checks, history, and rollback.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'environment' }) %></span> Configure</h3><p class="text-sm text-muted">Write-only environment values with detected names.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'domain' }) %></span> Publish</h3><p class="text-sm text-muted">A platform address and verified custom domains.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'users' }) %></span> Collaborate</h3><p class="text-sm text-muted">Clear project roles and ownership controls.</p></div></div>
+  <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'audit' }) %></span> Review</h3><p class="text-sm text-muted">An audit history of important actions.</p></div></div>
 </div></section>
 
 <section class="public-section" aria-labelledby="trust-title"><p class="section-eyebrow">Trust and expectations</p><h2 id="trust-title">Clear controls without exaggerated promises</h2><div class="trust-grid mt-4"><div><strong>Encrypted secrets</strong><span>Protected at rest and redacted from logs.</span></div><div><strong>Verified accounts</strong><span>Email verification before platform access.</span></div><div><strong>Isolated releases</strong><span>Bounded, non-privileged application containers.</span></div><div><strong>Audit history</strong><span>Important configuration and admin actions recorded.</span></div><div><strong>Pilot service</strong><span>Free within published limits, without an SLA.</span></div><div><strong>Named operator</strong><span>Operated by Henson Sagorsor / 4HProjects.</span></div></div></section>

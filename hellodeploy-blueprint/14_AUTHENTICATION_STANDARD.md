@@ -166,15 +166,17 @@ apps/web/src/views/
 - Focus moves to the error summary after failed submission where appropriate
 - Success state clearly explains the next action
 
-## GitHub Relationship
+## External Provider Relationships
 
 GitHub is a repository integration, not the initial HelloDeploy sign-in provider. Users connect a GitHub App installation after signing into HelloDeploy.
 
-Google sign-in is not part of HelloDeploy V1. It may be considered later as an ecosystem-wide decision rather than implemented inconsistently in one new product.
+Google OpenID Connect is an optional account provider. New Google users review their name and accept the platform policies before account creation. A verified Google email matching an existing password account requires one password confirmation before the stable Google subject is linked. Google-created accounts remain Google-only; password recovery does not add a password. Sensitive actions use a recent Google reauthentication when no password exists.
 
 ## Security and Privacy
 
-- Secure, HTTP-only, same-site session cookies
+- Secure, HTTP-only, SameSite=Lax session cookies so the authorization-code callback retains its session
+- Authorization-code flow with state, nonce, PKCE, exact callback validation, and verified ID-token claims
+- Provider identity keyed by the stable Google subject rather than email
 - CSRF protection for cookie-authenticated mutations
 - Session rotation after authentication and privilege changes
 - Generic authentication failures

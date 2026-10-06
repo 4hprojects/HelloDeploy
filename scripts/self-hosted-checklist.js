@@ -71,6 +71,10 @@ export function buildSelfHostedChecklist({
         keys: ['TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY'],
       },
       {
+        name: 'Google authentication (optional; both values or neither)',
+        keys: ['GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET'],
+      },
+      {
         name: 'Resend email (optional)',
         keys: ['RESEND_API_KEY', 'EMAIL_FROM'],
       },

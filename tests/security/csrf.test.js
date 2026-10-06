@@ -10,7 +10,7 @@ describe('production session cookie', () => {
   it('retains all hardened cookie attributes', () => {
     assert.deepEqual(createSessionCookieOptions(true), {
       httpOnly: true,
-      sameSite: 'strict',
+      sameSite: 'lax',
       secure: true,
       maxAge: 24 * 60 * 60 * 1000,
     });

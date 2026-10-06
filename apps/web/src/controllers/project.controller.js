@@ -368,31 +368,42 @@ export const postSubmitForReview = asyncHandler(async (req, res) => {
 
 // ─── Members ───────────────────────────────────────────────────────────────────
 
-export const getProjectMembersPage = asyncHandler(async (req, res) => {
-  const members = await getProjectMembers(req.project._id);
-  res.render('pages/projects/members', {
+const SENSITIVE_AUTH_MAX_AGE_MS = 10 * 60 * 1000;
+
+async function membersPageData(req, extra = {}) {
+  const [members, owner] = await Promise.all([
+    getProjectMembers(req.project._id),
+    User.findById(req.session.user.id).select('+passwordHash'),
+  ]);
+  return {
     title: `Members – ${req.project.name}`,
     project: req.project,
     members,
     membership: req.membership,
+    googleOnlyOwner: Boolean(owner?.googleSubject && !owner.passwordHash),
+    sensitiveAuthRecent:
+      Date.now() - Number(req.session.authenticatedAt ?? 0) <= SENSITIVE_AUTH_MAX_AGE_MS,
     errors: {},
     values: { email: '', role: '' },
-  });
+    ...extra,
+  };
+}
+
+export const getProjectMembersPage = asyncHandler(async (req, res) => {
+  res.render('pages/projects/members', await membersPageData(req));
 });
 
 export const postInviteMember = asyncHandler(async (req, res) => {
   const { errors, hasErrors } = validateInviteMember(req.body);
 
   if (hasErrors) {
-    const members = await getProjectMembers(req.project._id);
-    return res.render('pages/projects/members', {
-      title: `Members – ${req.project.name}`,
-      project: req.project,
-      members,
-      membership: req.membership,
-      errors,
-      values: { email: req.body.email ?? '', role: req.body.role ?? '' },
-    });
+    return res.render(
+      'pages/projects/members',
+      await membersPageData(req, {
+        errors,
+        values: { email: req.body.email ?? '', role: req.body.role ?? '' },
+      }),
+    );
   }
 
   const result = await inviteMember({
@@ -406,15 +417,13 @@ export const postInviteMember = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    const members = await getProjectMembers(req.project._id);
-    return res.render('pages/projects/members', {
-      title: `Members – ${req.project.name}`,
-      project: req.project,
-      members,
-      membership: req.membership,
-      errors: { form: result.error },
-      values: { email: req.body.email ?? '', role: req.body.role ?? '' },
-    });
+    return res.render(
+      'pages/projects/members',
+      await membersPageData(req, {
+        errors: { form: result.error },
+        values: { email: req.body.email ?? '', role: req.body.role ?? '' },
+      }),
+    );
   }
 
   req.flash('success', 'Member added successfully.');
@@ -468,8 +477,18 @@ export const postUpdateMemberRole = asyncHandler(async (req, res) => {
 
 export const postTransferOwnership = asyncHandler(async (req, res) => {
   const owner = await User.findById(req.session.user.id).select('+passwordHash');
-  if (!owner || !(await verifyPassword(owner.passwordHash, req.body.currentPassword ?? ''))) {
+  const passwordConfirmed = owner?.passwordHash
+    ? await verifyPassword(owner.passwordHash, req.body.currentPassword ?? '')
+    : false;
+  const googleConfirmed =
+    owner?.googleSubject &&
+    !owner.passwordHash &&
+    Date.now() - Number(req.session.authenticatedAt ?? 0) <= SENSITIVE_AUTH_MAX_AGE_MS;
+  if (!owner || (!passwordConfirmed && !googleConfirmed)) {
     req.flash('error', 'Current password is incorrect. Ownership was not transferred.');
+    if (owner?.googleSubject && !owner.passwordHash) {
+      req.flash('error', 'Reconfirm your Google identity before transferring ownership.');
+    }
     return res.redirect(`/projects/${req.project.slug}/members#transfer-ownership`);
   }
   const result = await transferOwnership({

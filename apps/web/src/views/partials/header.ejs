@@ -1,6 +1,8 @@
+<% const _path = locals.currentPath || ''; %>
+<% const hasSidebar = locals.user && locals.hasSidebar !== false; %>
 <header class="header" role="banner">
-  <div class="header__inner<%= locals.user ? ' header__inner--app' : '' %>">
-    <% if (locals.user) { %>
+  <div class="header__inner<%= hasSidebar ? ' header__inner--app' : '' %>">
+    <% if (hasSidebar) { %>
     <button type="button" class="header__menu-toggle" id="sidebar-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="sidebar" data-tooltip="Open or close the navigation menu">
       <span class="hamburger-line"></span>
       <span class="hamburger-line"></span>
@@ -12,18 +14,27 @@
     </a>
     <nav class="header__nav" aria-label="Primary navigation">
       <% if (!locals.user) { %>
-      <a href="/#product">Product</a>
-      <a href="/#how-it-works">How It Works</a>
-      <a href="/docs">Docs</a>
-      <a href="/supported-apps">Supported Apps</a>
-      <a href="/status">Status</a>
-      <a href="/auth/sign-in">Sign In</a>
-      <a href="/auth/create-account" class="button button--primary button--sm">Create Account</a>
+      <div class="header__links" id="public-nav">
+        <a href="/#product">Product</a>
+        <a href="/how-it-works" <%- _path === '/how-it-works' ? 'aria-current="page"' : '' %>>How It Works</a>
+        <a href="/docs" <%- _path.startsWith('/docs') ? 'aria-current="page"' : '' %>>Docs</a>
+        <a href="/supported-apps" <%- _path === '/supported-apps' ? 'aria-current="page"' : '' %>>Supported Apps</a>
+        <a href="/status" <%- _path === '/status' ? 'aria-current="page"' : '' %>>Status</a>
+        <a href="/auth/sign-in" <%- _path === '/auth/sign-in' ? 'aria-current="page"' : '' %>>Sign In</a>
+      </div>
+      <a href="/auth/create-account" class="button button--primary button--sm" <%- _path === '/auth/create-account' ? 'aria-current="page"' : '' %>>Create Account</a>
       <% } %>
       <button type="button" class="header__theme-toggle" id="theme-toggle" aria-label="Switch to dark theme" aria-pressed="false" data-tooltip="Switch to dark theme">
         <%- include('icon', { name: 'sun', className: 'theme-icon theme-icon--light' }) %>
         <%- include('icon', { name: 'moon', className: 'theme-icon theme-icon--dark' }) %>
       </button>
+      <% if (!locals.user) { %>
+      <button type="button" class="header__menu-toggle header__menu-toggle--public" id="public-nav-toggle" aria-label="Toggle navigation" aria-expanded="false" aria-controls="public-nav">
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+      </button>
+      <% } %>
     </nav>
   </div>
 </header>

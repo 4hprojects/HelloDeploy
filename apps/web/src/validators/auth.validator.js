@@ -77,6 +77,28 @@ export function validateRegistration(body) {
   return { errors, hasErrors: Object.keys(errors).length > 0 };
 }
 
+export function validateGoogleAccountCompletion(body) {
+  const errors = {};
+  const firstName = (body.firstName ?? '').trim();
+  const lastName = (body.lastName ?? '').trim();
+
+  if (!firstName) {
+    errors.firstName = 'First name is required.';
+  } else if (firstName.length > 100) {
+    errors.firstName = 'First name must not exceed 100 characters.';
+  }
+  if (!lastName) {
+    errors.lastName = 'Last name is required.';
+  } else if (lastName.length > 100) {
+    errors.lastName = 'Last name must not exceed 100 characters.';
+  }
+  if (!body.acceptTerms) {
+    errors.acceptTerms = 'You must accept the Terms, Privacy Policy, and Acceptable Use Policy.';
+  }
+
+  return { errors, hasErrors: Object.keys(errors).length > 0 };
+}
+
 /**
  * Validate sign-in form inputs.
  */

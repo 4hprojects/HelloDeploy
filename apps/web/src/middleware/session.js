@@ -6,7 +6,10 @@ import { env } from '../config/env.js';
 export function createSessionCookieOptions(secure = env.isProduction()) {
   return {
     httpOnly: true,
-    sameSite: 'strict',
+    // OAuth authorization-code callbacks are top-level cross-site navigations.
+    // Lax keeps the session-bound state/nonce available while CSRF tokens still
+    // protect every mutation.
+    sameSite: 'lax',
     secure,
     maxAge: 24 * 60 * 60 * 1000, // 24 hours
   };

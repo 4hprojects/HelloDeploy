@@ -3,7 +3,7 @@
 ## Cloudflare ingress
 
 Production session cookies are intentionally `Secure`, `HttpOnly`, and
-`SameSite=Strict`. When Cloudflare terminates TLS and connects to Nginx over HTTP,
+`SameSite=Lax` so the Google authorization-code callback retains its session. When Cloudflare terminates TLS and connects to Nginx over HTTP,
 Nginx must preserve Cloudflare's visitor-facing `X-Forwarded-Proto` value. Replacing
 it with `$scheme` reports the origin connection as HTTP and prevents Express from
 issuing the secure session cookie, causing every form submission to fail CSRF

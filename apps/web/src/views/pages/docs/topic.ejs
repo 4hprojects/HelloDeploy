@@ -1,6 +1,49 @@
-<div class="page-header"><h1 class="page-header__title"><%= topic.title %></h1><p class="page-header__subtitle"><a href="/docs">Documentation</a> / <%= topic.title %></p></div>
-<article class="card prose"><div class="card__body">
-  <ul><% topic.points.forEach(point => { %><li><%= point %></li><% }) %></ul>
-  <% if (topic.slug === 'supported-applications') { %><p><a href="/supported-apps" class="button button--secondary">View the full support matrix</a></p><% } %>
-  <% if (topic.slug === 'service-limits') { %><p><a href="/service-limits" class="button button--secondary">View current limits</a></p><% } %>
-</div></article>
+<div class="docs-layout">
+  <article class="docs-article">
+    <div class="page-header">
+      <p class="page-header__subtitle"><a href="/docs">Documentation</a> / <%= topic.sectionTitle %></p>
+      <h1 class="page-header__title"><%= topic.title %></h1>
+    </div>
+    <div class="card"><div class="card__body">
+      <% if (topic.content) { %>
+      <p class="docs-guide__lead"><%= topic.content.lead %></p>
+      <% topic.content.sections.forEach((section, sectionIndex) => { %>
+      <section class="docs-guide-section" aria-labelledby="guide-section-<%= sectionIndex %>">
+        <h2 id="guide-section-<%= sectionIndex %>"><%= section.title %></h2>
+        <% (section.paragraphs || []).forEach(paragraph => { %><p><%= paragraph %></p><% }) %>
+        <% if (section.items) { %>
+        <<%= section.ordered ? 'ol' : 'ul' %> class="docs-guide-list<%= section.ordered ? ' docs-guide-list--ordered' : '' %>">
+          <% section.items.forEach(item => { %><li><%= item %></li><% }) %>
+        </<%= section.ordered ? 'ol' : 'ul' %>>
+        <% } %>
+        <% if (section.note) { %><aside class="docs-guide-note" role="note"><strong><%= section.note.title %></strong><p><%= section.note.body %></p></aside><% } %>
+      </section>
+      <% }) %>
+      <div class="docs-guide-actions">
+        <% if (locals.user) { %><a href="/projects/new" class="button button--primary">Create Project</a><% } else { %><a href="/auth/create-account" class="button button--primary">Create Account</a><% } %>
+        <a href="/docs" class="button button--secondary">Browse All Documentation</a>
+      </div>
+      <% } else if (topic.faq) { %>
+      <dl class="docs-faq"><% topic.faq.forEach(([question, answer]) => { %><dt><%= question %></dt><dd><%= answer %></dd><% }) %></dl>
+      <% } else { %>
+      <ul class="docs-points"><% topic.points.forEach(point => { %><li><%= point %></li><% }) %></ul>
+      <% } %>
+      <% if (topic.slug === 'supported-applications') { %><p class="mt-4"><a href="/supported-apps" class="button button--secondary">View the full support matrix</a></p><% } %>
+      <% if (topic.slug === 'service-limits') { %><p class="mt-4"><a href="/service-limits" class="button button--secondary">View current limits</a></p><% } %>
+    </div></div>
+    <nav class="docs-pager" aria-label="Previous and next topics">
+      <% if (previous) { %><a class="docs-pager__link" href="/docs/<%= previous.slug %>"><span class="docs-pager__label">← Previous</span><%= previous.title %></a><% } %>
+      <% if (next) { %><a class="docs-pager__link docs-pager__link--next" href="/docs/<%= next.slug %>"><span class="docs-pager__label">Next →</span><%= next.title %></a><% } %>
+    </nav>
+  </article>
+  <nav class="docs-nav" aria-label="Documentation">
+    <% sections.forEach((section) => { %>
+    <p class="docs-nav__title"><%= section.title %></p>
+    <ul class="docs-nav__list" role="list">
+      <% section.topics.forEach((item) => { %>
+      <li><a class="docs-nav__link" href="/docs/<%= item.slug %>" <%- item.slug === topic.slug ? 'aria-current="page"' : '' %>><%= item.title %></a></li>
+      <% }) %>
+    </ul>
+    <% }) %>
+  </nav>
+</div>

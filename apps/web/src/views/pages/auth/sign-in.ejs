@@ -10,6 +10,13 @@
 
   <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
 
+  <% if (googleAuthEnabled) { %>
+  <a class="button button--secondary button--full auth-provider-button" href="/auth/google/start?intent=sign-in<% if (typeof returnTo !== 'undefined' && returnTo) { %>&amp;returnTo=<%= encodeURIComponent(returnTo) %><% } %>">
+    Continue with Google
+  </a>
+  <div class="auth-divider" role="separator"><span>or use your password</span></div>
+  <% } %>
+
   <% if (typeof needsVerification !== 'undefined' && needsVerification) { %>
   <div class="alert alert--info mt-4" role="alert">
     Please verify your email before signing in.
@@ -49,6 +56,10 @@
       <div></div>
       <a href="/auth/forgot-password" class="form-link">Forgot Password?</a>
     </div>
+
+    <% if (turnstileSiteKey) { %>
+    <div class="cf-turnstile mt-4" data-sitekey="<%= turnstileSiteKey %>" data-action="sign-in"></div>
+    <% } %>
 
     <button type="submit" class="button button--primary button--full mt-6" id="submit-btn" data-pending-label="Signing in...">
       Sign In

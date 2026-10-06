@@ -21,6 +21,7 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
 
   for (const path of [
+    '/how-it-works',
     '/docs',
     '/supported-apps',
     '/pilot',
@@ -32,6 +33,70 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
     expect(response.ok(), `${path} should be publicly available`).toBeTruthy();
   }
 });
+
+test('how-it-works is indexable and accessible', async ({ page }) => {
+  await page.goto('/how-it-works');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('From a GitHub repository');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/how-it-works$/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index,follow');
+  await expect(
+    page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', {
+      name: 'How It Works',
+    }),
+  ).toHaveAttribute('aria-current', 'page');
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+});
+
+test('docs guides a reader through a first deployment', async ({ page }) => {
+  await page.goto('/docs');
+  await expect(page.getByRole('heading', { level: 1 })).toContainText(
+    'Deploy your first application',
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /\/docs$/);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index,follow');
+  await expect(page.locator('.docs-quick-start > li')).toHaveCount(5);
+  const createAccount = page.getByRole('link', { name: 'Create Account' }).first();
+  await createAccount.focus();
+  await expect(createAccount).toBeFocused();
+  let results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+
+  await page.goto('/docs/getting-started');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Getting Started');
+  await expect(page.getByRole('heading', { name: 'Complete your first deployment' })).toBeVisible();
+  await expect(page.getByText('Deploy Latest', { exact: false })).toBeVisible();
+  results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+});
+
+for (const path of ['/docs', '/docs/getting-started']) {
+  for (const width of [320, 1440]) {
+    test(`${path} has no horizontal overflow at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(path);
+      const overflow = await page.evaluate(
+        () =>
+          globalThis.document.documentElement.scrollWidth -
+          globalThis.document.documentElement.clientWidth,
+      );
+      expect(overflow).toBeLessThanOrEqual(1);
+    });
+  }
+}
+
+for (const width of [320, 1440]) {
+  test(`how-it-works has no horizontal overflow at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/how-it-works');
+    const overflow = await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth -
+        globalThis.document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(1);
+  });
+}
 
 test('authentication, dashboard, project, deployment, settings, and admin matrices', async ({
   page,

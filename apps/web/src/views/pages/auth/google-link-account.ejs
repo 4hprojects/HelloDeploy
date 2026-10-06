@@ -1,0 +1,19 @@
+<div class="auth-form">
+  <h1 class="auth-form__title">Link Google Account</h1>
+  <p class="auth-form__subtitle">
+    An account already exists for <strong><%= email %></strong>. Enter its password once to link Google securely.
+  </p>
+
+  <%- include('../../partials/form-errors', { errors: typeof errors !== 'undefined' ? errors : {} }) %>
+
+  <form method="POST" action="/auth/google/link-account" novalidate id="google-link-account-form">
+    <%- include('../../partials/csrf-field') %>
+    <%- include('../../partials/password-field', {
+      fieldId: 'password', fieldName: 'password', label: 'Current Password', required: true,
+      autocomplete: 'current-password', error: typeof errors !== 'undefined' ? errors.password : null
+    }) %>
+    <button type="submit" class="button button--primary button--full mt-6" data-pending-label="Linking...">
+      Link and Sign In
+    </button>
+  </form>
+</div>
