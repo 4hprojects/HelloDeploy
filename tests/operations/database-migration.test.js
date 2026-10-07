@@ -6,8 +6,16 @@ import {
   parseDatabaseIdentity,
   validateCliArguments,
 } from '../../scripts/migrate-hellotasks-to-hellodeploy-db.js';
+import { LEGACY_PASSWORD_USER_FILTER } from '../../scripts/repair-legacy-user-status.js';
 
 describe('HelloDeploy database migration safeguards', () => {
+  it('defines a bounded normalization filter for legacy password accounts', () => {
+    assert.deepEqual(LEGACY_PASSWORD_USER_FILTER, {
+      status: { $exists: false },
+      passwordHash: { $type: 'string' },
+    });
+  });
+
   it('extracts a value-safe server/database identity without credentials or options', () => {
     assert.deepEqual(
       parseDatabaseIdentity(

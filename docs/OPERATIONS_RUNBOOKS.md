@@ -181,6 +181,24 @@ curl -s http://127.0.0.1:<hostPort>/      # app responds
 7. Rotate affected credentials if a secret may have been exposed.
 8. Record the root cause, corrective action, affected projects, and follow-up tests in `WORKLOG.md`.
 
+### Legacy password accounts missing lifecycle state
+
+Accounts created before the `User.status` field existed cannot sign in or request a
+password-reset email until their lifecycle state is normalized. Inspect the bounded
+count without changing data:
+
+```sh
+npm run users:status:repair
+```
+
+The command reports counts only; it does not print user IDs, email addresses, or
+credentials. After verifying a current backup and entering a maintenance window, run
+`npm run users:status:repair -- --confirm` against the intended database. The repair
+sets only password accounts with a missing `status` to `ACTIVE`; it does not change
+explicitly active, pending, suspended, or archived accounts, and it does not activate
+Google-only accounts. Re-run the dry-run command and require a zero count before
+restarting the web service and testing password recovery.
+
 ## Backup
 
 Back up these assets before upgrades and after major configuration changes:

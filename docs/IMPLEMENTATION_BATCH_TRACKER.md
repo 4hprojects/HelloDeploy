@@ -33,6 +33,17 @@ checks, asset integrity and budgets, all 1,207 Node tests, and all 27 determinis
 browser/axe/visual tests pass. This is repository-local fixture evidence, not a
 real-device or production validation.
 
+**2026-10-07 password-recovery data follow-up:** A value-safe inspection found five
+legacy password accounts without the lifecycle `status` introduced after those
+accounts were created. Password recovery correctly requires `ACTIVE`, so those
+records silently followed the unknown-account path and no reset email was attempted.
+A dry-run-by-default, idempotent repair now normalizes only missing-status password
+accounts, and the database-copy migration applies the same bounded normalization so
+it cannot reintroduce the defect. Focused auth/migration tests, configuration
+validation, lint, formatting, and all 1,224 Node tests pass locally. The dry run
+confirmed five eligible records; no database write, service restart, release, or
+external email was performed.
+
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did
 not because both units remained disabled after the earlier transient-candidate

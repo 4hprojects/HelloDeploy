@@ -521,6 +521,62 @@
     });
   }
 
+  function initPageModal() {
+    const modal = document.querySelector('[data-page-modal]');
+    if (!modal) {
+      return;
+    }
+
+    const dialog = modal.querySelector('.confirm-modal__dialog');
+    if (!dialog) {
+      return;
+    }
+
+    function focusableElements() {
+      return Array.prototype.slice
+        .call(
+          modal.querySelectorAll(
+            'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+          ),
+        )
+        .filter((element) => element.offsetParent !== null || element === dialog);
+    }
+
+    document.body.classList.add('confirm-modal-open');
+    requestAnimationFrame(() => dialog.focus());
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        window.location.assign(modal.dataset.pageModalDismissHref || '/');
+        return;
+      }
+      if (event.key !== 'Tab') {
+        return;
+      }
+
+      const focusable = focusableElements();
+      if (focusable.length === 0) {
+        event.preventDefault();
+        dialog.focus();
+        return;
+      }
+
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (
+        event.shiftKey &&
+        (document.activeElement === first || document.activeElement === dialog)
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    });
+  }
+
   function initPendingForms() {
     function submitButtons(form) {
       return Array.prototype.slice.call(
@@ -1564,6 +1620,7 @@
     initTooltips();
     initScrollTop();
     initConfirmationModal();
+    initPageModal();
     initPendingForms();
     initAutoSubmitControls();
     initPasswordToggles();

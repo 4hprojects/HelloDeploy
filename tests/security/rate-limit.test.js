@@ -22,6 +22,8 @@ function makeTestLimiter(limit) {
           title: 'Too Many Requests',
           layout: 'layouts/main',
           message: 'Too many requests. Please wait a moment and try again.',
+          modal: true,
+          retryHref: req.originalUrl,
         });
       } else {
         res.status(429).json({
@@ -37,6 +39,7 @@ function invoke(limiter, ip, acceptsHtml = false) {
     const req = {
       ip,
       method: 'POST',
+      originalUrl: '/auth/sign-in?returnTo=%2Fdashboard',
       headers: {},
       app: {
         get() {
@@ -142,14 +145,20 @@ describe('brute-force protection — rate limit behaviour', () => {
     assert.ok(result.body?.error?.message, 'error message must be present');
   });
 
-  it('returns HTML for browser (Accept: text/html) requests', async () => {
+  it('returns an HTML modal for browser (Accept: text/html) requests', async () => {
     const limiter = makeTestLimiter(1);
     const ip = '192.0.2.5';
     await invoke(limiter, ip, true); // exhaust
     const result = await invoke(limiter, ip, true); // trigger 429
     assert.equal(result.status, 429);
-    assert.equal(result.type, 'html', 'browsers must receive an HTML error page');
-    assert.equal(result.view, 'pages/error', 'must render the standard error page');
+    assert.equal(result.type, 'html', 'browsers must receive an HTML error response');
+    assert.equal(result.view, 'pages/error', 'must render the standard error view');
+    assert.equal(result.data.modal, true, 'the browser error must use modal presentation');
+    assert.equal(
+      result.data.retryHref,
+      '/auth/sign-in?returnTo=%2Fdashboard',
+      'retry must preserve the original request URL',
+    );
   });
 
   it('tracks different IPs independently', async () => {
@@ -211,6 +220,14 @@ describe('brute-force protection — rate limit behaviour', () => {
       rateLimitSource,
       /export const resendVerificationLimiter = rateLimit\(\{[\s\S]*?handler: onResendVerificationLimitReached,?\s*\}\);/,
       'resend-verification limiter must use the page-preserving handler',
+    );
+  });
+
+  it('keeps the rate-limit retry URL on the same origin', () => {
+    assert.match(
+      rateLimitSource,
+      /isSafeReturnPath\(req\.originalUrl\) \? req\.originalUrl : '\/'/,
+      'browser retry links must not accept an unsafe protocol-relative URL',
     );
   });
 

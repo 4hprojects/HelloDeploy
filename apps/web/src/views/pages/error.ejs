@@ -1,3 +1,28 @@
+<% if (locals.modal) { %>
+<div
+  class="confirm-modal confirm-modal--warning"
+  role="alertdialog"
+  aria-modal="true"
+  aria-labelledby="page-error-modal-title"
+  aria-describedby="page-error-modal-message"
+  data-page-modal
+  data-page-modal-dismiss-href="<%= locals.user ? '/dashboard' : '/' %>"
+>
+  <div class="confirm-modal__backdrop" aria-hidden="true"></div>
+  <div class="confirm-modal__dialog" role="document" tabindex="-1">
+    <div class="confirm-modal__body">
+      <p class="confirm-modal__eyebrow">Request limit reached</p>
+      <h1 class="confirm-modal__title" id="page-error-modal-title"><%= typeof title !== 'undefined' ? title : 'Error' %></h1>
+      <p class="confirm-modal__message" id="page-error-modal-message"><%= typeof message !== 'undefined' ? message : 'An error occurred.' %></p>
+      <% if (locals.correlationId) { %><p class="form-hint mt-4">If you contact support, include reference <code class="code-inline"><%= correlationId %></code>.</p><% } %>
+    </div>
+    <div class="confirm-modal__actions">
+      <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--secondary"><%= locals.user ? 'Return to dashboard' : 'Return home' %></a>
+      <a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--primary">Try again</a>
+    </div>
+  </div>
+</div>
+<% } else { %>
 <div class="page-header">
   <h1 class="page-header__title"><%= typeof title !== 'undefined' ? title : 'Error' %></h1>
 </div>
@@ -7,8 +32,9 @@
     <p><%= typeof message !== 'undefined' ? message : 'An error occurred.' %></p>
     <p class="mt-4">
       <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--primary"><%= locals.user ? 'Return to dashboard' : 'Return home' %></a>
-      <a href="<%= locals.currentPath || '/' %>" class="button button--secondary">Try again</a>
+      <a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--secondary">Try again</a>
     </p>
     <% if (locals.correlationId) { %><p class="form-hint mt-4">If you contact support, include reference <code class="code-inline"><%= correlationId %></code>.</p><% } %>
   </div>
 </div>
+<% } %>

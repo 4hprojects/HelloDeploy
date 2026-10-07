@@ -43,6 +43,10 @@ import {
   Domain,
   PlatformSetting,
 } from '@hellodeploy/database';
+import {
+  LEGACY_PASSWORD_USER_FILTER,
+  repairLegacyUserStatuses,
+} from './repair-legacy-user-status.js';
 
 const required = (name) => {
   const v = process.env[name];
@@ -179,6 +183,12 @@ async function dryRun({ sourceUri, destUri }) {
         `${collectionName}: would clear ${destCount} existing doc(s), copy ${sourceCount} doc(s) from source\n`,
       );
     }
+    const legacyUserCount = await sourceConn
+      .collection('users')
+      .countDocuments(LEGACY_PASSWORD_USER_FILTER);
+    process.stdout.write(
+      `users: would set status=ACTIVE on ${legacyUserCount} legacy password account(s)\n`,
+    );
   } finally {
     await sourceConn.close();
     await destConn.close();
@@ -210,6 +220,8 @@ async function realRun({ sourceUri, destUri }) {
         `${collectionName}: copied ${sourceDocs.length}, dest now has ${destCount}\n`,
       );
     }
+
+    await repairLegacyUserStatuses(User.collection, { confirm: true });
 
     process.stdout.write('--- destination index reconciliation ---\n');
     await reconcileDestinationIndexes();

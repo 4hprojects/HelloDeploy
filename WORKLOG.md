@@ -2230,3 +2230,25 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Verification used injected provider responses and did not send a real email or
   claim inbox delivery. The configured Resend sender domain was confirmed verified
   through a read-only provider check; production was not changed.
+
+## 2026-10-07 — Legacy Password-Recovery State Repair
+
+- Traced a reported missing reset email through the neutral recovery flow and found
+  five legacy password accounts in the configured database with no lifecycle
+  `status`. Because password recovery intentionally selects only `ACTIVE` password
+  accounts, these records produced no reset token, audit event, or provider request.
+- Added `npm run users:status:repair`, which is dry-run by default, reports counts
+  only, and requires `--confirm` before setting only missing-status password accounts
+  to `ACTIVE`. Explicit active, pending, suspended, and archived states and
+  Google-only accounts are not changed. The command is idempotent and fails if its
+  bounded repair does not converge.
+- Updated the one-time database-copy migration to report and apply the same
+  normalization after copying users, preventing a later migration rerun from
+  restoring the defective records. Added the safe maintenance procedure to the
+  operations runbook.
+- Eighteen focused authentication, migration, and repair tests pass. Repository lint,
+  formatting, configuration validation, diff validation, and all 1,224 Node tests
+  across 251 suites pass with no failures or skips.
+- The configured-database dry run reported five eligible records. No database write,
+  service restart, release, or real email send was performed; applying the repair to
+  a running environment still requires a verified backup and maintenance window.

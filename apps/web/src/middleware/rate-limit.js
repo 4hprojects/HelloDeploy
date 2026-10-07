@@ -3,6 +3,7 @@ import { RedisStore } from 'rate-limit-redis';
 import { classifyRedisError, createRedisConnection } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
+import { isSafeReturnPath } from '../utils/safe-redirect.js';
 
 const RATE_LIMIT_REDIS_REQUIRED_MESSAGE = 'Redis-backed rate limiting is required in production.';
 
@@ -61,12 +62,15 @@ function makeStore(prefix) {
 }
 
 const onLimitReached = (req, res, _options) => {
-  // Serve a friendly HTML page for browser requests, JSON for API
+  // Serve a friendly modal for browser requests, JSON for API clients.
   if (req.accepts('html')) {
+    const retryHref = isSafeReturnPath(req.originalUrl) ? req.originalUrl : '/';
     res.status(429).render('pages/error', {
       title: 'Too Many Requests',
       layout: 'layouts/main',
       message: 'Too many requests. Please wait a moment and try again.',
+      modal: true,
+      retryHref,
     });
   } else {
     res.status(429).json({
