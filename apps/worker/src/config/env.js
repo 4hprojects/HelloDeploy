@@ -32,6 +32,11 @@ const workerConcurrency = parseIntegerEnv(
   optional('WORKER_CONCURRENCY', '1'),
   { min: 1, max: 32 },
 );
+const notificationWorkerConcurrency = parseIntegerEnv(
+  'NOTIFICATION_WORKER_CONCURRENCY',
+  optional('NOTIFICATION_WORKER_CONCURRENCY', '4'),
+  { min: 1, max: 32 },
+);
 const buildTimeoutMs = parseIntegerEnv('BUILD_TIMEOUT_MS', optional('BUILD_TIMEOUT_MS', '600000'), {
   min: 1000,
   max: 86400000,
@@ -74,6 +79,16 @@ const deploymentDomain = production
   ? parseHostnameEnv('DEPLOYMENT_DOMAIN', deploymentDomainRaw)
   : deploymentDomainRaw;
 
+if (production && (process.env.RESEND_API_KEY || process.env.RESEND_WEBHOOK_SECRET)) {
+  assertAllOrNoneEnvironment(
+    [
+      ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+      ['EMAIL_FROM', process.env.EMAIL_FROM],
+      ['RESEND_WEBHOOK_SECRET', process.env.RESEND_WEBHOOK_SECRET],
+    ],
+    'Resend email',
+  );
+}
 if (production) {
   assertProductionSecrets({ masterKey, nextMasterKey });
   if (!nginxEnabled) {
@@ -115,6 +130,7 @@ export const env = {
   REDIS_MODE: redisConfig.mode,
 
   WORKER_CONCURRENCY: workerConcurrency,
+  NOTIFICATION_WORKER_CONCURRENCY: notificationWorkerConcurrency,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
   BUILD_MEMORY_MB: buildMemoryMb,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
@@ -148,7 +164,10 @@ export const env = {
   // Email (Resend) — optional in dev, notifications skipped without a key
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
   EMAIL_FROM: optional('EMAIL_FROM', 'HelloDeploy <noreply@hellodeploy.online>'),
+  RESEND_WEBHOOK_SECRET: optional('RESEND_WEBHOOK_SECRET', ''),
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
+  isEmailConfigured: () =>
+    !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.RESEND_WEBHOOK_SECRET),
 };

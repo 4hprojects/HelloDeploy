@@ -4,6 +4,8 @@ import {
   createRedisConnection,
   createDeploymentQueue,
   createDeploymentWorker,
+  createNotificationQueue,
+  createNotificationWorker,
   classifyRedisError,
 } from '@hellodeploy/queue';
 import { JobType, validateJobPayload } from '@hellodeploy/contracts';
@@ -23,6 +25,8 @@ import { handleDeleteProject } from './jobs/delete-project.job.js';
 import { handleSetProjectMaintenance } from './jobs/set-project-maintenance.job.js';
 import { handleCleanupReleases } from './jobs/cleanup-releases.job.js';
 import { createGracefulWorkerShutdown } from './lifecycle.js';
+import { handleSendNotification, sweepNotifications } from './jobs/send-notification.job.js';
+import { setNotificationQueue } from './queue/notification-queue.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
   nodeEnv: env.NODE_ENV,
@@ -52,7 +56,9 @@ redis.on('error', (err) => {
 
 // Expose queue to job handlers that need to enqueue follow-on jobs
 const queue = createDeploymentQueue(redis);
+const notificationQueue = createNotificationQueue(redis);
 setWorkerQueue(queue);
+setNotificationQueue(notificationQueue);
 // Expose the connection for fire-and-forget publishes (live deploy logs)
 setWorkerRedis(redis);
 
@@ -109,6 +115,21 @@ async function processJob(job) {
 }
 
 const worker = createDeploymentWorker(redis, processJob, env.WORKER_CONCURRENCY);
+const notificationWorker = createNotificationWorker(
+  redis,
+  async (job) => {
+    validateJobPayload(job.name, job.data);
+    await handleSendNotification(job);
+  },
+  env.NOTIFICATION_WORKER_CONCURRENCY,
+);
+
+await sweepNotifications({ queue: notificationQueue });
+const notificationSweepInterval = setInterval(
+  () => sweepNotifications({ queue: notificationQueue }).catch(() => {}),
+  60_000,
+);
+notificationSweepInterval.unref();
 
 worker.on('completed', (job) => {
   logger.info('Worker: job completed', { jobId: job.id, jobType: job.name });
@@ -132,8 +153,12 @@ logger.info('Worker: ready — listening for jobs');
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
 
 const shutdown = createGracefulWorkerShutdown({
-  worker,
-  closeRedis: () => redis.quit(),
+  workers: [worker, notificationWorker],
+  closeRedis: async () => {
+    clearInterval(notificationSweepInterval);
+    await Promise.all([queue.close(), notificationQueue.close()]);
+    await redis.quit();
+  },
   closeDatabase: disconnectDatabase,
   logger,
 });

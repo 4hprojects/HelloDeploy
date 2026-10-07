@@ -6,7 +6,8 @@ import { AuditOutcome, PlatformRole, UserStatus } from '@hellodeploy/contracts';
 import { User } from '@hellodeploy/database';
 import { clearTestDb, startTestDb, stopTestDb } from '../helpers/worker-db.js';
 
-const { initiatePasswordReset } = await import('../../apps/web/src/services/auth.service.js');
+const { initiatePasswordReset, resendVerificationEmail } =
+  await import('../../apps/web/src/services/auth.service.js');
 
 async function createPasswordUser(overrides = {}) {
   return User.create({
@@ -105,6 +106,83 @@ describe('password reset initiation', () => {
         { outcome: AuditOutcome.FAILURE, metadata: { deliveryStatus: 'skipped' } },
         { outcome: AuditOutcome.FAILURE, metadata: { deliveryStatus: 'failed' } },
       ],
+    );
+  });
+
+  it('keeps the prior reset credential unless a replacement draft exists', async () => {
+    const originalHash = 'original-reset-hash';
+    const user = await createPasswordUser({
+      passwordResetTokenHash: originalHash,
+      passwordResetExpiresAt: new Date(Date.now() + 60_000),
+    });
+    await initiatePasswordReset(
+      { email: user.email, correlationId: 'draft-failure' },
+      {
+        createDraft: async () => Promise.reject(new Error('database unavailable')),
+        writeAudit: async () => {},
+      },
+    );
+    assert.equal(
+      (await User.findById(user._id).select('+passwordResetTokenHash').lean())
+        .passwordResetTokenHash,
+      originalHash,
+    );
+
+    let draftInput;
+    await initiatePasswordReset(
+      { email: user.email, correlationId: 'schedule-failure' },
+      {
+        createDraft: async (input) => {
+          draftInput = input;
+          return { _id: 'durable-draft', correlationId: input.correlationId };
+        },
+        schedule: async () => Promise.reject(new Error('queue unavailable')),
+        writeAudit: async () => {},
+      },
+    );
+    assert.equal(
+      (await User.findById(user._id).select('+passwordResetTokenHash').lean())
+        .passwordResetTokenHash,
+      draftInput.payload.credentialHash,
+    );
+    assert.notEqual(draftInput.payload.credentialHash, originalHash);
+  });
+
+  it('preserves a verification token until its replacement draft is durable', async () => {
+    const user = await createPasswordUser({
+      status: UserStatus.PENDING_VERIFICATION,
+      emailVerificationTokenHash: 'original-verification-hash',
+      emailVerificationExpiresAt: new Date(Date.now() + 60_000),
+    });
+    await assert.rejects(
+      resendVerificationEmail(
+        { email: user.email, correlationId: 'draft-failure' },
+        { createDraft: async () => Promise.reject(new Error('database unavailable')) },
+      ),
+    );
+    assert.equal(
+      (await User.findById(user._id).select('+emailVerificationTokenHash').lean())
+        .emailVerificationTokenHash,
+      'original-verification-hash',
+    );
+
+    let draftInput;
+    await assert.rejects(
+      resendVerificationEmail(
+        { email: user.email, correlationId: 'schedule-failure' },
+        {
+          createDraft: async (input) => {
+            draftInput = input;
+            return { _id: 'durable-draft', correlationId: input.correlationId };
+          },
+          schedule: async () => Promise.reject(new Error('queue unavailable')),
+        },
+      ),
+    );
+    assert.equal(
+      (await User.findById(user._id).select('+emailVerificationTokenHash').lean())
+        .emailVerificationTokenHash,
+      draftInput.payload.credentialHash,
     );
   });
 });

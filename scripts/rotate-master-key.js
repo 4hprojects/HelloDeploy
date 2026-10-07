@@ -1,16 +1,16 @@
 #!/usr/bin/env node
 /**
- * Re-encrypt every stored environment secret under the new master key during
- * a HELLODEPLOY_MASTER_KEY rotation.
+ * Re-encrypt every stored environment secret and notification payload under
+ * the new master key during a HELLODEPLOY_MASTER_KEY rotation.
  *
  * Prerequisites (see packages/security/src/encryption.js for the full flow):
  *   1. HELLODEPLOY_MASTER_KEY holds the current (old) key — unchanged.
  *   2. HELLODEPLOY_MASTER_KEY_NEXT holds the newly generated key.
  *   3. Both apps have been restarted with both vars set.
  *
- * This script decrypts every EnvironmentSecret still on version 1 (using the
- * primary key) and re-encrypts it (using the next key, via encrypt()'s
- * automatic rotation-window selection), bumping it to version 2. It is
+ * This script decrypts every EnvironmentSecret and Notification still on
+ * version 1 (using the primary key) and re-encrypts it (using the next key,
+ * via encrypt()'s automatic rotation-window selection), bumping it to version 2. It is
  * idempotent — already-rotated (version 2) records are skipped, so it is
  * safe to re-run after a partial failure.
  *
@@ -25,13 +25,19 @@
 import 'dotenv/config';
 import { fileURLToPath } from 'node:url';
 import { resolve } from 'node:path';
-import { connectDatabase, disconnectDatabase, EnvironmentSecret } from '@hellodeploy/database';
+import {
+  connectDatabase,
+  disconnectDatabase,
+  EnvironmentSecret,
+  Notification,
+} from '@hellodeploy/database';
 import {
   buildSecretAad,
   encrypt,
   decrypt,
   VERSION_PRIMARY,
   VERSION_NEXT,
+  buildNotificationAad,
 } from '@hellodeploy/security';
 
 const required = (name) => {
@@ -81,6 +87,42 @@ export async function rotateAllSecrets() {
     } catch (err) {
       failed += 1;
       process.stderr.write(`Failed to rotate secret ${secret._id}: ${err.message}\n`);
+    }
+  }
+
+  const notificationCursor = Notification.find({ encryptionVersion: VERSION_PRIMARY })
+    .select('+ciphertext +iv +authTag')
+    .cursor();
+  for await (const notification of notificationCursor) {
+    try {
+      const aad = buildNotificationAad(notification._id);
+      const plaintext = decrypt({
+        ciphertext: notification.ciphertext,
+        iv: notification.iv,
+        authTag: notification.authTag,
+        version: notification.encryptionVersion,
+        aad: notification.aadBound ? aad : undefined,
+      });
+      const reEncrypted = encrypt(plaintext, notification.aadBound ? aad : undefined);
+      if (reEncrypted.version !== VERSION_NEXT) {
+        throw new Error('HELLODEPLOY_MASTER_KEY_NEXT is not set — nothing to rotate to.');
+      }
+      await Notification.updateOne(
+        { _id: notification._id },
+        {
+          $set: {
+            ciphertext: reEncrypted.ciphertext,
+            iv: reEncrypted.iv,
+            authTag: reEncrypted.authTag,
+            encryptionVersion: reEncrypted.version,
+            aadBound: reEncrypted.aadBound,
+          },
+        },
+      );
+      rotated += 1;
+    } catch (err) {
+      failed += 1;
+      process.stderr.write(`Failed to rotate notification ${notification._id}: ${err.message}\n`);
     }
   }
 

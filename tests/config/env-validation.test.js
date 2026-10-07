@@ -11,6 +11,54 @@ import {
   parseIntegerEnv,
 } from '@hellodeploy/contracts';
 
+const productionWebEnv = {
+  SESSION_SECRET: 's'.repeat(64),
+  MONGODB_URI: 'mongodb://127.0.0.1:27017/hellodeploy-test',
+  PLATFORM_DOMAIN: 'hellodeploy.example.test',
+  DEPLOYMENT_DOMAIN: 'apps.hellodeploy.example.test',
+  PLATFORM_SUBDOMAIN_SUFFIX: '.apps.hellodeploy.example.test',
+  HELLODEPLOY_MASTER_KEY: Buffer.alloc(32, 7).toString('base64'),
+  HELLODEPLOY_MASTER_KEY_NEXT: '',
+  GITHUB_APP_ID: '',
+  GITHUB_APP_NAME: '',
+  GITHUB_APP_PRIVATE_KEY_PATH: '',
+  GITHUB_APP_PRIVATE_KEY: '',
+  GITHUB_WEBHOOK_SECRET: '',
+  RESEND_API_KEY: '',
+  EMAIL_FROM: '',
+  RESEND_WEBHOOK_SECRET: '',
+};
+
+function readWebTurnstileConfig(nodeEnv) {
+  const configUrl = new URL('../../apps/web/src/config/env.js', import.meta.url).href;
+  const result = spawnSync(
+    process.execPath,
+    [
+      '--input-type=module',
+      '--eval',
+      `const { env } = await import(${JSON.stringify(configUrl)}); process.stdout.write(JSON.stringify({ siteKey: env.TURNSTILE_SITE_KEY, secretKey: env.TURNSTILE_SECRET_KEY }));`,
+    ],
+    {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...(nodeEnv === 'production' ? productionWebEnv : {}),
+        NODE_ENV: nodeEnv,
+        REDIS_URL: '',
+        REDIS_HOST: '127.0.0.1',
+        REDIS_PASSWORD: '',
+        GOOGLE_CLIENT_ID: '',
+        GOOGLE_CLIENT_SECRET: '',
+        TURNSTILE_SITE_KEY: 'site-key',
+        TURNSTILE_SECRET_KEY: 'secret-key',
+      },
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr);
+  return JSON.parse(result.stdout);
+}
+
 describe('environment validation', () => {
   it('forces production mode through both service start commands', async () => {
     for (const component of ['web', 'worker']) {
@@ -80,19 +128,57 @@ describe('environment validation', () => {
     assert.match(result.stdout, /GOOGLE_CLIENT_SECRET/);
   });
 
-  it('rejects partial Turnstile configuration', () => {
+  it('rejects partial production Turnstile configuration', () => {
     const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
     const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
       encoding: 'utf8',
       env: {
         ...process.env,
-        NODE_ENV: 'development',
+        ...productionWebEnv,
+        NODE_ENV: 'production',
         TURNSTILE_SITE_KEY: 'site-key',
         TURNSTILE_SECRET_KEY: '',
       },
     });
     assert.equal(result.status, 1);
     assert.match(result.stdout, /TURNSTILE_SECRET_KEY/);
+  });
+
+  it('ignores configured Turnstile keys in test mode', () => {
+    assert.deepEqual(readWebTurnstileConfig('test'), { siteKey: '', secretKey: '' });
+  });
+
+  it('ignores configured Turnstile keys in development mode', () => {
+    assert.deepEqual(readWebTurnstileConfig('development'), { siteKey: '', secretKey: '' });
+  });
+
+  it('reports Turnstile as disabled in development mode', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        GOOGLE_CLIENT_ID: '',
+        GOOGLE_CLIENT_SECRET: '',
+        TURNSTILE_SITE_KEY: 'site-key',
+        TURNSTILE_SECRET_KEY: 'secret-key',
+      },
+    });
+
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+    const output = JSON.parse(result.stdout);
+    assert.deepEqual(
+      output.results[0].checks.find((check) => check.name === 'turnstile'),
+      { name: 'turnstile', status: 'disabled' },
+    );
+  });
+
+  it('preserves configured Turnstile keys in production mode', () => {
+    assert.deepEqual(readWebTurnstileConfig('production'), {
+      siteKey: 'site-key',
+      secretKey: 'secret-key',
+    });
   });
 
   it('requires strong production session and encryption secrets', () => {
@@ -166,6 +252,9 @@ describe('production worker routing validation', () => {
     GITHUB_APP_PRIVATE_KEY_PATH: '',
     GITHUB_APP_PRIVATE_KEY: '',
     GITHUB_WEBHOOK_SECRET: '',
+    RESEND_API_KEY: '',
+    EMAIL_FROM: '',
+    RESEND_WEBHOOK_SECRET: '',
   };
 
   function validateWorker(overrides) {
@@ -184,6 +273,18 @@ describe('production worker routing validation', () => {
   it('accepts the local Nginx helper routing mode', () => {
     const result = validateWorker({ NGINX_ENABLED: 'true' });
     assert.equal(result.status, 0, result.stdout || result.stderr);
+  });
+
+  it('requires the complete Resend group when production email is enabled', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      RESEND_API_KEY: 'resend-key',
+      EMAIL_FROM: 'noreply@example.test',
+      RESEND_WEBHOOK_SECRET: '',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /Missing: RESEND_WEBHOOK_SECRET/);
+    assert.doesNotMatch(result.stdout, /resend-key/);
   });
 
   it('does not permit the removed acknowledgement to bypass V1 routing', () => {
@@ -251,6 +352,8 @@ describe('production worker routing validation', () => {
       NGINX_ENABLED: 'true',
       REDIS_PASSWORD: sentinel,
       RESEND_API_KEY: sentinel,
+      EMAIL_FROM: 'noreply@example.test',
+      RESEND_WEBHOOK_SECRET: 'whsec_test',
     });
     assert.equal(result.status, 0, result.stdout || result.stderr);
     const output = JSON.parse(result.stdout);

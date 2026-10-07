@@ -12,3 +12,5 @@ export { DeploymentEvent } from './models/deployment-event.model.js';
 export { Domain } from './models/domain.model.js';
 export { PlatformSetting } from './models/platform-setting.model.js';
 export { ProductEvent, PRODUCT_EVENT_NAMES } from './models/product-event.model.js';
+export { Notification } from './models/notification.model.js';
+export { NotificationWebhookEvent } from './models/notification-webhook-event.model.js';

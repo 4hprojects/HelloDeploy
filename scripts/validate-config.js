@@ -49,13 +49,26 @@ function componentChecks(component, config) {
       },
       {
         name: 'turnstile',
-        status: groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY]),
+        status:
+          process.env.NODE_ENV === 'production'
+            ? groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY])
+            : 'disabled',
       },
       {
         name: 'google-auth',
         status: groupStatus([process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]),
       },
-      { name: 'email', status: process.env.RESEND_API_KEY ? 'configured' : 'disabled' },
+      {
+        name: 'email',
+        status:
+          process.env.RESEND_API_KEY || process.env.RESEND_WEBHOOK_SECRET
+            ? groupStatus([
+                process.env.RESEND_API_KEY,
+                process.env.EMAIL_FROM,
+                process.env.RESEND_WEBHOOK_SECRET,
+              ])
+            : 'disabled',
+      },
     ];
   }
 
@@ -72,7 +85,17 @@ function componentChecks(component, config) {
         process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY,
       ]),
     },
-    { name: 'email', status: process.env.RESEND_API_KEY ? 'configured' : 'disabled' },
+    {
+      name: 'email',
+      status:
+        process.env.RESEND_API_KEY || process.env.RESEND_WEBHOOK_SECRET
+          ? groupStatus([
+              process.env.RESEND_API_KEY,
+              process.env.EMAIL_FROM,
+              process.env.RESEND_WEBHOOK_SECRET,
+            ])
+          : 'disabled',
+    },
   ];
 }
 

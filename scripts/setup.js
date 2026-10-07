@@ -153,6 +153,14 @@ if (!skip('RESEND_API_KEY')) {
 if (!skip('EMAIL_FROM')) {
   config.EMAIL_FROM = await ask(rl, 'From address', existing.EMAIL_FROM || `noreply@${domain}`);
 }
+if (!skip('RESEND_WEBHOOK_SECRET')) {
+  config.RESEND_WEBHOOK_SECRET = await ask(
+    rl,
+    'Resend webhook signing secret (whsec_...)',
+    existing.RESEND_WEBHOOK_SECRET || '',
+    true,
+  );
+}
 
 // ── Section 6: GitHub App ─────────────────────────────────────────────────────
 console.log(`\n${BOLD}6. GitHub App (required for repository deployments)${RESET}`);

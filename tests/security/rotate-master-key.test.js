@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
-import { EnvironmentSecret } from '@hellodeploy/database';
-import { encrypt, decrypt } from '@hellodeploy/security';
+import { EnvironmentSecret, Notification } from '@hellodeploy/database';
+import { buildNotificationAad, encrypt, decrypt } from '@hellodeploy/security';
 import {
   startApprovalTestDb,
   stopApprovalTestDb,
@@ -102,5 +102,40 @@ describe('rotateAllSecrets', () => {
 
     assert.equal(rotated, 0);
     assert.equal(failed, 0);
+  });
+
+  it('rotates AAD-bound notification payloads without changing their plaintext', async () => {
+    const id = approvalObjectId();
+    const aad = buildNotificationAad(id);
+    const payload = encrypt(JSON.stringify({ resetCode: '123456' }), aad);
+    await Notification.create({
+      _id: id,
+      userId: approvalObjectId(),
+      kind: 'password-reset',
+      status: 'PENDING',
+      correlationId: 'rotation-test',
+      ciphertext: payload.ciphertext,
+      iv: payload.iv,
+      authTag: payload.authTag,
+      encryptionVersion: payload.version,
+      aadBound: payload.aadBound,
+    });
+    process.env.HELLODEPLOY_MASTER_KEY_NEXT = NEXT_KEY;
+
+    const result = await rotateAllSecrets();
+    const fresh = await Notification.findById(id).select('+ciphertext +iv +authTag').lean();
+
+    assert.deepEqual(result, { rotated: 1, failed: 0 });
+    assert.equal(fresh.encryptionVersion, 2);
+    assert.equal(
+      decrypt({
+        ciphertext: fresh.ciphertext,
+        iv: fresh.iv,
+        authTag: fresh.authTag,
+        version: fresh.encryptionVersion,
+        aad,
+      }),
+      JSON.stringify({ resetCode: '123456' }),
+    );
   });
 });

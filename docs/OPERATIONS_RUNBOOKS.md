@@ -199,6 +199,40 @@ explicitly active, pending, suspended, or archived accounts, and it does not act
 Google-only accounts. Re-run the dry-run command and require a zero count before
 restarting the web service and testing password recovery.
 
+### Remove the unsafe email-verification TTL index
+
+Older installations may have a MongoDB TTL index that deletes the entire user
+document when an email-verification deadline expires. Application queries enforce
+link expiry; MongoDB must not delete the account. Inspect the configured database
+without changing it:
+
+```sh
+npm run email:index:repair
+```
+
+The command prints counts only. After confirming a current backup and the intended
+database, apply the bounded repair during a maintenance window:
+
+```sh
+npm run email:index:repair -- --apply
+```
+
+The command drops only a single-field `emailVerificationExpiresAt: 1` index whose
+`expireAfterSeconds` is exactly zero. Re-run the dry run and require a zero count.
+Then run `npm run config:check`, restart the web and worker services, and confirm
+readiness reports the notification queue healthy when email is enabled.
+
+### Resend delivery tracking
+
+Set `RESEND_API_KEY`, `EMAIL_FROM`, and `RESEND_WEBHOOK_SECRET` as one complete
+production group. In Resend, point the supported email lifecycle events at
+`https://<PLATFORM_DOMAIN>/api/webhooks/resend`. Do not log or copy webhook bodies,
+recipient addresses, reset codes, verification URLs, or provider error text into an
+incident ticket. Diagnose with the notification correlation ID, bounded error type,
+status, attempt count, and lifecycle timestamps. A database status proves local
+processing or provider acknowledgement only; inbox delivery and live webhook receipt
+remain external release gates.
+
 ## Backup
 
 Back up these assets before upgrades and after major configuration changes:

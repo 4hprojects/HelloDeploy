@@ -24,6 +24,7 @@ export const JobType = Object.freeze({
   CLEANUP_RELEASES: 'CLEANUP_RELEASES',
   COLLECT_METRICS: 'COLLECT_METRICS',
   CHECK_INACTIVITY: 'CHECK_INACTIVITY',
+  SEND_NOTIFICATION: 'SEND_NOTIFICATION',
 });
 
 /**
@@ -161,4 +162,8 @@ export const JobRetryPolicy = Object.freeze({
   [JobType.CLEANUP_RELEASES]: { attempts: 3, backoff: { type: 'exponential', delay: 5000 } },
   [JobType.COLLECT_METRICS]: { attempts: 2, backoff: { type: 'fixed', delay: 1000 } },
   [JobType.CHECK_INACTIVITY]: { attempts: 2, backoff: { type: 'fixed', delay: 5000 } },
+  [JobType.SEND_NOTIFICATION]: {
+    attempts: 5,
+    backoff: { type: 'exponential', delay: 5000 },
+  },
 });

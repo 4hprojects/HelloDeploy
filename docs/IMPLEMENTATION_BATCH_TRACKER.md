@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-10-02
+Updated: 2026-10-08
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -43,6 +43,22 @@ it cannot reintroduce the defect. Focused auth/migration tests, configuration
 validation, lint, formatting, and all 1,224 Node tests pass locally. The dry run
 confirmed five eligible records; no database write, service restart, release, or
 external email was performed.
+
+**2026-10-08 email-system remediation:** The two-phase repository-local repair is
+implemented. The unsafe email-verification TTL declaration is removed with a bounded
+dry-run/apply repair command; replacement credentials use crash-reconcilable encrypted
+drafts; reset completion uses an atomic, short-lived single-use nonce; all build-stage
+terminal failures enter preference-aware notification handling; and password-change
+mail cannot roll back a persisted password. A separately concurrent BullMQ queue now
+delivers AES-256-GCM-bound notification payloads through Resend with notification-ID
+idempotency, bounded retry classification, interrupted-work recovery, safe logging,
+and signed/deduplicated lifecycle webhooks. Production email configuration is an
+all-or-none API-key/sender/webhook-secret group, and password signup, resend, and
+recovery fail closed when local delivery dependencies are unavailable while Google
+authentication remains operational. The notification collection is deliberately
+named `email_notifications` to avoid the unrelated legacy source database collection.
+This is local evidence only: production index repair, release installation, real
+inbox receipt, and live webhook receipt remain explicit external gates.
 
 **2026-08-28 reboot/outage correction:** The host rebooted at 13:44 PST. Nginx and
 the constrained helper returned, but `hellodeploy-web` and `hellodeploy-worker` did

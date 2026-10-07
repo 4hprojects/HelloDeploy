@@ -32,6 +32,8 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | `GOOGLE_CLIENT_ID`            | web         | no              | —               | Google OAuth 2.0 web client ID; must be paired with `GOOGLE_CLIENT_SECRET`                                                         |
 | `GOOGLE_CLIENT_SECRET`        | web         | no              | —               | Google OAuth 2.0 web client secret; must be paired with `GOOGLE_CLIENT_ID`                                                         |
 
+Turnstile is enabled only when `NODE_ENV=production`. In development and test modes, the web application ignores both Turnstile variables so local sessions and automated tests do not render the widget or contact Cloudflare. Production requires the site and secret keys to be configured together.
+
 To enable Google authentication, create an OAuth 2.0 **Web application** client in Google Cloud, configure its consent screen, and register the exact authorized redirect URI `https://<PLATFORM_DOMAIN>/auth/google/callback`. For local development, register `http://localhost:3000/auth/google/callback` as a separate redirect URI. Set both Google variables or leave both empty; partial configuration fails startup validation. HelloDeploy requests only `openid email profile` and does not retain Google access or refresh tokens.
 
 ## Platform / routing
@@ -61,26 +63,30 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 ## Worker build/deploy
 
-| Variable                | Required (prod) | Default                         | Purpose                                                    |
-| ----------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
-| `WORKER_CONCURRENCY`    | no              | `1`                             | Parallel BullMQ jobs per worker process                    |
-| `BUILD_TIMEOUT_MS`      | no              | `600000`                        | Hard cap on `docker build` duration                        |
-| `BUILD_MEMORY_MB`       | no              | `1024`                          | Memory ceiling for the `docker build` cgroup               |
-| `RUNTIME_MEMORY_MB`     | no              | `256`                           | Memory ceiling for each deployed application container     |
-| `BUILD_WORKSPACE_ROOT`  | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
-| `RELEASE_METADATA_ROOT` | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
-| `PROJECT_VOLUME_ROOT`   | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
-| `PORT_RANGE_START`      | no              | `10000`                         | First loopback host port available for deployed containers |
-| `PORT_RANGE_END`        | no              | `19999`                         | Last loopback host port available for deployed containers  |
+| Variable                          | Required (prod) | Default                         | Purpose                                                    |
+| --------------------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
+| `WORKER_CONCURRENCY`              | no              | `1`                             | Parallel BullMQ deployment jobs per worker process         |
+| `NOTIFICATION_WORKER_CONCURRENCY` | no              | `4`                             | Independent parallel email-delivery jobs                   |
+| `BUILD_TIMEOUT_MS`                | no              | `600000`                        | Hard cap on `docker build` duration                        |
+| `BUILD_MEMORY_MB`                 | no              | `1024`                          | Memory ceiling for the `docker build` cgroup               |
+| `RUNTIME_MEMORY_MB`               | no              | `256`                           | Memory ceiling for each deployed application container     |
+| `BUILD_WORKSPACE_ROOT`            | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
+| `RELEASE_METADATA_ROOT`           | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
+| `PROJECT_VOLUME_ROOT`             | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
+| `PORT_RANGE_START`                | no              | `10000`                         | First loopback host port available for deployed containers |
+| `PORT_RANGE_END`                  | no              | `19999`                         | Last loopback host port available for deployed containers  |
 
 ## Email / notifications
 
-Resend is optional. When `RESEND_API_KEY` is empty, outbound verification, password-recovery, and deployment-notification email is skipped. Public password-recovery responses remain neutral; operators must use the safe provider-status logs and audit outcome to distinguish accepted, skipped, and failed delivery attempts.
+Resend is optional. In production, when the complete email group or its Redis-backed notification queue is unavailable, password signup, verification resend, and password recovery return a clear service-unavailable response without creating replacement credentials. Google authentication and existing sessions remain available. Deployment mail remains non-blocking and its operational outcome is recorded on the durable notification record and in safe audit metadata.
 
-| Variable         | Used by     | Default                      | Purpose                                                                                                    |
-| ---------------- | ----------- | ---------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| `RESEND_API_KEY` | web, worker | —                            | Resend API key; email verification, password recovery, and deployment notifications are skipped when unset |
-| `EMAIL_FROM`     | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                                             |
+| Variable                | Used by     | Default                      | Purpose                                                                             |
+| ----------------------- | ----------- | ---------------------------- | ----------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`        | web, worker | —                            | Resend API key; password signup and recovery are unavailable when email is disabled |
+| `EMAIL_FROM`            | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                      |
+| `RESEND_WEBHOOK_SECRET` | web, worker | —                            | Signing secret for `/api/webhooks/resend`; required with the API key in production  |
+
+When email is enabled in production, all three variables must be set. Configure Resend to send `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.failed`, `email.bounced`, and `email.suppressed` events to `https://<PLATFORM_DOMAIN>/api/webhooks/resend`. Run `npm run email:index:repair` to inspect the obsolete user-verification TTL index and rerun with `-- --apply` during a maintenance window to drop only that exact unsafe index.
 
 ## Configuration validation
 

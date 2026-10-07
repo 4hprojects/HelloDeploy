@@ -76,6 +76,10 @@ export function buildSecretAad({ projectId, name }) {
   return Buffer.from(`${String(projectId)}:${name}`, 'utf8');
 }
 
+export function buildNotificationAad(notificationId) {
+  return Buffer.from(`notification:${String(notificationId)}`, 'utf8');
+}
+
 /**
  * Encrypt a plaintext string with AES-256-GCM.
  * Returns the pieces needed to store and later decrypt.

@@ -42,6 +42,8 @@ import {
   DeploymentEvent,
   Domain,
   PlatformSetting,
+  Notification,
+  NotificationWebhookEvent,
 } from '@hellodeploy/database';
 import {
   LEGACY_PASSWORD_USER_FILTER,
@@ -85,6 +87,8 @@ export function assertDistinctDatabaseTargets(sourceUri, destUri) {
 // these models against the destination creates each model's current indexes
 // as a side effect, instead of hand-copying index specs that can drift.
 const OWNED_COLLECTIONS = [
+  ['email_notifications', Notification],
+  ['notification_webhook_events', NotificationWebhookEvent],
   ['approval_requests', ApprovalRequest],
   ['audit_events', AuditEvent],
   ['deployment_events', DeploymentEvent],

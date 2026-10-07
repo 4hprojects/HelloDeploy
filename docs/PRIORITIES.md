@@ -20,7 +20,21 @@ user onboarding handoff audit behind Track G, see
 [Onboarding Handoff Audit](ONBOARDING_HANDOFF_AUDIT.md). Update this file's
 ordering as priorities shift; don't copy evidence into it.
 
-## URGENT — email verification likely broken for every new signup
+## URGENT — qualify the remediated email path in production
+
+**2026-10-08 local correction:** The account-safety and delivery architecture has
+been remediated repository-locally: the unsafe user TTL index is no longer declared,
+a dry-run repair command handles existing indexes, authentication credentials are
+replaced only after a durable draft exists, reset completion uses a short-lived
+single-use nonce, and a dedicated encrypted BullMQ notification pipeline records
+Resend lifecycle webhooks. Production password signup, verification resend, and
+recovery now fail closed when this pipeline is unavailable; Google authentication
+remains independent. The prior investigation is retained below as history.
+
+This item remains urgent until the change is reviewed and installed, the bounded
+index repair is applied after backup, the complete Resend configuration group and
+webhook are configured, and a real external recipient proves inbox delivery plus a
+signed live webhook. Local mocks and provider acceptance do not satisfy those gates.
 
 Discovered 2026-08-15, unconfirmed pending a Resend dashboard check (see
 below), but the evidence is strong. Two real signup attempts with a new

@@ -1,54 +1,18 @@
-import { Resend } from 'resend';
-import { User } from '@hellodeploy/database';
+import { mongoose, Notification, User } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
-import { getFailureCopy } from '@hellodeploy/contracts';
-import { env } from '../config/env.js';
-
-let _resend = null;
-
-function getResend() {
-  if (!_resend && env.RESEND_API_KEY) {
-    _resend = new Resend(env.RESEND_API_KEY);
-  }
-  return _resend;
-}
-
-async function sendEmail({ to, subject, html, text }) {
-  const client = getResend();
-
-  if (!client) {
-    logger.info('[notification] DEV — email skipped (no RESEND_API_KEY)', {
-      to,
-      subject,
-      preview: text?.slice(0, 120),
-    });
-    return;
-  }
-
-  const { error } = await client.emails.send({
-    from: env.EMAIL_FROM,
-    to,
-    subject,
-    html,
-    text,
-  });
-
-  if (error) {
-    logger.error('[notification] Failed to send deployment email', {
-      to,
-      subject,
-      error: error.message,
-    });
-  }
-}
+import {
+  buildEmailContent,
+  escapeEmailHtml,
+  getFailureCopy,
+  JobType,
+  NotificationStatus,
+} from '@hellodeploy/contracts';
+import { buildNotificationAad, encrypt } from '@hellodeploy/security';
+import { enqueueJob } from '@hellodeploy/queue';
+import { getNotificationQueue } from '../queue/notification-queue.js';
 
 export function escapeNotificationHtml(value) {
-  return String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+  return escapeEmailHtml(value);
 }
 
 export function buildDeploymentNotificationEmail(opts, owner) {
@@ -63,47 +27,29 @@ export function buildDeploymentNotificationEmail(opts, owner) {
     platformDomain,
   } = opts;
 
-  const dashboardUrl = `https://${platformDomain}/projects/${projectSlug}/deployments`;
-  const isHealthy = status === 'HEALTHY';
-  const shortSha = commitSha?.slice(0, 7) ?? '?';
-  const safeOwnerName = escapeNotificationHtml(owner.name || owner.email);
-  const safeProjectName = escapeNotificationHtml(projectName);
-  const safeDashboardUrl = escapeNotificationHtml(dashboardUrl);
-  const safeShortSha = escapeNotificationHtml(shortSha);
-  const safeFailureCode = escapeNotificationHtml(failureCode);
-  const safeFailureSummary = escapeNotificationHtml(failureSummary?.slice(0, 200));
   const failureCopy = failureCode ? getFailureCopy(failureCode) : null;
-  const safeFailureMessage = failureCopy ? escapeNotificationHtml(failureCopy.message) : null;
-  const safeFailureAction = failureCopy ? escapeNotificationHtml(failureCopy.action) : null;
-
-  if (isHealthy) {
-    return {
-      to: owner.email,
-      subject: `Deployment #${sequenceNumber} succeeded – ${projectName}`,
-      html: `
-          <p>Hi ${safeOwnerName},</p>
-          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${safeProjectName}</strong> is now live.</p>
-          <p>Commit: <code>${safeShortSha}</code></p>
-          <p><a href="${safeDashboardUrl}">View deployments</a></p>
-        `,
-      text: `Deployment #${sequenceNumber} of ${projectName} succeeded (commit ${shortSha}).\n\nView: ${dashboardUrl}`,
-    };
-  }
-
   return {
     to: owner.email,
-    subject: `Deployment #${sequenceNumber} failed – ${projectName}`,
-    html: `
-          <p>Hi ${safeOwnerName},</p>
-          <p>Deployment <strong>#${sequenceNumber}</strong> of <strong>${safeProjectName}</strong> failed.</p>
-          <p>Commit: <code>${safeShortSha}</code></p>
-          ${safeFailureMessage ? `<p><strong>${safeFailureMessage}</strong></p>` : ''}
-          ${safeFailureAction ? `<p>${safeFailureAction}</p>` : ''}
-          ${failureCode ? `<p style="color:#888;font-size:12px;">Technical details: <code>${safeFailureCode}</code>${failureSummary ? ` — ${safeFailureSummary}` : ''}</p>` : ''}
-          <p><a href="${safeDashboardUrl}">View deployment logs</a></p>
-        `,
-    text: `Deployment #${sequenceNumber} of ${projectName} failed (commit ${shortSha}).\n\n${failureCopy ? `${failureCopy.message} ${failureCopy.action}` : ''}\n\nView: ${dashboardUrl}`,
+    ...buildEmailContent('deployment-result', {
+      firstName: owner.firstName || owner.name || 'there',
+      projectName,
+      sequenceNumber,
+      status,
+      commitSha,
+      failureCode,
+      failureSummary,
+      failureMessage: failureCopy?.message,
+      failureAction: failureCopy?.action,
+      dashboardUrl: `https://${platformDomain}/projects/${projectSlug}/deployments`,
+    }),
   };
+}
+
+export function shouldSendDeploymentNotification(notificationPreference, status) {
+  if (notificationPreference === 'NONE') {
+    return false;
+  }
+  return notificationPreference !== 'FAILURE_ONLY' || status === 'FAILED';
 }
 
 /**
@@ -137,40 +83,59 @@ export async function notifyDeploymentResult(opts) {
     notificationPreference = 'ALL',
   } = opts;
 
-  if (notificationPreference === 'NONE') {
-    return;
-  }
-  if (notificationPreference === 'FAILURE_ONLY' && status === 'HEALTHY') {
+  if (!shouldSendDeploymentNotification(notificationPreference, status)) {
     return;
   }
 
   try {
-    const owner = await User.findById(ownerId).select('email name').lean();
+    const owner = await User.findById(ownerId).select('email firstName').lean();
     if (!owner) {
       return;
     }
 
-    await sendEmail(
-      buildDeploymentNotificationEmail(
-        {
-          projectName,
-          projectSlug,
-          sequenceNumber,
-          status,
-          commitSha,
-          failureCode,
-          failureSummary,
-          platformDomain,
-        },
-        owner,
-      ),
-    );
-  } catch (err) {
-    logger.warn('[notification] Error sending deployment notification', {
-      ownerId,
+    const _id = new mongoose.Types.ObjectId();
+    const payload = {
+      firstName: owner.firstName,
+      projectName,
       projectSlug,
       sequenceNumber,
-      error: err.message,
+      status,
+      commitSha,
+      failureCode,
+      failureSummary,
+      failureMessage: failureCode ? getFailureCopy(failureCode)?.message : null,
+      failureAction: failureCode ? getFailureCopy(failureCode)?.action : null,
+      dashboardUrl: `https://${platformDomain}/projects/${projectSlug}/deployments`,
+    };
+    const encrypted = encrypt(JSON.stringify(payload), buildNotificationAad(_id));
+    const notification = await Notification.create({
+      _id,
+      userId: ownerId,
+      kind: 'deployment-result',
+      status: NotificationStatus.PENDING,
+      correlationId: opts.correlationId || 'deployment',
+      projectId: opts.projectId,
+      deploymentId: opts.deploymentId,
+      ciphertext: encrypted.ciphertext,
+      iv: encrypted.iv,
+      authTag: encrypted.authTag,
+      encryptionVersion: encrypted.version,
+      aadBound: encrypted.aadBound,
+      nextAttemptAt: new Date(),
+    });
+    const queue = getNotificationQueue();
+    if (queue) {
+      await enqueueJob(
+        queue,
+        JobType.SEND_NOTIFICATION,
+        { version: 1, notificationId: _id.toString(), correlationId: notification.correlationId },
+        { jobId: `notification-${_id}` },
+      );
+    }
+  } catch (err) {
+    logger.warn('[notification] Error sending deployment notification', {
+      kind: 'deployment-result',
+      errorType: err?.name ?? 'Error',
     });
   }
 }

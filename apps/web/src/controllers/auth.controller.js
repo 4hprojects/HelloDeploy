@@ -31,6 +31,7 @@ import {
 } from '../validators/auth.validator.js';
 import { recordProductEvent } from '../services/product-analytics.service.js';
 import { verifyTurnstile as verifyTurnstileToken } from '../services/turnstile.service.js';
+import { isEmailDeliveryAvailable } from '../services/notification.service.js';
 
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -115,6 +116,20 @@ export const postCreateAccount = asyncHandler(async (req, res) => {
       authRenderOpts({
         title: 'Create Account',
         errors,
+        values: {
+          firstName: req.body.firstName ?? '',
+          lastName: req.body.lastName ?? '',
+          email: req.body.email ?? '',
+        },
+      }),
+    );
+  }
+  if (!(await isEmailDeliveryAvailable())) {
+    return res.status(503).render(
+      'pages/auth/create-account',
+      authRenderOpts({
+        title: 'Create Account',
+        errors: { form: 'Email signup is temporarily unavailable. You can continue with Google.' },
         values: {
           firstName: req.body.firstName ?? '',
           lastName: req.body.lastName ?? '',
@@ -212,6 +227,14 @@ export const getVerifyEmail = asyncHandler(async (req, res) => {
 });
 
 export const postResendVerification = asyncHandler(async (req, res) => {
+  if (!(await isEmailDeliveryAvailable())) {
+    return res
+      .status(503)
+      .render(
+        'pages/auth/verify-email',
+        verificationRender(req, { error: 'Email delivery is temporarily unavailable.' }),
+      );
+  }
   const { email } = req.body;
 
   if (email) {
@@ -596,12 +619,17 @@ export function getForgotPassword(req, res) {
 const forgotPasswordDependencies = {
   verifyTurnstile: verifyTurnstileToken,
   initiateReset: initiatePasswordReset,
+  emailAvailable: isEmailDeliveryAvailable,
 };
 
 export async function handleForgotPassword(
   req,
   res,
-  { verifyTurnstile, initiateReset } = forgotPasswordDependencies,
+  {
+    verifyTurnstile,
+    initiateReset,
+    emailAvailable = isEmailDeliveryAvailable,
+  } = forgotPasswordDependencies,
 ) {
   const { errors, hasErrors } = validateForgotPassword(req.body);
   const values = { email: req.body.email ?? '' };
@@ -610,6 +638,16 @@ export async function handleForgotPassword(
     return res.render(
       'pages/auth/forgot-password',
       authRenderOpts({ title: 'Forgot Password', errors, values }),
+    );
+  }
+  if (!(await emailAvailable())) {
+    return res.status(503).render(
+      'pages/auth/forgot-password',
+      authRenderOpts({
+        title: 'Forgot Password',
+        errors: { form: 'Password recovery is temporarily unavailable.' },
+        values,
+      }),
     );
   }
 
@@ -681,7 +719,11 @@ export const postVerifyResetCode = asyncHandler(async (req, res) => {
   }
 
   // Mark step 2 as complete — step 3 checks this flag
-  req.session.passwordResetVerified = true;
+  req.session.passwordResetAuthorization = {
+    userId: result.userId,
+    resetNonce: result.resetNonce,
+    expiresAt: result.expiresAt,
+  };
   req.session.save(() => {
     res.redirect('/auth/new-password');
   });
@@ -690,14 +732,18 @@ export const postVerifyResetCode = asyncHandler(async (req, res) => {
 // ─── New Password ──────────────────────────────────────────────────────────────
 
 export function getNewPassword(req, res) {
-  if (!req.session?.passwordResetEmail || !req.session?.passwordResetVerified) {
+  if (
+    !req.session?.passwordResetAuthorization ||
+    req.session.passwordResetAuthorization.expiresAt <= Date.now()
+  ) {
     return res.redirect('/auth/forgot-password');
   }
   res.render('pages/auth/new-password', authRenderOpts({ title: 'New Password' }));
 }
 
 export const postNewPassword = asyncHandler(async (req, res) => {
-  if (!req.session?.passwordResetEmail || !req.session?.passwordResetVerified) {
+  const authorization = req.session?.passwordResetAuthorization;
+  if (!authorization || authorization.expiresAt <= Date.now()) {
     return res.redirect('/auth/forgot-password');
   }
 
@@ -707,7 +753,8 @@ export const postNewPassword = asyncHandler(async (req, res) => {
   }
 
   const result = await completePasswordReset({
-    email: req.session.passwordResetEmail,
+    userId: authorization.userId,
+    resetNonce: authorization.resetNonce,
     newPassword: req.body.password,
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -722,7 +769,7 @@ export const postNewPassword = asyncHandler(async (req, res) => {
 
   // Clean up reset session state
   delete req.session.passwordResetEmail;
-  delete req.session.passwordResetVerified;
+  delete req.session.passwordResetAuthorization;
 
   req.flash('success', 'Password updated. Please sign in with your new password.');
   req.session.save(() => {

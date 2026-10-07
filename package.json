@@ -20,6 +20,7 @@
     "assets:budget": "node scripts/check-ui-budgets.js",
     "database:indexes:verify": "node scripts/verify-product-event-indexes.js",
     "users:status:repair": "node scripts/repair-legacy-user-status.js",
+    "email:index:repair": "node scripts/repair-email-verification-index.js",
     "config:check": "node scripts/validate-config.js",
     "host:baseline": "node scripts/capture-host-baseline.js",
     "production:check": "node scripts/check-public-production.js",

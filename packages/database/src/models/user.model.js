@@ -83,6 +83,8 @@ const userSchema = new Schema(
       type: Number,
       default: 0,
     },
+    passwordResetSessionNonceHash: { type: String, default: null, select: false },
+    passwordResetSessionExpiresAt: { type: Date, default: null },
 
     // Failed sign-in throttling. Per-IP limits cannot stop a spray at one
     // account from many addresses, so the count lives on the account itself.
@@ -132,7 +134,6 @@ userSchema.index(
     partialFilterExpression: { googleSubject: { $type: 'string' } },
   },
 );
-userSchema.index({ emailVerificationExpiresAt: 1 }, { expireAfterSeconds: 0, sparse: true });
 
 userSchema.pre('validate', function requireAuthenticationMethod() {
   if (this.isNew && !this.passwordHash && !this.googleSubject) {

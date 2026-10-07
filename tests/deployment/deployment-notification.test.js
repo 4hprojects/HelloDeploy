@@ -2,8 +2,11 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
-const { buildDeploymentNotificationEmail, escapeNotificationHtml } =
-  await import('../../apps/worker/src/notification/deployment-notification.js');
+const {
+  buildDeploymentNotificationEmail,
+  escapeNotificationHtml,
+  shouldSendDeploymentNotification,
+} = await import('../../apps/worker/src/notification/deployment-notification.js');
 
 const activateJob = await readFile(
   new URL('../../apps/worker/src/jobs/activate-release.job.js', import.meta.url),
@@ -97,13 +100,40 @@ describe('deployment notifications', () => {
     assert.match(email.html, /Technical details.*BUILD_FAILED/s);
   });
 
-  it('is invoked after activation and rollback without blocking worker completion', () => {
-    // Both jobs wire the notifier into the shared pipeline, which calls it
-    // fire-and-forget on terminal statuses.
+  it('honors ALL, FAILURE_ONLY, and NONE notification preferences', () => {
+    assert.equal(shouldSendDeploymentNotification('ALL', 'HEALTHY'), true);
+    assert.equal(shouldSendDeploymentNotification('ALL', 'FAILED'), true);
+    assert.equal(shouldSendDeploymentNotification('FAILURE_ONLY', 'HEALTHY'), false);
+    assert.equal(shouldSendDeploymentNotification('FAILURE_ONLY', 'FAILED'), true);
+    assert.equal(shouldSendDeploymentNotification('NONE', 'HEALTHY'), false);
+    assert.equal(shouldSendDeploymentNotification('NONE', 'FAILED'), false);
+  });
+
+  it('uses firstName for the greeting and strips subject control characters', () => {
+    const email = buildDeploymentNotificationEmail(
+      {
+        projectName: 'Safe\r\nBcc: injected@example.test',
+        projectSlug: 'safe-app',
+        sequenceNumber: 15,
+        status: 'HEALTHY',
+        commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
+        platformDomain: 'deploy.example.test',
+      },
+      { email: 'owner@example.test', firstName: 'Ada', name: 'Wrong name' },
+    );
+    assert.match(email.html, /Hi Ada,/);
+    assert.doesNotMatch(email.html, /Wrong name/);
+    assert.doesNotMatch(email.subject, /[\r\n]/);
+  });
+
+  it('is durably attempted after activation and rollback without changing deployment results', () => {
+    // Both jobs wire the notifier into the shared pipeline, which awaits the
+    // durable record while containing notification failures.
     assert.match(activateJob, /notifyDeploymentResult,/);
     assert.match(rollbackJob, /notifyDeploymentResult,/);
     assert.match(pipelineSource, /\.notifyDeploymentResult\(\{/);
-    assert.match(pipelineSource, /\.catch\(\(\) => \{\}\); \/\/ notification failures must never/);
+    assert.match(pipelineSource, /await deps\.notifyDeploymentResult/);
+    assert.match(pipelineSource, /Notification failure must never change the terminal deployment/);
     assert.match(notificationSource, /Failures are logged but never rethrown/);
     assert.match(
       notificationSource,

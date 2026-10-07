@@ -76,7 +76,7 @@ export function buildSelfHostedChecklist({
       },
       {
         name: 'Resend email (optional)',
-        keys: ['RESEND_API_KEY', 'EMAIL_FROM'],
+        keys: ['RESEND_API_KEY', 'EMAIL_FROM', 'RESEND_WEBHOOK_SECRET'],
       },
     ],
     prerequisites: selected.requires,

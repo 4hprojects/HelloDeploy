@@ -11,6 +11,7 @@ import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
+import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
 import {
   logEvent,
@@ -78,6 +79,7 @@ const defaultDeps = {
   removeDockerImage,
   cleanupBuildWorkspace,
   enqueueActivateRelease,
+  notifyDeploymentResult,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
@@ -134,9 +136,11 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   const project = await Project.findById(projectId);
   const repo = await Repository.findById(repositoryId);
+  const failBuild = (extra) =>
+    updateStatus(deploymentId, DeploymentStatus.FAILED, extra, { project, deps });
 
   if (!project || !repo) {
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'PROJECT_NOT_FOUND',
       failureSummary: 'Project or repository record not found.',
       completedAt: new Date(),
@@ -145,7 +149,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   if (repo.accessStatus !== 'ACTIVE') {
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'REPO_ACCESS_REVOKED',
       failureSummary: 'Repository access has been revoked.',
       completedAt: new Date(),
@@ -188,7 +192,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
           'Failed to obtain GitHub token.',
           correlationId,
         );
-        await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+        await failBuild({
           failureCode: 'GITHUB_TOKEN_FAILED',
           failureSummary: 'Could not obtain GitHub installation token.',
           completedAt: new Date(),
@@ -223,7 +227,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       `Clone failed: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'CLONE_FAILED',
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
@@ -244,7 +248,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       `Build context error: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'BUILD_CONTEXT_INVALID',
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
@@ -269,7 +273,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       `Could not read project environment: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'BUILD_FAILED',
       failureSummary: 'Could not read project environment.',
       completedAt: new Date(),
@@ -304,7 +308,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       `Dockerfile generation failed: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'DOCKERFILE_GENERATION_FAILED',
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
@@ -350,7 +354,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     );
   } catch (err) {
     await logEvent(deploymentId, 'BUILD', 'ERROR', `Build failed: ${err.message}`, correlationId);
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'BUILD_FAILED',
       failureSummary: err.message.slice(0, 1000),
       completedAt: new Date(),
@@ -401,7 +405,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       `Failed to queue activation: ${err.message}`,
       correlationId,
     );
-    await updateStatus(deploymentId, DeploymentStatus.FAILED, {
+    await failBuild({
       failureCode: 'ACTIVATION_ENQUEUE_FAILED',
       failureSummary: `Could not enqueue release activation: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),

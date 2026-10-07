@@ -6,8 +6,34 @@ import {
   createShutdownSignalHandler,
 } from '../../apps/web/src/lifecycle.js';
 import { checkWebReadiness } from '../../apps/web/src/services/readiness.service.js';
+import { isEmailDeliveryAvailable } from '../../apps/web/src/services/notification.service.js';
 
 describe('web readiness', () => {
+  it('requires an active notification worker when email is enabled', async () => {
+    const base = {
+      emailConfigured: true,
+      redis: { status: 'ready' },
+    };
+    assert.equal(
+      await isEmailDeliveryAvailable({
+        ...base,
+        queue: { getWorkers: async () => [{ id: 'notification-worker' }] },
+      }),
+      true,
+    );
+    assert.equal(
+      await isEmailDeliveryAvailable({ ...base, queue: { getWorkers: async () => [] } }),
+      false,
+    );
+    assert.equal(
+      await isEmailDeliveryAvailable({
+        ...base,
+        queue: { getWorkers: async () => Promise.reject(new Error('redis unavailable')) },
+      }),
+      false,
+    );
+  });
+
   it('is ready only when MongoDB, Redis, and the queue respond', async () => {
     const result = await checkWebReadiness({
       database: { readyState: 1 },
@@ -16,7 +42,7 @@ describe('web readiness', () => {
     });
     assert.deepEqual(result, {
       ready: true,
-      checks: { mongodb: true, redis: true, queue: true },
+      checks: { mongodb: true, redis: true, queue: true, email: true },
     });
   });
 
@@ -28,7 +54,7 @@ describe('web readiness', () => {
     });
     assert.deepEqual(result, {
       ready: false,
-      checks: { mongodb: false, redis: false, queue: false },
+      checks: { mongodb: false, redis: false, queue: false, email: true },
     });
   });
 

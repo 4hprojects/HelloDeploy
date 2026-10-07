@@ -4,16 +4,17 @@ import { hashPassword, verifyPassword, generateToken, hashToken } from '@hellode
 import { AuditOutcome, UserStatus, PlatformRole } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import {
-  sendVerificationEmail,
-  sendPasswordResetEmail,
-  sendPasswordChangedEmail,
-} from './email.service.js';
+  createNotificationDraft,
+  queueEmailNotification,
+  scheduleNotification,
+} from './notification.service.js';
 import { env } from '../config/env.js';
 import { recordProductEvent } from './product-analytics.service.js';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
 const RESET_MAX_ATTEMPTS = 5;
+const RESET_SESSION_TTL_MS = 15 * 60 * 1000;
 
 // Per-account sign-in throttle. The per-IP limiter cannot see a spray at one
 // account spread across many addresses, so the account carries its own count.
@@ -73,12 +74,17 @@ export async function registerUser({
   });
 
   const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({
-    to: user.email,
-    firstName: user.firstName,
-    verificationUrl,
-    correlationId,
-  });
+  try {
+    await queueEmailNotification({
+      userId: user._id,
+      kind: 'email-verification',
+      payload: { firstName: user.firstName, verificationUrl },
+      correlationId,
+    });
+  } catch (error) {
+    await User.deleteOne({ _id: user._id, status: UserStatus.PENDING_VERIFICATION });
+    throw error;
+  }
 
   await writeAuditEvent({
     action: 'auth.register',
@@ -132,7 +138,10 @@ export async function verifyEmail({ rawToken, sourceIp, correlationId }) {
   return { success: true, sessionUser: user.toSessionUser() };
 }
 
-export async function resendVerificationEmail({ email, sourceIp, correlationId }) {
+export async function resendVerificationEmail(
+  { email, sourceIp, correlationId },
+  { createDraft = createNotificationDraft, schedule = scheduleNotification } = {},
+) {
   const user = await User.findOne({
     email: email.toLowerCase(),
     status: UserStatus.PENDING_VERIFICATION,
@@ -143,17 +152,18 @@ export async function resendVerificationEmail({ email, sourceIp, correlationId }
   }
 
   const { raw: tokenRaw, hash: tokenHash } = generateToken(32);
+  const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
+  const draft = await createDraft({
+    userId: user._id,
+    kind: 'email-verification',
+    payload: { firstName: user.firstName, verificationUrl, credentialHash: tokenHash },
+    correlationId,
+  });
   user.emailVerificationTokenHash = tokenHash;
   user.emailVerificationExpiresAt = new Date(Date.now() + VERIFICATION_TOKEN_TTL_MS);
   await user.save();
 
-  const verificationUrl = `${baseUrl()}/auth/verify-email?token=${tokenRaw}`;
-  await sendVerificationEmail({
-    to: user.email,
-    firstName: user.firstName,
-    verificationUrl,
-    correlationId,
-  });
+  await schedule(draft);
 
   await writeAuditEvent({
     action: 'auth.verification_resent',
@@ -275,7 +285,12 @@ export async function signIn({ email, password, sourceIp, userAgent, correlation
  */
 export async function initiatePasswordReset(
   { email, sourceIp, correlationId },
-  { sendResetEmail = sendPasswordResetEmail, writeAudit = writeAuditEvent } = {},
+  {
+    sendResetEmail = null,
+    writeAudit = writeAuditEvent,
+    createDraft = createNotificationDraft,
+    schedule = scheduleNotification,
+  } = {},
 ) {
   const user = await User.findOne({
     email: email.toLowerCase(),
@@ -289,20 +304,34 @@ export async function initiatePasswordReset(
 
   const { code, hash: codeHash } = generateSixDigitCode();
 
-  user.passwordResetTokenHash = codeHash;
-  user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
-  user.passwordResetAttempts = 0;
-  await user.save();
-
   try {
-    const delivery = await sendResetEmail({
-      to: user.email,
-      firstName: user.firstName,
-      resetCode: code,
-      correlationId,
-    });
+    let delivery;
+    if (sendResetEmail) {
+      user.passwordResetTokenHash = codeHash;
+      user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+      user.passwordResetAttempts = 0;
+      await user.save();
+      delivery = await sendResetEmail({
+        to: user.email,
+        firstName: user.firstName,
+        resetCode: code,
+        correlationId,
+      });
+    } else {
+      const draft = await createDraft({
+        userId: user._id,
+        kind: 'password-reset',
+        payload: { firstName: user.firstName, resetCode: code, credentialHash: codeHash },
+        correlationId,
+      });
+      user.passwordResetTokenHash = codeHash;
+      user.passwordResetExpiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS);
+      user.passwordResetAttempts = 0;
+      await user.save();
+      delivery = await schedule(draft);
+    }
 
-    if (delivery?.status !== 'accepted') {
+    if (!['accepted', 'scheduled'].includes(delivery?.status)) {
       await writeAudit({
         action: 'auth.password_reset_initiated',
         outcome: AuditOutcome.FAILURE,
@@ -364,9 +393,14 @@ export async function verifyPasswordResetCode({ email, code, sourceIp, correlati
     return { success: false, error: 'Reset code is incorrect.' };
   }
 
-  // Invalidate the code — step 3 is authorised by the session flag set by the controller
+  // Invalidate the code — step 3 requires the short-lived nonce stored in both
+  // the browser session and this user record.
+  const { raw: resetNonce, hash: resetNonceHash } = generateToken(32);
   user.passwordResetTokenHash = null;
+  user.passwordResetExpiresAt = null;
   user.passwordResetAttempts = 0;
+  user.passwordResetSessionNonceHash = resetNonceHash;
+  user.passwordResetSessionExpiresAt = new Date(Date.now() + RESET_SESSION_TTL_MS);
   await user.save();
 
   await writeAuditEvent({
@@ -377,33 +411,41 @@ export async function verifyPasswordResetCode({ email, code, sourceIp, correlati
     correlationId,
   });
 
-  return { success: true, email: normalizedEmail };
+  return {
+    success: true,
+    userId: user._id.toString(),
+    resetNonce,
+    expiresAt: Date.now() + RESET_SESSION_TTL_MS,
+  };
 }
 
 /**
- * Step 3: Set new password. Requires session flag set by step 2.
+ * Step 3: Set new password. Requires the single-use authorization from step 2.
  */
-export async function completePasswordReset({ email, newPassword, sourceIp, correlationId }) {
-  const user = await User.findOne({
-    email: email.toLowerCase(),
-    status: UserStatus.ACTIVE,
-    passwordHash: { $type: 'string' },
-  }).select('+passwordHash');
+export async function completePasswordReset(
+  { userId, resetNonce, newPassword, sourceIp, correlationId },
+  { queueNotification = queueEmailNotification } = {},
+) {
+  const newHash = await hashPassword(newPassword);
+  const user = await User.findOneAndUpdate(
+    {
+      _id: userId,
+      status: UserStatus.ACTIVE,
+      passwordHash: { $type: 'string' },
+      passwordResetSessionNonceHash: hashToken(resetNonce),
+      passwordResetSessionExpiresAt: { $gt: new Date() },
+    },
+    {
+      $set: { passwordHash: newHash },
+      $inc: { configVersion: 1 },
+      $unset: { passwordResetSessionNonceHash: 1, passwordResetSessionExpiresAt: 1 },
+    },
+    { new: true },
+  );
 
   if (!user) {
     return { success: false, error: 'Unable to complete reset. Please start over.' };
   }
-
-  const newHash = await hashPassword(newPassword);
-  user.passwordHash = newHash;
-  user.configVersion += 1;
-  await user.save();
-
-  await sendPasswordChangedEmail({
-    to: user.email,
-    firstName: user.firstName,
-    correlationId,
-  });
 
   await writeAuditEvent({
     action: 'auth.password_reset_completed',
@@ -411,7 +453,33 @@ export async function completePasswordReset({ email, newPassword, sourceIp, corr
     actorId: user._id.toString(),
     sourceIp,
     correlationId,
-  });
+  }).catch(() => {});
+
+  try {
+    const delivery = await queueNotification({
+      userId: user._id,
+      kind: 'password-changed',
+      payload: { firstName: user.firstName },
+      correlationId,
+    });
+    await writeAuditEvent({
+      action: 'auth.password_changed_notification',
+      outcome: AuditOutcome.SUCCESS,
+      actorId: user._id.toString(),
+      sourceIp,
+      correlationId,
+      metadata: { deliveryStatus: delivery?.status ?? 'scheduled' },
+    }).catch(() => {});
+  } catch {
+    await writeAuditEvent({
+      action: 'auth.password_changed_notification',
+      outcome: AuditOutcome.FAILURE,
+      actorId: user._id.toString(),
+      sourceIp,
+      correlationId,
+      metadata: { deliveryStatus: 'failed' },
+    }).catch(() => {});
+  }
 
   return { success: true };
 }

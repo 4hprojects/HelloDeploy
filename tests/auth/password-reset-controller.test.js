@@ -5,6 +5,7 @@ const { handleForgotPassword } = await import('../../apps/web/src/controllers/au
 
 function response() {
   return {
+    statusCode: 200,
     rendered: null,
     redirected: null,
     render(view, data) {
@@ -12,6 +13,10 @@ function response() {
     },
     redirect(location) {
       this.redirected = location;
+    },
+    status(code) {
+      this.statusCode = code;
+      return this;
     },
   };
 }
@@ -61,6 +66,7 @@ describe('password reset controller', () => {
     const res = response();
 
     await handleForgotPassword(req, res, {
+      emailAvailable: async () => true,
       verifyTurnstile: async (input) => {
         turnstileInput = input;
         return false;
@@ -89,6 +95,7 @@ describe('password reset controller', () => {
     const res = response();
 
     await handleForgotPassword(req, res, {
+      emailAvailable: async () => true,
       verifyTurnstile: async () => true,
       initiateReset: async (input) => {
         resetInput = input;
@@ -102,5 +109,28 @@ describe('password reset controller', () => {
     });
     assert.equal(req.session.passwordResetEmail, 'user@example.test');
     assert.equal(res.redirected, '/auth/verify-reset-code');
+  });
+
+  it('creates no reset state when email delivery is unavailable', async () => {
+    let turnstileCalls = 0;
+    let resetCalls = 0;
+    const req = request({ email: 'user@example.test' });
+    const res = response();
+
+    await handleForgotPassword(req, res, {
+      emailAvailable: async () => false,
+      verifyTurnstile: async () => {
+        turnstileCalls += 1;
+      },
+      initiateReset: async () => {
+        resetCalls += 1;
+      },
+    });
+
+    assert.equal(res.statusCode, 503);
+    assert.equal(turnstileCalls, 0);
+    assert.equal(resetCalls, 0);
+    assert.equal(req.session.passwordResetEmail, undefined);
+    assert.match(res.rendered.data.errors.form, /temporarily unavailable/);
   });
 });

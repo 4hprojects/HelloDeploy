@@ -2252,3 +2252,45 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - The configured-database dry run reported five eligible records. No database write,
   service restart, release, or real email send was performed; applying the repair to
   a running environment still requires a verified backup and maintenance window.
+
+## 2026-10-08 — Phased Email-System Remediation
+
+- Removed the destructive `users.emailVerificationExpiresAt` TTL declaration and
+  added `npm run email:index:repair`, which is dry-run by default and drops only the
+  exact single-field zero-second TTL index with `--apply`. Application queries remain
+  responsible for token expiry.
+- Reordered verification and reset replacement so an encrypted notification draft
+  exists before the active credential changes. The notification sweep reconciles
+  interrupted drafts against the active credential and re-enqueues due work. Password
+  reset completion now consumes a 15-minute user-bound nonce atomically; a failed
+  password-change notification or audit does not undo the persisted password.
+- Added the isolated `notifications` BullMQ queue, `SEND_NOTIFICATION` v1 contract,
+  independently configurable concurrency, AES-256-GCM payloads bound to notification
+  IDs, notification-aware master-key rotation, Resend idempotency keys, transient and
+  permanent failure classification, bounded backoff, interrupted-processing recovery,
+  and safe delivery audits. The MongoDB collection is `email_notifications`, avoiding
+  the unrelated legacy source database's `notifications` collection.
+- Added the raw-body `/api/webhooks/resend` endpoint with official Svix verification,
+  event-ID deduplication, provider-message correlation, monotonic lifecycle updates,
+  and no recipient or body persistence. Production configuration treats the Resend
+  API key, sender, and webhook secret as one group. Password signup, resend, and
+  recovery return 503 before account/reset mutation when locally detectable delivery
+  dependencies are unavailable; Google authentication remains independent.
+- Unified all email HTML escaping and subject sanitization, corrected deployment
+  greetings, removed personal/provider content from notification logs, and routed
+  clone, validation, build, and activation-enqueue failures through the durable,
+  preference-aware notifier. Notification persistence is awaited while delivery
+  failure remains unable to change a deployment result.
+- Focused auth, webhook, index-repair, readiness, deployment, notification-worker,
+  and key-rotation checks passed. `npm test` passed 1,245 tests across 255 suites with
+  zero failures, skips, cancellations, or todos. Post-suite focused checks covering
+  final retry classification, skipped-recipient handling, and awaited deployment
+  persistence also passed. `npm run config:check`, `npm run lint`,
+  `npm run format:check`, `npm audit --omit=dev`, and `git diff --check` passed; the
+  production dependency audit reports zero vulnerabilities.
+- No production database write, index drop, service restart, deployment, real email,
+  or external webhook was performed. After review and installation, production still
+  requires a verified backup and bounded index repair, the complete Resend group,
+  and real inbox plus signed live-webhook evidence. Pre-existing Turnstile worktree
+  changes were preserved and not reformatted outside the overlapping configuration
+  files.

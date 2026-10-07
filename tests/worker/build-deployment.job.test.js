@@ -17,6 +17,7 @@ function makeDeps(overrides = {}) {
     cleanedWorkspaces: [],
     enqueued: [],
     publicClones: [],
+    notifications: [],
     tokenRequests: 0,
   };
   const deps = {
@@ -33,6 +34,7 @@ function makeDeps(overrides = {}) {
     removeDockerImage: async (tag) => calls.removedImages.push(tag),
     cleanupBuildWorkspace: async (dir) => calls.cleanedWorkspaces.push(dir),
     enqueueActivateRelease: async (payload, jobId) => calls.enqueued.push({ payload, jobId }),
+    notifyDeploymentResult: async (input) => calls.notifications.push(input),
     sleep: async () => {},
     ...overrides,
   };
@@ -198,6 +200,37 @@ describe('build-deployment job', () => {
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.failureCode, 'CLONE_FAILED');
     assert.equal(calls.builds.length, 0);
+  });
+
+  it('notifies for clone, validation, build, and activation-enqueue failures', async () => {
+    const cases = [
+      ['CLONE_FAILED', { cloneExactCommit: async () => Promise.reject(new Error('clone')) }],
+      [
+        'BUILD_CONTEXT_INVALID',
+        { prepareBuildContext: async () => Promise.reject(new Error('context')) },
+      ],
+      ['BUILD_FAILED', { getProjectEnvVars: async () => Promise.reject(new Error('environment')) }],
+      [
+        'DOCKERFILE_GENERATION_FAILED',
+        { writeDockerfile: async () => Promise.reject(new Error('dockerfile')) },
+      ],
+      ['BUILD_FAILED', { buildDockerImage: async () => Promise.reject(new Error('build')) }],
+      [
+        'ACTIVATION_ENQUEUE_FAILED',
+        { enqueueActivateRelease: async () => Promise.reject(new Error('queue')) },
+      ],
+    ];
+
+    for (const [failureCode, override] of cases) {
+      await clearTestDb();
+      const { project, repo, deployment } = await seed();
+      const { deps, calls } = makeDeps(override);
+      await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+      assert.equal(calls.notifications.length, 1, failureCode);
+      assert.equal(calls.notifications[0].failureCode, failureCode);
+      assert.equal(calls.notifications[0].status, DeploymentStatus.FAILED);
+      assert.equal(calls.notifications[0].notificationPreference, project.notificationPreference);
+    }
   });
 
   it('clones public sources without requesting an installation token', async () => {

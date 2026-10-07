@@ -130,9 +130,15 @@ export const NotificationChannel = Object.freeze({
 
 /** Notification delivery status */
 export const NotificationStatus = Object.freeze({
+  DRAFT: 'DRAFT',
   PENDING: 'PENDING',
+  PROCESSING: 'PROCESSING',
   SENT: 'SENT',
+  DELIVERED: 'DELIVERED',
+  DELAYED: 'DELAYED',
   FAILED: 'FAILED',
+  BOUNCED: 'BOUNCED',
+  SUPPRESSED: 'SUPPRESSED',
 });
 
 /** Audit event outcome */

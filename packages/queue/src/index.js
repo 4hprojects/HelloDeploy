@@ -86,6 +86,7 @@ export function classifyRedisError(error) {
 // ─── Queue (producer — web process only) ──────────────────────────────────────
 
 const DEPLOYMENT_QUEUE_NAME = 'deployments';
+const NOTIFICATION_QUEUE_NAME = 'notifications';
 
 /**
  * Create the deployment BullMQ Queue (used by the web process to enqueue jobs).
@@ -99,6 +100,16 @@ export function createDeploymentQueue(connection) {
     defaultJobOptions: {
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 500 },
+    },
+  });
+}
+
+export function createNotificationQueue(connection) {
+  return new Queue(NOTIFICATION_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: {
+      removeOnComplete: { count: 500 },
+      removeOnFail: { count: 1000 },
     },
   });
 }
@@ -143,4 +154,12 @@ export function createDeploymentWorker(connection, processor, concurrency = 1) {
     lockDuration: 10 * 60 * 1000, // 10 minutes — long enough for docker build
   });
   return worker;
+}
+
+export function createNotificationWorker(connection, processor, concurrency = 4) {
+  return new Worker(NOTIFICATION_QUEUE_NAME, processor, {
+    connection,
+    concurrency,
+    lockDuration: 60_000,
+  });
 }

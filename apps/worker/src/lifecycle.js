@@ -7,6 +7,7 @@ export const WORKER_SHUTDOWN_TIMEOUT_MS = 110_000;
  */
 export function createGracefulWorkerShutdown({
   worker,
+  workers = worker ? [worker] : [],
   closeRedis,
   closeDatabase,
   logger,
@@ -36,7 +37,7 @@ export function createGracefulWorkerShutdown({
       });
 
       try {
-        await Promise.race([worker.close(), deadline]);
+        await Promise.race([Promise.all(workers.map((item) => item.close())), deadline]);
         const results = await closeDependencies();
         const failure = results.find((result) => result.status === 'rejected');
         if (failure) {
@@ -46,7 +47,7 @@ export function createGracefulWorkerShutdown({
         return { ok: true };
       } catch (error) {
         logger.error('Worker: graceful shutdown failed', { errorType: error?.name ?? 'Error' });
-        await Promise.allSettled([worker.close(true), closeDependencies()]);
+        await Promise.allSettled([...workers.map((item) => item.close(true)), closeDependencies()]);
         return { ok: false, error };
       } finally {
         clearTimeout(timeout);

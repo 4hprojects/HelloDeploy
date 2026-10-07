@@ -50,9 +50,9 @@ describe('contracts — enums', () => {
 });
 
 describe('contracts — JobType', () => {
-  it('has all 14 job types', () => {
+  it('has all 15 job types', () => {
     const types = Object.values(JobType);
-    assert.equal(types.length, 14);
+    assert.equal(types.length, 15);
   });
 
   it('all job types are strings', () => {

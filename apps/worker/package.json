@@ -17,6 +17,7 @@
     "@hellodeploy/queue": "*",
     "@hellodeploy/security": "*",
     "bullmq": "^5.56.0",
-    "dotenv": "^16.4.7"
+    "dotenv": "^16.4.7",
+    "resend": "^4.5.1"
   }
 }

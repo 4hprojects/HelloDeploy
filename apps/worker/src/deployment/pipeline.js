@@ -167,8 +167,8 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   }).catch(() => {}); // audit failures must never affect the deployment pipeline
 
   if (project && deps?.notifyDeploymentResult) {
-    deps
-      .notifyDeploymentResult({
+    try {
+      await deps.notifyDeploymentResult({
         ownerId: project.ownerId.toString(),
         projectName: project.name,
         projectSlug: project.slug,
@@ -179,8 +179,13 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
         failureSummary: freshDeployment?.failureSummary,
         platformDomain: env.DEPLOYMENT_DOMAIN,
         notificationPreference: project.notificationPreference,
-      })
-      .catch(() => {}); // notification failures must never affect the deployment pipeline
+        projectId: project._id.toString(),
+        deploymentId: deploymentId.toString(),
+        correlationId: freshDeployment?.correlationId ?? 'deployment',
+      });
+    } catch {
+      // Notification failure must never change the terminal deployment result.
+    }
   }
 
   return true;

@@ -27,6 +27,7 @@
     "google-auth-library": "^11.1.0",
     "helmet": "^8.2.0",
     "rate-limit-redis": "^5.0.0",
-    "resend": "^4.5.1"
+    "resend": "^4.5.1",
+    "svix": "^1.76.1"
   }
 }

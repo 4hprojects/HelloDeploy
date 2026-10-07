@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
 import { handleGithubWebhook } from '../../controllers/webhook.controller.js';
+import { handleResendWebhook } from '../../controllers/resend-webhook.controller.js';
 
 const router = Router();
 
@@ -8,6 +9,9 @@ const router = Router();
 // Arrow wrapper keeps Express's `next` out of the handler's injectable `deps` slot.
 router.post('/github', express.raw({ type: 'application/json' }), (req, res) =>
   handleGithubWebhook(req, res),
+);
+router.post('/resend', express.raw({ type: 'application/json' }), (req, res) =>
+  handleResendWebhook(req, res),
 );
 
 export default router;

@@ -2,12 +2,14 @@ import {
   classifyRedisError,
   createRedisConnection,
   createDeploymentQueue,
+  createNotificationQueue,
 } from '@hellodeploy/queue';
 import { env } from '../config/env.js';
 import { logger } from '@hellodeploy/observability';
 
 let _redis = null;
 let _queue = null;
+let _notificationQueue = null;
 
 /**
  * Returns the shared web Redis connection, creating it lazily on first call.
@@ -61,10 +63,33 @@ export function getDeploymentQueue() {
   }
 }
 
+export function getNotificationQueue() {
+  if (_notificationQueue) {
+    return _notificationQueue;
+  }
+  const redis = getRedisConnection();
+  if (!redis) {
+    return null;
+  }
+  try {
+    _notificationQueue = createNotificationQueue(redis);
+    return _notificationQueue;
+  } catch (err) {
+    logger.warn('Could not initialize notification queue', {
+      error: classifyRedisError(err),
+    });
+    return null;
+  }
+}
+
 /**
  * Gracefully close the queue and Redis connection on shutdown.
  */
 export async function closeDeploymentQueue() {
+  if (_notificationQueue) {
+    await _notificationQueue.close();
+    _notificationQueue = null;
+  }
   if (_queue) {
     await _queue.close();
     _queue = null;

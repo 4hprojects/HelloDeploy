@@ -231,10 +231,13 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
       const owner = await deps.User.findById(project.ownerId);
       if (owner?.email) {
         await deps.sendProjectPausedEmail({
+          userId: owner._id,
+          projectId: project._id,
           to: owner.email,
           firstName: owner.firstName,
           projectName: project.name,
           projectUrl: `${baseUrl()}/projects/${project.slug}`,
+          correlationId,
         });
       }
     } catch (err) {

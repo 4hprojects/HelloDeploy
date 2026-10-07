@@ -57,12 +57,24 @@ assertPairedEnvironment(
   'GOOGLE_CLIENT_SECRET',
   process.env.GOOGLE_CLIENT_SECRET,
 );
-assertPairedEnvironment(
-  'TURNSTILE_SITE_KEY',
-  process.env.TURNSTILE_SITE_KEY,
-  'TURNSTILE_SECRET_KEY',
-  process.env.TURNSTILE_SECRET_KEY,
-);
+if (production && (process.env.RESEND_API_KEY || process.env.RESEND_WEBHOOK_SECRET)) {
+  assertAllOrNoneEnvironment(
+    [
+      ['RESEND_API_KEY', process.env.RESEND_API_KEY],
+      ['EMAIL_FROM', process.env.EMAIL_FROM],
+      ['RESEND_WEBHOOK_SECRET', process.env.RESEND_WEBHOOK_SECRET],
+    ],
+    'Resend email',
+  );
+}
+if (production) {
+  assertPairedEnvironment(
+    'TURNSTILE_SITE_KEY',
+    process.env.TURNSTILE_SITE_KEY,
+    'TURNSTILE_SECRET_KEY',
+    process.env.TURNSTILE_SECRET_KEY,
+  );
+}
 
 if (production) {
   if (platformSubdomainSuffix !== `.${deploymentDomain}`) {
@@ -109,9 +121,10 @@ export const env = {
 
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
   EMAIL_FROM: optional('EMAIL_FROM', 'noreply@hellodeploy.online'),
+  RESEND_WEBHOOK_SECRET: optional('RESEND_WEBHOOK_SECRET', ''),
 
-  TURNSTILE_SITE_KEY: optional('TURNSTILE_SITE_KEY', ''),
-  TURNSTILE_SECRET_KEY: optional('TURNSTILE_SECRET_KEY', ''),
+  TURNSTILE_SITE_KEY: production ? optional('TURNSTILE_SITE_KEY', '') : '',
+  TURNSTILE_SECRET_KEY: production ? optional('TURNSTILE_SECRET_KEY', '') : '',
 
   GOOGLE_CLIENT_ID: optional('GOOGLE_CLIENT_ID', ''),
   GOOGLE_CLIENT_SECRET: optional('GOOGLE_CLIENT_SECRET', ''),
@@ -140,6 +153,8 @@ export const env = {
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isGoogleAuthConfigured: () =>
     !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+  isEmailConfigured: () =>
+    !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.RESEND_WEBHOOK_SECRET),
   isGithubConfigured: () =>
     !!(
       process.env.GITHUB_APP_ID &&

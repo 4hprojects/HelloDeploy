@@ -132,6 +132,13 @@ const VALIDATORS = {
       requireNumber(data, 'olderThanMs', JobType.CLEANUP_RELEASES);
     }
   },
+  [JobType.SEND_NOTIFICATION](data) {
+    if (data.version !== 1) {
+      throw new JobPayloadValidationError(JobType.SEND_NOTIFICATION, '"version" must be 1.');
+    }
+    requireString(data, 'notificationId', JobType.SEND_NOTIFICATION);
+    requireString(data, 'correlationId', JobType.SEND_NOTIFICATION);
+  },
 };
 
 /**
