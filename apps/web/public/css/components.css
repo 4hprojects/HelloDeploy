@@ -2319,29 +2319,90 @@
   color: var(--color-error);
 }
 
-.deploy-stepper__detail {
+.deploy-console {
   margin-top: var(--space-5);
-  padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-md);
+  background: var(--color-surface-2, #0f172a);
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.6;
 }
 
-.deploy-stepper__detail-heading {
+.deploy-console__header {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--space-2);
-  font-size: var(--text-sm);
+  margin-bottom: var(--space-2);
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
 }
 
-.deploy-stepper__detail-heading time {
-  font-size: var(--text-xs);
+.deploy-console__header strong {
+  color: #e2e8f0;
+  letter-spacing: 0.04em;
 }
 
-.deploy-stepper__detail-message {
-  margin-top: var(--space-1);
-  color: var(--color-text-muted);
-  font-size: var(--text-sm);
-  overflow-wrap: anywhere;
+.deploy-console__status {
+  display: inline-grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+}
+
+.deploy-console__status .deploy-step__spinner {
+  display: block;
+  width: 0.75rem;
+  height: 0.75rem;
+  color: var(--color-blue);
+}
+
+.deploy-console--complete .deploy-console__status {
+  color: #4ade80;
+}
+
+.deploy-console--failed .deploy-console__status {
+  color: #f87171;
+}
+
+.deploy-console__lines {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* One line per log entry, so long docker output never changes the strip height. */
+.deploy-console__line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.deploy-console__line--warn {
+  color: #fbbf24;
+}
+
+.deploy-console__line--error {
+  color: #f87171;
+}
+
+.deploy-console--complete .deploy-console__line {
+  color: #4ade80;
+}
+
+.deploy-console--running .deploy-console__line:last-child::after {
+  content: '▌';
+  margin-left: 0.25ch;
+  color: var(--color-blue);
+  animation: deploy-console-blink 1s steps(1) infinite;
+}
+
+@keyframes deploy-console-blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 @keyframes deploy-step-spin {

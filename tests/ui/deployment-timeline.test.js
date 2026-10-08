@@ -90,7 +90,7 @@ describe('deployment timeline UI', () => {
     assert.match(deploymentDetail, /deploy-step--<%= state %>/);
     assert.match(deploymentDetail, /class="sr-only" data-stage-status/);
     assert.match(deploymentDetail, /data-stage-meta/);
-    assert.match(deploymentDetail, /aria-live="polite"[^\n]*data-stage-detail>/);
+    assert.match(deploymentDetail, /aria-live="polite" data-stage-detail-lines>/);
   });
 
   it('updates the live timeline without injecting log HTML', () => {
@@ -98,7 +98,7 @@ describe('deployment timeline UI', () => {
     assert.match(appJs, /setStageState\(stage, 'active', 'In progress'\)/);
     assert.match(appJs, /document\.createElement\('span'\)/);
     assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
-    assert.doesNotMatch(appJs, /detail\.innerHTML|meta\.innerHTML/);
+    assert.doesNotMatch(appJs, /lines\.innerHTML|line\.innerHTML|meta\.innerHTML/);
     assert.doesNotMatch(appJs, /line\.innerHTML/);
   });
 
@@ -143,9 +143,60 @@ describe('deployment timeline UI', () => {
     assert.match(stepFor(html, 'BUILDING'), /data-stage-meta>41s</);
   });
 
-  it('describes the live release in the detail line instead of repeating the deploy log', async () => {
+  it('describes the live release in the console instead of repeating the deploy log', async () => {
     const html = await renderDeployment();
-    assert.match(html, /data-stage-detail-message>Release is live and serving traffic\.</);
+    assert.match(html, /deploy-console__line--info">Release is live and serving traffic\.</);
+  });
+
+  it('stops the console cursor once the deployment is live', async () => {
+    const html = await renderDeployment();
+    assert.doesNotMatch(html, /deploy-console--running/);
+  });
+
+  it('tails only the last three log lines of the running stage', async () => {
+    const html = await renderDeployment({
+      deployment: { status: 'BUILDING', completedAt: null },
+      events: [
+        healthyEvents[0],
+        ...['#1 load', '#2 metadata', '#3 context', '#4 workdir', '#5 copy'].map((msg, i) => ({
+          stage: 'BUILD',
+          level: 'INFO',
+          messageRedacted: msg,
+          createdAt: at(`02:2${i}`),
+        })),
+      ],
+    });
+    const lines = [...html.matchAll(/class="deploy-console__line[^"]*">([^<]*)</g)].map(
+      (m) => m[1],
+    );
+    assert.deepEqual(lines, ['#3 context', '#4 workdir', '#5 copy']);
+  });
+
+  it('colours the failing log line as an error in the console', async () => {
+    const html = await renderDeployment({
+      deployment: { status: 'FAILED' },
+      events: [
+        ...healthyEvents.slice(0, 2),
+        {
+          stage: 'BUILD',
+          level: 'ERROR',
+          messageRedacted: 'npm ci failed.',
+          createdAt: at('02:50'),
+        },
+      ],
+    });
+    assert.match(html, /deploy-console__line--error">npm ci failed\.</);
+  });
+
+  it('keeps the live console to the most recent lines', () => {
+    assert.match(
+      appJs,
+      /while \(lines\.children\.length > CONSOLE_LINE_LIMIT\) \{\s*lines\.firstElementChild\.remove\(\);/,
+    );
+  });
+
+  it('writes live console lines as text, never as markup', () => {
+    assert.match(appJs, /line\.textContent = ev\.message \|\| '';\s*lines\.append\(line\);/);
   });
 
   it('marks the failing stage with the failed state', async () => {

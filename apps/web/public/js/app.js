@@ -1173,28 +1173,36 @@
       }
     }
 
-    function updateStageDetail(stage, ev, isNewStage) {
-      const detail = document.querySelector('[data-stage-detail]');
-      if (!detail) {
+    const CONSOLE_LINE_LIMIT = 3;
+
+    function updateStageConsole(ev, isNewStage) {
+      const lines = document.querySelector('[data-stage-detail-lines]');
+      if (!lines) {
         return;
       }
-      detail.hidden = false;
-      const label = detail.querySelector('[data-stage-detail-label]');
-      const message = detail.querySelector('[data-stage-detail-message]');
-      const time = detail.querySelector('[data-stage-detail-time]');
-      if (label) {
-        label.textContent = stage.querySelector('.deploy-step__label')?.textContent || '';
+      if (isNewStage) {
+        lines.replaceChildren();
+        const label = document.querySelector('[data-stage-detail-label]');
+        const time = document.querySelector('[data-stage-detail-time]');
+        if (label) {
+          label.textContent = ev.stage || '';
+        }
+        if (time && ev.timestamp) {
+          time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit',
+          });
+        }
       }
-      if (message) {
-        message.textContent = ev.message || '';
-      }
-      if (isNewStage && time && ev.timestamp) {
-        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
+      const line = document.createElement('li');
+      line.className =
+        'deploy-console__line deploy-console__line--' + (ev.level || 'info').toLowerCase();
+      line.textContent = ev.message || '';
+      lines.append(line);
+      while (lines.children.length > CONSOLE_LINE_LIMIT) {
+        lines.firstElementChild.remove();
       }
     }
 
@@ -1234,7 +1242,7 @@
         setStageState(stage, 'active', 'In progress');
         setStageMeta(stage, 'Running');
       }
-      updateStageDetail(stage, ev, isNewStage);
+      updateStageConsole(ev, isNewStage);
     }
 
     function appendLog(ev) {
@@ -1291,10 +1299,12 @@
       }
       const activeStep = document.querySelector('.deploy-step--active[data-stage-started-at]');
       if (activeStep?.dataset.stageStartedAt) {
-        setStageMeta(
-          activeStep,
-          formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now)),
-        );
+        const elapsed = formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now));
+        setStageMeta(activeStep, elapsed);
+        const consoleElapsed = document.querySelector('[data-stage-detail-elapsed]');
+        if (consoleElapsed) {
+          consoleElapsed.textContent = elapsed;
+        }
       }
     }, 1000);
 
