@@ -246,11 +246,27 @@ describe('admin user management', () => {
 
       await sendUserPasswordReset(
         { userId: target._id, ...asAdmin() },
-        { initiatePasswordReset: async ({ email }) => sent.push(email) },
+        {
+          initiatePasswordReset: async ({ email }) => {
+            sent.push(email);
+            return { delivered: true };
+          },
+        },
       );
 
       assert.deepEqual(sent, [target.email]);
     });
+  });
+
+  it('reports a password reset that could not be delivered', async () => {
+    const target = await createUser();
+
+    const result = await sendUserPasswordReset(
+      { userId: target._id, ...asAdmin() },
+      { initiatePasswordReset: async () => ({ delivered: false }) },
+    );
+
+    assert.equal(result.error, 'The password reset email could not be sent. Try again later.');
   });
 
   describe('detail view', () => {

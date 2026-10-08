@@ -68,7 +68,7 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
         </td>
         <td data-label="Role"><span class="role-pill"><%= u.platformRole %></span></td>
         <td data-label="Status">
-          <%- include('../../partials/status-badge', { status: u.status }) %>
+          <%- include('../../partials/status-badge', { status: u.status, statusKind: 'user' }) %>
           <% if (u.lockedUntil && new Date(u.lockedUntil) > now) { %>
           <span class="status-badge status-badge--warning" data-tooltip="Too many failed sign-ins. Unlock from the user page.">Locked</span>
           <% } %>

@@ -397,7 +397,13 @@ export async function sendUserPasswordReset(
     return { success: false, error: 'Password resets can only be sent to active accounts.' };
   }
 
-  await initiate({ email: user.email, sourceIp, correlationId });
+  const delivery = await initiate({ email: user.email, sourceIp, correlationId });
+  if (!delivery?.delivered) {
+    return {
+      success: false,
+      error: 'The password reset email could not be sent. Try again later.',
+    };
+  }
 
   await auditUserAction('admin.user_password_reset_sent', {
     userId,

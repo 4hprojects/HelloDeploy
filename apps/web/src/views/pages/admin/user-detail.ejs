@@ -41,7 +41,7 @@ const returnTo = `/admin/users/${target._id}`;
       <dd><span class="role-pill"><%= target.platformRole %></span></dd>
       <dt>Status</dt>
       <dd>
-        <%- include('../../partials/status-badge', { status: target.status }) %>
+        <%- include('../../partials/status-badge', { status: target.status, statusKind: 'user' }) %>
         <% if (isLocked) { %>
         <span class="status-badge status-badge--warning">Locked until <%= formatDate(target.lockedUntil) %></span>
         <% } %>
