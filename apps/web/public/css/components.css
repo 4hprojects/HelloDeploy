@@ -2196,160 +2196,188 @@
 }
 
 /* ── Deployment timeline ─────────────────────────────────────────── */
-.deployment-timeline {
+.deploy-stepper {
+  --deploy-step-icon: 2rem;
   display: grid;
-  grid-template-columns: 1fr;
-  gap: var(--space-3);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
-.deployment-stage {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: var(--space-3);
-  align-items: start;
-  padding: var(--space-3);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-bg);
-}
-
-.deployment-stage__marker {
+.deploy-step {
+  position: relative;
   display: flex;
-  justify-content: center;
-  padding-top: 0.15rem;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  min-width: 0;
+  text-align: center;
 }
 
-.deployment-stage__dot {
+/* The line into each step is drawn from the previous step's icon to this one. */
+.deploy-step + .deploy-step::before {
+  content: '';
+  position: absolute;
+  top: calc(var(--deploy-step-icon) / 2 - 1px);
+  right: calc(50% + var(--deploy-step-icon) / 2 + var(--space-2));
+  left: calc(-50% + var(--deploy-step-icon) / 2 + var(--space-2));
+  border-top: 2px dashed var(--color-border-strong);
+}
+
+.deploy-step--complete::before,
+.deploy-step--active::before,
+.deploy-step--failed::before {
+  border-top-style: solid;
+  border-top-color: var(--color-green);
+}
+
+.deploy-step__icon {
+  display: inline-grid;
+  place-items: center;
+  width: var(--deploy-step-icon);
+  height: var(--deploy-step-icon);
+  border: 2px solid var(--color-border-strong);
+  border-radius: 50%;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+  transition:
+    background var(--transition-fast),
+    border-color var(--transition-fast);
+}
+
+.deploy-step__glyph {
+  display: none;
+}
+
+.deploy-step__glyph.ui-icon {
   width: 1rem;
   height: 1rem;
-  border-radius: 50%;
-  border: 2px solid var(--color-border);
-  background: var(--color-bg);
-  transition:
-    background 0.2s,
-    border-color 0.2s;
+  stroke-width: 3;
 }
 
-.deployment-stage--complete .deployment-stage__dot {
-  background: var(--color-green);
+.deploy-step--pending .deploy-step__glyph--pending,
+.deploy-step--active .deploy-step__glyph--active,
+.deploy-step--complete .deploy-step__glyph--complete,
+.deploy-step--failed .deploy-step__glyph--failed {
+  display: block;
+}
+
+.deploy-step--complete .deploy-step__icon {
   border-color: var(--color-green);
-}
-
-.deployment-stage--active .deployment-stage__dot {
-  background: var(--color-blue);
-  border-color: var(--color-blue);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-blue) 25%, transparent);
-  animation: pulse-dot 1.4s ease-in-out infinite;
-}
-
-.deployment-stage--failed .deployment-stage__dot {
-  background: var(--color-error);
-  border-color: var(--color-error);
-}
-
-.deployment-stage__content {
-  min-width: 0;
-}
-
-.deployment-stage__heading {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-  margin-bottom: var(--space-1);
-}
-
-.deployment-stage__connector {
-  width: 2px;
-  min-height: var(--space-3);
-  background: var(--color-border);
-  margin-left: calc(1rem + 1px);
-}
-
-.deployment-stage__connector.connector--complete {
   background: var(--color-green);
+  color: var(--color-bg);
 }
 
-.deployment-stage__label {
+.deploy-step--active .deploy-step__icon {
+  border-color: var(--color-blue);
+  color: var(--color-blue);
+}
+
+.deploy-step--failed .deploy-step__icon {
+  border-color: var(--color-error);
+  background: var(--color-error);
+  color: var(--color-bg);
+}
+
+.deploy-step__spinner {
+  width: 1rem;
+  height: 1rem;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: deploy-step-spin 0.9s linear infinite;
+}
+
+.deploy-step__label {
+  max-width: 100%;
+  overflow: hidden;
   color: var(--color-text);
+  font-size: var(--text-sm);
   font-weight: var(--font-semibold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.deployment-stage__status {
-  flex-shrink: 0;
-  font-size: var(--text-xs);
-  font-weight: var(--font-medium);
+.deploy-step--pending .deploy-step__label {
   color: var(--color-text-muted);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
 }
 
-.deployment-stage__message {
+.deploy-step__meta {
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.deploy-step--active .deploy-step__meta {
+  color: var(--color-blue);
+}
+
+.deploy-step--failed .deploy-step__meta {
+  color: var(--color-error);
+}
+
+.deploy-stepper__detail {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.deploy-stepper__detail-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.deploy-stepper__detail-heading time {
+  font-size: var(--text-xs);
+}
+
+.deploy-stepper__detail-message {
+  margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--text-sm);
   overflow-wrap: anywhere;
 }
 
-.deployment-stage__time {
-  margin-top: var(--space-1);
-  font-size: var(--text-xs);
-}
-
-.deployment-stage--complete {
-  border-color: var(--color-green);
-  background: color-mix(in srgb, var(--color-green-light) 70%, var(--color-bg));
-}
-
-.deployment-stage--active {
-  border-color: var(--color-blue);
-  background: color-mix(in srgb, var(--color-blue-light) 62%, var(--color-bg));
-}
-
-.deployment-stage--failed {
-  border-color: var(--color-error-border);
-  background: var(--color-error-bg);
-}
-
-.deployment-stage--complete .deployment-stage__status {
-  color: var(--color-green);
-}
-
-.deployment-stage--active .deployment-stage__status {
-  color: var(--color-blue);
-}
-
-.deployment-stage--failed .deployment-stage__label,
-.deployment-stage--failed .deployment-stage__status {
-  color: var(--color-error);
-}
-
-@keyframes pulse-dot {
-  0%,
-  100% {
-    box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-blue) 25%, transparent);
-  }
-  50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-blue) 10%, transparent);
+@keyframes deploy-step-spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 
-@media (min-width: 64rem) {
-  .deployment-timeline {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    align-items: stretch;
-  }
-
-  .deployment-stage {
+@media (max-width: 40rem) {
+  .deploy-stepper {
     grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
 
-  .deployment-stage__marker {
-    justify-content: flex-start;
-    padding-top: 0;
+  .deploy-step {
+    display: grid;
+    grid-template-columns: var(--deploy-step-icon) minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-3);
+    text-align: left;
   }
 
-  .deployment-stage__connector {
-    display: none;
+  .deploy-step + .deploy-step::before {
+    top: calc(-1 * var(--space-4) + var(--space-1));
+    right: auto;
+    bottom: calc(100% - var(--space-1));
+    left: calc(var(--deploy-step-icon) / 2 - 1px);
+    border-top: 0;
+    border-left: 2px dashed var(--color-border-strong);
+  }
+
+  .deploy-step--complete::before,
+  .deploy-step--active::before,
+  .deploy-step--failed::before {
+    border-left-style: solid;
+    border-left-color: var(--color-green);
   }
 }
 

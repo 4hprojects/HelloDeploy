@@ -101,10 +101,12 @@
       const currentOrder = statusOrder[deployment.status] ?? 0;
       const isTerminalStatus = terminalStatuses.includes(deployment.status);
       const failedStageOrder = statusOrder[failedStageKey] ?? currentOrder;
-      const stageTime = (stage, firstEvent) => {
-        if (stage.key === 'QUEUED') return deployment.startedAt;
-        if (stage.key === 'HEALTHY' && deployment.completedAt && deployment.status === 'HEALTHY') return deployment.completedAt;
-        return firstEvent?.createdAt ?? null;
+      const stageStarts = {
+        QUEUED: deployment.startedAt,
+        VALIDATING: firstEventForStage(timelineStages[1])?.createdAt ?? null,
+        BUILDING: firstEventForStage(timelineStages[2])?.createdAt ?? null,
+        DEPLOYING: firstEventForStage(timelineStages[3])?.createdAt ?? null,
+        HEALTHY: deployment.status === 'HEALTHY' ? deployment.completedAt : null,
       };
       const stageState = (stage) => {
         const order = statusOrder[stage.key] ?? 0;
@@ -117,40 +119,64 @@
         if (order < currentOrder) return 'complete';
         return 'pending';
       };
+      const formatElapsed = (secs) => secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+      const formatStamp = (date) => new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+      // A stage ends where the next stage that actually ran begins, or when the deployment finished.
+      const stageEnd = (index) => timelineStages.slice(index + 1)
+        .map((later) => stageStarts[later.key])
+        .find(Boolean) ?? deployment.completedAt;
+      const stageMeta = (stage, index, state) => {
+        if (state === 'pending') return '—';
+        if (state === 'active') return 'Running';
+        if (state === 'failed') return statusPresentation('deployment', deployment.status).label;
+        if (stage.key === 'HEALTHY') return 'Live';
+        const start = stageStarts[stage.key];
+        const end = stageEnd(index);
+        if (!start || !end) return 'Done';
+        return formatElapsed(Math.max(0, Math.round((new Date(end) - new Date(start)) / 1000)));
+      };
+      const statusText = { pending: 'Pending', active: 'In progress', complete: 'Complete' };
+      const activeStage = timelineStages.find((stage) => stageState(stage) === 'active');
+      const failedStage = timelineStages.find((stage) => stageState(stage) === 'failed');
+      const detail = activeStage
+        ? {
+            label: activeStage.label,
+            time: stageStarts[activeStage.key],
+            message: latestEventForStage(activeStage)?.messageRedacted ?? activeStage.detail,
+          }
+        : failedStage
+          ? {
+              label: failedStage.label,
+              time: deployment.completedAt,
+              message: latestErrorEvent?.messageRedacted ?? failedStage.detail,
+            }
+          : deployment.status === 'HEALTHY'
+            ? { label: 'Healthy', time: deployment.completedAt, message: timelineStages[4].detail }
+            : null;
     %>
-    <div class="deployment-timeline">
+    <ol class="deploy-stepper" aria-label="Deployment progress">
       <% timelineStages.forEach((stage, i) => { %>
-        <%
-          const state = stageState(stage);
-          const firstEvent = firstEventForStage(stage);
-          const latestEvent = latestEventForStage(stage);
-          const startedAt = stageTime(stage, firstEvent);
-          const statusText = state === 'active' ? 'In progress' : state === 'complete' ? 'Complete' : state === 'failed' ? statusPresentation('deployment', deployment.status).label : 'Pending';
-          const message = state === 'failed' && failureCopy ? failureCopy.message : latestEvent?.messageRedacted ?? stage.detail;
-        %>
-        <div class="deployment-stage deployment-stage--<%= state %>" data-stage-key="<%= stage.key %>">
-          <div class="deployment-stage__marker" aria-hidden="true">
-            <span class="deployment-stage__dot"></span>
-          </div>
-          <div class="deployment-stage__content">
-            <div class="deployment-stage__heading">
-              <span class="deployment-stage__label"><%= stage.label %></span>
-              <span class="deployment-stage__status" data-stage-status><%= statusText %></span>
-            </div>
-            <p class="deployment-stage__message" data-stage-message><%= message %></p>
-            <p class="deployment-stage__time text-muted" data-stage-time>
-              <% if (startedAt) { %>
-                <%= new Date(startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
-              <% } else { %>
-                —
-              <% } %>
-            </p>
-          </div>
-        </div>
-        <% if (i < timelineStages.length - 1) { %>
-          <div class="deployment-stage__connector <%= stageState(timelineStages[i + 1]) !== 'pending' ? 'connector--complete' : '' %>"></div>
-        <% } %>
+        <% const state = stageState(stage); %>
+        <li class="deploy-step deploy-step--<%= state %>" data-stage-key="<%= stage.key %>"
+          data-stage-started-at="<%= stageStarts[stage.key] ? new Date(stageStarts[stage.key]).toISOString() : '' %>">
+          <span class="deploy-step__icon" aria-hidden="true">
+            <%- include('../../partials/icon', { name: 'check', className: 'deploy-step__glyph deploy-step__glyph--complete' }) %>
+            <%- include('../../partials/icon', { name: 'x', className: 'deploy-step__glyph deploy-step__glyph--failed' }) %>
+            <span class="deploy-step__glyph deploy-step__glyph--active deploy-step__spinner"></span>
+            <span class="deploy-step__glyph deploy-step__glyph--pending"><%= i + 1 %></span>
+          </span>
+          <span class="deploy-step__label"><%= stage.label %></span>
+          <span class="deploy-step__meta" data-stage-meta><%= stageMeta(stage, i, state) %></span>
+          <span class="sr-only" data-stage-status><%= statusText[state] ?? statusPresentation('deployment', deployment.status).label %></span>
+        </li>
       <% }) %>
+    </ol>
+    <div class="deploy-stepper__detail" aria-live="polite"<%= detail ? '' : ' hidden' %> data-stage-detail>
+      <p class="deploy-stepper__detail-heading">
+        <strong data-stage-detail-label><%= detail?.label ?? '' %></strong>
+        <time class="text-muted" data-stage-detail-time><%= detail?.time ? formatStamp(detail.time) : '' %></time>
+      </p>
+      <p class="deploy-stepper__detail-message" data-stage-detail-message><%= detail?.message ?? '' %></p>
     </div>
     <% if (deployment.failureCode && failureCopy) { %>
     <div class="alert alert--error mt-4">

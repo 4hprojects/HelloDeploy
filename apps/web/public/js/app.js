@@ -1141,16 +1141,60 @@
     const timelineOrder = ['QUEUED', 'VALIDATING', 'BUILDING', 'DEPLOYING'];
     let furthestStageIndex = -1;
 
+    function formatElapsed(secs) {
+      return secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    }
+
+    function secondsBetween(from, to) {
+      return Math.max(0, Math.round((new Date(to) - new Date(from)) / 1000));
+    }
+
+    function getTimelineStep(key) {
+      return document.querySelector('[data-stage-key="' + key + '"]');
+    }
+
     function setStageState(stage, state, label) {
       stage.classList.remove(
-        'deployment-stage--pending',
-        'deployment-stage--active',
-        'deployment-stage--complete',
+        'deploy-step--pending',
+        'deploy-step--active',
+        'deploy-step--complete',
       );
-      stage.classList.add('deployment-stage--' + state);
+      stage.classList.add('deploy-step--' + state);
       const status = stage.querySelector('[data-stage-status]');
       if (status) {
         status.textContent = label;
+      }
+    }
+
+    function setStageMeta(stage, text) {
+      const meta = stage.querySelector('[data-stage-meta]');
+      if (meta) {
+        meta.textContent = text;
+      }
+    }
+
+    function updateStageDetail(stage, ev, isNewStage) {
+      const detail = document.querySelector('[data-stage-detail]');
+      if (!detail) {
+        return;
+      }
+      detail.hidden = false;
+      const label = detail.querySelector('[data-stage-detail-label]');
+      const message = detail.querySelector('[data-stage-detail-message]');
+      const time = detail.querySelector('[data-stage-detail-time]');
+      if (label) {
+        label.textContent = stage.querySelector('.deploy-step__label')?.textContent || '';
+      }
+      if (message) {
+        message.textContent = ev.message || '';
+      }
+      if (isNewStage && time && ev.timestamp) {
+        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
+          day: 'numeric',
+          month: 'short',
+          hour: '2-digit',
+          minute: '2-digit',
+        });
       }
     }
 
@@ -1162,40 +1206,35 @@
         return;
       }
 
-      const stage = document.querySelector('[data-stage-key="' + statusKey + '"]');
+      const stage = getTimelineStep(statusKey);
       if (!stage) {
         return;
       }
 
-      const message = stage.querySelector('[data-stage-message]');
-      if (message) {
-        message.textContent = ev.message || '';
-      }
-      if (stageIndex === furthestStageIndex) {
-        return;
-      }
-
-      furthestStageIndex = stageIndex;
-      timelineOrder.slice(0, stageIndex).forEach((key) => {
-        const earlier = document.querySelector('[data-stage-key="' + key + '"]');
-        if (earlier) {
-          setStageState(earlier, 'complete', 'Complete');
+      const isNewStage = stageIndex !== furthestStageIndex;
+      if (isNewStage) {
+        furthestStageIndex = stageIndex;
+        if (ev.timestamp) {
+          stage.dataset.stageStartedAt = ev.timestamp;
         }
-      });
-      document.querySelectorAll('.deployment-stage__connector').forEach((connector, i) => {
-        connector.classList.toggle('connector--complete', i < stageIndex);
-      });
-      setStageState(stage, 'active', 'In progress');
-
-      const time = stage.querySelector('[data-stage-time]');
-      if (time && ev.timestamp) {
-        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
+        // Mirrors the server: a stage ends where the next stage that ran begins.
+        timelineOrder.slice(0, stageIndex).forEach((key, i) => {
+          const earlier = getTimelineStep(key);
+          if (!earlier) {
+            return;
+          }
+          const end = timelineOrder
+            .slice(i + 1, stageIndex + 1)
+            .map((laterKey) => getTimelineStep(laterKey)?.dataset.stageStartedAt)
+            .find(Boolean);
+          const start = earlier.dataset.stageStartedAt;
+          setStageState(earlier, 'complete', 'Complete');
+          setStageMeta(earlier, start && end ? formatElapsed(secondsBetween(start, end)) : 'Done');
         });
+        setStageState(stage, 'active', 'In progress');
+        setStageMeta(stage, 'Running');
       }
+      updateStageDetail(stage, ev, isNewStage);
     }
 
     function appendLog(ev) {
@@ -1243,16 +1282,21 @@
       }
     }
 
-    const duration = document.querySelector('[data-detail-duration][data-started-at]');
-    const durationTimer = duration
-      ? window.setInterval(() => {
-          const secs = Math.max(
-            0,
-            Math.round((Date.now() - new Date(duration.dataset.startedAt)) / 1000),
-          );
-          duration.textContent = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
-        }, 1000)
-      : null;
+    // One ticker drives both the summary duration and the running step's elapsed time.
+    const durationTimer = window.setInterval(() => {
+      const now = Date.now();
+      const duration = document.querySelector('[data-detail-duration][data-started-at]');
+      if (duration) {
+        duration.textContent = formatElapsed(secondsBetween(duration.dataset.startedAt, now));
+      }
+      const activeStep = document.querySelector('.deploy-step--active[data-stage-started-at]');
+      if (activeStep?.dataset.stageStartedAt) {
+        setStageMeta(
+          activeStep,
+          formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now)),
+        );
+      }
+    }, 1000);
 
     let source = null;
 
