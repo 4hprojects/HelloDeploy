@@ -1,0 +1,314 @@
+<%
+const isSuperAdmin = user.platformRole === 'SUPER_ADMIN';
+// Mirrors manageUserError in admin.service.js; the server still enforces it.
+const isSelf = target._id.toString() === user.id;
+const canManage =
+  !isSelf &&
+  target.platformRole !== 'SUPER_ADMIN' &&
+  (target.platformRole !== 'ADMIN' || isSuperAdmin);
+const canChangeRole = isSuperAdmin && !isSelf;
+const fullName = `${target.firstName} ${target.lastName}`;
+const formatDate = (d) => (d ? new Date(d).toLocaleString('en-GB') : 'Never');
+const returnTo = `/admin/users/${target._id}`;
+%>
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title"><%= fullName %></h1>
+    <p class="page-header__subtitle"><%= target.email %></p>
+  </div>
+  <a href="/admin/users" class="button button--secondary">Back to Users</a>
+</div>
+
+<% if (!canManage) { %>
+<p class="text-sm text-muted mb-4">
+  <% if (isSelf) { %>
+  This is your own account. Account actions are only available to other administrators.
+  <% } else if (target.platformRole === 'SUPER_ADMIN') { %>
+  Super Admin accounts must be demoted before they can be suspended or deleted.
+  <% } else { %>
+  Only a Super Admin can manage administrator accounts.
+  <% } %>
+</p>
+<% } %>
+
+<div class="card">
+  <div class="card__header">
+    <span class="card__title">Profile</span>
+  </div>
+  <div class="card__body">
+    <dl class="detail-list">
+      <dt>Role</dt>
+      <dd><span class="role-pill"><%= target.platformRole %></span></dd>
+      <dt>Status</dt>
+      <dd>
+        <%- include('../../partials/status-badge', { status: target.status }) %>
+        <% if (isLocked) { %>
+        <span class="status-badge status-badge--warning">Locked until <%= formatDate(target.lockedUntil) %></span>
+        <% } %>
+        <% if (target.status === 'SUSPENDED' && target.suspensionReason) { %>
+        <span class="text-muted text-xs d-block">Reason: <%= target.suspensionReason %></span>
+        <% } %>
+      </dd>
+      <dt>Sign-in methods</dt>
+      <dd><%= [hasPassword && 'Password', hasGoogle && 'Google'].filter(Boolean).join(', ') || 'None' %></dd>
+      <dt>Email verified</dt>
+      <dd><%= target.emailVerifiedAt ? formatDate(target.emailVerifiedAt) : 'Not verified' %></dd>
+      <dt>Failed sign-ins</dt>
+      <dd><%= target.failedLoginAttempts ?? 0 %></dd>
+      <dt>Last login</dt>
+      <dd><%= formatDate(target.lastLoginAt) %></dd>
+      <dt>Joined</dt>
+      <dd><%= formatDate(target.createdAt) %></dd>
+      <dt>GitHub</dt>
+      <dd><%= target.githubInstallationId ? 'Connected' : 'Not connected' %></dd>
+    </dl>
+    <div class="stacked-inline-actions mt-4">
+      <a href="/admin/quotas/USER/<%= target._id %>" class="button button--ghost button--sm">Manage Quota</a>
+      <a href="/admin/audit-events?actorId=<%= target._id %>" class="button button--ghost button--sm">All Activity</a>
+    </div>
+  </div>
+</div>
+
+<% if (canManage) { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Access</span>
+  </div>
+  <div class="card__body">
+    <div class="stacked-inline-actions">
+      <% if (target.status === 'SUSPENDED') { %>
+      <form method="POST" action="/admin/users/<%= target._id %>/reactivate" class="d-inline"
+            data-confirm="Restore account access for <%= fullName %>?"
+            data-confirm-title="Reactivate user"
+            data-confirm-accept-label="Reactivate User"
+            data-confirm-pending-label="Reactivating...">
+        <%- include('../../partials/csrf-field') %>
+        <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+        <button type="submit" class="button button--secondary button--sm">Reactivate</button>
+      </form>
+      <% } else if (['ACTIVE', 'PENDING_VERIFICATION'].includes(target.status)) { %>
+      <form method="POST" action="/admin/users/<%= target._id %>/suspend" class="form-inline"
+            data-confirm="Suspend <%= fullName %>? They are signed out at once and cannot sign in. Their running apps keep serving."
+            data-confirm-title="Suspend user"
+            data-confirm-accept-label="Suspend User"
+            data-confirm-pending-label="Suspending..."
+            data-confirm-variant="warning">
+        <%- include('../../partials/csrf-field') %>
+        <input type="hidden" name="returnTo" value="<%= returnTo %>" />
+        <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" aria-label="Suspension reason" />
+        <button type="submit" class="button button--warning button--sm">Suspend</button>
+      </form>
+      <% } %>
+
+      <form method="POST" action="/admin/users/<%= target._id %>/sign-out" class="d-inline"
+            data-confirm="End every active session for <%= fullName %>? They can sign in again straight away."
+            data-confirm-title="Force sign-out"
+            data-confirm-accept-label="Sign Out Everywhere"
+            data-confirm-pending-label="Signing out...">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--ghost button--sm">Force Sign-out</button>
+      </form>
+
+      <% if (isLocked || target.failedLoginAttempts > 0) { %>
+      <form method="POST" action="/admin/users/<%= target._id %>/unlock" class="d-inline"
+            data-confirm="Clear failed sign-in attempts and lift the lockout for <%= fullName %>?"
+            data-confirm-title="Unlock account"
+            data-confirm-accept-label="Unlock"
+            data-confirm-pending-label="Unlocking...">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--ghost button--sm">Unlock</button>
+      </form>
+      <% } %>
+    </div>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Recovery</span>
+  </div>
+  <div class="card__body">
+    <div class="stacked-inline-actions">
+      <% if (target.status === 'PENDING_VERIFICATION') { %>
+      <form method="POST" action="/admin/users/<%= target._id %>/verify-email" class="d-inline"
+            data-confirm="Mark <%= target.email %> as verified and activate the account without the user clicking the link?"
+            data-confirm-title="Mark email verified"
+            data-confirm-accept-label="Mark Verified"
+            data-confirm-pending-label="Saving...">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--ghost button--sm">Mark Email Verified</button>
+      </form>
+      <form method="POST" action="/admin/users/<%= target._id %>/resend-verification" class="d-inline"
+            data-confirm="Send a new verification link to <%= target.email %>? Earlier links stop working."
+            data-confirm-title="Resend verification"
+            data-confirm-accept-label="Send Email"
+            data-confirm-pending-label="Sending...">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--ghost button--sm">Resend Verification Email</button>
+      </form>
+      <% } %>
+
+      <% if (hasPassword && target.status === 'ACTIVE') { %>
+      <form method="POST" action="/admin/users/<%= target._id %>/password-reset" class="d-inline"
+            data-confirm="Email a password reset code to <%= target.email %>? Their current password keeps working until they reset it."
+            data-confirm-title="Send password reset"
+            data-confirm-accept-label="Send Reset Code"
+            data-confirm-pending-label="Sending...">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--ghost button--sm">Send Password Reset</button>
+      </form>
+      <% } %>
+    </div>
+    <% if (target.status !== 'PENDING_VERIFICATION' && !(hasPassword && target.status === 'ACTIVE')) { %>
+    <p class="text-sm text-muted">
+      No recovery actions apply. Password resets need an active account that signs in with a password.
+    </p>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<% if (canChangeRole) { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Platform Role</span>
+  </div>
+  <div class="card__body">
+    <form method="POST" action="/admin/users/<%= target._id %>/role" class="form-inline"
+          data-confirm="Change the platform role for <%= fullName %>? They are signed out so the new role applies at once."
+          data-confirm-title="Change role"
+          data-confirm-accept-label="Change Role"
+          data-confirm-pending-label="Saving..."
+          data-confirm-variant="warning">
+      <%- include('../../partials/csrf-field') %>
+      <select name="role" class="form-select form-select--sm" aria-label="Platform role">
+        <% ['USER', 'ADMIN', 'SUPER_ADMIN'].forEach(r => { %>
+        <option value="<%= r %>" <%= target.platformRole === r ? 'selected' : '' %>><%= r %></option>
+        <% }) %>
+      </select>
+      <button type="submit" class="button button--secondary button--sm">Update Role</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Projects</span>
+  </div>
+  <div class="card__body">
+    <% if (ownedProjects.length === 0 && memberProjects.length === 0) { %>
+    <p class="text-sm text-muted">Not a member of any project.</p>
+    <% } else { %>
+    <div class="table-wrapper table-responsive">
+      <table class="table table--responsive">
+        <thead>
+          <tr>
+            <th scope="col">Project</th>
+            <th scope="col">Role</th>
+            <th scope="col">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% ownedProjects.forEach(p => { %>
+          <tr>
+            <td data-label="Project"><a href="/admin/projects?search=<%= encodeURIComponent(p.slug) %>" class="table-link"><%= p.name %></a> <span class="text-muted text-xs"><%= p.slug %></span></td>
+            <td data-label="Role"><span class="role-pill role-pill--owner">OWNER</span></td>
+            <td data-label="Status"><%- include('../../partials/status-badge', { status: p.status }) %></td>
+          </tr>
+          <% }) %>
+          <% memberProjects.forEach(p => { %>
+          <tr>
+            <td data-label="Project"><a href="/admin/projects?search=<%= encodeURIComponent(p.slug) %>" class="table-link"><%= p.name %></a> <span class="text-muted text-xs"><%= p.slug %></span></td>
+            <td data-label="Role"><span class="role-pill"><%= p.memberRole %></span></td>
+            <td data-label="Status"><%- include('../../partials/status-badge', { status: p.status }) %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Recent Activity</span>
+  </div>
+  <div class="card__body">
+    <% if (recentActivity.length === 0) { %>
+    <p class="text-sm text-muted">No audit events in the retention window.</p>
+    <% } else { %>
+    <div class="table-wrapper table-responsive">
+      <table class="table table--responsive">
+        <thead>
+          <tr>
+            <th scope="col">When</th>
+            <th scope="col">Action</th>
+            <th scope="col">Outcome</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% recentActivity.forEach(e => { %>
+          <tr>
+            <td class="text-sm text-muted text-nowrap" data-label="When"><%= formatDate(e.createdAt) %></td>
+            <td data-label="Action">
+              <code class="code-inline"><%= e.action %></code>
+              <% if (e.actorId && e.actorId.toString() !== target._id.toString()) { %>
+              <span class="text-muted text-xs d-block">by another user</span>
+              <% } %>
+            </td>
+            <td class="text-sm" data-label="Outcome"><%= e.outcome %></td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (isSuperAdmin && canManage) { %>
+<div class="card card--danger mt-6">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Danger Zone</h2>
+    <div class="danger-action">
+      <div>
+        <strong>Delete this account permanently</strong>
+        <p class="text-sm text-muted">
+          Signs the user out, deletes the account, and removes them from every project.
+          <% if (ownedProjects.length > 0) { %>
+          The <%= ownedProjects.length %> project<%= ownedProjects.length === 1 ? '' : 's' %> they own
+          (<%= ownedProjects.map(p => p.slug).join(', ') %>) will be stopped and deleted with all
+          deployments, domains, and secrets.
+          <% } %>
+          This cannot be undone.
+        </p>
+      </div>
+    </div>
+    <form method="POST" action="/admin/users/<%= target._id %>/delete"
+          data-confirm="This permanently deletes <%= fullName %> (<%= target.email %>)<%= ownedProjects.length > 0 ? ` and ${ownedProjects.length} owned project${ownedProjects.length === 1 ? '' : 's'}` : '' %>. This cannot be undone."
+          data-confirm-title="Delete account"
+          data-confirm-accept-label="Delete Account"
+          data-confirm-pending-label="Deleting..."
+          data-confirm-variant="danger"
+          class="mt-4">
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-field form-field--floating">
+        <label for="confirmEmail" class="form-label">
+          Type <code class="code-inline"><%= target.email %></code> to confirm
+        </label>
+        <input
+          type="text"
+          id="confirmEmail"
+          name="confirmEmail"
+          class="form-input"
+          autocomplete="off"
+          placeholder=" "
+        />
+      </div>
+      <button type="submit" class="button button--danger button--sm">Delete Account</button>
+    </form>
+  </div>
+</div>
+<% } %>

@@ -5,8 +5,16 @@ import { requireSuperAdmin } from '../../middleware/require-auth.js';
 import {
   getAdminIndex,
   getAdminUsers,
+  getAdminUserDetail,
   postSuspendUser,
   postReactivateUser,
+  postForceSignOut,
+  postUnlockUser,
+  postMarkEmailVerified,
+  postResendVerification,
+  postSendPasswordReset,
+  postChangeUserRole,
+  postDeleteUser,
   getAdminProjects,
   postAdminSuspendProject,
   postAdminReactivateProject,
@@ -44,6 +52,16 @@ router.get('/', getAdminIndex);
 router.get('/users', getAdminUsers);
 router.post('/users/:userId/suspend', postSuspendUser);
 router.post('/users/:userId/reactivate', postReactivateUser);
+router.get('/users/:userId', getAdminUserDetail);
+router.post('/users/:userId/sign-out', postForceSignOut);
+router.post('/users/:userId/unlock', postUnlockUser);
+router.post('/users/:userId/verify-email', postMarkEmailVerified);
+router.post('/users/:userId/resend-verification', postResendVerification);
+router.post('/users/:userId/password-reset', postSendPasswordReset);
+// Role changes and permanent deletion reshape who can administer the platform
+// and destroy data irreversibly, so they sit with the other Super Admin levers.
+router.post('/users/:userId/role', requireSuperAdmin, postChangeUserRole);
+router.post('/users/:userId/delete', requireSuperAdmin, postDeleteUser);
 
 router.get('/projects', getAdminProjects);
 router.post('/projects/:projectId/suspend', postAdminSuspendProject);

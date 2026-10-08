@@ -461,7 +461,9 @@ export async function archiveProject({ projectId, actorId, sourceIp, correlation
  * cascade-deletes all associated database records. Unlike archiveProject,
  * this is irreversible.
  */
-export async function deleteProject({ projectId, actorId, sourceIp, correlationId }) {
+export async function deleteProject({ projectId, actorId, sourceIp, correlationId }, deps = {}) {
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+  const addJob = deps.enqueueJob ?? enqueueJob;
   const project = await Project.findById(projectId).lean();
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -478,7 +480,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     ...new Set(deployments.map((deployment) => deployment.imageTag).filter(Boolean)),
   ];
 
-  const queue = getDeploymentQueue();
+  const queue = getQueue();
   if (!queue) {
     return {
       success: false,
@@ -488,7 +490,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
   }
 
   try {
-    await enqueueJob(
+    await addJob(
       queue,
       JobType.DELETE_PROJECT,
       {

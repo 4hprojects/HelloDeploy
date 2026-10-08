@@ -1,3 +1,11 @@
+<%
+// Mirrors manageUserError in admin.service.js; the server still enforces it.
+const canManage = (u) =>
+  u._id.toString() !== user.id &&
+  u.platformRole !== 'SUPER_ADMIN' &&
+  (u.platformRole !== 'ADMIN' || user.platformRole === 'SUPER_ADMIN');
+const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeURIComponent(filters.role)}&search=${encodeURIComponent(filters.search)}`;
+%>
 <div class="page-header">
   <h1 class="page-header__title">Users</h1>
   <p class="page-header__subtitle"><%= total %> total</p>
@@ -18,8 +26,14 @@
     <option value="SUSPENDED" <%= filters.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
     <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
   </select>
+  <select name="role" class="form-select filter-select--status" aria-label="Role">
+    <option value="">All roles</option>
+    <% ['USER', 'ADMIN', 'SUPER_ADMIN'].forEach(r => { %>
+    <option value="<%= r %>" <%= filters.role === r ? 'selected' : '' %>><%= r %></option>
+    <% }) %>
+  </select>
   <button type="submit" class="button button--secondary">Filter</button>
-  <% if (filters.search || filters.status) { %>
+  <% if (filters.search || filters.status || filters.role) { %>
   <a href="/admin/users" class="button button--ghost">Clear</a>
   <% } %>
 </form>
@@ -41,6 +55,7 @@
         <th scope="col">Role</th>
         <th scope="col">Status</th>
         <th scope="col">Joined</th>
+        <th scope="col">Last login</th>
         <th scope="col"><span class="sr-only">Actions</span></th>
       </tr>
     </thead>
@@ -48,25 +63,29 @@
       <% users.forEach(u => { %>
       <tr>
         <td data-label="User">
-          <strong><%= u.firstName %> <%= u.lastName %></strong>
+          <a href="/admin/users/<%= u._id %>" class="table-link"><strong><%= u.firstName %> <%= u.lastName %></strong></a>
           <span class="text-muted text-xs d-block"><%= u.email %></span>
         </td>
         <td data-label="Role"><span class="role-pill"><%= u.platformRole %></span></td>
         <td data-label="Status">
           <%- include('../../partials/status-badge', { status: u.status }) %>
+          <% if (u.lockedUntil && new Date(u.lockedUntil) > now) { %>
+          <span class="status-badge status-badge--warning" data-tooltip="Too many failed sign-ins. Unlock from the user page.">Locked</span>
+          <% } %>
           <% if (u.status === 'SUSPENDED' && u.suspensionReason) { %>
           <span class="text-muted text-xs d-block">Reason: <%= u.suspensionReason %></span>
           <% } %>
         </td>
         <td class="text-sm text-muted" data-label="Joined"><%= new Date(u.createdAt).toLocaleDateString('en-GB') %></td>
+        <td class="text-sm text-muted" data-label="Last login"><%= u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('en-GB') : 'Never' %></td>
         <td class="text-right" data-label="Actions">
-          <a href="/admin/quotas/USER/<%= u._id %>" class="button button--ghost button--sm">Manage Quota</a>
-          <% if (u.status === 'SUSPENDED') { %>
+          <a href="/admin/users/<%= u._id %>" class="button button--ghost button--sm">Manage</a>
+          <% if (canManage(u) && u.status === 'SUSPENDED') { %>
           <form method="POST" action="/admin/users/<%= u._id %>/reactivate" class="d-inline">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
-          <% } else if (u.status === 'ACTIVE' && u.platformRole !== 'SUPER_ADMIN') { %>
+          <% } else if (canManage(u) && ['ACTIVE', 'PENDING_VERIFICATION'].includes(u.status)) { %>
           <form method="POST" action="/admin/users/<%= u._id %>/suspend" class="d-inline"
                 data-confirm="Suspend <%= u.firstName %> <%= u.lastName %> and block account access?"
                 data-confirm-title="Suspend user"
@@ -88,11 +107,11 @@
 <% if (totalPages > 1) { %>
 <div class="pagination mt-4">
   <% if (page > 1) { %>
-  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Previous</a>
+  <a href="?page=<%= page - 1 %>&<%= filterQuery %>" class="button button--ghost button--sm">Previous</a>
   <% } %>
   <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
   <% if (page < totalPages) { %>
-  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Next</a>
+  <a href="?page=<%= page + 1 %>&<%= filterQuery %>" class="button button--ghost button--sm">Next</a>
   <% } %>
 </div>
 <% } %>
