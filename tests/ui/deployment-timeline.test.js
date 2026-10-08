@@ -38,7 +38,7 @@ describe('deployment timeline UI', () => {
 
   it('updates the live timeline without injecting log HTML', () => {
     assert.match(appJs, /function updateTimeline\(ev\)/);
-    assert.match(appJs, /stage\.classList\.add\('deployment-stage--active'\)/);
+    assert.match(appJs, /setStageState\(stage, 'active', 'In progress'\)/);
     assert.match(appJs, /document\.createElement\('span'\)/);
     assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
     assert.doesNotMatch(appJs, /line\.innerHTML/);
@@ -57,5 +57,27 @@ describe('deployment timeline UI', () => {
       (match) => match[1],
     );
     assert.deepEqual(regions, ['header', 'result', 'summary', 'timeline', 'log-status']);
+  });
+
+  it('marks every earlier stage complete when the live timeline advances', () => {
+    assert.match(
+      appJs,
+      /timelineOrder\.slice\(0, stageIndex\)\.forEach[\s\S]*?setStageState\(earlier, 'complete', 'Complete'\)/,
+    );
+  });
+
+  it('never moves the live timeline back to an earlier stage', () => {
+    assert.match(appJs, /if \(stageIndex < 0 \|\| stageIndex < furthestStageIndex\)/);
+  });
+
+  it('fills the connectors leading up to the active stage', () => {
+    assert.match(appJs, /connector\.classList\.toggle\('connector--complete', i < stageIndex\)/);
+  });
+
+  it('exposes the start time so an in-progress duration can count up', () => {
+    assert.match(
+      deploymentDetail,
+      /data-detail-duration data-started-at="<%= new Date\(deployment\.startedAt\)\.toISOString\(\) %>"/,
+    );
   });
 });

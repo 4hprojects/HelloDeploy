@@ -83,7 +83,7 @@ describe('live deployment progress SSE', () => {
   });
 
   it('refreshes server-rendered deployment regions when the stream reports a terminal status', () => {
-    assert.match(appJs, /source\.close\(\);\s*refreshDeploymentRegions\(\);/);
+    assert.match(appJs, /source\.close\(\);[^}]*refreshDeploymentRegions\(\);/);
   });
 
   it('swaps each marked region from a fresh render of the page', () => {
@@ -91,6 +91,10 @@ describe('live deployment progress SSE', () => {
       appJs,
       /fresh\.querySelector\(\s*'\[data-deployment-refresh="' \+ region\.dataset\.deploymentRefresh \+ '"\]'/,
     );
+  });
+
+  it('stops the live duration counter before showing the final render', () => {
+    assert.match(appJs, /window\.clearInterval\(durationTimer\);\s*refreshDeploymentRegions\(\);/);
   });
 
   it('falls back to a full reload when the region refresh fails', () => {

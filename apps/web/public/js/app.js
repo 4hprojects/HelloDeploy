@@ -1138,9 +1138,27 @@
     const reconnectButton = document.getElementById('log-reconnect-button');
     const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
 
+    const timelineOrder = ['QUEUED', 'VALIDATING', 'BUILDING', 'DEPLOYING'];
+    let furthestStageIndex = -1;
+
+    function setStageState(stage, state, label) {
+      stage.classList.remove(
+        'deployment-stage--pending',
+        'deployment-stage--active',
+        'deployment-stage--complete',
+      );
+      stage.classList.add('deployment-stage--' + state);
+      const status = stage.querySelector('[data-stage-status]');
+      if (status) {
+        status.textContent = label;
+      }
+    }
+
     function updateTimeline(ev) {
       const statusKey = eventStageToStatus[ev.stage];
-      if (!statusKey) {
+      const stageIndex = timelineOrder.indexOf(statusKey);
+      // A late log line from an earlier stage must not move the timeline backwards.
+      if (stageIndex < 0 || stageIndex < furthestStageIndex) {
         return;
       }
 
@@ -1149,18 +1167,27 @@
         return;
       }
 
-      stage.classList.remove('deployment-stage--pending', 'deployment-stage--complete');
-      stage.classList.add('deployment-stage--active');
-
-      const status = stage.querySelector('[data-stage-status]');
       const message = stage.querySelector('[data-stage-message]');
-      const time = stage.querySelector('[data-stage-time]');
-      if (status) {
-        status.textContent = 'In progress';
-      }
       if (message) {
         message.textContent = ev.message || '';
       }
+      if (stageIndex === furthestStageIndex) {
+        return;
+      }
+
+      furthestStageIndex = stageIndex;
+      timelineOrder.slice(0, stageIndex).forEach((key) => {
+        const earlier = document.querySelector('[data-stage-key="' + key + '"]');
+        if (earlier) {
+          setStageState(earlier, 'complete', 'Complete');
+        }
+      });
+      document.querySelectorAll('.deployment-stage__connector').forEach((connector, i) => {
+        connector.classList.toggle('connector--complete', i < stageIndex);
+      });
+      setStageState(stage, 'active', 'In progress');
+
+      const time = stage.querySelector('[data-stage-time]');
       if (time && ev.timestamp) {
         time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
           day: 'numeric',
@@ -1216,6 +1243,17 @@
       }
     }
 
+    const duration = document.querySelector('[data-detail-duration][data-started-at]');
+    const durationTimer = duration
+      ? window.setInterval(() => {
+          const secs = Math.max(
+            0,
+            Math.round((Date.now() - new Date(duration.dataset.startedAt)) / 1000),
+          );
+          duration.textContent = secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+        }, 1000)
+      : null;
+
     let source = null;
 
     function setReconnectVisible(visible) {
@@ -1253,6 +1291,7 @@
           }
           setReconnectVisible(false);
           source.close();
+          window.clearInterval(durationTimer);
           refreshDeploymentRegions();
         } catch {
           // Ignore malformed SSE status payloads; the stream error handler will close if needed.

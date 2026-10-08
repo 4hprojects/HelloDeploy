@@ -68,7 +68,7 @@
         <% const secs = Math.round(ms / 1000); %>
       <p class="text-sm font-medium" data-detail-duration><%= secs < 60 ? `${secs}s` : `${Math.floor(secs/60)}m ${secs%60}s` %></p>
       <% } else if (deployment.startedAt) { %>
-        <p class="text-sm font-medium text-muted" data-detail-duration>In progress…</p>
+        <p class="text-sm font-medium text-muted" data-detail-duration data-started-at="<%= new Date(deployment.startedAt).toISOString() %>">In progress…</p>
       <% } else { %>
         <p class="text-sm text-muted">—</p>
       <% } %>
