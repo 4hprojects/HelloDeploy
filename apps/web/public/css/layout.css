@@ -136,7 +136,7 @@
 .sidebar__link[aria-current='page'] {
   background: var(--color-bg-muted);
   color: var(--color-text);
-  box-shadow: inset 3px 0 0 var(--color-orange);
+  box-shadow: inset 3px 0 0 var(--color-blue);
 }
 .sidebar__icon {
   width: 1rem;
@@ -580,7 +580,7 @@
   margin: var(--space-6) 0 0;
   padding: 0;
   gap: var(--space-3);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   list-style: none;
 }
 
@@ -606,12 +606,12 @@
   font-weight: var(--font-semibold);
 }
 
-.domain-step strong,
-.domain-step span {
+.domain-step > div > strong,
+.domain-step > div > span {
   display: block;
 }
 
-.domain-step span {
+.domain-step > div > span {
   margin-top: var(--space-1);
   color: var(--color-text-muted);
   font-size: var(--text-sm);

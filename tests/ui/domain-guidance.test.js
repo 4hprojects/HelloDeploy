@@ -39,6 +39,7 @@ function renderDomains(overrides = {}) {
     verificationToken: overrides.verificationToken ?? null,
     pendingHostname: overrides.pendingHostname ?? null,
     csrfToken: 'test-token',
+    statusPresentation: overrides.statusPresentation,
   });
 }
 
@@ -111,7 +112,7 @@ describe('guided custom domains', () => {
 
     assert.match(approvalHtml, /Legacy verification is waiting for administrator activation/);
     assert.match(approvalHtml, /No action needed/);
-    assert.match(activeHtml, /Connected/);
+    assert.match(activeHtml, /Routing setup/);
     assert.match(activeHtml, /An administrator is preparing the connection/);
     assert.doesNotMatch(activeHtml, /method="POST"/);
   });
@@ -222,5 +223,36 @@ describe('routing record guidance', () => {
       ],
     });
     assert.match(html, /no tunnel connector for this hostname/);
+  });
+
+  it('offers a routing check for an active domain with no recorded tunnel', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, status: 'ACTIVE' }] });
+    assert.match(html, /\/domains\/[0-9a-f]+\/routing-check"/);
+  });
+
+  it('drops the routing next step once the domain is live', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, status: 'ACTIVE', routingState: 'LIVE' }],
+    });
+    assert.doesNotMatch(html, /Send your visitors to HelloDeploy/);
+  });
+
+  it('marks the guide live once a domain is confirmed live', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, status: 'ACTIVE', routingState: 'LIVE' }],
+    });
+    assert.match(html, /status-badge--healthy">Live</);
+  });
+
+  it('labels domain progress with domain statuses rather than project ones', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, status: 'ACTIVE' }],
+      statusPresentation: (kind) => ({ label: `kind:${kind}`, hint: '', tone: 'healthy' }),
+    });
+    assert.match(html, /kind:domain/);
+  });
+
+  it('lays all five setup steps out on one row', () => {
+    assert.match(layoutCss, /\.domain-steps \{[^}]*repeat\(5, minmax\(0, 1fr\)\)/);
   });
 });

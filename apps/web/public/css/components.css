@@ -805,8 +805,13 @@
   color: var(--color-text-muted);
 }
 
-.project-home-summary__action {
-  margin-top: var(--space-6);
+.project-home-summary__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4) var(--space-8);
+  margin-top: var(--space-5);
 }
 
 .project-home-url {
@@ -814,7 +819,6 @@
   flex-direction: column;
   gap: var(--space-1);
   max-width: 42rem;
-  margin-top: var(--space-5);
   padding: var(--space-3) 0;
   color: var(--color-text);
   text-decoration: none;
@@ -1092,6 +1096,11 @@
   .project-activity__meta {
     align-items: flex-start;
     flex-direction: column;
+  }
+
+  .project-home-summary__row {
+    flex-direction: column;
+    align-items: stretch;
   }
 
   .project-home-summary__action .button,
