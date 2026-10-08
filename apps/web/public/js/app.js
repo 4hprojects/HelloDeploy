@@ -1153,6 +1153,11 @@
       return document.querySelector('[data-stage-key="' + key + '"]');
     }
 
+    function getConsoleRow(stage) {
+      return document.querySelector('[data-console-key="' + stage.dataset.stageKey + '"]');
+    }
+
+    // The console mirrors the stepper, so every state and time change updates both views.
     function setStageState(stage, state, label) {
       stage.classList.remove(
         'deploy-step--pending',
@@ -1164,6 +1169,15 @@
       if (status) {
         status.textContent = label;
       }
+      const row = getConsoleRow(stage);
+      if (row) {
+        row.classList.remove(
+          'deploy-console__row--pending',
+          'deploy-console__row--active',
+          'deploy-console__row--complete',
+        );
+        row.classList.add('deploy-console__row--' + state);
+      }
     }
 
     function setStageMeta(stage, text) {
@@ -1171,39 +1185,19 @@
       if (meta) {
         meta.textContent = text;
       }
+      const time = getConsoleRow(stage)?.querySelector('[data-console-time]');
+      if (time) {
+        time.textContent = text;
+      }
     }
 
-    const CONSOLE_LINE_LIMIT = 3;
-
-    function updateStageConsole(ev, isNewStage) {
-      const lines = document.querySelector('[data-stage-detail-lines]');
-      if (!lines) {
+    function updateConsoleMessage(stage, ev) {
+      const message = getConsoleRow(stage)?.querySelector('[data-console-message]');
+      if (!message) {
         return;
       }
-      if (isNewStage) {
-        lines.replaceChildren();
-        const label = document.querySelector('[data-stage-detail-label]');
-        const time = document.querySelector('[data-stage-detail-time]');
-        if (label) {
-          label.textContent = ev.stage || '';
-        }
-        if (time && ev.timestamp) {
-          time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-            day: 'numeric',
-            month: 'short',
-            hour: '2-digit',
-            minute: '2-digit',
-          });
-        }
-      }
-      const line = document.createElement('li');
-      line.className =
-        'deploy-console__line deploy-console__line--' + (ev.level || 'info').toLowerCase();
-      line.textContent = ev.message || '';
-      lines.append(line);
-      while (lines.children.length > CONSOLE_LINE_LIMIT) {
-        lines.firstElementChild.remove();
-      }
+      message.textContent = ev.message || '';
+      message.classList.toggle('deploy-console__message--error', ev.level === 'ERROR');
     }
 
     function updateTimeline(ev) {
@@ -1237,12 +1231,15 @@
             .find(Boolean);
           const start = earlier.dataset.stageStartedAt;
           setStageState(earlier, 'complete', 'Complete');
+          if (key === 'QUEUED') {
+            updateConsoleMessage(earlier, { message: 'Picked up by a deployment worker.' });
+          }
           setStageMeta(earlier, start && end ? formatElapsed(secondsBetween(start, end)) : 'Done');
         });
         setStageState(stage, 'active', 'In progress');
         setStageMeta(stage, 'Running');
       }
-      updateStageConsole(ev, isNewStage);
+      updateConsoleMessage(stage, ev);
     }
 
     function appendLog(ev) {
@@ -1299,12 +1296,10 @@
       }
       const activeStep = document.querySelector('.deploy-step--active[data-stage-started-at]');
       if (activeStep?.dataset.stageStartedAt) {
-        const elapsed = formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now));
-        setStageMeta(activeStep, elapsed);
-        const consoleElapsed = document.querySelector('[data-stage-detail-elapsed]');
-        if (consoleElapsed) {
-          consoleElapsed.textContent = elapsed;
-        }
+        setStageMeta(
+          activeStep,
+          formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now)),
+        );
       }
     }, 1000);
 

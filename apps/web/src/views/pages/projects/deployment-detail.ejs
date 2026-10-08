@@ -120,7 +120,6 @@
         return 'pending';
       };
       const formatElapsed = (secs) => secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
-      const formatStamp = (date) => new Date(date).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
       // A stage ends where the next stage that actually ran begins, or when the deployment finished.
       const stageEnd = (index) => timelineStages.slice(index + 1)
         .map((later) => stageStarts[later.key])
@@ -136,37 +135,28 @@
         return formatElapsed(Math.max(0, Math.round((new Date(end) - new Date(start)) / 1000)));
       };
       const statusText = { pending: 'Pending', active: 'In progress', complete: 'Complete' };
-      const activeStage = timelineStages.find((stage) => stageState(stage) === 'active');
-      const failedStage = timelineStages.find((stage) => stageState(stage) === 'failed');
       const eventTag = { VALIDATING: 'VALIDATE', BUILDING: 'BUILD', DEPLOYING: 'DEPLOY' };
-      const toConsoleLines = (stage) => {
-        const stageEvents = eventsForStage(stage).slice(-3);
-        return stageEvents.length
-          ? stageEvents.map((ev) => ({ level: ev.level.toLowerCase(), text: ev.messageRedacted }))
-          : [{ level: 'info', text: stage.detail }];
+      const QUEUED_DONE_MESSAGE = 'Picked up by a deployment worker.';
+      const consoleMessage = (stage, state) => {
+        if (state === 'pending') return { level: 'info', text: 'waiting' };
+        if (stage.key === 'QUEUED' && state === 'complete') return { level: 'info', text: QUEUED_DONE_MESSAGE };
+        if (stage.key === 'HEALTHY' || stage.key === 'QUEUED') return { level: 'info', text: stage.detail };
+        if (state === 'failed' && latestErrorEvent) return { level: 'error', text: latestErrorEvent.messageRedacted };
+        const latest = latestEventForStage(stage);
+        return latest
+          ? { level: latest.level === 'ERROR' ? 'error' : 'info', text: latest.messageRedacted }
+          : { level: 'info', text: stage.detail };
       };
-      const consoleView = activeStage
-        ? {
-            state: 'running',
-            label: eventTag[activeStage.key] ?? activeStage.label.toUpperCase(),
-            time: stageStarts[activeStage.key],
-            lines: toConsoleLines(activeStage),
-          }
-        : failedStage
-          ? {
-              state: 'failed',
-              label: eventTag[failedStage.key] ?? failedStage.label.toUpperCase(),
-              time: deployment.completedAt,
-              lines: toConsoleLines(failedStage),
-            }
-          : deployment.status === 'HEALTHY'
-            ? {
-                state: 'complete',
-                label: 'HEALTHY',
-                time: deployment.completedAt,
-                lines: [{ level: 'info', text: timelineStages[4].detail }],
-              }
-            : null;
+      const consoleRows = timelineStages.map((stage, i) => {
+        const state = stageState(stage);
+        return {
+          key: stage.key,
+          tag: eventTag[stage.key] ?? stage.label.toUpperCase(),
+          state,
+          message: consoleMessage(stage, state),
+          time: stageMeta(stage, i, state),
+        };
+      });
     %>
     <ol class="deploy-stepper" aria-label="Deployment progress">
       <% timelineStages.forEach((stage, i) => { %>
@@ -185,31 +175,16 @@
         </li>
       <% }) %>
     </ol>
-    <% if (consoleView) { %>
-    <div class="deploy-console deploy-console--<%= consoleView.state %>" data-stage-detail>
-      <p class="deploy-console__header">
-        <span class="deploy-console__status" aria-hidden="true">
-          <% if (consoleView.state === 'running') { %>
-          <span class="deploy-step__spinner"></span>
-          <% } else { %>
-          <%- include('../../partials/icon', { name: consoleView.state === 'complete' ? 'check' : 'x' }) %>
-          <% } %>
-        </span>
-        <strong data-stage-detail-label><%= consoleView.label %></strong>
-        <% if (consoleView.time) { %>
-        <span>· <time data-stage-detail-time><%= formatStamp(consoleView.time) %></time></span>
-        <% } %>
-        <% if (consoleView.state === 'running') { %>
-        <span>· <span data-stage-detail-elapsed><%= consoleView.time ? formatElapsed(Math.max(0, Math.round((Date.now() - new Date(consoleView.time)) / 1000))) : '' %></span></span>
-        <% } %>
-      </p>
-      <ol class="deploy-console__lines" aria-live="polite" data-stage-detail-lines>
-        <% consoleView.lines.forEach((line) => { %>
-        <li class="deploy-console__line deploy-console__line--<%= line.level %>"><%= line.text %></li>
-        <% }) %>
-      </ol>
-    </div>
-    <% } %>
+    <ol class="deploy-console" aria-label="Deployment activity" data-stage-console>
+      <% consoleRows.forEach((row) => { %>
+      <li class="deploy-console__row deploy-console__row--<%= row.state %>" data-console-key="<%= row.key %>">
+        <span class="deploy-console__mark" aria-hidden="true"><span class="deploy-step__spinner"></span></span>
+        <span class="deploy-console__tag"><%= row.tag %></span>
+        <span class="deploy-console__message deploy-console__message--<%= row.message.level %>" data-console-message><%= row.message.text %></span>
+        <span class="deploy-console__time" data-console-time><%= row.time %></span>
+      </li>
+      <% }) %>
+    </ol>
     <% if (deployment.failureCode && failureCopy) { %>
     <div class="alert alert--error mt-4">
       <strong><%= failureCopy.message %></strong>
