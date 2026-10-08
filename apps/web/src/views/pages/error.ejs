@@ -11,7 +11,7 @@
   <div class="confirm-modal__backdrop" aria-hidden="true"></div>
   <div class="confirm-modal__dialog" role="document" tabindex="-1">
     <div class="confirm-modal__body">
-      <p class="confirm-modal__eyebrow">Request limit reached</p>
+      <% if (locals.eyebrow) { %><p class="confirm-modal__eyebrow"><%= eyebrow %></p><% } %>
       <h1 class="confirm-modal__title" id="page-error-modal-title"><%= typeof title !== 'undefined' ? title : 'Error' %></h1>
       <p class="confirm-modal__message" id="page-error-modal-message"><%= typeof message !== 'undefined' ? message : 'An error occurred.' %></p>
       <% if (locals.correlationId) { %><p class="form-hint mt-4">If you contact support, include reference <code class="code-inline"><%= correlationId %></code>.</p><% } %>

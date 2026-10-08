@@ -222,6 +222,8 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
       title: 'Something Went Wrong',
       layout: 'layouts/main',
       message: 'An unexpected error occurred. Please try again.',
+      modal: true,
+      eyebrow: 'Unexpected error',
     });
   });
 

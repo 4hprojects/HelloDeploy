@@ -70,6 +70,7 @@ const onLimitReached = (req, res, _options) => {
       layout: 'layouts/main',
       message: 'Too many requests. Please wait a moment and try again.',
       modal: true,
+      eyebrow: 'Request limit reached',
       retryHref,
     });
   } else {
