@@ -134,8 +134,9 @@
 }
 
 .sidebar__link[aria-current='page'] {
-  background: var(--color-orange-light);
-  color: var(--color-orange);
+  background: var(--color-bg-muted);
+  color: var(--color-text);
+  box-shadow: inset 3px 0 0 var(--color-orange);
 }
 .sidebar__icon {
   width: 1rem;

@@ -1189,6 +1189,33 @@
       updateTimeline(ev);
     }
 
+    // The server already renders every terminal state (badge, alert, timeline, actions),
+    // so swap those regions in from a fresh render instead of re-deriving them here.
+    // The log output is left untouched so scroll position and search survive.
+    async function refreshDeploymentRegions() {
+      try {
+        const response = await fetch(window.location.href, {
+          headers: { Accept: 'text/html' },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          throw new Error('Deployment refresh failed with ' + response.status);
+        }
+        const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+        document.querySelectorAll('[data-deployment-refresh]').forEach((region) => {
+          const replacement = fresh.querySelector(
+            '[data-deployment-refresh="' + region.dataset.deploymentRefresh + '"]',
+          );
+          if (replacement) {
+            region.replaceWith(document.importNode(replacement, true));
+          }
+        });
+        applySearch();
+      } catch {
+        window.location.reload();
+      }
+    }
+
     let source = null;
 
     function setReconnectVisible(visible) {
@@ -1226,21 +1253,7 @@
           }
           setReconnectVisible(false);
           source.close();
-          const detailStatus = document.querySelector('[data-detail-status]');
-          const result = document.querySelector('[data-deployment-result]');
-          if (detailStatus) {
-            detailStatus.textContent =
-              data.status === 'HEALTHY' ? 'Live' : data.status.replaceAll('_', ' ').toLowerCase();
-          }
-          if (result) {
-            result.dataset.terminal = 'true';
-            result.querySelector('strong').textContent =
-              data.status === 'HEALTHY'
-                ? 'Deployment completed successfully.'
-                : data.status === 'FAILED'
-                  ? 'Deployment did not go live.'
-                  : 'Deployment finished.';
-          }
+          refreshDeploymentRegions();
         } catch {
           // Ignore malformed SSE status payloads; the stream error handler will close if needed.
         }

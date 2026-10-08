@@ -81,4 +81,22 @@ describe('live deployment progress SSE', () => {
     assert.match(appJs, /message\.textContent = ev\.message \|\| ''/);
     assert.doesNotMatch(deploymentDetail, /innerHTML/);
   });
+
+  it('refreshes server-rendered deployment regions when the stream reports a terminal status', () => {
+    assert.match(appJs, /source\.close\(\);\s*refreshDeploymentRegions\(\);/);
+  });
+
+  it('swaps each marked region from a fresh render of the page', () => {
+    assert.match(
+      appJs,
+      /fresh\.querySelector\(\s*'\[data-deployment-refresh="' \+ region\.dataset\.deploymentRefresh \+ '"\]'/,
+    );
+  });
+
+  it('falls back to a full reload when the region refresh fails', () => {
+    assert.match(
+      appJs,
+      /async function refreshDeploymentRegions\(\)[\s\S]*?catch \{\s*window\.location\.reload\(\);/,
+    );
+  });
 });

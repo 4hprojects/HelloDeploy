@@ -1,4 +1,4 @@
-<div class="page-header page-header--actions">
+<div class="page-header page-header--actions" data-deployment-refresh="header">
   <div>
     <h1 class="page-header__title">
       Deployment #<%= deployment.sequenceNumber %>
@@ -35,13 +35,13 @@
   </div>
 </div>
 
-<div class="alert alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
+<div data-deployment-refresh="result" class="alert alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
   <strong><%= deployment.status === 'HEALTHY' ? 'Deployment completed successfully.' : deployment.status === 'FAILED' ? 'Deployment did not go live.' : deployment.status === 'CANCELLED' ? 'Deployment was cancelled.' : 'Deployment is in progress.' %></strong>
   <p class="text-sm mt-1"><%= isCurrentRelease ? 'This is the release currently serving the platform URL.' : project.activeDeploymentId ? 'Another healthy deployment is currently serving traffic.' : 'No healthy release is currently live.' %></p>
 </div>
 
 <!-- Deployment info cards -->
-<div class="card-grid card-grid--3 mb-6">
+<div class="card-grid card-grid--3 mb-6" data-deployment-refresh="summary">
   <div class="card">
     <div class="card__body">
       <p class="text-muted text-xs mb-1">Commit</p>
@@ -77,7 +77,7 @@
 </div>
 
 <!-- Stage timeline -->
-<div class="card mb-6">
+<div class="card mb-6" data-deployment-refresh="timeline">
   <div class="card__header">
     <h2 class="card__title text-sm">Deployment Timeline</h2>
   </div>
@@ -188,10 +188,12 @@
       <button type="button" class="button button--ghost button--sm" data-log-copy>Copy visible</button>
       <a class="button button--ghost button--sm" href="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs/download">Download</a>
     </div>
-    <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
-    <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
-    <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>
-    <% } %>
+    <span data-deployment-refresh="log-status">
+      <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
+      <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
+      <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>
+      <% } %>
+    </span>
   </div>
   <div class="card__body p-0">
     <div

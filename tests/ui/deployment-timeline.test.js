@@ -51,4 +51,11 @@ describe('deployment timeline UI', () => {
     assert.match(componentsCss, /\.deployment-stage__message/);
     assert.match(componentsCss, /grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/);
   });
+
+  it('marks the status-dependent regions for refresh while leaving the log output alone', () => {
+    const regions = [...deploymentDetail.matchAll(/data-deployment-refresh="([a-z-]+)"/g)].map(
+      (match) => match[1],
+    );
+    assert.deepEqual(regions, ['header', 'result', 'summary', 'timeline', 'log-status']);
+  });
 });
