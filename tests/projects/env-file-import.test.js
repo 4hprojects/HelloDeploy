@@ -11,7 +11,6 @@ import {
   getDecryptedSecrets,
   importEnvFile,
   parseEnvFile,
-  revealSecretValue,
 } from '../../apps/web/src/services/env-secret.service.js';
 
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -152,24 +151,6 @@ describe('.env file import', () => {
     );
     assert.equal(duplicateResult.success, false);
     assert.match(duplicateResult.error, /more than once/i);
-  });
-
-  it('reveals a stored secret value and rejects unknown names', async () => {
-    const projectId = objectId();
-    const actorId = objectId();
-
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
-
-    const revealed = await revealSecretValue(projectId, 'api_key', actorId);
-    assert.deepEqual(revealed, {
-      success: true,
-      name: 'API_KEY',
-      value: 'first',
-    });
-
-    const missing = await revealSecretValue(projectId, 'MISSING_KEY', actorId);
-    assert.equal(missing.success, false);
-    assert.match(missing.error, /not found/i);
   });
 });
 

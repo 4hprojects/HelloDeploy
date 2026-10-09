@@ -56,7 +56,12 @@
       <p class="text-muted text-xs mb-1">Trigger</p>
       <p class="text-sm font-medium"><%= deployment.triggerType %></p>
       <% if (deployment.sourceDeploymentId) { %>
-      <p class="text-muted text-xs">Rollback from current release to target <%= rollbackSource ? `#${rollbackSource.sequenceNumber} (${rollbackSource.commitSha.slice(0, 7)})` : deployment.sourceDeploymentId %></p>
+      <p class="text-muted text-xs">
+        Replaced
+        <%= replacedDeployment ? `#${replacedDeployment.sequenceNumber} (${replacedDeployment.commitSha.slice(0, 7)})` : 'an earlier live release (details unavailable)' %>
+        with target
+        <%= rollbackSource ? `#${rollbackSource.sequenceNumber} (${rollbackSource.commitSha.slice(0, 7)})` : 'release details unavailable' %>.
+      </p>
       <% } %>
     </div>
   </div>

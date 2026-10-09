@@ -119,6 +119,18 @@ const repository = await Repository.create({
   lastAccessCheckedAt: new Date('2026-01-02T00:00:00Z'),
 });
 project.repositoryId = repository._id;
+const replacedRelease = await Deployment.create({
+  projectId: project._id,
+  sequenceNumber: 3,
+  triggerType: DeploymentTrigger.MANUAL,
+  requestedBy: user._id,
+  commitSha: '3333333333333333333333333333333333333333',
+  commitMessage: 'Release replaced by rollback',
+  branch: 'main',
+  configurationVersion: 1,
+  status: DeploymentStatus.HEALTHY,
+  completedAt: new Date('2026-01-01T21:01:00Z'),
+});
 const rollbackTarget = await Deployment.create({
   projectId: project._id,
   sequenceNumber: 4,
@@ -142,6 +154,7 @@ await Deployment.create({
   configurationVersion: 1,
   status: DeploymentStatus.HEALTHY,
   sourceDeploymentId: rollbackTarget._id,
+  replacedDeploymentId: replacedRelease._id,
   startedAt: new Date('2026-01-01T23:00:00Z'),
   completedAt: new Date('2026-01-01T23:00:30Z'),
 });
@@ -176,6 +189,20 @@ const deployment = await Deployment.create({
 });
 project.activeDeploymentId = deployment._id;
 await project.save();
+
+await Deployment.create({
+  projectId: project._id,
+  sequenceNumber: 8,
+  triggerType: DeploymentTrigger.MANUAL,
+  requestedBy: user._id,
+  commitSha: '8888888888888888888888888888888888888888',
+  commitMessage: 'Build the next release',
+  branch: 'main',
+  configurationVersion: 1,
+  status: DeploymentStatus.BUILDING,
+  currentStage: 'BUILDING',
+  startedAt: new Date('2026-01-02T00:05:00Z'),
+});
 
 const { createApp } = await import('../apps/web/src/app.js');
 const app = createApp({

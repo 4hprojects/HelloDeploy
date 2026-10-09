@@ -18,13 +18,24 @@ const environmentController = await readFile(
   new URL('../../apps/web/src/controllers/env-secret.controller.js', import.meta.url),
   'utf8',
 );
+const environmentService = await readFile(
+  new URL('../../apps/web/src/services/env-secret.service.js', import.meta.url),
+  'utf8',
+);
+const projectRoutes = await readFile(
+  new URL('../../apps/web/src/routes/pages/project.routes.js', import.meta.url),
+  'utf8',
+);
 
 describe('.env file upload UI', () => {
   it('offers a CSRF-protected import form while retaining manual entry', () => {
     assert.match(environment, /Upload \.env File/);
     assert.match(environment, /environment\/import/);
     assert.match(environment, /environment\/bulk-update/);
-    assert.match(environment, /environment\/<%= encodeURIComponent\(secret\.name\) %>\/reveal/);
+    assert.doesNotMatch(
+      environment,
+      /environment\/<%= encodeURIComponent\(secret\.name\) %>\/reveal/,
+    );
     assert.match(environment, /include\('\.\.\/\.\.\/partials\/csrf-field'\)/);
     assert.match(environment, /data-env-file-input/);
     assert.match(environment, /Add Secret/);
@@ -33,12 +44,12 @@ describe('.env file upload UI', () => {
     assert.match(environment, /Unchanged — enter replacement/);
     assert.match(environment, /Blank keeps current/);
     assert.match(environment, /password-toggle/);
-    assert.match(environment, /Loaded for this page only/);
-    assert.match(environment, /Hiding masks it visually/);
-    assert.match(environment, /Reveal value/);
-    assert.match(environment, /Clear revealed value/);
-    assert.match(environment, /data-show-label="Show value"/);
-    assert.match(environment, /data-hide-label="Hide value"/);
+    assert.match(environment, /cannot be viewed again/);
+    assert.match(environment, /permanently write-only/);
+    assert.doesNotMatch(environment, /Reveal value/);
+    assert.doesNotMatch(environmentController, /postRevealSecret/);
+    assert.doesNotMatch(environmentService, /export async function revealSecretValue/);
+    assert.doesNotMatch(projectRoutes, /environment\/:name\/reveal/);
   });
 
   it('reads the selected file into the protected form without logging its contents', () => {
@@ -49,18 +60,20 @@ describe('.env file upload UI', () => {
   });
 
   it('summarizes parsed entries and requires overwrite confirmation before import', () => {
-    assert.match(clientScript, /function countEnvEntries/);
+    assert.match(clientScript, /function envEntryNames/);
     assert.match(clientScript, /Matching stored names will be replaced after confirmation/);
     assert.match(clientScript, /form\.dataset\.confirmTitle = 'Import environment variables'/);
     assert.match(clientScript, /entryCount === 0/);
     assert.match(environment, /id="env-file-status"[\s\S]*aria-live="polite"/);
+    assert.match(environment, /data-env-file-preview-names/);
+    assert.match(clientScript, /code\.textContent = name/);
   });
 
   it('loads the manifest-resolved client bundle so the file listener is current', () => {
     assert.match(mainLayout, /assetPath\('js\/app\.js'\)/);
   });
 
-  it('prevents secret-management and reveal responses from being browser-cached', () => {
+  it('prevents secret-management responses from being browser-cached', () => {
     assert.match(environmentController, /Cache-Control', 'no-store'/);
     assert.match(environmentController, /Pragma', 'no-cache'/);
     assert.match(environmentController, /preventEnvironmentCaching\(res\)/);

@@ -1,5 +1,5 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentTrigger, getFailureCopy } from '@hellodeploy/contracts';
+import { DeploymentTrigger, getFailureCopy, getStatusPresentation } from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
@@ -64,6 +64,9 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
   const rollbackSource = deployment.sourceDeploymentId
     ? await Deployment.findById(deployment.sourceDeploymentId).lean()
     : null;
+  const replacedDeployment = deployment.replacedDeploymentId
+    ? await Deployment.findById(deployment.replacedDeploymentId).lean()
+    : null;
   const failureCopy = deployment.failureCode ? getFailureCopy(deployment.failureCode) : null;
 
   res.render('pages/projects/deployment-detail', {
@@ -74,6 +77,7 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     events,
     failureCopy,
     rollbackSource,
+    replacedDeployment,
     isCurrentRelease: project.activeDeploymentId?.toString() === deployment._id.toString(),
   });
 });
@@ -149,11 +153,17 @@ export const postRetryDeployment = asyncHandler(async (req, res) => {
 
 function deploymentStatusPayload(deployment) {
   const terminal = isTerminal(deployment.status);
+  const presentation = getStatusPresentation('deployment', deployment.status);
   return {
     id: deployment._id.toString(),
     status: deployment.status,
     stage: deployment.currentStage,
     terminal,
+    presentation: {
+      label: presentation.label,
+      tone: presentation.tone,
+      hint: presentation.hint,
+    },
     startedAt: deployment.startedAt,
     completedAt: deployment.completedAt,
     durationMs: deployment.startedAt
@@ -167,10 +177,10 @@ function deploymentStatusPayload(deployment) {
 export const getDeploymentStatuses = asyncHandler(async (req, res) => {
   const ids =
     typeof req.query.ids === 'string'
-      ? req.query.ids
-          .split(',')
-          .filter((id) => /^[0-9a-f]{24}$/i.test(id))
-          .slice(0, 20)
+      ? [...new Set(req.query.ids.split(',').filter((id) => /^[0-9a-f]{24}$/i.test(id)))].slice(
+          0,
+          20,
+        )
       : [];
   const deployments = await Promise.all(ids.map((id) => getDeployment(id)));
   const authorized = deployments.filter(

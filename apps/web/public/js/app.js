@@ -1025,6 +1025,21 @@
     });
   }
 
+  function applyStatusPresentation(container, presentation) {
+    if (!container || !presentation) {
+      return;
+    }
+    const badge = container.querySelector('.status-badge');
+    if (!badge) {
+      container.textContent = presentation.label;
+      return;
+    }
+    badge.className = `status-badge status-badge--${presentation.tone}`;
+    badge.textContent = presentation.label;
+    badge.setAttribute('aria-label', `${presentation.label}: ${presentation.hint}`);
+    badge.dataset.tooltip = presentation.hint;
+  }
+
   function initDashboardPolling() {
     const root = document.querySelector('[data-dashboard-status-url]');
     if (!root || Number(root.dataset.dashboardActive) < 1) {
@@ -1032,48 +1047,64 @@
     }
     const live = root.querySelector('[data-dashboard-live]');
     const notices = root.querySelector('[data-dashboard-notices]');
-    const labels = {
-      QUEUED: 'Waiting to start',
-      VALIDATING: 'Checking setup',
-      BUILDING: 'Building app',
-      DEPLOYING: 'Publishing',
-      HEALTHY: 'Live',
-      FAILED: 'Failed',
-      CANCELLED: 'Cancelled',
-    };
+    const activeList = root.querySelector('[data-dashboard-active-list]');
     let previous = '';
     async function poll() {
+      const trackedRows = [
+        ...root.querySelectorAll('[data-dashboard-active-list] [data-deployment-id]'),
+      ];
+      if (!trackedRows.length) {
+        return;
+      }
+      const ids = trackedRows.map((row) => row.dataset.deploymentId).join(',');
       try {
-        const response = await fetch(root.dataset.dashboardStatusUrl, {
-          headers: { Accept: 'application/json' },
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
+        const response = await fetch(
+          `${root.dataset.dashboardStatusUrl}?ids=${encodeURIComponent(ids)}`,
+          {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+          },
+        );
         if (!response.ok) {
           throw new Error('Status unavailable');
         }
         const payload = await response.json();
-        payload.activeDeployments.forEach((deployment) => {
+        let announcedTerminal = false;
+        payload.deployments.forEach((deployment) => {
           const row = root.querySelector(`[data-deployment-id="${deployment.id}"]`);
           const status = row?.querySelector('[data-deployment-status]');
-          if (status) {
-            status.textContent = labels[deployment.status] || deployment.status;
+          applyStatusPresentation(status, deployment.presentation);
+          if (deployment.terminal && row) {
+            row.remove();
+            if (live) {
+              live.textContent = `${deployment.project.name} is ${deployment.presentation.label}.`;
+              announcedTerminal = true;
+            }
           }
         });
         const signature = JSON.stringify(
           payload.activeDeployments.map((item) => [item.id, item.status, item.stage]),
         );
-        if (previous && signature !== previous && live) {
+        if (!announcedTerminal && previous && signature !== previous && live) {
           live.textContent = 'Deployment status updated.';
         }
         previous = signature;
         if (notices) {
           notices.textContent = payload.notices.map((item) => item.message).join(' ');
         }
-        if (payload.activeDeployments.length > 0) {
+        const remaining = root.querySelectorAll(
+          '[data-dashboard-active-list] [data-deployment-id]',
+        ).length;
+        if (remaining > 0) {
           window.setTimeout(poll, 5000);
-        } else if (live) {
-          live.textContent = 'All active deployments have finished.';
+        } else {
+          if (activeList) {
+            activeList.innerHTML = '<p class="text-sm text-muted">No deployments are running.</p>';
+          }
+          if (live && !live.textContent) {
+            live.textContent = 'All active deployments have finished.';
+          }
         }
       } catch {
         window.setTimeout(poll, 10000);
@@ -1376,16 +1407,36 @@
     if (!table) {
       return;
     }
-    const labels = {
-      QUEUED: 'Waiting to start',
-      VALIDATING: 'Checking setup',
-      BUILDING: 'Building app',
-      DEPLOYING: 'Publishing',
-      HEALTHY: 'Live',
-      FAILED: 'Failed',
-      CANCELLED: 'Cancelled',
-      ROLLED_BACK: 'Replaced',
-    };
+    async function refreshTerminalRow(row) {
+      const hadFocus = row.contains(document.activeElement);
+      const focusedHref = hadFocus
+        ? document.activeElement.closest('a[href]')?.getAttribute('href')
+        : null;
+      const response = await fetch(window.location.href, {
+        credentials: 'same-origin',
+        headers: { Accept: 'text/html' },
+      });
+      if (!response.ok) {
+        return false;
+      }
+      const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const replacement = fresh.querySelector(
+        `[data-deployment-row][data-deployment-id="${row.dataset.deploymentId}"]`,
+      );
+      if (!replacement) {
+        return false;
+      }
+      const nextRow = document.importNode(replacement, true);
+      row.replaceWith(nextRow);
+      if (focusedHref) {
+        [...nextRow.querySelectorAll('a[href]')]
+          .find((link) => link.getAttribute('href') === focusedHref)
+          ?.focus();
+      } else if (hadFocus) {
+        nextRow.querySelector('a[href], button:not([disabled])')?.focus();
+      }
+      return true;
+    }
     function activeRows() {
       return [...table.querySelectorAll('[data-deployment-row][data-terminal="false"]')];
     }
@@ -1413,18 +1464,20 @@
           if (!row) {
             return;
           }
-          row.dataset.terminal = String(deployment.terminal);
           const status = row.querySelector('[data-deployment-status]');
           const stage = row.querySelector('[data-deployment-stage]');
           const duration = row.querySelector('[data-deployment-duration]');
-          if (status) {
-            status.textContent = labels[deployment.status] || deployment.status;
-          }
+          applyStatusPresentation(status, deployment.presentation);
           if (stage) {
             stage.textContent = deployment.stage || '';
           }
           if (duration && deployment.durationMs !== null && deployment.durationMs !== undefined) {
             duration.textContent = formatDuration(deployment.durationMs);
+          }
+          if (deployment.terminal) {
+            refreshTerminalRow(row).catch(() => {});
+          } else {
+            row.dataset.terminal = 'false';
           }
         });
       } catch {
@@ -1451,6 +1504,8 @@
     const content = form.querySelector('[data-env-file-content]');
     const status = form.querySelector('[data-env-file-status]');
     const submit = form.querySelector('[data-env-file-submit]');
+    const preview = form.querySelector('[data-env-file-preview]');
+    const previewNames = form.querySelector('[data-env-file-preview-names]');
 
     function readFileText(file) {
       if (typeof file.text === 'function') {
@@ -1464,17 +1519,35 @@
       });
     }
 
-    function countEnvEntries(text) {
-      return text.split(/\r?\n/).filter((line) => {
-        const candidate = line.trim().replace(/^export\s+/, '');
-        return candidate && !candidate.startsWith('#') && candidate.includes('=');
-      }).length;
+    function envEntryNames(text) {
+      return [
+        ...new Set(
+          text.split(/\r?\n/).flatMap((line) => {
+            const candidate = line.trim().replace(/^export\s+/, '');
+            if (!candidate || candidate.startsWith('#')) {
+              return [];
+            }
+            const match = candidate.match(/^([A-Z_][A-Z0-9_]*)\s*=/);
+            return match ? [match[1]] : [];
+          }),
+        ),
+      ];
+    }
+
+    function hidePreview() {
+      if (preview) {
+        preview.hidden = true;
+      }
+      if (previewNames) {
+        previewNames.replaceChildren();
+      }
     }
 
     input.addEventListener('change', async () => {
       content.value = '';
       submit.disabled = true;
       delete form.dataset.confirm;
+      hidePreview();
       const file = input.files?.[0];
       if (!file) {
         return;
@@ -1489,7 +1562,8 @@
           status.textContent = 'The selected .env file is empty.';
           return;
         }
-        const entryCount = countEnvEntries(content.value);
+        const entryNames = envEntryNames(content.value);
+        const entryCount = entryNames.length;
         if (entryCount === 0) {
           status.textContent =
             'No environment variable entries were detected in the selected file.';
@@ -1497,6 +1571,17 @@
         }
         const noun = entryCount === 1 ? 'variable' : 'variables';
         status.textContent = `${file.name}: ${entryCount} ${noun} detected. Matching stored names will be replaced after confirmation.`;
+        if (preview && previewNames) {
+          entryNames.forEach((name) => {
+            const item = document.createElement('li');
+            const code = document.createElement('code');
+            code.className = 'code-inline';
+            code.textContent = name;
+            item.appendChild(code);
+            previewNames.appendChild(item);
+          });
+          preview.hidden = false;
+        }
         form.dataset.confirm = `Import ${entryCount} environment ${noun}? Matching stored names will be replaced.`;
         form.dataset.confirmTitle = 'Import environment variables';
         form.dataset.confirmAcceptLabel = 'Import Variables';

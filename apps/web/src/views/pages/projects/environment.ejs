@@ -49,6 +49,11 @@
         <p class="form-hint text-xs text-muted" id="env-file-status" data-env-file-status aria-live="polite">
           Up to 64 KB and 100 variables. Existing variables with the same name will be replaced.
         </p>
+        <div class="env-import-preview mt-3" data-env-file-preview hidden>
+          <p class="text-sm"><strong>Names ready to import</strong></p>
+          <ul class="env-import-preview__names mt-2" data-env-file-preview-names></ul>
+          <p class="form-hint text-xs text-muted mt-2">Values remain hidden and are encrypted when imported.</p>
+        </div>
       </div>
       <div class="form-actions">
         <button type="submit" class="button button--primary" data-env-file-submit data-pending-label="Importing..." disabled>Import Variables</button>
@@ -114,7 +119,7 @@
           <% if (formErrors.value) { %>
           <p class="form-error" id="value-error" role="alert"><%= formErrors.value %></p>
           <% } else { %>
-          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately, hidden by default, and can be revealed later by an authenticated owner action.</p>
+          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately and cannot be viewed again. Replace it if you need to change it.</p>
           <% } %>
         </div>
       </div>
@@ -151,7 +156,6 @@
   <div class="card__body">
     <% const bulkErrors = locals.bulkErrors || {}; %>
     <% const bulkValues = locals.bulkValues || {}; %>
-    <% const revealedSecrets = locals.revealedSecrets || {}; %>
     <% if (secrets.length === 0) { %>
       <div class="empty-state empty-state--compact">
         <p class="empty-state__title">No secrets yet</p>
@@ -218,33 +222,6 @@
                   <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
                 </button>
               </div>
-              <% } else if (Object.hasOwn(revealedSecrets, secret.name)) { %>
-              <div class="stored-secret-reveal">
-                <div class="password-wrapper">
-                  <input
-                    type="password"
-                    class="form-input password-input code-inline"
-                    id="revealed-secret-<%= secret.name %>"
-                    value="<%= revealedSecrets[secret.name] %>"
-                    readonly
-                    aria-describedby="revealed-secret-<%= secret.name %>-hint"
-                  >
-                  <button
-                    type="button"
-                    class="password-toggle"
-                    aria-controls="revealed-secret-<%= secret.name %>"
-                    aria-pressed="false"
-                    data-show-label="Show value"
-                    data-hide-label="Hide value"
-                  >
-                    <span class="sr-only">Show value</span>
-                    <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
-                  </button>
-                </div>
-                <p class="form-hint text-xs text-muted" id="revealed-secret-<%= secret.name %>-hint">
-                  Loaded for this page only. Hiding masks it visually; clear it to remove it from the page.
-                </p>
-              </div>
               <% } else { %>
               ••••••••
               <% } %>
@@ -255,18 +232,6 @@
             <td class="text-right" data-label="Actions">
               <% if (locals.bulkEditMode !== true) { %>
               <div class="button-group button-group--sm">
-                <% if (Object.hasOwn(revealedSecrets, secret.name)) { %>
-                <a href="/projects/<%= project.slug %>/environment" class="button button--secondary button--sm">
-                  Clear revealed value
-                </a>
-                <% } else { %>
-                <form method="POST" action="/projects/<%= project.slug %>/environment/<%= encodeURIComponent(secret.name) %>/reveal">
-                  <%- include('../../partials/csrf-field') %>
-                  <button type="submit" class="button button--secondary button--sm" data-pending-label="Revealing...">
-                    Reveal value
-                  </button>
-                </form>
-                <% } %>
                 <form method="POST"
                       action="/projects/<%= project.slug %>/environment/<%= encodeURIComponent(secret.name) %>/delete"
                       data-confirm="Delete <%= secret.name %>? This cannot be undone."
@@ -302,8 +267,8 @@
   <div class="card__body">
     <p class="text-sm">
       <strong>Security notice:</strong>
-      Secret values are encrypted with AES-256-GCM, hidden by default, and revealed only after an authenticated owner action.
-      Show and Hide only change visual masking; use Clear revealed value to remove plaintext from the page.
+      Secret values are encrypted with AES-256-GCM and are permanently write-only in the web interface.
+      Replace a saved value to change it; HelloDeploy never loads existing plaintext into this page.
       Environment pages are not browser-cached, and you should rotate secrets after any exposure you no longer trust.
       Secrets are injected into your container at runtime only — they are never written to disk or included in build artifacts.
       <strong>Adding, editing, or deleting a secret does not update your live app.</strong> Deploy again from the

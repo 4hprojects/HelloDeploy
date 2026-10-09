@@ -2294,3 +2294,33 @@ recovery remain unexecuted until their declared operational preconditions pass.
   and real inbox plus signed live-webhook evidence. Pre-existing Turnstile worktree
   changes were preserved and not reformatted outside the overlapping configuration
   files.
+
+## 2026-10-09 — UI/UX Remediation Completion
+
+- Extended dashboard polling to follow the authorized deployment IDs already rendered
+  through terminal state, announce final results, and remove completed active rows.
+  Deployment-list polling now preserves canonical badge labels, tones, hints, and
+  accessibility metadata and refreshes terminal actions so Cancel is replaced by Retry
+  without a page reload.
+- Removed environment-secret reveal routing, controller/service behavior, and UI.
+  Existing encrypted records remain worker-decryptable, while the web interface now
+  supports write-only replacement/deletion and a names-only `.env` preview with explicit
+  confirmation.
+- Added optional backward-compatible `replacedDeploymentId` rollback provenance and
+  rendered both replaced and target sequence/short-commit details, with safe copy for
+  older records.
+- Reduced generated CSS from above budget to 92,136 bytes by stripping comments at
+  build time, deferred the below-fold landing preview, and enforced independent mobile
+  and desktop Lighthouse profiles at LCP ≤2.5s. Final mobile results were score 0.99,
+  LCP 2,113ms, CLS 0, TBT 34ms; desktop results were score 1.00, LCP 546ms, CLS 0,
+  TBT 0ms.
+- Added deterministic browser coverage for terminal polling/action transitions,
+  authenticated axe and dark mode, 320px overflow, rollback/failure recovery, and new
+  desktop-dashboard/mobile-failure visual baselines. All 33 browser tests and all 1,313
+  Node tests across 263 suites pass. Asset build/verification/budgets, lint,
+  configuration validation, production dependency audit, task-file formatting, and
+  diff validation pass.
+- Repository-wide formatting remains blocked only by six preserved files in the
+  unrelated untracked `docs/to do/hellodeploy-docker-optimization/` directory. No
+  production, supported-host, DNS, crawler, real-device, field-performance, deployment,
+  or five-user usability gate was run or claimed.

@@ -19,8 +19,8 @@ file is the evidence behind that list.
 ## What's already strong
 
 - **Steady-state project management** — settings (jargon-light, well-
-  organized accordion sections), environment variables (values always
-  masked, explicit reveal action, a clear AES-256-GCM security notice),
+  organized accordion sections), environment variables (saved values are
+  permanently write-only, replaceable, and protected by a clear AES-256-GCM security notice),
   custom domains, and maintenance mode are all intuitive and functionally
   complete. No dead links; every nav link and route resolves to a real
   handler (`apps/web/src/routes/pages/project.routes.js`).

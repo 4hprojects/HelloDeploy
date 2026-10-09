@@ -48,7 +48,6 @@ import {
   postSetSecret,
   postImportEnvFile,
   postBulkUpdateSecrets,
-  postRevealSecret,
   postDeleteSecret,
   postDeleteAllSecrets,
 } from '../../controllers/env-secret.controller.js';
@@ -293,13 +292,6 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postDeleteAllSecrets,
-);
-router.post(
-  '/:slug/environment/:name/reveal',
-  requireAuth,
-  ownerOnly,
-  requireEditableProject,
-  postRevealSecret,
 );
 router.post(
   '/:slug/environment/:name/delete',

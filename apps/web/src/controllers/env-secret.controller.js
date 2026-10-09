@@ -7,7 +7,6 @@ import {
   validateSecretName,
   importEnvFile,
   bulkUpdateSecrets,
-  revealSecretValue,
 } from '../services/env-secret.service.js';
 
 function preventEnvironmentCaching(res) {
@@ -30,7 +29,6 @@ export const getEnvironment = asyncHandler(async (req, res) => {
     importErrors: {},
     bulkErrors: {},
     bulkValues: {},
-    revealedSecrets: {},
     bulkEditMode: req.query.edit === 'all',
   });
 });
@@ -38,15 +36,7 @@ export const getEnvironment = asyncHandler(async (req, res) => {
 async function renderEnvironment(
   req,
   res,
-  {
-    errors = {},
-    values = {},
-    importErrors = {},
-    bulkErrors = {},
-    bulkValues = {},
-    revealedSecrets = {},
-    bulkEditMode,
-  },
+  { errors = {}, values = {}, importErrors = {}, bulkErrors = {}, bulkValues = {}, bulkEditMode },
 ) {
   const project = req.project;
   const secrets = await listSecretNames(project._id);
@@ -61,7 +51,6 @@ async function renderEnvironment(
     importErrors,
     bulkErrors,
     bulkValues,
-    revealedSecrets,
     bulkEditMode: typeof bulkEditMode === 'boolean' ? bulkEditMode : req.query.edit === 'all',
   });
 }
@@ -151,25 +140,6 @@ export const postBulkUpdateSecrets = asyncHandler(async (req, res) => {
 
   req.flash('success', `${result.count} secret${result.count === 1 ? '' : 's'} updated.`);
   res.redirect(`/projects/${project.slug}/environment`);
-});
-
-export const postRevealSecret = asyncHandler(async (req, res) => {
-  const project = req.project;
-  const { name } = req.params;
-
-  const result = await revealSecretValue(project._id, name, req.session.user.id, {
-    sourceIp: req.ip,
-    correlationId: req.correlationId,
-  });
-
-  if (!result.success) {
-    req.flash('error', result.error);
-    return res.redirect(`/projects/${project.slug}/environment`);
-  }
-
-  return renderEnvironment(req, res, {
-    revealedSecrets: { [result.name]: result.value },
-  });
 });
 
 export const postDeleteSecret = asyncHandler(async (req, res) => {

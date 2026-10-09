@@ -37,6 +37,8 @@ const deploymentSchema = new Schema(
     containerNetworkName: { type: String, default: null },
     // For rollback deployments: which deployment this was rolled back from
     sourceDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
+    // For rollback deployments: which live deployment the rollback replaced.
+    replacedDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
   },
   {
     timestamps: true,

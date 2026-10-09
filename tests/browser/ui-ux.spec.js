@@ -119,7 +119,9 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(retry).toBeFocused();
   await page.goto('/projects/northstar-notes/deployments');
   await page.getByRole('link', { name: '#5' }).click();
-  await expect(page.getByText(/Rollback from current release to target #4/)).toBeVisible();
+  await expect(page.locator('.card').filter({ hasText: 'Trigger' })).toContainText(
+    'Replaced #3 (3333333) with target #4 (4444444).',
+  );
   await page.goto('/projects/northstar-notes/deployments');
   await page.getByRole('link', { name: '#7' }).click();
   await expect(page.getByText(/Deployment #7/)).toBeVisible();
@@ -286,6 +288,138 @@ test('keyboard focus is visible and returns after confirmation modal', async ({ 
   await expect(focused).toHaveCSS('outline-style', /solid|auto/);
 });
 
+test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {
+  let requestCount = 0;
+  await page.route('**/dashboard/status?*', async (route) => {
+    const id = new URL(route.request().url()).searchParams.get('ids').split(',')[0];
+    requestCount += 1;
+    const terminal = requestCount > 1;
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        deployments: [
+          {
+            id,
+            project: { name: 'Northstar Notes', slug: 'northstar-notes' },
+            status: terminal ? 'HEALTHY' : 'BUILDING',
+            stage: terminal ? 'COMPLETE' : 'BUILDING',
+            terminal,
+            presentation: terminal
+              ? {
+                  label: 'Live',
+                  tone: 'healthy',
+                  hint: 'This release passed its checks and is serving traffic.',
+                }
+              : {
+                  label: 'Building app',
+                  tone: 'building',
+                  hint: 'Building the application release.',
+                },
+          },
+        ],
+        activeDeployments: terminal ? [] : [{ id, status: 'BUILDING', stage: 'BUILDING' }],
+        notices: [],
+      }),
+    });
+  });
+
+  await signIn(page);
+  const activeList = page.locator('[data-dashboard-active-list]');
+  await expect(activeList.getByText('Northstar Notes #8')).toBeVisible();
+  await expect(activeList.getByText('Northstar Notes #8')).toBeHidden({ timeout: 12_000 });
+  await expect(activeList).toContainText('No deployments are running.');
+  await expect(page.locator('[data-dashboard-live]')).toHaveText('Northstar Notes is Live.');
+});
+
+test('deployment polling preserves canonical status and refreshes terminal actions', async ({
+  page,
+}) => {
+  let terminalId = '';
+  await page.route('**/projects/northstar-notes/deployments', async (route) => {
+    if (!terminalId) {
+      await route.continue();
+      return;
+    }
+    await route.fulfill({
+      contentType: 'text/html',
+      body: `<html><body><table><tbody><tr data-deployment-row data-deployment-id="${terminalId}" data-terminal="true"><td data-label="#"><a href="/projects/northstar-notes/deployments/${terminalId}">#8</a></td><td data-label="Status"><span data-deployment-status><span class="status-badge status-badge--failed" tabindex="0" aria-label="Failed: This release did not become live." data-tooltip="This release did not become live.">Failed</span></span><span data-deployment-stage>COMPLETE</span></td><td data-deployment-duration>8s</td><td data-label="Actions"><a href="/projects/northstar-notes/deployments/${terminalId}">Logs</a><form><button type="button">Retry same commit</button></form></td></tr></tbody></table></body></html>`,
+    });
+  });
+  await page.route('**/projects/northstar-notes/deployments/status?*', async (route) => {
+    terminalId = new URL(route.request().url()).searchParams.get('ids').split(',')[0];
+    await route.fulfill({
+      contentType: 'application/json',
+      body: JSON.stringify({
+        deployments: [
+          {
+            id: terminalId,
+            status: 'FAILED',
+            stage: 'COMPLETE',
+            durationMs: 8_000,
+            terminal: true,
+            presentation: {
+              label: 'Failed',
+              tone: 'failed',
+              hint: 'This release did not become live.',
+            },
+          },
+        ],
+      }),
+    });
+  });
+
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const activeRow = page.locator('[data-deployment-row][data-terminal="false"]');
+  await expect(activeRow.getByRole('button', { name: 'Cancel' })).toBeVisible();
+  await expect.poll(() => terminalId, { timeout: 7_000 }).not.toBe('');
+  const refreshedRow = page.locator(`[data-deployment-row][data-deployment-id="${terminalId}"]`);
+  await expect(refreshedRow.getByRole('button', { name: 'Retry same commit' })).toBeVisible();
+  const badge = refreshedRow.locator('.status-badge');
+  await expect(badge).toHaveText('Failed');
+  await expect(badge).toHaveClass(/status-badge--failed/);
+  await expect(badge).toHaveAttribute('aria-label', 'Failed: This release did not become live.');
+  await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+});
+
+test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('button', { name: /dark theme/i }).click();
+
+  for (const path of [
+    '/dashboard',
+    '/projects/northstar-notes/deployments',
+    '/projects/northstar-notes/environment',
+  ]) {
+    await page.goto(path);
+    await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(
+      results.violations.filter((violation) => violation.impact === 'critical'),
+      `${path} should have no critical axe violations`,
+    ).toEqual([]);
+  }
+});
+
+test('authenticated workflows do not overflow a narrow mobile viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await signIn(page);
+
+  for (const path of [
+    '/dashboard',
+    '/projects/northstar-notes/deployments',
+    '/projects/northstar-notes/environment',
+  ]) {
+    await page.goto(path);
+    const overflow = await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth -
+        globalThis.document.documentElement.clientWidth,
+    );
+    expect(overflow, `${path} should fit the viewport`).toBeLessThanOrEqual(1);
+  }
+});
+
 test('stable public visual', async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.goto('/');
@@ -294,6 +428,29 @@ test('stable public visual', async ({ page }) => {
     // Font rasterization differs slightly between developer and hosted Linux
     // environments. Layout/dimension changes still fail while antialiasing
     // noise remains portable.
+    maxDiffPixelRatio: 0.04,
+  });
+});
+
+test('stable authenticated dashboard visual', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await signIn(page);
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page).toHaveScreenshot('dashboard-1440.png', {
+    fullPage: true,
+    maxDiffPixelRatio: 0.04,
+  });
+});
+
+test('stable deployment failure visual', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const failureHref = await page.getByRole('link', { name: '#6' }).getAttribute('href');
+  await page.goto(failureHref);
+  await expect(page.getByText('Deployment did not go live.')).toBeVisible();
+  await expect(page).toHaveScreenshot('deployment-failure-390.png', {
+    fullPage: true,
     maxDiffPixelRatio: 0.04,
   });
 });
