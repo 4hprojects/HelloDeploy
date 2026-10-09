@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment } from '@hellodeploy/database';
+import { Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { DeploymentStatus, RepositorySourceType } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment, createRepository } from '../helpers/worker-fixtures.js';
@@ -18,6 +18,8 @@ function makeDeps(overrides = {}) {
     enqueued: [],
     publicClones: [],
     notifications: [],
+    dockerfiles: [],
+    dockerignores: [],
     tokenRequests: 0,
   };
   const deps = {
@@ -28,8 +30,11 @@ function makeDeps(overrides = {}) {
     cloneExactCommit: async () => {},
     clonePublicExactCommit: async (opts) => calls.publicClones.push(opts),
     prepareBuildContext: async () => {},
+    resolveBuildProfile: async () => ({ templateVersion: 'legacy', fallbackReason: null }),
+    writePlatformDockerignore: async (dir) => calls.dockerignores.push(dir),
+    listRootEnvFiles: async () => [],
     getProjectEnvVars: async () => ({}),
-    writeDockerfile: async () => {},
+    writeDockerfile: async (dir, content) => calls.dockerfiles.push({ dir, content }),
     buildDockerImage: async (opts) => calls.builds.push(opts),
     removeDockerImage: async (tag) => calls.removedImages.push(tag),
     cleanupBuildWorkspace: async (dir) => calls.cleanedWorkspaces.push(dir),
@@ -121,6 +126,82 @@ describe('build-deployment job', () => {
     const { deps, calls } = makeDeps();
     await handleBuildDeployment(makeJob(project, repo, deployment), deps);
     assert.equal(calls.builds[0]?.noCache, false);
+  });
+
+  it('keeps the generated template on legacy by default', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.dockerignores.length, 0);
+    assert.ok(
+      calls.dockerfiles[0].content.indexOf('COPY --chown=node:node . .') <
+        calls.dockerfiles[0].content.indexOf('RUN npm ci'),
+    );
+  });
+
+  it('writes controlled exclusions and dependency-first Node for optimized-v1', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      resolveBuildProfile: async () => ({
+        templateVersion: 'optimized-v1',
+        fallbackReason: null,
+      }),
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.dockerignores.length, 1);
+    assert.match(calls.dockerfiles[0].content, /FROM node:22-alpine AS deps/);
+    assert.ok(
+      calls.dockerfiles[0].content.indexOf('RUN npm ci') <
+        calls.dockerfiles[0].content.indexOf('COPY --chown=node:node . .'),
+    );
+  });
+
+  it('warns which committed env files optimized-v1 excludes from the image', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps } = makeDeps({
+      resolveBuildProfile: async () => ({ templateVersion: 'optimized-v1', fallbackReason: null }),
+      listRootEnvFiles: async () => ['.env', '.env.production'],
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const warning = await DeploymentEvent.findOne({
+      deploymentId: deployment._id,
+      level: 'WARN',
+      messageRedacted: /environment files are excluded/,
+    });
+    assert.match(warning?.messageRedacted ?? '', /\.env, \.env\.production/);
+  });
+
+  it('writes the platform exclusions for legacy static builds', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(
+      makeJob(project, repo, deployment, { runtimeType: 'STATIC' }),
+      deps,
+    );
+    assert.equal(calls.dockerignores.length, 1);
+  });
+
+  it('warns that legacy Node images include committed env files', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps } = makeDeps({ listRootEnvFiles: async () => ['.env'] });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const warning = await DeploymentEvent.findOne({
+      deploymentId: deployment._id,
+      level: 'WARN',
+      messageRedacted: /environment files are included in the image/,
+    });
+    assert.match(warning?.messageRedacted ?? '', /: \.env\./);
+  });
+
+  it('does not claim legacy React images ship committed env files', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps } = makeDeps({ listRootEnvFiles: async () => ['.env'] });
+    await handleBuildDeployment(makeJob(project, repo, deployment, { runtimeType: 'REACT' }), deps);
+    const warning = await DeploymentEvent.findOne({
+      deploymentId: deployment._id,
+      messageRedacted: /environment files are/,
+    });
+    assert.equal(warning, null);
   });
 
   it('passes a public environment variable to the docker build', async () => {

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdtemp, writeFile, symlink, readdir, rm, mkdir } from 'node:fs/promises';
+import { mkdtemp, writeFile, symlink, readdir, rm, mkdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const { prepareBuildContext } = await import('../../apps/worker/src/deployment/build-context.js');
+const { prepareBuildContext, writePlatformDockerignore, listRootEnvFiles } =
+  await import('../../apps/worker/src/deployment/build-context.js');
 
 async function makeContext() {
   return mkdtemp(join(tmpdir(), 'hellodeploy-bc-'));
@@ -143,6 +144,62 @@ describe('prepareBuildContext — return value', () => {
     const result = await prepareBuildContext(dir);
     assert.ok(typeof result.sizeBytes === 'number', 'sizeBytes must be a number');
     assert.ok(result.sizeBytes >= 1024, 'sizeBytes must reflect written content');
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('platform Docker context exclusions', () => {
+  it('writes fixed secret, dependency, log, cache, and coverage exclusions', async () => {
+    const dir = await makeContext();
+    await writePlatformDockerignore(dir);
+    const content = await readFile(join(dir, '.dockerignore'), 'utf8');
+    for (const pattern of ['.env*', '**/.env*', 'node_modules', '**/node_modules', 'coverage']) {
+      assert.ok(content.includes(pattern), pattern);
+    }
+    assert.ok(!content.split('\n').some((line) => line.startsWith('!')));
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('replaces rather than reuses a removed user-controlled ignore file', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, '.dockerignore'), '!**/.env\n');
+    await prepareBuildContext(dir);
+    await writePlatformDockerignore(dir);
+    const content = await readFile(join(dir, '.dockerignore'), 'utf8');
+    assert.ok(!content.includes('!**/.env'));
+    assert.ok(content.includes('**/.env*'));
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('platform Docker context exclusions — generated files', () => {
+  it('keeps the generated Dockerfile out of copied image content', async () => {
+    const dir = await makeContext();
+    await writePlatformDockerignore(dir);
+    const lines = (await readFile(join(dir, '.dockerignore'), 'utf8')).split('\n');
+    assert.ok(lines.includes('Dockerfile'));
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('keeps the ignore file itself out of copied image content', async () => {
+    const dir = await makeContext();
+    await writePlatformDockerignore(dir);
+    const lines = (await readFile(join(dir, '.dockerignore'), 'utf8')).split('\n');
+    assert.ok(lines.includes('.dockerignore'));
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('listRootEnvFiles', () => {
+  it('names root-level env files that the platform exclusions drop', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, '.env.production'), 'VITE_API_URL=https://api.example.test\n');
+    await writeFile(join(dir, '.env'), 'SECRET=value\n');
+    await writeFile(join(dir, 'index.js'), '');
+    await mkdir(join(dir, '.envs'));
+    await mkdir(join(dir, 'app'));
+    await writeFile(join(dir, 'app', '.env'), 'NESTED=1\n');
+    assert.deepEqual(await listRootEnvFiles(dir), ['.env', '.env.production']);
     await rm(dir, { recursive: true, force: true });
   });
 });

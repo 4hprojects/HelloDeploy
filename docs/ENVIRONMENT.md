@@ -63,18 +63,21 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 ## Worker build/deploy
 
-| Variable                          | Required (prod) | Default                         | Purpose                                                    |
-| --------------------------------- | --------------- | ------------------------------- | ---------------------------------------------------------- |
-| `WORKER_CONCURRENCY`              | no              | `1`                             | Parallel BullMQ deployment jobs per worker process         |
-| `NOTIFICATION_WORKER_CONCURRENCY` | no              | `4`                             | Independent parallel email-delivery jobs                   |
-| `BUILD_TIMEOUT_MS`                | no              | `600000`                        | Hard cap on `docker build` duration                        |
-| `BUILD_MEMORY_MB`                 | no              | `1024`                          | Memory ceiling for the `docker build` cgroup               |
-| `RUNTIME_MEMORY_MB`               | no              | `256`                           | Memory ceiling for each deployed application container     |
-| `BUILD_WORKSPACE_ROOT`            | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                      |
-| `RELEASE_METADATA_ROOT`           | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                   |
-| `PROJECT_VOLUME_ROOT`             | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                             |
-| `PORT_RANGE_START`                | no              | `10000`                         | First loopback host port available for deployed containers |
-| `PORT_RANGE_END`                  | no              | `19999`                         | Last loopback host port available for deployed containers  |
+| Variable                           | Required (prod) | Default                         | Purpose                                                                                                                                                               |
+| ---------------------------------- | --------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WORKER_CONCURRENCY`               | no              | `1`                             | Parallel BullMQ deployment jobs per worker process                                                                                                                    |
+| `NOTIFICATION_WORKER_CONCURRENCY`  | no              | `4`                             | Independent parallel email-delivery jobs                                                                                                                              |
+| `BUILD_TIMEOUT_MS`                 | no              | `600000`                        | Hard cap on `docker build` duration                                                                                                                                   |
+| `BUILD_MEMORY_MB`                  | no              | `1024`                          | Build memory ceiling. Enforced only through `BUILD_BUILDER_NAME`; BuildKit ignores the per-build flag                                                                 |
+| `BUILD_BUILDER_NAME`               | no              | empty                           | Dedicated `docker-container` buildx builder the worker creates with `BUILD_MEMORY_MB` as its memory limit; empty keeps Docker's default builder (memory not enforced) |
+| `USER_IMAGE_TEMPLATE_VERSION`      | no              | `legacy`                        | Default hosted user-image template (`legacy` or `optimized-v1`)                                                                                                       |
+| `USER_IMAGE_OPTIMIZED_PROJECT_IDS` | no              | empty                           | Comma-separated project ObjectIds allowed to use `optimized-v1`                                                                                                       |
+| `RUNTIME_MEMORY_MB`                | no              | `256`                           | Memory ceiling for each deployed application container                                                                                                                |
+| `BUILD_WORKSPACE_ROOT`             | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                                                                                                                                 |
+| `RELEASE_METADATA_ROOT`            | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                                                                                                                              |
+| `PROJECT_VOLUME_ROOT`              | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                                                                                                                                        |
+| `PORT_RANGE_START`                 | no              | `10000`                         | First loopback host port available for deployed containers                                                                                                            |
+| `PORT_RANGE_END`                   | no              | `19999`                         | Last loopback host port available for deployed containers                                                                                                             |
 
 ## Email / notifications
 
