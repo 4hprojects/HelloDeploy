@@ -545,6 +545,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     configurationVersion: project.configurationVersion,
     status: DeploymentStatus.DEPLOYING,
     sourceDeploymentId: targetDeploymentId,
+    replacedDeploymentId: project.activeDeploymentId ?? null,
     startedAt: new Date(),
   });
 
@@ -588,6 +589,7 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
       projectId: projectId.toString(),
       targetDeploymentId: targetDeploymentId.toString(),
       targetSequenceNumber: targetDeployment.sequenceNumber,
+      replacedDeploymentId: project.activeDeploymentId?.toString() ?? null,
     },
   });
 

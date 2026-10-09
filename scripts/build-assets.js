@@ -11,6 +11,10 @@ const outputDir = join(publicDir, 'assets-dist');
 const manifestPath = join(publicDir, 'asset-manifest.json');
 const sources = ['css/main.css', 'js/app.js'];
 
+function stripCssComments(contents) {
+  return contents.replace(/\/\*[\s\S]*?\*\//g, '').trim();
+}
+
 await rm(outputDir, { recursive: true, force: true });
 await mkdir(outputDir, { recursive: true });
 const manifest = { schemaVersion: 1, assets: {} };
@@ -25,7 +29,9 @@ for (const source of sources) {
     for (const match of imports) {
       bundled.push(await readFile(join(dirname(sourcePath), match[1]), 'utf8'));
     }
-    contents = Buffer.from(`${bundled.join('\n')}\n${sourceText.replace(/@import[^;]+;/g, '')}`);
+    contents = Buffer.from(
+      stripCssComments(`${bundled.join('\n')}\n${sourceText.replace(/@import[^;]+;/g, '')}`),
+    );
   }
   const hash = createHash('sha256').update(contents).digest('hex').slice(0, 16);
   const extension = extname(source);

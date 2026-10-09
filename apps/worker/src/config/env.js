@@ -10,6 +10,11 @@ import {
   ConfigurationError,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
+import {
+  ImageTemplateVersion,
+  parseImageTemplateVersion,
+  parseOptimizedProjectIds,
+} from '../deployment/template-policy.js';
 
 const nodeEnv = optional('NODE_ENV', 'development');
 const production = nodeEnv === 'production';
@@ -45,6 +50,20 @@ const buildMemoryMb = parseIntegerEnv('BUILD_MEMORY_MB', optional('BUILD_MEMORY_
   min: 256,
   max: 65536,
 });
+// Builder names reach `docker buildx` argv; keep them to Docker's own charset.
+const BUILD_BUILDER_NAME_PATTERN = /^[a-z0-9][a-z0-9_-]{0,62}$/;
+const buildBuilderName = optional('BUILD_BUILDER_NAME', '').trim() || null;
+if (buildBuilderName && !BUILD_BUILDER_NAME_PATTERN.test(buildBuilderName)) {
+  throw new ConfigurationError(
+    'BUILD_BUILDER_NAME must be 1-63 lowercase letters, digits, hyphens, or underscores.',
+  );
+}
+const userImageTemplateVersion = parseImageTemplateVersion(
+  optional('USER_IMAGE_TEMPLATE_VERSION', ImageTemplateVersion.LEGACY),
+);
+const userImageOptimizedProjectIds = parseOptimizedProjectIds(
+  optional('USER_IMAGE_OPTIMIZED_PROJECT_IDS', ''),
+);
 const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
   min: 128,
   max: 32768,
@@ -133,6 +152,9 @@ export const env = {
   NOTIFICATION_WORKER_CONCURRENCY: notificationWorkerConcurrency,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
   BUILD_MEMORY_MB: buildMemoryMb,
+  BUILD_BUILDER_NAME: buildBuilderName,
+  USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
+  USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
   PORT_RANGE_START: portRangeStart,
   PORT_RANGE_END: portRangeEnd,

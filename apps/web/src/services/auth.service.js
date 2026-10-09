@@ -282,6 +282,8 @@ export async function signIn({ email, password, sourceIp, userAgent, correlation
 /**
  * Step 1: Accept email, send 6-digit code.
  * Always silent — same response whether email exists or not.
+ * Resolves to `{ delivered }` once an email was attempted, so an admin-triggered
+ * reset can report delivery; the public form ignores it to stay silent.
  */
 export async function initiatePasswordReset(
   { email, sourceIp, correlationId },
@@ -340,7 +342,7 @@ export async function initiatePasswordReset(
         correlationId,
         metadata: { deliveryStatus: delivery?.status ?? 'unknown' },
       });
-      return;
+      return { delivered: false };
     }
   } catch {
     // Keep the browser response identical for eligible and unknown accounts.
@@ -352,7 +354,7 @@ export async function initiatePasswordReset(
       correlationId,
       metadata: { deliveryStatus: 'failed' },
     });
-    return;
+    return { delivered: false };
   }
 
   await writeAudit({
@@ -362,6 +364,7 @@ export async function initiatePasswordReset(
     sourceIp,
     correlationId,
   });
+  return { delivered: true };
 }
 
 /**

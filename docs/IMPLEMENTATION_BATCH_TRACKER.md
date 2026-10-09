@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-10-08
+Updated: 2026-10-09
 
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
@@ -24,6 +24,35 @@ and deterministic browser/visual/performance gates. See the pack's
 `IMPLEMENTATION_EVIDENCE.md` and the 2026-10-01 worklog entry for exact evidence.
 This does not change the NO-GO state above: deployment, supported-host, external DNS,
 real-device, crawler, and five-user usability evidence remains outstanding.
+
+### User-application Docker optimization — planning lane
+
+The opt-in Docker optimization initiative has completed its repository-side P0 gap
+report and is awaiting design review plus an authorized read-only Docker-host audit. Its
+dedicated [`IMPLEMENTATION_TRACKER.md`](to%20do/hellodeploy-docker-optimization/IMPLEMENTATION_TRACKER.md)
+owns detailed phase status, decisions, blockers, evidence, and next actions. The
+Docker CLI/Buildx are installed, but the current user cannot access the Docker daemon,
+so image/cache footprint and real-build evidence remain unavailable. As of 2026-10-10,
+opt-in `optimized-v1` P1 code exists uncommitted in the worktree, written ahead of the
+P0 gate. It is not enabled (default `legacy`, empty allowlist) and has never been built
+on a real daemon until 2026-10-10, when its P1 exit-gate builds passed. Findings H1
+(unenforced build memory → opt-in limited builder), H6 (static images served `.env` →
+fixed), F7 and F8 are resolved; the full suite passes (1362/1362). Cache
+changes, cleanup expansion, canary work, and production rollout are not authorized. This lane does not change the current customer-hosting NO-GO
+or replace the existing legacy end-to-end deployment and rollback gate.
+
+**2026-10-09 UI/UX remediation follow-up:** Repository-local status polling now
+tracks the authorized rows already displayed through terminal transitions, preserves
+canonical badge semantics, announces dashboard completion, and refreshes terminal
+deployment actions without a page reload. Environment values are permanently
+write-only through the web interface, with a names-only `.env` confirmation preview.
+Rollback records optionally identify the release being replaced. Generated CSS is
+below the unchanged 110,000-byte budget, and separate mobile/desktop Lighthouse
+profiles enforce the pack's 2.5-second LCP target. Deterministic browser coverage now
+includes terminal polling, authenticated axe/dark mode, mobile overflow, recovery,
+rollback, and representative authenticated visuals. Production, supported-host,
+real-device, field-performance, DNS/crawler, and five-user validation remain external
+gates and are not claimed by this work.
 
 **2026-10-06 responsive-navigation follow-up:** The public header now keeps its
 compact menu through 1023px, switches to the single-line desktop row at 1024px,

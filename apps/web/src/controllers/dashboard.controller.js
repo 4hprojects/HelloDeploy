@@ -11,5 +11,5 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
 export const getDashboardStatusJson = asyncHandler(async (req, res) => {
   res.setHeader('Cache-Control', 'no-store');
-  res.json(await getDashboardStatus(req.session.user.id));
+  res.json(await getDashboardStatus(req.session.user.id, req.query.ids));
 });

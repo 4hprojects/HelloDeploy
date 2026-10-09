@@ -7,8 +7,9 @@ process.env.RUNTIME_MEMORY_MB = '512';
 
 const { env } = await import('../../apps/worker/src/config/env.js');
 
-const build = await readFile(
-  new URL('../../apps/worker/src/deployment/build.js', import.meta.url),
+const { createDockerBuildArgs } = await import('../../apps/worker/src/deployment/build.js');
+const runtime = await readFile(
+  new URL('../../apps/worker/src/runtime.js', import.meta.url),
   'utf8',
 );
 const buildJob = await readFile(
@@ -25,8 +26,16 @@ const rollbackJob = await readFile(
 );
 
 describe('docker build memory limit', () => {
-  it('sizes the build cgroup from configuration rather than a fixed ceiling', () => {
-    assert.match(build, /'--memory',\s*`\$\{buildMemoryMb\}m`/);
+  it('sizes the default-builder memory flag from configuration', () => {
+    const args = createDockerBuildArgs({ contextDir: '/c', imageTag: 't', buildMemoryMb: 2048 });
+    assert.equal(args[args.indexOf('--memory') + 1], '2048m');
+  });
+
+  it('applies the configured limit to the dedicated builder container at startup', () => {
+    assert.match(
+      runtime,
+      /ensureBuildBuilder\(\{\s*name: env\.BUILD_BUILDER_NAME,\s*memoryMb: env\.BUILD_MEMORY_MB/,
+    );
   });
 
   it('supplies the configured limit from the build job', () => {

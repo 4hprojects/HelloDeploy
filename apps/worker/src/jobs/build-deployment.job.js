@@ -1,18 +1,32 @@
 import { join } from 'node:path';
 import { Project, Repository, Deployment } from '@hellodeploy/database';
-import { DeploymentStatus, JobType, RepositorySourceType } from '@hellodeploy/contracts';
+import {
+  DeploymentStatus,
+  JobType,
+  RepositorySourceType,
+  RuntimeType,
+} from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import { getInstallationToken } from '../git/github-token.js';
 import { cloneExactCommit, clonePublicExactCommit } from '../git/clone.js';
-import { prepareBuildContext } from '../deployment/build-context.js';
+import {
+  prepareBuildContext,
+  writePlatformDockerignore,
+  listRootEnvFiles,
+} from '../deployment/build-context.js';
 import { generateDockerfile } from '../deployment/dockerfile-generator.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
 import { cleanupBuildWorkspace } from '../deployment/cleanup.js';
+import {
+  ImageTemplateVersion,
+  resolveImageTemplateVersion,
+} from '../deployment/template-policy.js';
+import { resolveBuildProfile } from '../deployment/build-profile.js';
 import {
   logEvent,
   updateStatus,
@@ -73,6 +87,9 @@ const defaultDeps = {
   cloneExactCommit,
   clonePublicExactCommit,
   prepareBuildContext,
+  writePlatformDockerignore,
+  listRootEnvFiles,
+  resolveBuildProfile,
   writeDockerfile,
   buildDockerImage,
   getProjectEnvVars,
@@ -113,6 +130,11 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   } = job.data;
 
   const workDir = join(env.BUILD_WORKSPACE_ROOT, deploymentId);
+  const requestedTemplateVersion = resolveImageTemplateVersion({
+    defaultVersion: env.USER_IMAGE_TEMPLATE_VERSION,
+    optimizedProjectIds: env.USER_IMAGE_OPTIMIZED_PROJECT_IDS,
+    projectId,
+  });
 
   // ── Load deployment record ──────────────────────────────────────────────────
   const deployment = await Deployment.findById(deploymentId);
@@ -257,6 +279,71 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     return;
   }
 
+  let buildProfile;
+  try {
+    buildProfile = await deps.resolveBuildProfile({
+      contextDir: workDir,
+      runtimeType,
+      requestedTemplateVersion,
+    });
+    // Static images serve the whole context from the web root, so the platform
+    // exclusions apply to every static build: legacy included, since nothing in a
+    // static site reads `.env` and anything left in would be publicly downloadable.
+    const shouldExcludeContextFiles =
+      buildProfile.templateVersion === ImageTemplateVersion.OPTIMIZED_V1 ||
+      runtimeType === RuntimeType.STATIC;
+    const rootEnvFiles = await deps.listRootEnvFiles(workDir);
+    if (shouldExcludeContextFiles) {
+      await deps.writePlatformDockerignore(workDir);
+      if (rootEnvFiles.length > 0) {
+        await logEvent(
+          deploymentId,
+          'VALIDATE',
+          'WARN',
+          `Committed environment files are excluded from the image: ${rootEnvFiles.join(', ')}. Set these values as HelloDeploy environment variables instead.`,
+          correlationId,
+        );
+      }
+    } else if (
+      [RuntimeType.EXPRESS, RuntimeType.NODEJS].includes(runtimeType) &&
+      rootEnvFiles.length > 0
+    ) {
+      // Legacy Node images copy the whole source, and the app may load these at
+      // runtime, so they stay in — but the owner should know they ship.
+      await logEvent(
+        deploymentId,
+        'VALIDATE',
+        'WARN',
+        `Committed environment files are included in the image: ${rootEnvFiles.join(', ')}. Move these values to HelloDeploy environment variables and remove the files from the repository.`,
+        correlationId,
+      );
+    }
+    if (buildProfile.fallbackReason) {
+      await logEvent(
+        deploymentId,
+        'VALIDATE',
+        'WARN',
+        `Using legacy image template: ${buildProfile.fallbackReason}.`,
+        correlationId,
+      );
+    }
+  } catch (err) {
+    await logEvent(
+      deploymentId,
+      'VALIDATE',
+      'ERROR',
+      `Build profile error: ${err.message}`,
+      correlationId,
+    );
+    await failBuild({
+      failureCode: 'BUILD_CONTEXT_INVALID',
+      failureSummary: err.message.slice(0, 1000),
+      completedAt: new Date(),
+    });
+    await deps.cleanupBuildWorkspace(workDir);
+    return;
+  }
+
   // ── Generate Dockerfile ─────────────────────────────────────────────────────
   // Frontend frameworks compile their public configuration into the bundle at
   // build time, so those values have to be present now — at container start is
@@ -291,13 +378,14 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       outputDirectory: project.buildConfiguration?.outputDirectory ?? null,
       applicationPort: project.buildConfiguration?.applicationPort ?? null,
       buildArgNames: Object.keys(publicBuildEnv),
+      templateVersion: buildProfile.templateVersion,
     });
     await deps.writeDockerfile(workDir, dockerfileContent);
     await logEvent(
       deploymentId,
       'VALIDATE',
       'INFO',
-      `Generated Dockerfile for ${runtimeType}.`,
+      `Generated ${buildProfile.templateVersion} Dockerfile for ${runtimeType}.`,
       correlationId,
     );
   } catch (err) {
@@ -333,6 +421,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       imageTag,
       buildTimeoutMs: env.BUILD_TIMEOUT_MS,
       buildMemoryMb: env.BUILD_MEMORY_MB,
+      builderName: env.BUILD_BUILDER_NAME,
       noCache: noCache === true,
       buildArgs: publicBuildEnv,
       onLogLine: async (line, stream) => {

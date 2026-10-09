@@ -1,6 +1,6 @@
 # UI/UX Improvement Program — Repository Implementation Evidence
 
-Updated: 2026-10-02
+Updated: 2026-10-09
 
 ## Repository-local status
 
@@ -12,6 +12,13 @@ captures, and lab budgets described by this pack.
 
 The implementation remains server-rendered Express/EJS with progressive enhancement.
 It does not grant the web process Docker access or change stored secret formats.
+
+The 2026-10-09 remediation closes the remaining deterministic repository gaps:
+authorized deployment rows continue polling through terminal state, terminal actions
+refresh without navigation, environment values are permanently write-only in the web
+application, `.env` confirmation previews names only, and rollback records can identify
+both the replaced release and target. Existing encrypted secret records remain valid and
+worker-only decryption is unchanged.
 
 ## Evidence boundaries
 
@@ -49,10 +56,17 @@ checks before recording any production completion.
 
 ## Latest local result
 
-- Node suite: 1,146 passed across 234 suites; zero failed or skipped.
-- Browser/axe/visual suite: 10 passed.
-- Assets: 93,116-byte CSS and 48,799-byte JavaScript, within explicit budgets.
-- Lighthouse lab: 0.98 performance score, 2,326ms LCP, 0 CLS, 0ms TBT,
-  seven requests, and 244,681 transferred bytes.
-- Lint, formatting, configuration validation, production dependency audit, manifest
-  integrity, and `git diff --check`: passed.
+- Node suite: 1,313 passed across 263 suites; zero failed or skipped.
+- Browser/axe/visual suite: 33 passed, including active-to-terminal polling,
+  authenticated dark-mode accessibility, 320px workflow overflow, rollback/failure
+  recovery, and three representative visual baselines.
+- Assets: 92,136-byte CSS and 58,347-byte JavaScript, within the unchanged explicit
+  budgets; manifest integrity passed.
+- Lighthouse mobile: 0.99 performance score, 2,113ms LCP, 0 CLS, 34ms TBT,
+  seven requests, and 253,875 transferred bytes.
+- Lighthouse desktop: 1.00 performance score, 546ms LCP, 0 CLS, 0ms TBT,
+  seven requests, and 253,875 transferred bytes.
+- Lint, task-file formatting, configuration validation, production dependency audit,
+  and `git diff --check`: passed. Repository-wide `npm run format:check` remains
+  blocked only by six preserved files in the unrelated untracked
+  `docs/to do/hellodeploy-docker-optimization/` directory.

@@ -14,6 +14,7 @@ import { env } from './config/env.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
 import { validateNginxConfig } from './nginx/helper-client.js';
+import { ensureBuildBuilder } from './deployment/build.js';
 import { handleBuildDeployment } from './jobs/build-deployment.job.js';
 import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
@@ -37,6 +38,31 @@ logger.info('Worker: starting HelloDeploy deployment worker', {
 if (env.NGINX_ENABLED) {
   await validateNginxConfig();
   logger.info('Worker: Nginx helper connected and configuration valid');
+}
+
+if (env.BUILD_BUILDER_NAME) {
+  // A builder failure must not stop the worker: activations and rollbacks still
+  // need it, and each build then fails with Docker's own explanation.
+  try {
+    const { created } = await ensureBuildBuilder({
+      name: env.BUILD_BUILDER_NAME,
+      memoryMb: env.BUILD_MEMORY_MB,
+    });
+    logger.info('Worker: memory-limited build builder ready', {
+      builder: env.BUILD_BUILDER_NAME,
+      memoryMb: env.BUILD_MEMORY_MB,
+      created,
+    });
+  } catch (err) {
+    logger.error('Worker: build builder unavailable; builds will fail until it is fixed', {
+      builder: env.BUILD_BUILDER_NAME,
+      error: err.message,
+    });
+  }
+} else {
+  logger.warn(
+    'Worker: BUILD_BUILDER_NAME is unset; BuildKit ignores the per-build memory limit, so BUILD_MEMORY_MB is not enforced',
+  );
 }
 
 // ── Database connection ────────────────────────────────────────────────────────

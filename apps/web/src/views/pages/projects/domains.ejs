@@ -20,6 +20,7 @@
     (!verificationToken || domain.hostnameNormalized !== pendingHostname));
   const routableDomains = domains.filter(domain => domain.tunnelId);
   const liveDomains = domains.filter(domain => domain.routingState === 'LIVE');
+  const routingSetupDomains = verifiedDomains.filter(domain => domain.routingState !== 'LIVE');
   const dnsRecordName = pendingHostname ? `_hellodeploy-verify.${pendingHostname}` : '';
   const dnsRecordValue = verificationToken ? `hellodeploy-verify=${verificationToken}` : '';
 %>
@@ -44,8 +45,8 @@
       <h2 id="domain-guide-title">Connect your domain</h2>
       <p>HelloDeploy confirms that you own the address before sending visitors to your app.</p>
     </div>
-    <% if (activeDomains.length) { %>
-    <span class="status-badge status-badge--active">Connected</span>
+    <% if (liveDomains.length) { %>
+    <span class="status-badge status-badge--healthy">Live</span>
     <% } else if (verifiedDomains.length) { %>
     <span class="status-badge status-badge--pending">Routing setup</span>
     <% } else if (pendingDomains.length) { %>
@@ -239,7 +240,7 @@
 </section>
 <% } %>
 
-<% if (verifiedDomains.length) { %>
+<% if (routingSetupDomains.length) { %>
 <section class="domain-setup-panel" id="routing-records"
   aria-labelledby="routing-records-title" tabindex="-1">
   <p class="domain-setup-panel__eyebrow">Your next step</p>
@@ -247,7 +248,7 @@
   <p>The TXT record proved you own the address. This second record is what actually sends
     visitors here — until you add it, the address will not open your app.</p>
 
-  <% verifiedDomains.forEach(function (domain) { %>
+  <% routingSetupDomains.forEach(function (domain) { %>
   <div class="domain-routing-record">
     <h3 class="domain-routing-record__title">
       <code class="code-inline"><%= domain.hostnameNormalized %></code>
@@ -255,7 +256,8 @@
 
     <% if (!domain.tunnelId) { %>
     <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
-      this address; the record you need will appear here once it is ready.</p>
+      this address; the record you need will appear here once it is ready. If the address already
+      opens your app, use Check routing to confirm it.</p>
     <% } else { %>
     <div class="dns-record" data-dns-record>
       <div class="dns-record__row dns-record__row--plain">
@@ -293,7 +295,9 @@
     <p class="form-hint">Some providers ask only for the part before your domain, and write
       <code class="code-inline">@</code> for the domain itself. The finished record must apply to
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
+    <% } %>
 
+    <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>
     <div class="domain-routing-record__actions">
       <% if (membership.role === 'OWNER') { %>
       <form method="POST"
@@ -303,9 +307,7 @@
           data-pending-label="Checking...">Check routing</button>
       </form>
       <% } %>
-      <% if (domain.routingState === 'LIVE') { %>
-      <span class="text-success text-sm" role="status">Live — visitors reach your app.</span>
-      <% } else if (domain.routingDetail) { %>
+      <% if (domain.routingDetail) { %>
       <span class="form-error text-sm" role="status"><%= domain.routingDetail %></span>
       <% } else { %>
       <span class="text-muted text-sm">Not checked yet.</span>
@@ -343,7 +345,7 @@
         <tr>
           <td data-label="Domain">
             <code class="code-inline domain-hostname"><%= domain.hostnameNormalized %></code>
-            <% if (domain.status === 'ACTIVE') { %>
+            <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>
             <a href="https://<%= domain.hostnameNormalized %>" class="table-link text-xs ml-2"
               target="_blank" rel="noopener"
               aria-label="Open <%= domain.hostnameNormalized %> in a new tab"
@@ -351,7 +353,7 @@
             <% } %>
           </td>
           <td data-label="Progress">
-            <%- include('../../partials/status-badge', { status: domain.status }) %>
+            <%- include('../../partials/status-badge', { status: domain.status, statusKind: 'domain' }) %>
             <p class="form-hint domain-progress-copy">
               <% if (domain.status === 'PENDING_VERIFICATION') { %>
                 Add the TXT record, then check DNS.

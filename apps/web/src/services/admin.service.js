@@ -8,6 +8,8 @@ import {
   Domain,
   Repository,
   AuditEvent,
+  Notification,
+  ProductEvent,
   mongoose,
 } from '@hellodeploy/database';
 import {
@@ -19,11 +21,14 @@ import {
   JobType,
   DeploymentStatus,
   DomainStatus,
+  PlatformRole,
 } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
+import { initiatePasswordReset, resendVerificationEmail } from './auth.service.js';
+import { deleteProject } from './project.service.js';
 
 const ADMIN_SEARCH_MAX_LENGTH = 200;
 
@@ -76,11 +81,15 @@ export async function getAdminOverview() {
 
 // ─── User management ──────────────────────────────────────────────────────────
 
-export async function getUsers({ page = 1, limit = 20, status, search } = {}) {
+export async function getUsers({ page = 1, limit = 20, status, role, search } = {}) {
   const query = {};
   const safeStatus = allowlistedStatus(status, UserStatus);
   if (safeStatus) {
     query.status = { $eq: safeStatus };
+  }
+  const safeRole = allowlistedStatus(role, PlatformRole);
+  if (safeRole) {
+    query.platformRole = { $eq: safeRole };
   }
   const safeSearch = normalizeAdminSearch(search);
   if (safeSearch) {
@@ -93,6 +102,100 @@ export async function getUsers({ page = 1, limit = 20, status, search } = {}) {
     User.countDocuments(query),
   ]);
   return { users, total, page, limit };
+}
+
+export async function getUserDetail(userId) {
+  const user = await User.findById(userId).select('+passwordHash').lean();
+  if (!user) {
+    return null;
+  }
+  const { passwordHash, ...profile } = user;
+
+  const [ownedProjects, memberships, recentActivity] = await Promise.all([
+    Project.find({ ownerId: userId })
+      .select('name slug status createdAt')
+      .sort({ createdAt: -1 })
+      .lean(),
+    ProjectMembership.find({ userId })
+      .populate({ path: 'projectId', model: 'Project', select: 'name slug status ownerId' })
+      .lean(),
+    AuditEvent.find({
+      $or: [{ targetType: 'user', targetId: userId.toString() }, { actorId: userId }],
+    })
+      .sort({ createdAt: -1 })
+      .limit(20)
+      .lean(),
+  ]);
+
+  const memberProjects = memberships
+    .filter((m) => m.projectId && m.projectId.ownerId?.toString() !== userId.toString())
+    .map((m) => ({ ...m.projectId, memberRole: m.role }));
+
+  return {
+    user: profile,
+    hasPassword: Boolean(passwordHash),
+    hasGoogle: Boolean(user.googleSubject),
+    isLocked: Boolean(user.lockedUntil && user.lockedUntil > new Date()),
+    ownedProjects,
+    memberProjects,
+    recentActivity,
+  };
+}
+
+/**
+ * Which accounts an admin may act on. Returns an error message, or null when allowed.
+ *
+ * Admins moderate users; only a Super Admin moderates admins. Super Admin
+ * accounts are untouchable except for a role change by another Super Admin,
+ * so an account must be demoted before it can be suspended or deleted. Acting
+ * on yourself is refused outright; with that rule a Super Admin can never
+ * demote the last Super Admin, because the actor always remains one.
+ */
+function manageUserError({ adminId, adminRole, target, isRoleChange = false }) {
+  if (target._id.toString() === adminId?.toString()) {
+    return 'You cannot perform this action on your own account.';
+  }
+  if (target.platformRole === PlatformRole.SUPER_ADMIN) {
+    if (isRoleChange && adminRole === PlatformRole.SUPER_ADMIN) {
+      return null;
+    }
+    return 'Super Admin accounts must be demoted before they can be managed.';
+  }
+  if (target.platformRole === PlatformRole.ADMIN && adminRole !== PlatformRole.SUPER_ADMIN) {
+    return 'Only a Super Admin can manage administrator accounts.';
+  }
+  return null;
+}
+
+async function findManageableUser({ userId, adminId, adminRole, isRoleChange, select }) {
+  const query = User.findById(userId);
+  if (select) {
+    query.select(select);
+  }
+  const user = await query;
+  if (!user) {
+    return { error: 'User not found.' };
+  }
+  const error = manageUserError({ adminId, adminRole, target: user, isRoleChange });
+  return error ? { error } : { user };
+}
+
+function auditUserAction(
+  action,
+  { userId, adminId, adminRole, sourceIp, correlationId },
+  metadata,
+) {
+  return writeAuditEvent({
+    action,
+    outcome: AuditOutcome.SUCCESS,
+    actorId: adminId,
+    actorRole: adminRole,
+    targetType: 'user',
+    targetId: userId.toString(),
+    sourceIp,
+    correlationId,
+    metadata,
+  });
 }
 
 /**
@@ -122,13 +225,18 @@ async function revokeUserSessions(userId) {
   return deletedCount ?? 0;
 }
 
+const SUSPENDABLE_STATUSES = [UserStatus.ACTIVE, UserStatus.PENDING_VERIFICATION];
+
 export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp, correlationId }) {
-  const user = await User.findById(userId);
-  if (!user) {
-    return { success: false, error: 'User not found.' };
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
   }
   if (user.status === UserStatus.SUSPENDED) {
     return { success: false, error: 'User is already suspended.' };
+  }
+  if (!SUSPENDABLE_STATUSES.includes(user.status)) {
+    return { success: false, error: 'Only active or pending accounts can be suspended.' };
   }
 
   user.status = UserStatus.SUSPENDED;
@@ -139,48 +247,297 @@ export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp
 
   const revokedSessions = await revokeUserSessions(userId);
 
-  await writeAuditEvent({
-    action: 'admin.user_suspended',
-    outcome: AuditOutcome.SUCCESS,
-    actorId: adminId,
-    actorRole: adminRole,
-    targetType: 'user',
-    targetId: userId.toString(),
-    sourceIp,
-    correlationId,
-    metadata: { reason: reason?.trim() || null, revokedSessions },
-  });
+  await auditUserAction(
+    'admin.user_suspended',
+    { userId, adminId, adminRole, sourceIp, correlationId },
+    { reason: reason?.trim() || null, revokedSessions },
+  );
 
   return { success: true, user };
 }
 
 export async function reactivateUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
-  const user = await User.findById(userId);
-  if (!user) {
-    return { success: false, error: 'User not found.' };
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
   }
   if (user.status !== UserStatus.SUSPENDED) {
     return { success: false, error: 'User is not currently suspended.' };
   }
 
-  user.status = UserStatus.ACTIVE;
+  // A user suspended before verifying their email goes back to pending, not
+  // active, so reactivation cannot be used to skip verification.
+  user.status = user.emailVerifiedAt ? UserStatus.ACTIVE : UserStatus.PENDING_VERIFICATION;
   user.suspendedAt = null;
   user.suspensionReason = null;
   user.configVersion += 1;
   await user.save();
 
-  await writeAuditEvent({
-    action: 'admin.user_reactivated',
-    outcome: AuditOutcome.SUCCESS,
-    actorId: adminId,
-    actorRole: adminRole,
-    targetType: 'user',
-    targetId: userId.toString(),
+  await auditUserAction('admin.user_reactivated', {
+    userId,
+    adminId,
+    adminRole,
     sourceIp,
     correlationId,
   });
 
   return { success: true, user };
+}
+
+export async function forceSignOutUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+
+  const revokedSessions = await revokeUserSessions(userId);
+
+  await auditUserAction(
+    'admin.user_signed_out',
+    { userId, adminId, adminRole, sourceIp, correlationId },
+    { revokedSessions },
+  );
+
+  return { success: true, user, revokedSessions };
+}
+
+export async function unlockUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+
+  user.failedLoginAttempts = 0;
+  user.lockedUntil = null;
+  await user.save();
+
+  await auditUserAction('admin.user_unlocked', {
+    userId,
+    adminId,
+    adminRole,
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true, user };
+}
+
+export async function markEmailVerified({ userId, adminId, adminRole, sourceIp, correlationId }) {
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+  if (user.status !== UserStatus.PENDING_VERIFICATION) {
+    return { success: false, error: 'This account is not awaiting email verification.' };
+  }
+
+  user.status = UserStatus.ACTIVE;
+  user.emailVerifiedAt = new Date();
+  user.emailVerificationTokenHash = null;
+  user.emailVerificationExpiresAt = null;
+  await user.save();
+
+  await auditUserAction('admin.user_email_verified', {
+    userId,
+    adminId,
+    adminRole,
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true, user };
+}
+
+export async function resendUserVerification(
+  { userId, adminId, adminRole, sourceIp, correlationId },
+  deps = {},
+) {
+  const resend = deps.resendVerificationEmail ?? resendVerificationEmail;
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+  if (user.status !== UserStatus.PENDING_VERIFICATION) {
+    return { success: false, error: 'This account is not awaiting email verification.' };
+  }
+
+  await resend({ email: user.email, sourceIp, correlationId });
+
+  await auditUserAction('admin.user_verification_resent', {
+    userId,
+    adminId,
+    adminRole,
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true, user };
+}
+
+export async function sendUserPasswordReset(
+  { userId, adminId, adminRole, sourceIp, correlationId },
+  deps = {},
+) {
+  const initiate = deps.initiatePasswordReset ?? initiatePasswordReset;
+  const { user, error } = await findManageableUser({
+    userId,
+    adminId,
+    adminRole,
+    select: '+passwordHash',
+  });
+  if (error) {
+    return { success: false, error };
+  }
+  // initiatePasswordReset is deliberately silent for ineligible accounts, so
+  // the admin would see "sent" for an email that never goes out.
+  if (!user.passwordHash) {
+    return { success: false, error: 'This account signs in with Google and has no password.' };
+  }
+  if (user.status !== UserStatus.ACTIVE) {
+    return { success: false, error: 'Password resets can only be sent to active accounts.' };
+  }
+
+  const delivery = await initiate({ email: user.email, sourceIp, correlationId });
+  if (!delivery?.delivered) {
+    return {
+      success: false,
+      error: 'The password reset email could not be sent. Try again later.',
+    };
+  }
+
+  await auditUserAction('admin.user_password_reset_sent', {
+    userId,
+    adminId,
+    adminRole,
+    sourceIp,
+    correlationId,
+  });
+
+  return { success: true, user };
+}
+
+export async function changeUserRole({
+  userId,
+  newRole,
+  adminId,
+  adminRole,
+  sourceIp,
+  correlationId,
+}) {
+  if (adminRole !== PlatformRole.SUPER_ADMIN) {
+    return { success: false, error: 'Only a Super Admin can change platform roles.' };
+  }
+  const role = allowlistedStatus(newRole, PlatformRole);
+  if (!role) {
+    return { success: false, error: 'Invalid role.' };
+  }
+  const { user, error } = await findManageableUser({
+    userId,
+    adminId,
+    adminRole,
+    isRoleChange: true,
+  });
+  if (error) {
+    return { success: false, error };
+  }
+  const previousRole = user.platformRole;
+  if (previousRole === role) {
+    return { success: false, error: `User already has the ${role} role.` };
+  }
+
+  user.platformRole = role;
+  user.configVersion += 1;
+  await user.save();
+
+  // The session carries its own copy of the role, so without this a demoted
+  // admin keeps admin access until they sign out.
+  const revokedSessions = await revokeUserSessions(userId);
+
+  await auditUserAction(
+    'admin.user_role_changed',
+    { userId, adminId, adminRole, sourceIp, correlationId },
+    { from: previousRole, to: role, revokedSessions },
+  );
+
+  return { success: true, user };
+}
+
+/**
+ * Permanently delete a user, every project they own, and their memberships.
+ *
+ * Project teardown runs through deleteProject, which needs the worker queue, so
+ * the account is suspended and signed out first. If a project fails to delete
+ * part-way, the account is left suspended rather than half-deleted, and a retry
+ * picks up the projects that remain. Audit events are kept as history.
+ */
+export async function deleteUserPermanently(
+  { userId, confirmEmail, adminId, adminRole, sourceIp, correlationId },
+  deps = {},
+) {
+  const removeProject = deps.deleteProject ?? deleteProject;
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+
+  if (adminRole !== PlatformRole.SUPER_ADMIN) {
+    return { success: false, error: 'Only a Super Admin can delete accounts.' };
+  }
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+  if (typeof confirmEmail !== 'string' || confirmEmail.trim().toLowerCase() !== user.email) {
+    return { success: false, error: 'The confirmation email did not match. Nothing was deleted.' };
+  }
+
+  const ownedProjects = await Project.find({ ownerId: userId }).select('_id slug').lean();
+  if (ownedProjects.length > 0 && !getQueue()) {
+    return {
+      success: false,
+      error:
+        'Account deletion is temporarily unavailable because the deployment worker queue is offline.',
+    };
+  }
+
+  if (user.status !== UserStatus.SUSPENDED) {
+    user.status = UserStatus.SUSPENDED;
+    user.suspendedAt = new Date();
+    user.suspensionReason = 'Account deletion in progress.';
+    user.configVersion += 1;
+    await user.save();
+  }
+  await revokeUserSessions(userId);
+
+  const deletedProjects = [];
+  for (const project of ownedProjects) {
+    const result = await removeProject(
+      { projectId: project._id, actorId: adminId, sourceIp, correlationId },
+      { getDeploymentQueue: getQueue, enqueueJob: deps.enqueueJob ?? enqueueJob },
+    );
+    if (!result.success) {
+      return {
+        success: false,
+        error: `Could not delete project "${project.slug}": ${result.error} The account is suspended; retry to finish.`,
+        deletedProjects,
+      };
+    }
+    deletedProjects.push(project.slug);
+  }
+
+  await Promise.all([
+    ProjectMembership.deleteMany({ userId }),
+    Notification.deleteMany({ userId }),
+    Quota.deleteMany({ scopeType: QuotaScope.USER, scopeId: userId }),
+    ProductEvent.updateMany({ userId }, { $set: { userId: null } }),
+  ]);
+  await User.deleteOne({ _id: userId });
+
+  // The user record is gone, so the audit row is the only place their identity survives.
+  await auditUserAction(
+    'admin.user_deleted',
+    { userId, adminId, adminRole, sourceIp, correlationId },
+    { email: user.email, name: `${user.firstName} ${user.lastName}`, deletedProjects },
+  );
+
+  return { success: true, user, deletedProjects };
 }
 
 // ─── Project management ───────────────────────────────────────────────────────

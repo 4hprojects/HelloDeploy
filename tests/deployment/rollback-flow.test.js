@@ -1,9 +1,19 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
+import { readFile } from 'node:fs/promises';
+import { Deployment } from '@hellodeploy/database';
 
 const { buildRollbackReleaseJobPayload, buildRollbackTargetQuery, isRollbackTargetEligible } =
   await import('../../apps/web/src/services/deployment.service.js');
 const { DeploymentStatus } = await import('@hellodeploy/contracts');
+const deploymentService = await readFile(
+  new URL('../../apps/web/src/services/deployment.service.js', import.meta.url),
+  'utf8',
+);
+const deploymentDetail = await readFile(
+  new URL('../../apps/web/src/views/pages/projects/deployment-detail.ejs', import.meta.url),
+  'utf8',
+);
 
 function id(value) {
   return { toString: () => value };
@@ -58,5 +68,13 @@ describe('deployment rollback flow', () => {
         sourceDeploymentId: 'deployment-source',
       },
     );
+  });
+
+  it('records and renders both the replaced release and rollback target', () => {
+    assert.ok(Deployment.schema.path('replacedDeploymentId'));
+    assert.match(deploymentService, /replacedDeploymentId: project\.activeDeploymentId \?\? null/);
+    assert.match(deploymentDetail, /replacedDeployment\.sequenceNumber/);
+    assert.match(deploymentDetail, /rollbackSource\.sequenceNumber/);
+    assert.match(deploymentDetail, /details unavailable/);
   });
 });

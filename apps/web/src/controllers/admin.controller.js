@@ -5,8 +5,16 @@ import { writeAuditEvent } from '@hellodeploy/observability';
 import {
   getAdminOverview,
   getUsers,
+  getUserDetail,
   suspendUser,
   reactivateUser,
+  forceSignOutUser,
+  unlockUser,
+  markEmailVerified,
+  resendUserVerification,
+  sendUserPasswordReset,
+  changeUserRole,
+  deleteUserPermanently,
   getProjects,
   adminSuspendProjectWithStop,
   adminReactivateProject,
@@ -24,6 +32,7 @@ import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.s
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
 import { getUxMetrics } from '../services/product-analytics.service.js';
+import { isSafeReturnPath } from '../utils/safe-redirect.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
 
@@ -260,9 +269,9 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
 
 export const getAdminUsers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const { status, search } = req.query;
+  const { status, role, search } = req.query;
 
-  const { users, total, limit } = await getUsers({ page, status, search });
+  const { users, total, limit } = await getUsers({ page, status, role, search });
 
   res.render('pages/admin/users', {
     title: 'Users',
@@ -271,45 +280,164 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
     page,
     limit,
     totalPages: Math.ceil(total / limit),
-    filters: { status: status ?? '', search: search ?? '' },
+    filters: { status: status ?? '', role: role ?? '', search: search ?? '' },
+    now: new Date(),
   });
 });
 
-export const postSuspendUser = asyncHandler(async (req, res) => {
-  const { reason } = req.body;
-  const result = await suspendUser({
+export const getAdminUserDetail = asyncHandler(async (req, res) => {
+  const detail = await getUserDetail(req.params.userId);
+  if (!detail) {
+    req.flash('error', 'User not found.');
+    return res.redirect('/admin/users');
+  }
+
+  // `user` is the signed-in admin in res.locals, so the viewed account is `target`.
+  const { user: target, ...rest } = detail;
+  res.render('pages/admin/user-detail', {
+    title: fullName(target),
+    target,
+    ...rest,
+  });
+});
+
+function userActionContext(req) {
+  return {
     userId: req.params.userId,
     adminId: req.session.user.id,
     adminRole: req.session.user.platformRole,
-    reason,
     sourceIp: req.ip,
     correlationId: req.correlationId,
-  });
+  };
+}
+
+// Suspend/reactivate are offered on both the list and the detail page, so they
+// return to whichever one the admin acted from.
+function userReturnPath(req) {
+  return isSafeReturnPath(req.body.returnTo) ? req.body.returnTo : '/admin/users';
+}
+
+function fullName(user) {
+  return `${user.firstName} ${user.lastName}`;
+}
+
+export const postSuspendUser = asyncHandler(async (req, res) => {
+  const result = await suspendUser({ ...userActionContext(req), reason: req.body.reason });
 
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', `${result.user.firstName} ${result.user.lastName} suspended.`);
+    req.flash('success', `${fullName(result.user)} suspended.`);
   }
 
-  res.redirect('/admin/users');
+  res.redirect(userReturnPath(req));
 });
 
 export const postReactivateUser = asyncHandler(async (req, res) => {
-  const result = await reactivateUser({
-    userId: req.params.userId,
-    adminId: req.session.user.id,
-    adminRole: req.session.user.platformRole,
-    sourceIp: req.ip,
-    correlationId: req.correlationId,
-  });
+  const result = await reactivateUser(userActionContext(req));
 
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', `${result.user.firstName} ${result.user.lastName} reactivated.`);
+    req.flash('success', `${fullName(result.user)} reactivated.`);
   }
 
+  res.redirect(userReturnPath(req));
+});
+
+export const postForceSignOut = asyncHandler(async (req, res) => {
+  const result = await forceSignOutUser(userActionContext(req));
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    const noun = result.revokedSessions === 1 ? 'session' : 'sessions';
+    req.flash(
+      'success',
+      `${fullName(result.user)} signed out (${result.revokedSessions} ${noun} ended).`,
+    );
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postUnlockUser = asyncHandler(async (req, res) => {
+  const result = await unlockUser(userActionContext(req));
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `${fullName(result.user)} unlocked. Failed sign-in attempts were reset.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postMarkEmailVerified = asyncHandler(async (req, res) => {
+  const result = await markEmailVerified(userActionContext(req));
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `${result.user.email} marked as verified.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postResendVerification = asyncHandler(async (req, res) => {
+  const result = await resendUserVerification(userActionContext(req));
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `Verification email sent to ${result.user.email}.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postSendPasswordReset = asyncHandler(async (req, res) => {
+  const result = await sendUserPasswordReset(userActionContext(req));
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `Password reset code sent to ${result.user.email}.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postChangeUserRole = asyncHandler(async (req, res) => {
+  const result = await changeUserRole({ ...userActionContext(req), newRole: req.body.role });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `${fullName(result.user)} is now ${result.user.platformRole}.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
+export const postDeleteUser = asyncHandler(async (req, res) => {
+  const result = await deleteUserPermanently({
+    ...userActionContext(req),
+    confirmEmail: req.body.confirmEmail,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+    return res.redirect(`/admin/users/${req.params.userId}`);
+  }
+
+  const count = result.deletedProjects.length;
+  const projectsNote = count > 0 ? ` and ${count} project${count === 1 ? '' : 's'}` : '';
+  req.flash(
+    'success',
+    `${fullName(result.user)} (${result.user.email})${projectsNote} permanently deleted.`,
+  );
   res.redirect('/admin/users');
 });
 

@@ -48,7 +48,7 @@ describe('suspending a user ends their signed-in sessions', () => {
 
     await suspendUser({
       userId: user._id,
-      adminId: user._id.toString(),
+      adminId: new mongoose.Types.ObjectId().toString(),
       adminRole: PlatformRole.SUPER_ADMIN,
       reason: 'abuse',
     });
@@ -77,7 +77,7 @@ describe('suspending a user ends their signed-in sessions', () => {
 
     await suspendUser({
       userId: user._id,
-      adminId: user._id.toString(),
+      adminId: new mongoose.Types.ObjectId().toString(),
       adminRole: PlatformRole.SUPER_ADMIN,
       reason: 'abuse',
     });

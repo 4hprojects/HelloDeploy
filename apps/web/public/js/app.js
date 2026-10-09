@@ -1025,6 +1025,21 @@
     });
   }
 
+  function applyStatusPresentation(container, presentation) {
+    if (!container || !presentation) {
+      return;
+    }
+    const badge = container.querySelector('.status-badge');
+    if (!badge) {
+      container.textContent = presentation.label;
+      return;
+    }
+    badge.className = `status-badge status-badge--${presentation.tone}`;
+    badge.textContent = presentation.label;
+    badge.setAttribute('aria-label', `${presentation.label}: ${presentation.hint}`);
+    badge.dataset.tooltip = presentation.hint;
+  }
+
   function initDashboardPolling() {
     const root = document.querySelector('[data-dashboard-status-url]');
     if (!root || Number(root.dataset.dashboardActive) < 1) {
@@ -1032,48 +1047,64 @@
     }
     const live = root.querySelector('[data-dashboard-live]');
     const notices = root.querySelector('[data-dashboard-notices]');
-    const labels = {
-      QUEUED: 'Waiting to start',
-      VALIDATING: 'Checking setup',
-      BUILDING: 'Building app',
-      DEPLOYING: 'Publishing',
-      HEALTHY: 'Live',
-      FAILED: 'Failed',
-      CANCELLED: 'Cancelled',
-    };
+    const activeList = root.querySelector('[data-dashboard-active-list]');
     let previous = '';
     async function poll() {
+      const trackedRows = [
+        ...root.querySelectorAll('[data-dashboard-active-list] [data-deployment-id]'),
+      ];
+      if (!trackedRows.length) {
+        return;
+      }
+      const ids = trackedRows.map((row) => row.dataset.deploymentId).join(',');
       try {
-        const response = await fetch(root.dataset.dashboardStatusUrl, {
-          headers: { Accept: 'application/json' },
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
+        const response = await fetch(
+          `${root.dataset.dashboardStatusUrl}?ids=${encodeURIComponent(ids)}`,
+          {
+            headers: { Accept: 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+          },
+        );
         if (!response.ok) {
           throw new Error('Status unavailable');
         }
         const payload = await response.json();
-        payload.activeDeployments.forEach((deployment) => {
+        let announcedTerminal = false;
+        payload.deployments.forEach((deployment) => {
           const row = root.querySelector(`[data-deployment-id="${deployment.id}"]`);
           const status = row?.querySelector('[data-deployment-status]');
-          if (status) {
-            status.textContent = labels[deployment.status] || deployment.status;
+          applyStatusPresentation(status, deployment.presentation);
+          if (deployment.terminal && row) {
+            row.remove();
+            if (live) {
+              live.textContent = `${deployment.project.name} is ${deployment.presentation.label}.`;
+              announcedTerminal = true;
+            }
           }
         });
         const signature = JSON.stringify(
           payload.activeDeployments.map((item) => [item.id, item.status, item.stage]),
         );
-        if (previous && signature !== previous && live) {
+        if (!announcedTerminal && previous && signature !== previous && live) {
           live.textContent = 'Deployment status updated.';
         }
         previous = signature;
         if (notices) {
           notices.textContent = payload.notices.map((item) => item.message).join(' ');
         }
-        if (payload.activeDeployments.length > 0) {
+        const remaining = root.querySelectorAll(
+          '[data-dashboard-active-list] [data-deployment-id]',
+        ).length;
+        if (remaining > 0) {
           window.setTimeout(poll, 5000);
-        } else if (live) {
-          live.textContent = 'All active deployments have finished.';
+        } else {
+          if (activeList) {
+            activeList.innerHTML = '<p class="text-sm text-muted">No deployments are running.</p>';
+          }
+          if (live && !live.textContent) {
+            live.textContent = 'All active deployments have finished.';
+          }
         }
       } catch {
         window.setTimeout(poll, 10000);
@@ -1138,37 +1169,108 @@
     const reconnectButton = document.getElementById('log-reconnect-button');
     const eventStageToStatus = { VALIDATE: 'VALIDATING', BUILD: 'BUILDING', DEPLOY: 'DEPLOYING' };
 
+    const timelineOrder = ['QUEUED', 'VALIDATING', 'BUILDING', 'DEPLOYING'];
+    let furthestStageIndex = -1;
+
+    function formatElapsed(secs) {
+      return secs < 60 ? `${secs}s` : `${Math.floor(secs / 60)}m ${secs % 60}s`;
+    }
+
+    function secondsBetween(from, to) {
+      return Math.max(0, Math.round((new Date(to) - new Date(from)) / 1000));
+    }
+
+    function getTimelineStep(key) {
+      return document.querySelector('[data-stage-key="' + key + '"]');
+    }
+
+    function getConsoleRow(stage) {
+      return document.querySelector('[data-console-key="' + stage.dataset.stageKey + '"]');
+    }
+
+    // The console mirrors the stepper, so every state and time change updates both views.
+    function setStageState(stage, state, label) {
+      stage.classList.remove(
+        'deploy-step--pending',
+        'deploy-step--active',
+        'deploy-step--complete',
+      );
+      stage.classList.add('deploy-step--' + state);
+      const status = stage.querySelector('[data-stage-status]');
+      if (status) {
+        status.textContent = label;
+      }
+      const row = getConsoleRow(stage);
+      if (row) {
+        row.classList.remove(
+          'deploy-console__row--pending',
+          'deploy-console__row--active',
+          'deploy-console__row--complete',
+        );
+        row.classList.add('deploy-console__row--' + state);
+      }
+    }
+
+    function setStageMeta(stage, text) {
+      const meta = stage.querySelector('[data-stage-meta]');
+      if (meta) {
+        meta.textContent = text;
+      }
+      const time = getConsoleRow(stage)?.querySelector('[data-console-time]');
+      if (time) {
+        time.textContent = text;
+      }
+    }
+
+    function updateConsoleMessage(stage, ev) {
+      const message = getConsoleRow(stage)?.querySelector('[data-console-message]');
+      if (!message) {
+        return;
+      }
+      message.textContent = ev.message || '';
+      message.classList.toggle('deploy-console__message--error', ev.level === 'ERROR');
+    }
+
     function updateTimeline(ev) {
       const statusKey = eventStageToStatus[ev.stage];
-      if (!statusKey) {
+      const stageIndex = timelineOrder.indexOf(statusKey);
+      // A late log line from an earlier stage must not move the timeline backwards.
+      if (stageIndex < 0 || stageIndex < furthestStageIndex) {
         return;
       }
 
-      const stage = document.querySelector('[data-stage-key="' + statusKey + '"]');
+      const stage = getTimelineStep(statusKey);
       if (!stage) {
         return;
       }
 
-      stage.classList.remove('deployment-stage--pending', 'deployment-stage--complete');
-      stage.classList.add('deployment-stage--active');
-
-      const status = stage.querySelector('[data-stage-status]');
-      const message = stage.querySelector('[data-stage-message]');
-      const time = stage.querySelector('[data-stage-time]');
-      if (status) {
-        status.textContent = 'In progress';
-      }
-      if (message) {
-        message.textContent = ev.message || '';
-      }
-      if (time && ev.timestamp) {
-        time.textContent = new Date(ev.timestamp).toLocaleString('en-GB', {
-          day: 'numeric',
-          month: 'short',
-          hour: '2-digit',
-          minute: '2-digit',
+      const isNewStage = stageIndex !== furthestStageIndex;
+      if (isNewStage) {
+        furthestStageIndex = stageIndex;
+        if (ev.timestamp) {
+          stage.dataset.stageStartedAt = ev.timestamp;
+        }
+        // Mirrors the server: a stage ends where the next stage that ran begins.
+        timelineOrder.slice(0, stageIndex).forEach((key, i) => {
+          const earlier = getTimelineStep(key);
+          if (!earlier) {
+            return;
+          }
+          const end = timelineOrder
+            .slice(i + 1, stageIndex + 1)
+            .map((laterKey) => getTimelineStep(laterKey)?.dataset.stageStartedAt)
+            .find(Boolean);
+          const start = earlier.dataset.stageStartedAt;
+          setStageState(earlier, 'complete', 'Complete');
+          if (key === 'QUEUED') {
+            updateConsoleMessage(earlier, { message: 'Picked up by a deployment worker.' });
+          }
+          setStageMeta(earlier, start && end ? formatElapsed(secondsBetween(start, end)) : 'Done');
         });
+        setStageState(stage, 'active', 'In progress');
+        setStageMeta(stage, 'Running');
       }
+      updateConsoleMessage(stage, ev);
     }
 
     function appendLog(ev) {
@@ -1188,6 +1290,49 @@
       }
       updateTimeline(ev);
     }
+
+    // The server already renders every terminal state (badge, alert, timeline, actions),
+    // so swap those regions in from a fresh render instead of re-deriving them here.
+    // The log output is left untouched so scroll position and search survive.
+    async function refreshDeploymentRegions() {
+      try {
+        const response = await fetch(window.location.href, {
+          headers: { Accept: 'text/html' },
+          credentials: 'same-origin',
+        });
+        if (!response.ok) {
+          throw new Error('Deployment refresh failed with ' + response.status);
+        }
+        const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+        document.querySelectorAll('[data-deployment-refresh]').forEach((region) => {
+          const replacement = fresh.querySelector(
+            '[data-deployment-refresh="' + region.dataset.deploymentRefresh + '"]',
+          );
+          if (replacement) {
+            region.replaceWith(document.importNode(replacement, true));
+          }
+        });
+        applySearch();
+      } catch {
+        window.location.reload();
+      }
+    }
+
+    // One ticker drives both the summary duration and the running step's elapsed time.
+    const durationTimer = window.setInterval(() => {
+      const now = Date.now();
+      const duration = document.querySelector('[data-detail-duration][data-started-at]');
+      if (duration) {
+        duration.textContent = formatElapsed(secondsBetween(duration.dataset.startedAt, now));
+      }
+      const activeStep = document.querySelector('.deploy-step--active[data-stage-started-at]');
+      if (activeStep?.dataset.stageStartedAt) {
+        setStageMeta(
+          activeStep,
+          formatElapsed(secondsBetween(activeStep.dataset.stageStartedAt, now)),
+        );
+      }
+    }, 1000);
 
     let source = null;
 
@@ -1226,21 +1371,8 @@
           }
           setReconnectVisible(false);
           source.close();
-          const detailStatus = document.querySelector('[data-detail-status]');
-          const result = document.querySelector('[data-deployment-result]');
-          if (detailStatus) {
-            detailStatus.textContent =
-              data.status === 'HEALTHY' ? 'Live' : data.status.replaceAll('_', ' ').toLowerCase();
-          }
-          if (result) {
-            result.dataset.terminal = 'true';
-            result.querySelector('strong').textContent =
-              data.status === 'HEALTHY'
-                ? 'Deployment completed successfully.'
-                : data.status === 'FAILED'
-                  ? 'Deployment did not go live.'
-                  : 'Deployment finished.';
-          }
+          window.clearInterval(durationTimer);
+          refreshDeploymentRegions();
         } catch {
           // Ignore malformed SSE status payloads; the stream error handler will close if needed.
         }
@@ -1275,16 +1407,36 @@
     if (!table) {
       return;
     }
-    const labels = {
-      QUEUED: 'Waiting to start',
-      VALIDATING: 'Checking setup',
-      BUILDING: 'Building app',
-      DEPLOYING: 'Publishing',
-      HEALTHY: 'Live',
-      FAILED: 'Failed',
-      CANCELLED: 'Cancelled',
-      ROLLED_BACK: 'Replaced',
-    };
+    async function refreshTerminalRow(row) {
+      const hadFocus = row.contains(document.activeElement);
+      const focusedHref = hadFocus
+        ? document.activeElement.closest('a[href]')?.getAttribute('href')
+        : null;
+      const response = await fetch(window.location.href, {
+        credentials: 'same-origin',
+        headers: { Accept: 'text/html' },
+      });
+      if (!response.ok) {
+        return false;
+      }
+      const fresh = new DOMParser().parseFromString(await response.text(), 'text/html');
+      const replacement = fresh.querySelector(
+        `[data-deployment-row][data-deployment-id="${row.dataset.deploymentId}"]`,
+      );
+      if (!replacement) {
+        return false;
+      }
+      const nextRow = document.importNode(replacement, true);
+      row.replaceWith(nextRow);
+      if (focusedHref) {
+        [...nextRow.querySelectorAll('a[href]')]
+          .find((link) => link.getAttribute('href') === focusedHref)
+          ?.focus();
+      } else if (hadFocus) {
+        nextRow.querySelector('a[href], button:not([disabled])')?.focus();
+      }
+      return true;
+    }
     function activeRows() {
       return [...table.querySelectorAll('[data-deployment-row][data-terminal="false"]')];
     }
@@ -1312,18 +1464,20 @@
           if (!row) {
             return;
           }
-          row.dataset.terminal = String(deployment.terminal);
           const status = row.querySelector('[data-deployment-status]');
           const stage = row.querySelector('[data-deployment-stage]');
           const duration = row.querySelector('[data-deployment-duration]');
-          if (status) {
-            status.textContent = labels[deployment.status] || deployment.status;
-          }
+          applyStatusPresentation(status, deployment.presentation);
           if (stage) {
             stage.textContent = deployment.stage || '';
           }
           if (duration && deployment.durationMs !== null && deployment.durationMs !== undefined) {
             duration.textContent = formatDuration(deployment.durationMs);
+          }
+          if (deployment.terminal) {
+            refreshTerminalRow(row).catch(() => {});
+          } else {
+            row.dataset.terminal = 'false';
           }
         });
       } catch {
@@ -1350,6 +1504,8 @@
     const content = form.querySelector('[data-env-file-content]');
     const status = form.querySelector('[data-env-file-status]');
     const submit = form.querySelector('[data-env-file-submit]');
+    const preview = form.querySelector('[data-env-file-preview]');
+    const previewNames = form.querySelector('[data-env-file-preview-names]');
 
     function readFileText(file) {
       if (typeof file.text === 'function') {
@@ -1363,17 +1519,35 @@
       });
     }
 
-    function countEnvEntries(text) {
-      return text.split(/\r?\n/).filter((line) => {
-        const candidate = line.trim().replace(/^export\s+/, '');
-        return candidate && !candidate.startsWith('#') && candidate.includes('=');
-      }).length;
+    function envEntryNames(text) {
+      return [
+        ...new Set(
+          text.split(/\r?\n/).flatMap((line) => {
+            const candidate = line.trim().replace(/^export\s+/, '');
+            if (!candidate || candidate.startsWith('#')) {
+              return [];
+            }
+            const match = candidate.match(/^([A-Z_][A-Z0-9_]*)\s*=/);
+            return match ? [match[1]] : [];
+          }),
+        ),
+      ];
+    }
+
+    function hidePreview() {
+      if (preview) {
+        preview.hidden = true;
+      }
+      if (previewNames) {
+        previewNames.replaceChildren();
+      }
     }
 
     input.addEventListener('change', async () => {
       content.value = '';
       submit.disabled = true;
       delete form.dataset.confirm;
+      hidePreview();
       const file = input.files?.[0];
       if (!file) {
         return;
@@ -1388,7 +1562,8 @@
           status.textContent = 'The selected .env file is empty.';
           return;
         }
-        const entryCount = countEnvEntries(content.value);
+        const entryNames = envEntryNames(content.value);
+        const entryCount = entryNames.length;
         if (entryCount === 0) {
           status.textContent =
             'No environment variable entries were detected in the selected file.';
@@ -1396,6 +1571,17 @@
         }
         const noun = entryCount === 1 ? 'variable' : 'variables';
         status.textContent = `${file.name}: ${entryCount} ${noun} detected. Matching stored names will be replaced after confirmation.`;
+        if (preview && previewNames) {
+          entryNames.forEach((name) => {
+            const item = document.createElement('li');
+            const code = document.createElement('code');
+            code.className = 'code-inline';
+            code.textContent = name;
+            item.appendChild(code);
+            previewNames.appendChild(item);
+          });
+          preview.hidden = false;
+        }
         form.dataset.confirm = `Import ${entryCount} environment ${noun}? Matching stored names will be replaced.`;
         form.dataset.confirmTitle = 'Import environment variables';
         form.dataset.confirmAcceptLabel = 'Import Variables';

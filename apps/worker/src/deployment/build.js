@@ -28,6 +28,7 @@ export async function writeDockerfile(contextDir, dockerfileContent) {
  *   buildMemoryMb: number,
  *   noCache?: boolean,
  *   buildArgs?: Record<string, string>,
+ *   builderName?: string|null,
  *   onLogLine: (line: string, stream: 'stdout'|'stderr') => void,
  * }} params
  * @returns {Promise<{ imageId: string }>}
@@ -39,37 +40,18 @@ export async function buildDockerImage({
   buildMemoryMb,
   noCache = false,
   buildArgs = {},
+  builderName = null,
   onLogLine,
 }) {
   return new Promise((resolve, reject) => {
-    // SECURITY: command array — no shell, no string interpolation
-    const args = [
-      'build',
-      '--tag',
-      imageTag,
-      '--file',
-      join(contextDir, 'Dockerfile'),
-      '--label',
-      `hellodeploy.image=true`,
-      '--label',
-      `hellodeploy.tag=${imageTag}`,
-      // SECURITY: only values a framework compiles into its client bundle reach
-      // this list — see selectPublicBuildEnv. `docker history` exposes build
-      // arguments, so anything secret must stay out and arrive at container
-      // start instead. Values are never logged.
-      ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
-      // Resource limits on the build process itself
-      '--memory',
-      `${buildMemoryMb}m`,
-      '--network',
-      // Generated Node Dockerfiles install the lockfile's dependencies inside
-      // the build. Use Docker's isolated builder network so a clean host can
-      // reach the package registry, but never grant host networking. Runtime
-      // secrets are injected only when the finished container starts.
-      'default',
-      ...(noCache ? ['--no-cache'] : []),
+    const args = createDockerBuildArgs({
       contextDir,
-    ];
+      imageTag,
+      buildMemoryMb,
+      noCache,
+      buildArgs,
+      builderName,
+    });
 
     logger.info('Docker: starting build', {
       imageTag,
@@ -124,6 +106,98 @@ export async function buildDockerImage({
       clearTimeout(timeout);
       reject(new Error(`docker build spawn error: ${err.message}`));
     });
+  });
+}
+
+/**
+ * Assemble the `docker build` argument vector.
+ *
+ * With BuildKit (the default `docker build` since Engine 23) the per-build
+ * `--memory` flag is accepted and silently ignored. A dedicated
+ * `docker-container` builder carries the memory limit on its own container
+ * instead, so builds routed to one omit the flag and `--load` the result back
+ * into the local image store where the release pipeline expects it.
+ * SECURITY: returns an argument array for spawn; nothing passes through a shell.
+ */
+export function createDockerBuildArgs({
+  contextDir,
+  imageTag,
+  buildMemoryMb,
+  noCache = false,
+  buildArgs = {},
+  builderName = null,
+}) {
+  return [
+    ...(builderName ? ['buildx', 'build', '--builder', builderName, '--load'] : ['build']),
+    '--tag',
+    imageTag,
+    '--file',
+    join(contextDir, 'Dockerfile'),
+    '--label',
+    `hellodeploy.image=true`,
+    '--label',
+    `hellodeploy.tag=${imageTag}`,
+    // SECURITY: only values a framework compiles into its client bundle reach
+    // this list — see selectPublicBuildEnv. `docker history` exposes build
+    // arguments, so anything secret must stay out and arrive at container
+    // start instead. Values are never logged.
+    ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
+    ...(builderName ? [] : ['--memory', `${buildMemoryMb}m`]),
+    '--network',
+    // Generated Node Dockerfiles install the lockfile's dependencies inside
+    // the build. Use the builder's isolated network so a clean host can reach
+    // the package registry, but never grant host networking. Runtime secrets
+    // are injected only when the finished container starts.
+    'default',
+    ...(noCache ? ['--no-cache'] : []),
+    contextDir,
+  ];
+}
+
+/**
+ * Create the dedicated memory-limited buildx builder when it does not exist.
+ * Builder definitions live in the invoking user's Docker config, so the worker
+ * must create its own. An existing builder is left untouched: after changing
+ * the memory limit an operator removes it (`docker buildx rm <name>`) and the
+ * next worker start recreates it.
+ *
+ * @returns {Promise<{ created: boolean }>}
+ */
+export async function ensureBuildBuilder({ name, memoryMb }, deps = { run: runDocker }) {
+  const inspect = await deps.run(['buildx', 'inspect', name]);
+  if (inspect.code === 0) {
+    return { created: false };
+  }
+
+  const create = await deps.run([
+    'buildx',
+    'create',
+    '--name',
+    name,
+    '--driver',
+    'docker-container',
+    '--driver-opt',
+    `memory=${memoryMb}m`,
+    // Equal to memory: the build may not escape the limit through swap.
+    '--driver-opt',
+    `memory-swap=${memoryMb}m`,
+    '--bootstrap',
+  ]);
+  if (create.code !== 0) {
+    throw new Error(
+      `Could not create build builder ${name}: ${create.stderr.trim().slice(0, 500)}`,
+    );
+  }
+  return { created: true };
+}
+
+function runDocker(args) {
+  return new Promise((resolve) => {
+    const stderr = [];
+    const proc = spawn('docker', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    proc.stderr.on('data', (chunk) => stderr.push(chunk));
+    proc.on('close', (code) => resolve({ code, stderr: Buffer.concat(stderr).toString('utf8') }));
+    proc.on('error', (err) => resolve({ code: -1, stderr: err.message }));
   });
 }
 

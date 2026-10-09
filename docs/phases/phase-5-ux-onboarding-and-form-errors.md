@@ -17,7 +17,7 @@ The two HIGH UX items: (1) new projects dropped users on the overview with no gu
 - [x] Maintenance-mode enable form (overview): message-length error now renders inline under the field
 - [x] Environment form: per-field errors for name and value (controller pre-validates via the now-exported `validateSecretName`); service-level failures still land in the `form-errors` summary
 - [x] Environment `.env` upload: owners can import up to 100 variables from a bounded 64 KB file while retaining one-at-a-time entry; the complete file is validated before writes and secret values are never echoed in errors
-- [x] Secret reveal and editing clarity: reveal is an audited owner-only action, Show/Hide is identified as visual masking, Clear removes plaintext from the page, environment responses are `no-store`, and the inline stored-secret editor never loads current values into replacement inputs
+- [x] Secret editing clarity: saved values are permanently write-only through the web application; owners can replace or delete them, and the inline editor never loads current values into replacement inputs. **Superseded 2026-10-09:** the former reveal route and controls were removed.
 - [x] Deploy-hook forms assessed and intentionally left on flash: generate/revoke are button-only actions with no input fields to attach errors to — flash is the standard surface for field-less actions (same as maintenance disable, archive, etc.)
 - [x] IMPROVEMENTS.md checkboxes updated
 

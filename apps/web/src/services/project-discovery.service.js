@@ -3,6 +3,7 @@ import {
   ApprovalStatus,
   DeploymentStatus,
   DetectionStatus,
+  getStatusPresentation,
   ProjectRole,
   ProjectStatus,
 } from '@hellodeploy/contracts';
@@ -220,16 +221,52 @@ async function getUserNotices(activeCount) {
   return [];
 }
 
-export async function getDashboardStatus(userId) {
-  const overview = await getDashboardOverview(userId);
+function boundedDeploymentIds(value) {
+  if (typeof value !== 'string') {
+    return [];
+  }
+  return [...new Set(value.split(',').filter((id) => /^[0-9a-f]{24}$/i.test(id)))].slice(0, 10);
+}
+
+function dashboardDeploymentPayload(row) {
+  const deployment = row.latestDeployment;
+  const presentation = getStatusPresentation('deployment', deployment.status);
   return {
-    activeDeployments: overview.activeDeployments.map((row) => ({
-      id: row.latestDeployment._id.toString(),
-      project: { name: row.project.name, slug: row.project.slug },
-      status: row.latestDeployment.status,
-      stage: row.latestDeployment.currentStage,
-      updatedAt: row.latestDeployment.updatedAt,
-    })),
-    notices: overview.notices,
+    id: deployment._id.toString(),
+    project: { name: row.project.name, slug: row.project.slug },
+    status: deployment.status,
+    stage: deployment.currentStage,
+    terminal: presentation.terminal,
+    presentation: {
+      label: presentation.label,
+      tone: presentation.tone,
+      hint: presentation.hint,
+    },
+    updatedAt: deployment.updatedAt,
+  };
+}
+
+export async function getDashboardStatus(userId, requestedIds = '') {
+  const rows = await loadProjectRows(userId);
+  const trackedIds = boundedDeploymentIds(requestedIds);
+  const activeRows = rows.filter((row) =>
+    ACTIVE_DEPLOYMENT_STATUSES.includes(row.latestDeployment?.status),
+  );
+  const rowByProject = new Map(rows.map((row) => [row.project._id.toString(), row]));
+  const trackedDeployments = trackedIds.length
+    ? await Deployment.find({
+        _id: { $in: trackedIds },
+        projectId: { $in: rows.map((row) => row.project._id) },
+      }).lean()
+    : [];
+  const trackedRows = trackedDeployments.flatMap((deployment) => {
+    const row = rowByProject.get(deployment.projectId.toString());
+    return row ? [{ ...row, latestDeployment: deployment }] : [];
+  });
+  const notices = await getUserNotices(activeRows.length);
+  return {
+    deployments: trackedRows.map(dashboardDeploymentPayload),
+    activeDeployments: activeRows.slice(0, 10).map(dashboardDeploymentPayload),
+    notices,
   };
 }

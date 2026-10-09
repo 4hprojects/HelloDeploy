@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 // Set env vars so the module loads cleanly
@@ -7,6 +8,74 @@ process.env.GITHUB_APP_NAME = 'test-app';
 
 const { generateDockerfile } =
   await import('../../apps/worker/src/deployment/dockerfile-generator.js');
+
+describe('generateDockerfile — template version', () => {
+  const config = {
+    runtimeType: 'NODEJS',
+    buildCommand: null,
+    startCommand: 'node index.js',
+    outputDirectory: null,
+    applicationPort: 3000,
+  };
+
+  it('preserves the exact legacy output when the version is omitted or explicit', () => {
+    assert.equal(
+      generateDockerfile(config),
+      generateDockerfile({ ...config, templateVersion: 'legacy' }),
+    );
+  });
+
+  it('accepts optimized-v1 as an operator-controlled template version', () => {
+    const df = generateDockerfile({ ...config, templateVersion: 'optimized-v1' });
+    assert.match(df, /FROM node:22-alpine AS deps/);
+    assert.ok(df.indexOf('RUN npm ci') < df.indexOf('COPY --chown=node:node . .'));
+  });
+
+  it('rejects an unknown template version', () => {
+    assert.throws(
+      () => generateDockerfile({ ...config, templateVersion: 'experimental' }),
+      /unsupported image template version/i,
+    );
+  });
+});
+
+// Fixtures were generated from the generator at ea99993, before template
+// versions existed. Legacy output must stay byte-identical so existing projects
+// rebuild exactly as before.
+describe('generateDockerfile — legacy golden output', () => {
+  const goldenConfigs = {
+    static: { runtimeType: 'STATIC' },
+    react: {
+      runtimeType: 'REACT',
+      buildCommand: 'npm run build',
+      outputDirectory: 'build',
+      buildArgNames: ['REACT_APP_API_URL'],
+    },
+    vue: { runtimeType: 'VUE', buildCommand: 'npm run build', outputDirectory: 'dist' },
+    nextjs: {
+      runtimeType: 'NEXTJS',
+      buildCommand: 'npm run build',
+      outputDirectory: '.next',
+      buildArgNames: ['NEXT_PUBLIC_SITE_URL'],
+    },
+    express: {
+      runtimeType: 'EXPRESS',
+      startCommand: 'npm run migrate && node server.js',
+      applicationPort: 4000,
+    },
+    nodejs: { runtimeType: 'NODEJS' },
+  };
+
+  for (const [name, config] of Object.entries(goldenConfigs)) {
+    it(`matches the pre-versioning ${name} Dockerfile`, async () => {
+      const expected = await readFile(
+        new URL(`./fixtures/legacy-dockerfiles/${name}.Dockerfile`, import.meta.url),
+        'utf8',
+      );
+      assert.equal(generateDockerfile({ templateVersion: 'legacy', ...config }), expected);
+    });
+  }
+});
 
 describe('generateDockerfile — STATIC', () => {
   it('uses nginx and copies . to html dir', () => {
@@ -148,6 +217,18 @@ describe('generateDockerfile — NEXTJS', () => {
         }),
       /Invalid build argument name/,
     );
+  });
+
+  it('creates an empty public directory in optimized-v1 when the repository omits it', () => {
+    const df = generateDockerfile({
+      runtimeType: 'NEXTJS',
+      buildCommand: 'npm run build',
+      startCommand: null,
+      outputDirectory: '.next',
+      applicationPort: null,
+      templateVersion: 'optimized-v1',
+    });
+    assert.match(df, /RUN npm run build\nRUN mkdir -p \/app\/public/);
   });
 });
 

@@ -191,14 +191,36 @@ describe('detectRuntime — NODEJS', () => {
 
 // ── Warnings ──────────────────────────────────────────────────────────────────
 
-describe('detectRuntime — warnings', () => {
-  it('warns when no lock file', () => {
+describe('detectRuntime — package manager contract', () => {
+  it('blocks deployment when package-lock.json is missing', () => {
     const result = detectRuntime(
       files({
         'package.json': pkg({ dependencies: { express: '*' }, scripts: { start: 'node app.js' } }),
       }),
     );
-    assert.ok(result.issues.some((i) => i.level === 'WARNING' && /lock file/i.test(i.message)));
+    assert.equal(result.isValid, false);
+    assert.ok(
+      result.issues.some((i) => i.level === 'ERROR' && /package-lock\.json/i.test(i.message)),
+    );
+  });
+
+  it('blocks Yarn and pnpm projects until their installers are supported', () => {
+    for (const lockfile of ['yarn.lock', 'pnpm-lock.yaml']) {
+      const result = detectRuntime(
+        files({
+          'package.json': pkg({
+            dependencies: { express: '*' },
+            scripts: { start: 'node app.js' },
+          }),
+          [lockfile]: 'lockfile content',
+        }),
+      );
+      assert.equal(result.isValid, false, lockfile);
+      assert.ok(
+        result.issues.some((i) => /npm projects only/i.test(i.message)),
+        lockfile,
+      );
+    }
   });
 
   it('warns about Dockerfile presence', () => {

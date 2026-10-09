@@ -1,5 +1,6 @@
 import { RuntimeType } from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
+import { ImageTemplateVersion } from './template-policy.js';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
@@ -46,7 +47,12 @@ export function generateDockerfile(config) {
     outputDirectory,
     applicationPort,
     buildArgNames = [],
+    templateVersion = ImageTemplateVersion.LEGACY,
   } = config;
+
+  if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
+    throw new Error(`Unsupported image template version: ${templateVersion}`);
+  }
 
   // Names are interpolated into ARG/ENV directives. They reach here from the
   // EnvironmentSecret collection, which validates the same shape on write, but
@@ -85,13 +91,18 @@ export function generateDockerfile(config) {
       });
 
     case RuntimeType.NEXTJS:
-      return generateNextjs({ buildCommand: buildCommand ?? 'npm run build', buildArgNames });
+      return generateNextjs({
+        buildCommand: buildCommand ?? 'npm run build',
+        buildArgNames,
+        ensurePublicDirectory: templateVersion === ImageTemplateVersion.OPTIMIZED_V1,
+      });
 
     case RuntimeType.EXPRESS:
     case RuntimeType.NODEJS:
       return generateNode({
         startCommand: startCommand ?? 'node server.js',
         applicationPort: applicationPort ?? 3000,
+        optimized: templateVersion === ImageTemplateVersion.OPTIMIZED_V1,
       });
 
     default:
@@ -125,7 +136,7 @@ CMD ["nginx", "-g", "daemon off;"]
 `;
 }
 
-function generateNextjs({ buildCommand, buildArgNames }) {
+function generateNextjs({ buildCommand, buildArgNames, ensurePublicDirectory }) {
   return `FROM ${NODE_IMAGE} AS deps
 WORKDIR /app
 COPY package*.json ./
@@ -137,7 +148,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
 RUN ${buildCommand}
-
+${ensurePublicDirectory ? 'RUN mkdir -p /app/public\n' : ''}
 FROM ${NODE_IMAGE}
 WORKDIR /app
 ENV NODE_ENV=production
@@ -151,11 +162,29 @@ CMD ["node", "server.js"]
 `;
 }
 
-function generateNode({ startCommand, applicationPort }) {
+function generateNode({ startCommand, applicationPort, optimized }) {
   // Keep the approved start command as one JSON-encoded shell argument. This
   // preserves common package-script operators such as `&&` without allowing a
   // newline to inject another Dockerfile directive (guarded above).
   const cmdJson = JSON.stringify(['sh', '-c', startCommand]);
+
+  if (optimized) {
+    return `FROM ${NODE_IMAGE} AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline --omit=dev
+
+FROM ${NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --chown=node:node . .
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ${cmdJson}
+`;
+  }
 
   return `FROM ${NODE_IMAGE}
 WORKDIR /app

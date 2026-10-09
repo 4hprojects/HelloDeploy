@@ -166,16 +166,15 @@ export function detectRuntime(files) {
   }
 
   // ── Lock file check ─────────────────────────────────────────────────────────
-  const hasLockFile =
-    files['package-lock.json'] !== null ||
-    files['yarn.lock'] !== null ||
-    files['pnpm-lock.yaml'] !== null;
+  const hasPackageLock = files['package-lock.json'] !== null;
+  const hasUnsupportedLockFile = files['yarn.lock'] !== null || files['pnpm-lock.yaml'] !== null;
 
-  if (!hasLockFile) {
+  if (!hasPackageLock) {
     issues.push({
-      level: 'WARNING',
-      message:
-        'No lock file found (package-lock.json / yarn.lock / pnpm-lock.yaml). Commit a lock file for reproducible builds.',
+      level: 'ERROR',
+      message: hasUnsupportedLockFile
+        ? 'HelloDeploy currently supports npm projects only. Commit package-lock.json; Yarn and pnpm lockfiles are not yet supported.'
+        : 'No package-lock.json found. HelloDeploy uses npm ci and requires an npm lockfile for reproducible builds.',
     });
   }
 

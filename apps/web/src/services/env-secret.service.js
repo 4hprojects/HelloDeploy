@@ -144,34 +144,6 @@ export async function bulkUpdateSecrets(projectId, rows, actorId, opts = {}) {
   return { success: true, count: updates.length };
 }
 
-export async function revealSecretValue(projectId, name, actorId, opts = {}) {
-  const normalizedName = typeof name === 'string' ? name.trim().toUpperCase() : '';
-  const nameError = validateSecretName(normalizedName);
-  if (nameError) {
-    return { success: false, error: nameError };
-  }
-
-  const secret = await EnvironmentSecret.findOne({ projectId, name: normalizedName }).lean();
-  if (!secret) {
-    return { success: false, error: `Secret "${normalizedName}" not found.` };
-  }
-
-  const value = decryptSecretRecord(secret);
-
-  await writeAuditEvent({
-    action: 'project.secret_revealed',
-    outcome: AuditOutcome.SUCCESS,
-    actorId,
-    targetType: 'project',
-    targetId: projectId.toString(),
-    sourceIp: opts.sourceIp,
-    correlationId: opts.correlationId,
-    metadata: { name: normalizedName },
-  });
-
-  return { success: true, name: normalizedName, value };
-}
-
 /**
  * Decrypt one stored secret record.
  *
