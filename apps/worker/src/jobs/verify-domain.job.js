@@ -4,6 +4,8 @@ import { Domain, Project, Deployment } from '@hellodeploy/database';
 import {
   AuditOutcome,
   DeploymentStatus,
+  DomainConnectionMode,
+  DomainRoutingState,
   DomainStatus,
   JobType,
   ProjectStatus,
@@ -13,6 +15,7 @@ import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { generateCustomDomainServerBlock, customDomainRouteSlug } from '../nginx/template.js';
 import { activateRoute, removeRoute } from '../nginx/helper-client.js';
 import { withProjectRouteLock } from '../nginx/project-route-lock.js';
+import { connectPublicRoute } from '../cloudflare/tunnel-api.js';
 import { getWorkerQueue } from '../queue/worker-queue.js';
 import { env } from '../config/env.js';
 
@@ -267,6 +270,7 @@ export async function handleActivateDomainWithDependencies(
     routeRemover = removeRoute,
     routeLock = withProjectRouteLock,
     workerEnv = env,
+    publicRouteConnector = connectPublicRoute,
   } = {},
 ) {
   const data = job.data;
@@ -346,6 +350,12 @@ export async function handleActivateDomainWithDependencies(
     }
     await auditDomain('domain.activated', AuditOutcome.SUCCESS, data);
     logger.info('ActivateDomain: custom domain route activated', { hostname: data.hostname });
+
+    // Nginx can now serve the hostname, but nothing on the public internet
+    // reaches it until the tunnel carries it and DNS points there. Do that here
+    // rather than asking an administrator to, and fall back to the manual card
+    // when the zone is not one this platform can reach.
+    await establishPublicRoute(data, { DomainModel, workerEnv, publicRouteConnector });
   } catch (err) {
     if (routeActivated) {
       try {
@@ -542,3 +552,46 @@ async function handleLegacyDomainJob(
 }
 
 export { customDomainRouteSlug };
+
+/**
+ * Establish public routing and record which path the domain took.
+ *
+ * Deliberately never fails the activation: nginx already serves the hostname,
+ * and a domain that must be connected by hand is a normal outcome, not an
+ * error. Failures are recorded so the owner sees why and can retry.
+ */
+async function establishPublicRoute(data, { DomainModel, workerEnv, publicRouteConnector }) {
+  try {
+    const result = await publicRouteConnector(data.hostname, {
+      accountId: workerEnv.CLOUDFLARE_ACCOUNT_ID,
+      tunnelId: workerEnv.CLOUDFLARE_TUNNEL_ID,
+      token: workerEnv.CLOUDFLARE_API_TOKEN,
+    });
+    await DomainModel.updateOne(
+      { _id: data.domainId },
+      {
+        $set: result.automated
+          ? {
+              connectionMode: DomainConnectionMode.AUTOMATIC,
+              tunnelId: result.tunnelId,
+              routingState: DomainRoutingState.UNKNOWN,
+            }
+          : { connectionMode: DomainConnectionMode.MANUAL },
+      },
+    );
+    logger.info('ActivateDomain: public routing resolved', {
+      hostname: data.hostname,
+      automated: result.automated,
+      reason: result.reason ?? null,
+    });
+  } catch (err) {
+    await DomainModel.updateOne(
+      { _id: data.domainId },
+      { $set: { connectionMode: DomainConnectionMode.MANUAL } },
+    );
+    logger.warn('ActivateDomain: automatic public routing failed; manual path applies', {
+      hostname: data.hostname,
+      error: err.message,
+    });
+  }
+}

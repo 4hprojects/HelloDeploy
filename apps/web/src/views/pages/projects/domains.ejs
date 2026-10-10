@@ -254,7 +254,9 @@
       <code class="code-inline"><%= domain.hostnameNormalized %></code>
     </h3>
 
-    <% if (!domain.tunnelId) { %>
+    <% if (domain.connectionMode === 'AUTOMATIC') { %>
+    <p class="form-hint">Connected automatically — there is no DNS record for you to add.</p>
+    <% } else if (!domain.tunnelId) { %>
     <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
       this address; the record you need will appear here once it is ready. If the address already
       opens your app, use Check routing to confirm it.</p>
@@ -313,7 +315,6 @@
       <span class="text-muted text-sm">Not checked yet.</span>
       <% } %>
     </div>
-    <% } %>
   </div>
   <% }); %>
 </section>
@@ -368,6 +369,8 @@
               <% } else if (domain.status === 'ACTIVE') { %>
                 <% if (domain.routingState === 'LIVE') { %>
                   Live — visitors reach your app.
+                <% } else if (domain.connectionMode === 'AUTOMATIC') { %>
+                  Connected automatically. Checking that visitors can reach it.
                 <% } else if (domain.tunnelId) { %>
                   Routing is ready here. Add the CNAME record above so visitors reach it.
                 <% } else { %>

@@ -167,6 +167,13 @@ export const env = {
     '/etc/nginx/hellodeploy.d',
   ),
   NGINX_BINARY_PATH: optional('NGINX_BINARY_PATH', 'nginx'),
+
+  // Cloudflare credentials for connecting custom domains without a human.
+  // Absent means every domain falls back to the manual tunnel path, which is
+  // the safe default: nothing is attempted against an account we cannot see.
+  CLOUDFLARE_API_TOKEN: optional('CLOUDFLARE_API_TOKEN', ''),
+  CLOUDFLARE_ACCOUNT_ID: optional('CLOUDFLARE_ACCOUNT_ID', ''),
+  CLOUDFLARE_TUNNEL_ID: optional('CLOUDFLARE_TUNNEL_ID', ''),
   NGINX_HELPER_SOCKET: optional('NGINX_HELPER_SOCKET', '/run/hellodeploy/nginx-helper.sock'),
   NGINX_HELPER_TIMEOUT_MS: helperTimeoutMs,
   PLATFORM_DOMAIN: platformDomain,

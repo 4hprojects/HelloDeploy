@@ -256,3 +256,35 @@ describe('routing record guidance', () => {
     assert.match(layoutCss, /\.domain-steps \{[^}]*repeat\(5, minmax\(0, 1fr\)\)/);
   });
 });
+
+describe('automatic connection', () => {
+  const connected = {
+    _id: '64b7f8e2a1c9d4f5b6a7c8db',
+    hostnameNormalized: 'hellorun.online',
+    status: 'ACTIVE',
+    createdAt: new Date('2026-07-02T00:00:00.000Z'),
+    updatedAt: new Date('2026-07-02T00:00:00.000Z'),
+    tunnelId: '79fad542-82f7-4225-b917-4fcdb042e280',
+    connectionMode: 'AUTOMATIC',
+  };
+
+  it('asks an automatically connected owner for no DNS record', async () => {
+    const html = await renderDomains({ domains: [connected] });
+    assert.doesNotMatch(html, /cfargotunnel/);
+  });
+
+  it('tells the owner it was connected for them', async () => {
+    const html = await renderDomains({ domains: [connected] });
+    assert.match(html, /Connected automatically/);
+  });
+
+  it('still lets them confirm it reaches visitors', async () => {
+    const html = await renderDomains({ domains: [connected] });
+    assert.match(html, /Check routing/);
+  });
+
+  it('keeps showing the record when the zone could not be reached', async () => {
+    const html = await renderDomains({ domains: [{ ...connected, connectionMode: 'MANUAL' }] });
+    assert.match(html, /cfargotunnel/);
+  });
+});

@@ -48,6 +48,9 @@ To enable Google authentication, create an OAuth 2.0 **Web application** client 
 | `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                         |
 | `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                         |
 | `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                          |
+| `CLOUDFLARE_API_TOKEN`         | worker      | no              | —                                     | Connects custom domains without an administrator; unset means every domain is manual     |
+| `CLOUDFLARE_ACCOUNT_ID`        | worker      | no              | —                                     | Account owning the shared tunnel                                                         |
+| `CLOUDFLARE_TUNNEL_ID`         | worker      | no              | —                                     | Shared tunnel that carries custom hostnames; must be remotely managed                    |
 
 ## GitHub App
 

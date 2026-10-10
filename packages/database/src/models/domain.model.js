@@ -1,5 +1,10 @@
 import mongoose from 'mongoose';
-import { DomainRoutingState, DomainStatus, DomainType } from '@hellodeploy/contracts';
+import {
+  DomainConnectionMode,
+  DomainRoutingState,
+  DomainStatus,
+  DomainType,
+} from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -36,6 +41,14 @@ const domainSchema = new Schema(
     // after `cloudflared tunnel create`; the owner points a CNAME at
     // <tunnelId>.cfargotunnel.com.
     tunnelId: { type: String, default: null, maxlength: 100 },
+    // AUTOMATIC when the platform established public routing itself; MANUAL
+    // when the zone sits in an account it cannot reach and the owner must
+    // publish the CNAME by hand.
+    connectionMode: {
+      type: String,
+      enum: Object.values(DomainConnectionMode),
+      default: DomainConnectionMode.PENDING,
+    },
     // Result of the last end-to-end reachability probe. Nginx routing being
     // ACTIVE says nothing about whether public DNS reaches this platform.
     routingState: {

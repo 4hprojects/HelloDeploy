@@ -109,6 +109,13 @@ export const DomainRoutingState = Object.freeze({
   NOT_POINTED: 'NOT_POINTED',
 });
 
+/** How public routing for a custom domain was established. */
+export const DomainConnectionMode = Object.freeze({
+  PENDING: 'PENDING',
+  AUTOMATIC: 'AUTOMATIC',
+  MANUAL: 'MANUAL',
+});
+
 /** Domain type */
 export const DomainType = Object.freeze({
   PLATFORM_SUBDOMAIN: 'PLATFORM_SUBDOMAIN',
