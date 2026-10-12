@@ -9,12 +9,10 @@ const BASE_PLAN_DEFAULTS = Object.freeze({
   maxProjectMembers: 3, // Owner + 2
   memoryMb: 256,
   cpuCores: 0.25,
-  storageMb: 500,
   deploymentsPerMonth: 10,
   buildTimeoutSeconds: 600,
   maxCustomDomains: 1,
   maxRollbackReleases: 3,
-  logRetentionDays: 7,
 });
 
 let planDefaults = BASE_PLAN_DEFAULTS;
@@ -96,13 +94,6 @@ export const QUOTA_FIELDS = Object.freeze([
     hint: 'Number of healthy releases retained for rollback.',
     isInteger: true,
     min: 1,
-    scopes: BOTH_SCOPES,
-  },
-  {
-    key: 'logRetentionDays',
-    label: 'Log retention (days)',
-    hint: 'How long deployment logs should be retained.',
-    isInteger: true,
     scopes: BOTH_SCOPES,
   },
 ]);

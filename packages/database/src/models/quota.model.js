@@ -17,12 +17,10 @@ const quotaSchema = new Schema(
     maxProjectMembers: { type: Number, default: null },
     memoryMb: { type: Number, default: null },
     cpuCores: { type: Number, default: null },
-    storageMb: { type: Number, default: null },
     deploymentsPerMonth: { type: Number, default: null },
     buildTimeoutSeconds: { type: Number, default: null },
     maxCustomDomains: { type: Number, default: null },
     maxRollbackReleases: { type: Number, default: null },
-    logRetentionDays: { type: Number, default: null },
 
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
