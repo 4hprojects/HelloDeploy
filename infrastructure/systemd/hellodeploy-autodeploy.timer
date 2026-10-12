@@ -1,0 +1,11 @@
+[Unit]
+Description=Check GitHub for a new HelloDeploy release every 5 minutes
+
+[Timer]
+OnBootSec=5min
+# Counted from the end of the previous check, so a long upgrade never overlaps the next one.
+OnUnitInactiveSec=5min
+RandomizedDelaySec=30s
+
+[Install]
+WantedBy=timers.target

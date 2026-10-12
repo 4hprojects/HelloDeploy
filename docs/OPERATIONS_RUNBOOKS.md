@@ -273,6 +273,35 @@ Do not rely on Docker images as the only backup. Source repositories and reprodu
 
 `infrastructure/upgrade.sh` automatically checks out the previous full commit when candidate installation or verification fails. It reinstalls locked dependencies, validates both service configurations, restores the previous service units and platform ingress, restarts services, and runs the complete installed-host verifier. It resumes the deployment queue only when the script paused it and rollback verifies successfully. Treat a `CRITICAL: rollback ... failed verification` message as an outage: keep the queue paused and inspect `journalctl -u 'hellodeploy-*'` before attempting another change.
 
+## Automatic deploys
+
+The host cannot receive inbound connections, so GitHub cannot push a deploy. Instead `hellodeploy-autodeploy.timer` runs `scripts/autodeploy.js` as root every 5 minutes. It fetches `main` and runs `infrastructure/upgrade.sh --ref <sha>` only when:
+
+- `main` is ahead of `/opt/hellodeploy` and contains the deployed commit, so a release deployed by hand from another ref is never moved backwards;
+- the `CI` workflow (`ci.yml`) completed successfully on a push of that commit. CodeQL is ignored because its upload always fails on this plan;
+- that commit has not already failed to deploy.
+
+`upgrade.sh` still does the backup, queue drain, verification, and automatic rollback. A failed upgrade marks the unit failed and records the commit in `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json`; the next commit on `main` is tried normally. After a successful deploy only the newest 10 directories in `/var/backups/hellodeploy` are kept.
+
+**Install once.** `/opt/hellodeploy` must already run a release that contains `scripts/autodeploy.js`, so deploy that release with `upgrade.sh` first, then:
+
+```bash
+sudo bash infrastructure/install-autodeploy.sh
+```
+
+The installer pins GitHub's SSH host key, creates a read-only deploy key and prints it for `Settings → Deploy keys` (re-run after adding it), switches the checkout's `origin` to SSH with that key, and stores a fine-grained token with **Actions: Read-only** in `/etc/hellodeploy/autodeploy-github-token`. Manual `upgrade.sh` runs then fetch with the deploy key too, without a credentials prompt.
+
+| Task                             | Command                                                                     |
+| -------------------------------- | --------------------------------------------------------------------------- |
+| Watch                            | `journalctl -u hellodeploy-autodeploy -f`                                   |
+| Next check                       | `systemctl list-timers hellodeploy-autodeploy.timer`                        |
+| Check now without deploying      | `sudo node /opt/hellodeploy/scripts/autodeploy.js --dry-run`                |
+| Pause (incident, manual upgrade) | `sudo touch /etc/hellodeploy/autodeploy.disabled`                           |
+| Resume                           | `sudo rm /etc/hellodeploy/autodeploy.disabled`                              |
+| Retry a failed commit            | Remove it from `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json` |
+
+Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
+
 ## Rollback
 
 1. Enable maintenance mode and pause the queue.

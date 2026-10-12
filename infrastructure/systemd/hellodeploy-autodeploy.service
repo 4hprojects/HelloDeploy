@@ -1,0 +1,15 @@
+[Unit]
+Description=HelloDeploy production auto-deploy check
+After=network-online.target
+Wants=network-online.target
+# Pause switch: `sudo touch /etc/hellodeploy/autodeploy.disabled`
+ConditionPathExists=!/etc/hellodeploy/autodeploy.disabled
+
+[Service]
+Type=oneshot
+# Root: upgrade.sh installs units, restarts services, and backs up the database.
+WorkingDirectory=/opt/hellodeploy
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node scripts/autodeploy.js
+# Backup, queue drain (up to 10 min), npm ci, asset build, and a possible rollback.
+TimeoutStartSec=45min
