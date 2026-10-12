@@ -47,6 +47,7 @@ import {
   getEnvironment,
   postSetSecret,
   postImportEnvFile,
+  postPreviewEnvFile,
   postBulkUpdateSecrets,
   postDeleteSecret,
   postDeleteAllSecrets,
@@ -278,6 +279,13 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postImportEnvFile,
+);
+router.post(
+  '/:slug/environment/import/preview',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postPreviewEnvFile,
 );
 router.post(
   '/:slug/environment/bulk-update',
