@@ -22,6 +22,18 @@ function createTarget(overrides = {}) {
   });
 }
 
+// Accounts created before signup required a name; insert directly to skip validation.
+async function createNamelessTarget() {
+  const { insertedId } = await User.collection.insertOne({
+    email: EMAIL,
+    passwordHash: 'hash',
+    status: UserStatus.ACTIVE,
+    platformRole: PlatformRole.USER,
+    configVersion: 0,
+  });
+  return { _id: insertedId };
+}
+
 function createQueueDeps() {
   const jobs = [];
   return {
@@ -181,5 +193,22 @@ describe('permanent user deletion', () => {
 
     const event = await AuditEvent.findOne({ action: 'admin.user_deleted' }).lean();
     assert.equal(event.metadata.email, EMAIL);
+  });
+
+  it('deletes an account created without a name', async () => {
+    const target = await createNamelessTarget();
+
+    await deleteAsSuperAdmin(target._id, EMAIL, createQueueDeps().deps);
+
+    assert.equal(await User.exists({ _id: target._id }), null);
+  });
+
+  it('records a missing name as null in the audit log', async () => {
+    const target = await createNamelessTarget();
+
+    await deleteAsSuperAdmin(target._id, EMAIL, createQueueDeps().deps);
+
+    const event = await AuditEvent.findOne({ action: 'admin.user_deleted' }).lean();
+    assert.equal(event.metadata.name, null);
   });
 });

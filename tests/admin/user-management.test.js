@@ -30,6 +30,21 @@ function createUser(overrides = {}) {
   });
 }
 
+// Accounts created before signup required a name; insert directly to skip validation.
+async function createNamelessUser(overrides = {}) {
+  const { insertedId } = await User.collection.insertOne({
+    email: `user-${++emailCounter}@example.test`,
+    passwordHash: 'hash',
+    status: UserStatus.ACTIVE,
+    platformRole: PlatformRole.USER,
+    emailVerifiedAt: new Date(),
+    failedLoginAttempts: 0,
+    configVersion: 0,
+    ...overrides,
+  });
+  return { _id: insertedId };
+}
+
 async function insertSession(userId) {
   await mongoose.connection.db.collection('sessions').insertOne({
     _id: `sid-${userId}`,
@@ -276,6 +291,55 @@ describe('admin user management', () => {
       const detail = await getUserDetail(target._id);
 
       assert.deepEqual([detail.hasPassword, 'passwordHash' in detail.user], [true, false]);
+    });
+  });
+
+  describe('accounts created without a name', () => {
+    it('can be suspended', async () => {
+      const target = await createNamelessUser();
+
+      const result = await suspendUser({ userId: target._id, ...asAdmin() });
+
+      assert.equal(result.success, true);
+    });
+
+    it('can be reactivated', async () => {
+      const target = await createNamelessUser({ status: UserStatus.SUSPENDED });
+
+      const result = await reactivateUser({ userId: target._id, ...asAdmin() });
+
+      assert.equal(result.success, true);
+    });
+
+    it('can be unlocked', async () => {
+      const target = await createNamelessUser({ failedLoginAttempts: 5 });
+
+      const result = await unlockUser({ userId: target._id, ...asAdmin() });
+
+      assert.equal(result.success, true);
+    });
+
+    it('can be marked verified', async () => {
+      const target = await createNamelessUser({
+        status: UserStatus.PENDING_VERIFICATION,
+        emailVerifiedAt: null,
+      });
+
+      const result = await markEmailVerified({ userId: target._id, ...asAdmin() });
+
+      assert.equal(result.success, true);
+    });
+
+    it('can have their role changed', async () => {
+      const target = await createNamelessUser();
+
+      const result = await changeUserRole({
+        userId: target._id,
+        newRole: PlatformRole.ADMIN,
+        ...asSuperAdmin(),
+      });
+
+      assert.equal(result.success, true);
     });
   });
 });
