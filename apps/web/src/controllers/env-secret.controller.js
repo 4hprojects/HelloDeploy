@@ -6,6 +6,7 @@ import {
   deleteAllSecrets,
   validateSecretName,
   importEnvFile,
+  previewEnvFile,
   bulkUpdateSecrets,
 } from '../services/env-secret.service.js';
 
@@ -98,9 +99,48 @@ export const postSetSecret = asyncHandler(async (req, res) => {
   res.redirect(`/projects/${project.slug}/environment`);
 });
 
+// The review screen posts its per-variable choices as JSON in a hidden field;
+// a browser without JavaScript sends none and gets the default choices.
+function parseImportSelections(raw) {
+  if (raw === undefined || raw === '') {
+    return { selections: {} };
+  }
+  try {
+    const selections = JSON.parse(raw);
+    if (selections && typeof selections === 'object' && !Array.isArray(selections)) {
+      return { selections };
+    }
+  } catch {
+    // Fall through to the shared error below.
+  }
+  return { error: 'Your import choices could not be read. Choose the file again.' };
+}
+
+function describeImport({ count, productionCount, skipped }) {
+  const noun = count === 1 ? 'variable' : 'variables';
+  const production = productionCount > 0 ? ` (${productionCount} production)` : '';
+  const skippedNote = skipped.length > 0 ? ` Skipped without a value: ${skipped.join(', ')}.` : '';
+  return `${count} environment ${noun} imported${production}.${skippedNote}`;
+}
+
+export const postPreviewEnvFile = asyncHandler(async (req, res) => {
+  preventEnvironmentCaching(res);
+  const result = previewEnvFile(req.body?.envFileContent);
+  if (!result.success) {
+    return res.status(400).json({ error: { code: 'INVALID_ENV_FILE', message: result.error } });
+  }
+  res.json({ entries: result.entries });
+});
+
 export const postImportEnvFile = asyncHandler(async (req, res) => {
   const project = req.project;
+  const { selections, error } = parseImportSelections(req.body.selections);
+  if (error) {
+    return renderEnvironment(req, res, { importErrors: { form: error } });
+  }
+
   const result = await importEnvFile(project._id, req.body.envFileContent, req.session.user.id, {
+    selections,
     sourceIp: req.ip,
     correlationId: req.correlationId,
   });
@@ -109,10 +149,7 @@ export const postImportEnvFile = asyncHandler(async (req, res) => {
     return renderEnvironment(req, res, { importErrors: { form: result.error } });
   }
 
-  req.flash(
-    'success',
-    `${result.count} environment variable${result.count === 1 ? '' : 's'} imported.`,
-  );
+  req.flash('success', describeImport(result));
   res.redirect(`/projects/${project.slug}/environment`);
 });
 

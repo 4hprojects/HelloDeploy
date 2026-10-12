@@ -11,6 +11,7 @@ import {
   getDecryptedSecrets,
   importEnvFile,
   parseEnvFile,
+  previewEnvFile,
 } from '../../apps/web/src/services/env-secret.service.js';
 
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -24,12 +25,14 @@ export API_KEY='secret value'
 PORT=3000 # runtime port
 `);
 
-    assert.equal(result.success, true);
-    assert.deepEqual(result.entries, [
-      ['DATABASE_URL', 'mongodb://db/app?retryWrites=true'],
-      ['API_KEY', 'secret value'],
-      ['PORT', '3000'],
-    ]);
+    assert.deepEqual(
+      result.entries.map((entry) => [entry.name, entry.localValue]),
+      [
+        ['DATABASE_URL', 'mongodb://db/app?retryWrites=true'],
+        ['API_KEY', 'secret value'],
+        ['PORT', '3000'],
+      ],
+    );
   });
 
   it('rejects invalid names without including the secret value in the error', () => {
@@ -41,10 +44,14 @@ PORT=3000 # runtime port
     assert.doesNotMatch(result.error, new RegExp(secretValue));
   });
 
-  it('validates the whole file for malformed, empty, and duplicate assignments', () => {
+  it('validates the whole file for malformed and duplicate assignments', () => {
     assert.match(parseEnvFile('NOT AN ASSIGNMENT').error, /line 1/);
-    assert.match(parseEnvFile('EMPTY=').error, /has no value/);
     assert.match(parseEnvFile('KEY=one\nKEY=two').error, /defined more than once/);
+  });
+
+  it('keeps an empty value as an entry instead of failing the file', () => {
+    const result = parseEnvFile('PORT=3000\nRESEND_API_KEY=');
+    assert.equal(result.entries[1].localValue, '');
   });
 
   it('enforces bounded file and variable counts', () => {
@@ -55,6 +62,71 @@ PORT=3000 # runtime port
       (_, index) => `KEY_${index}=value`,
     ).join('\n');
     assert.match(parseEnvFile(tooMany).error, /at most 100 variables/);
+  });
+});
+
+describe('.env production values from comments', () => {
+  const productionOf = (content, name) =>
+    parseEnvFile(content).entries.find((entry) => entry.name === name);
+
+  it('reads an inline prod note', () => {
+    const entry = productionOf('NODE_ENV=development # prod: production', 'NODE_ENV');
+    assert.deepEqual([entry.localValue, entry.productionValue], ['development', 'production']);
+  });
+
+  it('ignores a prod note inside a quoted value', () => {
+    const entry = productionOf('MOTTO="ship it # prod: never"', 'MOTTO');
+    assert.equal(entry.productionValue, null);
+  });
+
+  it('reads a commented assignment directly below the active line', () => {
+    const entry = productionOf(
+      'APP_BASE_URL=http://localhost:3000\n# APP_BASE_URL=https://helloeventhub.online',
+      'APP_BASE_URL',
+    );
+    assert.equal(entry.productionValue, 'https://helloeventhub.online');
+  });
+
+  it('reads commented assignments under a production label', () => {
+    const entry = productionOf(
+      '# Production:\n# MONGODB_URI=mongodb+srv://prod/app\nMONGODB_URI=mongodb://127.0.0.1/app',
+      'MONGODB_URI',
+    );
+    assert.deepEqual(
+      [entry.localValue, entry.productionValue, entry.productionSource],
+      ['mongodb://127.0.0.1/app', 'mongodb+srv://prod/app', 'label'],
+    );
+  });
+
+  it('ends a production label at a blank line', () => {
+    const entry = productionOf('# Production:\n\n# PORT=8080\nPORT=3000', 'PORT');
+    assert.equal(entry.productionValue, null);
+  });
+
+  it('reads production-only names under a section header until the next header', () => {
+    const result = parseEnvFile(
+      '# --- local ---\nPORT=3000\n# --- production ---\n# PORT=8080\n# SENTRY_DSN=https://sentry\n# --- notes ---\n# OLD_KEY=unused',
+    );
+    assert.deepEqual(
+      result.entries.map((entry) => [entry.name, entry.localValue, entry.productionValue]),
+      [
+        ['PORT', '3000', '8080'],
+        ['SENTRY_DSN', null, 'https://sentry'],
+      ],
+    );
+  });
+
+  it('ignores ordinary commented-out assignments', () => {
+    const result = parseEnvFile('PORT=3000\n\n# DEBUG=true');
+    assert.deepEqual(
+      result.entries.map((entry) => entry.name),
+      ['PORT'],
+    );
+  });
+
+  it('previews names and value availability without any values', () => {
+    const result = previewEnvFile('API_KEY=local-secret # prod: prod-secret\nEMPTY=');
+    assert.doesNotMatch(JSON.stringify(result), /secret/);
   });
 });
 
@@ -70,8 +142,8 @@ describe('.env file import', () => {
     const first = await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
     const second = await importEnvFile(projectId, 'API_KEY=rotated', actorId);
 
-    assert.deepEqual(first, { success: true, count: 2 });
-    assert.deepEqual(second, { success: true, count: 1 });
+    assert.equal(first.count, 2);
+    assert.equal(second.count, 1);
     assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 2);
     assert.deepEqual(await getDecryptedSecrets(projectId), {
       API_KEY: 'rotated',
@@ -92,6 +164,65 @@ describe('.env file import', () => {
 
     assert.equal(result.success, false);
     assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 0);
+  });
+
+  it('imports the production value by default', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'NODE_ENV=development # prod: production', objectId());
+    assert.deepEqual(await getDecryptedSecrets(projectId), { NODE_ENV: 'production' });
+  });
+
+  it('imports the local value when the review chose it', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'NODE_ENV=development # prod: production', objectId(), {
+      selections: { NODE_ENV: { include: true, source: 'local' } },
+    });
+    assert.deepEqual(await getDecryptedSecrets(projectId), { NODE_ENV: 'development' });
+  });
+
+  it('skips a removed variable', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'KEEP=1\nDROP=2', objectId(), {
+      selections: { DROP: { include: false } },
+    });
+    assert.deepEqual(await getDecryptedSecrets(projectId), { KEEP: '1' });
+  });
+
+  it('skips an empty value and reports it when no choice was made', async () => {
+    const result = await importEnvFile(objectId(), 'PORT=3000\nRESEND_API_KEY=', objectId());
+    assert.deepEqual(result.skipped, ['RESEND_API_KEY']);
+  });
+
+  it('uses a value typed in the review for an empty variable', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'RESEND_API_KEY=', objectId(), {
+      selections: { RESEND_API_KEY: { include: true, source: 'local', value: 're_typed' } },
+    });
+    assert.deepEqual(await getDecryptedSecrets(projectId), { RESEND_API_KEY: 're_typed' });
+  });
+
+  it('writes nothing when an included variable still has no value', async () => {
+    const projectId = objectId();
+    const result = await importEnvFile(projectId, 'PORT=3000\nRESEND_API_KEY=', objectId(), {
+      selections: { RESEND_API_KEY: { include: true, source: 'local' } },
+    });
+    assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 0);
+    assert.match(result.error, /RESEND_API_KEY/);
+  });
+
+  it('ignores selections for names that are not in the file', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'PORT=3000', objectId(), {
+      selections: { INJECTED: { include: true, source: 'local', value: 'x' } },
+    });
+    assert.deepEqual(await getDecryptedSecrets(projectId), { PORT: '3000' });
+  });
+
+  it('refuses an import where every variable was removed', async () => {
+    const result = await importEnvFile(objectId(), 'PORT=3000', objectId(), {
+      selections: { PORT: { include: false } },
+    });
+    assert.match(result.error, /Nothing to import/);
   });
 
   it('bulk updates only rows with replacement values', async () => {

@@ -46,13 +46,31 @@
         <label class="form-label" for="env-file">.env file</label>
         <input class="form-input" id="env-file" type="file" accept=".env,text/plain" data-env-file-input required>
         <textarea name="envFileContent" data-env-file-content hidden></textarea>
+        <textarea name="selections" data-env-file-selections hidden></textarea>
         <p class="form-hint text-xs text-muted" id="env-file-status" data-env-file-status aria-live="polite">
           Up to 64 KB and 100 variables. Existing variables with the same name will be replaced.
+          Production values written in comments (for example <code class="code-inline"># prod: value</code>) are used by default.
         </p>
-        <div class="env-import-preview mt-3" data-env-file-preview hidden>
-          <p class="text-sm"><strong>Names ready to import</strong></p>
-          <ul class="env-import-preview__names mt-2" data-env-file-preview-names></ul>
-          <p class="form-hint text-xs text-muted mt-2">Values remain hidden and are encrypted when imported.</p>
+        <div class="env-import-review mt-3" data-env-file-preview hidden>
+          <div class="env-import-review__header">
+            <p class="text-sm"><strong>Review before importing</strong></p>
+            <button type="button" class="button button--ghost button--sm env-import-review__action" data-env-file-clear>Clear file</button>
+          </div>
+          <p class="text-sm mt-2" data-env-file-summary aria-live="polite"></p>
+          <div class="table-wrapper table-responsive mt-2">
+            <table class="table table--responsive env-import-review__table">
+              <thead>
+                <tr>
+                  <th scope="col">Name</th>
+                  <th scope="col">Value to import</th>
+                  <th scope="col">Status</th>
+                  <th scope="col"><span class="sr-only">Action</span></th>
+                </tr>
+              </thead>
+              <tbody data-env-file-preview-rows></tbody>
+            </table>
+          </div>
+          <p class="form-hint text-xs text-muted mt-2">Values stay hidden and are encrypted when imported. Line numbers refer to your file.</p>
         </div>
       </div>
       <div class="form-actions">

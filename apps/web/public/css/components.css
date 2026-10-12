@@ -3208,3 +3208,58 @@
     animation-iteration-count: 1 !important;
   }
 }
+
+/* ── .env import review ──────────────────────────────────────────── */
+.env-import-review__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.env-import-review__action {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.env-import-review__line {
+  display: block;
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.env-import-review__sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.env-import-review__sources label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  font-size: var(--text-sm);
+}
+
+.env-import-review__value {
+  margin-top: var(--space-2);
+}
+
+/* .password-wrapper sets display, which would otherwise override [hidden]. */
+.env-import-review__value[hidden] {
+  display: none;
+}
+
+.env-import-review__row--removed .env-import-review__name,
+.env-import-review__row--removed .env-import-review__sources {
+  opacity: 0.55;
+}
+
+.env-import-review__row--removed .env-import-review__name code {
+  text-decoration: line-through;
+}

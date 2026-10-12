@@ -21,6 +21,66 @@ export function validateSecretName(name) {
   return null;
 }
 
+const ASSIGNMENT_PATTERN = /^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/;
+const COMMENTED_ASSIGNMENT_PATTERN = /^#+\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/;
+const INLINE_PRODUCTION_PATTERN = /\s#\s*(?:prod|production)\s*[:=]\s*(.*)$/i;
+const PRODUCTION_WORD = /\b(?:prod|production)\b/i;
+const OTHER_ENVIRONMENT_WORD = /\b(?:local|dev|development|staging|test|testing)\b/i;
+// "# --- production ---", "### PRODUCTION", "# [production]"
+const SECTION_HEADER_PATTERN = /^#\s*(?:[-=*#~_]{2,}|\[)|(?:[-=*#~_]{2,}|\])\s*$/;
+
+export const ProductionSource = Object.freeze({
+  INLINE: 'inline',
+  BELOW: 'below',
+  LABEL: 'label',
+  SECTION: 'section',
+});
+
+function parseAssignmentValue(text, name) {
+  const parsed = parse(text);
+  return Object.hasOwn(parsed, name) ? parsed[name] : null;
+}
+
+function stripMatchingQuotes(value) {
+  const trimmed = value.trim();
+  const quote = trimmed[0];
+  if ((quote === '"' || quote === "'") && trimmed.length > 1 && trimmed.endsWith(quote)) {
+    return trimmed.slice(1, -1);
+  }
+  return trimmed;
+}
+
+function inlineProductionValue(line) {
+  const rawValue = line.slice(line.indexOf('=') + 1).trimStart();
+  let commentArea = rawValue;
+  // A "#" inside a quoted value is part of the value, so only look after the closing quote.
+  if (['"', "'", '`'].includes(rawValue[0])) {
+    const closing = rawValue.indexOf(rawValue[0], 1);
+    commentArea = closing === -1 ? '' : rawValue.slice(closing + 1);
+  }
+  const match = ` ${commentArea}`.match(INLINE_PRODUCTION_PATTERN);
+  return match ? stripMatchingQuotes(match[1]) : '';
+}
+
+/**
+ * Parse an uploaded .env file into one entry per variable name.
+ *
+ * Besides active assignments, commented-out assignments are read as the
+ * production value for a name when the file marks them as such:
+ *   inline   `NAME=local # prod: value`
+ *   below    `# NAME=value` directly under the active `NAME=` line
+ *   label    a comment mentioning prod/production, then commented assignments
+ *            (until a blank line or an active assignment)
+ *   section  a decorated header such as `# --- production ---`, until the
+ *            next header or a comment naming another environment
+ * Other commented lines are ignored. An empty active value is not an error;
+ * the caller decides whether to skip it or take a value from the user.
+ *
+ * @returns {{ success: true, entries: Array<{ name: string, line: number,
+ *   localValue: string|null, productionValue: string|null,
+ *   productionLine: number|null, productionSource: string|null }> }
+ *   | { success: false, error: string }}
+ */
 export function parseEnvFile(content) {
   if (typeof content !== 'string' || content.length === 0) {
     return { success: false, error: 'Choose a non-empty .env file.' };
@@ -33,61 +93,200 @@ export function parseEnvFile(content) {
   }
 
   const entries = new Map();
+  const entryFor = (name, line) => {
+    if (!entries.has(name)) {
+      entries.set(name, {
+        name,
+        line,
+        localValue: null,
+        productionValue: null,
+        productionLine: null,
+        productionSource: null,
+      });
+    }
+    return entries.get(name);
+  };
+  const setProduction = (name, value, line, source) => {
+    const entry = entryFor(name, line);
+    if (value && entry.productionValue === null) {
+      entry.productionValue = value;
+      entry.productionLine = line;
+      entry.productionSource = source;
+    }
+  };
+
+  let productionContext = null;
+  let previousActiveName = null;
   const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/);
   for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index];
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith('#')) {
+    const lineNumber = index + 1;
+    const trimmed = lines[index].trim();
+
+    if (!trimmed) {
+      if (productionContext === ProductionSource.LABEL) {
+        productionContext = null;
+      }
+      previousActiveName = null;
       continue;
     }
 
-    const assignment = trimmed.match(/^(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/);
+    if (trimmed.startsWith('#')) {
+      const commented = trimmed.match(COMMENTED_ASSIGNMENT_PATTERN);
+      if (commented) {
+        const name = commented[1];
+        const source =
+          productionContext ?? (name === previousActiveName ? ProductionSource.BELOW : null);
+        if (source && !validateSecretName(name)) {
+          const value = parseAssignmentValue(trimmed.replace(/^#+\s*/, ''), name);
+          setProduction(name, value, lineNumber, source);
+        }
+      } else if (PRODUCTION_WORD.test(trimmed)) {
+        productionContext = SECTION_HEADER_PATTERN.test(trimmed)
+          ? ProductionSource.SECTION
+          : ProductionSource.LABEL;
+      } else if (OTHER_ENVIRONMENT_WORD.test(trimmed) || SECTION_HEADER_PATTERN.test(trimmed)) {
+        productionContext = null;
+      }
+      previousActiveName = null;
+      continue;
+    }
+
+    const assignment = trimmed.match(ASSIGNMENT_PATTERN);
     if (!assignment) {
-      return { success: false, error: `Invalid .env assignment on line ${index + 1}.` };
+      return { success: false, error: `Invalid .env assignment on line ${lineNumber}.` };
     }
 
     const name = assignment[1];
     const nameError = validateSecretName(name);
     if (nameError) {
-      return { success: false, error: `Invalid variable name on line ${index + 1}: ${nameError}` };
+      return { success: false, error: `Invalid variable name on line ${lineNumber}: ${nameError}` };
     }
 
-    const parsed = parse(line);
-    if (!Object.hasOwn(parsed, name)) {
-      return { success: false, error: `Invalid .env value on line ${index + 1}.` };
+    const localValue = parseAssignmentValue(trimmed, name);
+    if (localValue === null) {
+      return { success: false, error: `Invalid .env value on line ${lineNumber}.` };
     }
-    if (!parsed[name]) {
-      return { success: false, error: `Variable ${name} on line ${index + 1} has no value.` };
-    }
-    if (entries.has(name)) {
+    const entry = entryFor(name, lineNumber);
+    if (entry.localValue !== null) {
       return { success: false, error: `Variable ${name} is defined more than once.` };
     }
+    entry.line = lineNumber;
+    entry.localValue = localValue;
+    setProduction(name, inlineProductionValue(trimmed), lineNumber, ProductionSource.INLINE);
 
-    entries.set(name, parsed[name]);
-    if (entries.size > MAX_ENV_FILE_SECRETS) {
-      return {
-        success: false,
-        error: `A .env file may contain at most ${MAX_ENV_FILE_SECRETS} variables.`,
-      };
+    if (productionContext === ProductionSource.LABEL) {
+      productionContext = null;
+    }
+    previousActiveName = name;
+  }
+
+  // Names seen only in a commented line that held no usable production value.
+  for (const [name, entry] of entries) {
+    if (entry.localValue === null && entry.productionValue === null) {
+      entries.delete(name);
     }
   }
 
   if (entries.size === 0) {
     return { success: false, error: 'The .env file does not contain any variables.' };
   }
-  return { success: true, entries: [...entries.entries()] };
+  if (entries.size > MAX_ENV_FILE_SECRETS) {
+    return {
+      success: false,
+      error: `A .env file may contain at most ${MAX_ENV_FILE_SECRETS} variables.`,
+    };
+  }
+  return {
+    success: true,
+    entries: [...entries.values()].sort((a, b) => a.line - b.line),
+  };
 }
 
+/**
+ * Names and value availability for the import review screen. Values never
+ * leave the server.
+ */
+export function previewEnvFile(content) {
+  const parsed = parseEnvFile(content);
+  if (!parsed.success) {
+    return parsed;
+  }
+  return {
+    success: true,
+    entries: parsed.entries.map((entry) => ({
+      name: entry.name,
+      line: entry.line,
+      hasLocalValue: Boolean(entry.localValue),
+      hasProductionValue: entry.productionValue !== null,
+      productionLine: entry.productionLine,
+      productionSource: entry.productionSource,
+    })),
+  };
+}
+
+/**
+ * Import an uploaded .env file. `opts.selections` comes from the review
+ * screen, keyed by variable name: `{ include, source: 'local'|'production',
+ * value }`. Without a selection a name is imported with its production value
+ * when the file has one, otherwise its local value, and skipped when it has
+ * neither. `value` fills in a name whose chosen value is empty. Everything is
+ * validated before the first write.
+ *
+ * @returns {Promise<{ success: true, count: number, productionCount: number,
+ *   skipped: string[] } | { success: false, error: string }>}
+ */
 export async function importEnvFile(projectId, content, actorId, opts = {}) {
   const parsed = parseEnvFile(content);
   if (!parsed.success) {
     return parsed;
   }
 
-  for (const [name, value] of parsed.entries) {
-    await setSecret(projectId, name, value, actorId, opts);
+  const selections = opts.selections ?? {};
+  const writes = [];
+  const skipped = [];
+  let productionCount = 0;
+  for (const entry of parsed.entries) {
+    const selection = Object.hasOwn(selections, entry.name) ? selections[entry.name] : null;
+    if (selection?.include === false) {
+      continue;
+    }
+
+    const wantsLocal = selection?.source === 'local' || entry.productionValue === null;
+    let value = wantsLocal ? entry.localValue : entry.productionValue;
+    if (!value && typeof selection?.value === 'string' && selection.value.length > 0) {
+      value = selection.value;
+    }
+    if (!value) {
+      if (selection?.include === true) {
+        return {
+          success: false,
+          error: `Enter a value for ${entry.name} or remove it before importing.`,
+        };
+      }
+      skipped.push(entry.name);
+      continue;
+    }
+
+    if (!wantsLocal) {
+      productionCount += 1;
+    }
+    writes.push([entry.name, value]);
   }
-  return { success: true, count: parsed.entries.length };
+
+  if (writes.length === 0) {
+    return {
+      success: false,
+      error: 'Nothing to import. Every variable was removed or has no value.',
+    };
+  }
+
+  for (const [name, value] of writes) {
+    const result = await setSecret(projectId, name, value, actorId, opts);
+    if (!result.success) {
+      return result;
+    }
+  }
+  return { success: true, count: writes.length, productionCount, skipped };
 }
 
 function normalizeBulkSecretRows(rows) {

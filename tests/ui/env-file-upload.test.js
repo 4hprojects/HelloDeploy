@@ -59,14 +59,26 @@ describe('.env file upload UI', () => {
     assert.doesNotMatch(clientScript, /console\.(?:log|debug).*envFileContent/);
   });
 
-  it('summarizes parsed entries and requires overwrite confirmation before import', () => {
-    assert.match(clientScript, /function envEntryNames/);
-    assert.match(clientScript, /Matching stored names will be replaced after confirmation/);
+  it('reviews parsed entries from the server preview and requires overwrite confirmation', () => {
+    assert.match(clientScript, /fetch\(`\$\{form\.action\}\/preview`/);
     assert.match(clientScript, /form\.dataset\.confirmTitle = 'Import environment variables'/);
-    assert.match(clientScript, /entryCount === 0/);
     assert.match(environment, /id="env-file-status"[\s\S]*aria-live="polite"/);
-    assert.match(environment, /data-env-file-preview-names/);
-    assert.match(clientScript, /code\.textContent = name/);
+    assert.match(environment, /data-env-file-preview-rows/);
+    assert.match(clientScript, /code\.textContent = entry\.name/);
+  });
+
+  it('lets each variable be removed, restored, and the whole file cleared before import', () => {
+    assert.match(clientScript, /row\.removed \? 'Undo' : 'Remove'/);
+    assert.match(environment, /data-env-file-clear/);
+    assert.match(environment, /name="selections"/);
+  });
+
+  it('never builds review rows from HTML strings', () => {
+    const reviewScript = clientScript.slice(
+      clientScript.indexOf('function initEnvFileImport'),
+      clientScript.indexOf('function initSettingsSectionNavigation'),
+    );
+    assert.doesNotMatch(reviewScript, /\.innerHTML = (?!initialStatus)/);
   });
 
   it('loads the manifest-resolved client bundle so the file listener is current', () => {
