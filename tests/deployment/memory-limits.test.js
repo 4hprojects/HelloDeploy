@@ -20,10 +20,6 @@ const pipeline = await readFile(
   new URL('../../apps/worker/src/deployment/pipeline.js', import.meta.url),
   'utf8',
 );
-const rollbackJob = await readFile(
-  new URL('../../apps/worker/src/jobs/rollback-release.job.js', import.meta.url),
-  'utf8',
-);
 
 describe('docker build memory limit', () => {
   it('sizes the default-builder memory flag from configuration', () => {
@@ -58,9 +54,5 @@ describe('deployed container memory limit', () => {
 
   it('falls back to that default when a job sends no explicit limits', () => {
     assert.match(pipeline, /memoryMb: resourceLimits\?\.memoryMb \?\? DEFAULT_MEMORY_MB/);
-  });
-
-  it('leaves rollbacks on that fallback rather than pinning a stale limit', () => {
-    assert.doesNotMatch(rollbackJob, /resourceLimits/);
   });
 });

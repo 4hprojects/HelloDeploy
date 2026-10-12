@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, DeploymentEvent } from '@hellodeploy/database';
-import { DeploymentStatus, RepositorySourceType } from '@hellodeploy/contracts';
+import { Deployment, DeploymentEvent, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, QuotaScope, RepositorySourceType } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment, createRepository } from '../helpers/worker-fixtures.js';
 
@@ -268,6 +268,55 @@ describe('build-deployment job', () => {
       cpuCores: 0.25,
       pidsLimit: 100,
     });
+  });
+
+  it('sends the project quota memory and CPU in the activation payload', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      memoryMb: 512,
+      cpuCores: 1,
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.enqueued[0]?.payload.resourceLimits, {
+      memoryMb: 512,
+      cpuCores: 1,
+      pidsLimit: 100,
+    });
+  });
+
+  it('never sends a zero memory limit, which Docker reads as unlimited', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({ scopeType: QuotaScope.PROJECT, scopeId: project._id, memoryMb: 0 });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.enqueued[0]?.payload.resourceLimits.memoryMb, 128);
+  });
+
+  it('builds with the project quota build timeout', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      buildTimeoutSeconds: 120,
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.builds[0]?.buildTimeoutMs, 120_000);
+  });
+
+  it('caps the build timeout at the host BUILD_TIMEOUT_MS ceiling', async () => {
+    const { project, repo, deployment } = await seed();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      buildTimeoutSeconds: 99_999,
+    });
+    const { deps, calls } = makeDeps();
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.builds[0]?.buildTimeoutMs, 600_000);
   });
 
   it('marks CLONE_FAILED and never builds when the clone throws', async () => {

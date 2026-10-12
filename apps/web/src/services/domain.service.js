@@ -5,6 +5,7 @@ import { DomainStatus, DomainType, DomainRoutingState, AuditOutcome } from '@hel
 import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
+import { checkDomainQuota } from './quota.service.js';
 import { JobType } from '@hellodeploy/contracts';
 
 // ─── Hostname normalization ────────────────────────────────────────────────────
@@ -130,6 +131,15 @@ export async function addDomain(projectId, hostnameRaw, actorId, opts = {}) {
     return { success: false, error: 'This domain is already claimed.' };
   }
   // If REMOVED, allow re-adding (upsert below handles it)
+
+  const project = await Project.findById(projectId).select('ownerId').lean();
+  if (!project) {
+    return { success: false, error: 'Project not found.' };
+  }
+  const quotaRefusal = await checkDomainQuota(project);
+  if (quotaRefusal) {
+    return { success: false, ...quotaRefusal };
+  }
 
   // Generate a random verification token
   const token = randomBytes(32).toString('hex');

@@ -5,7 +5,7 @@ import { Project, ProjectMembership, Quota } from '@hellodeploy/database';
 import { ProjectStatus, ProjectRole, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
-const { createProject, getUserProjects, updateProject } =
+const { createProject, deleteProject, getUserProjects, updateProject } =
   await import('../../apps/web/src/services/project.service.js');
 
 describe('project.service — createProject', () => {
@@ -113,5 +113,28 @@ describe('project.service — updateProject', () => {
     const fresh = await Project.findById(project._id).lean();
     assert.equal(fresh.name, 'After');
     assert.equal(fresh.slug, 'before');
+  });
+});
+
+describe('project.service — deleteProject', () => {
+  before(async () => {
+    await startTestDb();
+  });
+  after(async () => {
+    await stopTestDb();
+  });
+  beforeEach(async () => {
+    await clearTestDb();
+  });
+
+  it('removes the project quota override with the project', async () => {
+    const ownerId = objectId();
+    const { project } = await createProject({ name: 'Doomed App', ownerId });
+    await Quota.create({ scopeType: QuotaScope.PROJECT, scopeId: project._id, memoryMb: 512 });
+    await deleteProject(
+      { projectId: project._id, actorId: ownerId },
+      { getDeploymentQueue: () => ({}), enqueueJob: async () => {} },
+    );
+    assert.equal(await Quota.countDocuments({ scopeId: project._id }), 0);
   });
 });

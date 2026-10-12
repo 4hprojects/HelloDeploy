@@ -1,4 +1,4 @@
-import { Project, Deployment } from '@hellodeploy/database';
+import { Project, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { allocatePort } from '../deployment/port-allocator.js';
@@ -16,6 +16,7 @@ import {
   runReleasePipeline,
   updateStatus,
   logEvent,
+  toResourceLimits,
   STARTUP_DELAY_MS,
 } from '../deployment/pipeline.js';
 
@@ -104,12 +105,14 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     correlationId,
   );
 
+  const quota = await resolveProjectQuota(project._id, project.ownerId);
   const result = await runReleasePipeline({
     project,
     deploymentId,
     imageTag: sourceDeployment.imageTag,
     correlationId,
     deps,
+    resourceLimits: toResourceLimits(quota),
     opts: {
       removeImageOnFailure: false,
       failOnInvalidSubdomain: false,

@@ -1,5 +1,10 @@
 import 'dotenv/config';
-import { connectDatabase, disconnectDatabase, AuditEvent } from '@hellodeploy/database';
+import {
+  connectDatabase,
+  disconnectDatabase,
+  AuditEvent,
+  configurePlanDefaults,
+} from '@hellodeploy/database';
 import {
   createRedisConnection,
   createDeploymentQueue,
@@ -71,6 +76,10 @@ await connectDatabase(env.MONGODB_URI);
 logger.info('Worker: database connected');
 
 configureAuditService(AuditEvent);
+configurePlanDefaults({
+  memoryMb: env.RUNTIME_MEMORY_MB,
+  buildTimeoutSeconds: Math.floor(env.BUILD_TIMEOUT_MS / 1000),
+});
 
 // ── Redis + BullMQ worker ──────────────────────────────────────────────────────
 

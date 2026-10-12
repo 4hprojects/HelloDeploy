@@ -15,6 +15,7 @@ import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { getLatestCommit, getPublicGithubLatestCommit } from './github.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
+import { checkDeploymentQuota } from './quota.service.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
@@ -175,6 +176,11 @@ export async function createDeployment({
 
   if (!project.runtimeType) {
     return { success: false, error: 'Run project detection before deploying.' };
+  }
+
+  const quotaRefusal = await checkDeploymentQuota(project);
+  if (quotaRefusal) {
+    return { success: false, ...quotaRefusal };
   }
 
   const requiredNames = project.detection?.requiredEnvironmentVariables ?? [];

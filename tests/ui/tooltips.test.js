@@ -74,7 +74,6 @@ describe('accessible tooltip UI', () => {
     assert.match(adminServer, /data-tooltip="Stop new deployment jobs/);
     assert.match(deployments, /data-tooltip="Deploy the latest commit/);
     assert.match(deployments, /data-tooltip="Switch live traffic to this previous version/);
-    assert.match(quota, /'memoryMb', 'Memory \(MB\)', 'Runtime memory limit in megabytes\.'/);
-    assert.match(quota, /data-tooltip="<%= tooltip %>"/);
+    assert.match(quota, /data-tooltip="<%= hint %>"/);
   });
 });

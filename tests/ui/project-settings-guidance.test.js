@@ -68,10 +68,11 @@ function renderSettings(overrides = {}) {
     quota: {
       cpuCores: 1,
       memoryMb: 512,
-      storageMb: 1024,
       buildTimeoutSeconds: 600,
       maxCustomDomains: 2,
+      deploymentsPerMonth: 10,
     },
+    deploymentsThisMonth: 3,
     hasDeployHook,
     settingsState: buildProjectSettingsView({
       project,

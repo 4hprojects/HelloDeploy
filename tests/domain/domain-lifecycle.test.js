@@ -4,6 +4,7 @@ import { before, after, beforeEach, describe, it } from 'node:test';
 import { Domain } from '@hellodeploy/database';
 import { DomainStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
+import { createProject } from '../helpers/worker-fixtures.js';
 
 const { addDomain, requestVerification, removeDomain } =
   await import('../../apps/web/src/services/domain.service.js');
@@ -115,7 +116,8 @@ describe('custom domain lifecycle', () => {
 
   it('increments the lifecycle version when a removed hostname is reclaimed', async () => {
     const domain = await createDomain({ status: DomainStatus.REMOVED, lifecycleVersion: 3 });
-    const result = await addDomain(objectId(), domain.hostnameNormalized, objectId());
+    const project = await createProject();
+    const result = await addDomain(project._id, domain.hostnameNormalized, objectId());
     const fresh = await Domain.findById(domain._id).lean();
 
     assert.equal(result.success, true);
@@ -135,7 +137,8 @@ describe('custom domain lifecycle', () => {
       updatedAt: new Date(),
     });
 
-    const result = await addDomain(objectId(), 'legacy.example.com', objectId());
+    const project = await createProject();
+    const result = await addDomain(project._id, 'legacy.example.com', objectId());
     const fresh = await Domain.findById(insertedId).lean();
 
     assert.equal(result.success, true);

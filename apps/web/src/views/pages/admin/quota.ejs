@@ -1,57 +1,66 @@
 <div class="page-header">
   <div>
-    <h1 class="page-header__title">
-      Quota Override<% if (scopeName) { %> — <%= scopeName %><% } %>
-    </h1>
+    <h1 class="page-header__title">Quota Override — <%= scopeName %></h1>
     <p class="page-header__subtitle text-muted text-sm">
       <%= scopeType %> / <code class="code-inline"><%= scopeId %></code>
-      <% if (!scopeName) { %>
-      <span class="text-xs">(no matching <%= scopeType.toLowerCase() %> found)</span>
-      <% } %>
     </p>
   </div>
 </div>
 
-<% const quotaFields = [
-  ['maxOwnedProjects', 'Max Owned Projects'],
-  ['maxRunningApps', 'Max Running Apps'],
-  ['maxProjectMembers', 'Max Project Members'],
-  ['memoryMb', 'Memory (MB)'],
-  ['cpuCores', 'CPU Cores'],
-  ['deploymentsPerMonth', 'Deployments / Month'],
-  ['buildTimeoutSeconds', 'Build Timeout (seconds)'],
-  ['maxCustomDomains', 'Max Custom Domains'],
-  ['maxRollbackReleases', 'Max Rollback Releases'],
-  ['logRetentionDays', 'Log Retention (days)'],
-]; %>
-<% const quotaValue = (key) => quota?.[key] ?? ''; %>
+<% const isProject = scopeType === 'PROJECT'; %>
+<% const hasValue = (doc, key) => doc?.[key] !== null && doc?.[key] !== undefined; %>
+<% const show = (doc, key) => hasValue(doc, key) ? doc[key] : '—'; %>
+<% const hasErrors = typeof errors !== 'undefined'; %>
+<% const values = typeof formValues !== 'undefined' ? formValues : null; %>
 
 <div class="card">
   <div class="card__header">
-    <span class="card__title">Current Limits</span>
+    <span class="card__title">Effective Limits</span>
   </div>
   <div class="card__body">
-    <% if (quota && quotaFields.some(([key]) => quota[key] !== null && quota[key] !== undefined)) { %>
-    <dl class="detail-list">
-      <% quotaFields.forEach(([key, label]) => { if (quota[key] !== null && quota[key] !== undefined) { %>
-      <dt><%= label %></dt>
-      <dd><%= quota[key] %></dd>
-      <% } }) %>
-    </dl>
-    <% if (consumption && Object.keys(consumption).length > 0) { %>
-    <h3 class="text-sm mt-4 mb-2">Current Consumption</h3>
-    <dl class="detail-list">
-      <% Object.entries(consumption).forEach(([k, v]) => { %>
-      <dt><%= k %></dt>
-      <dd><%= v %></dd>
-      <% }) %>
-    </dl>
-    <% } %>
-    <% if (quota.reason) { %>
-    <p class="text-sm text-muted mt-4">Reason: <%= quota.reason %></p>
-    <% } %>
-    <% } else { %>
-    <p class="text-muted text-sm">No custom quota override set. Platform defaults apply.</p>
+    <p class="text-sm text-muted mb-4">
+      <% if (isProject) { %>
+      Resolution order: this project's override → owner's override → plan default.
+      <% } else { %>
+      Resolution order: this user's override → plan default. Per-project limits set here apply to all projects this user owns, unless a project has its own override.
+      <% } %>
+    </p>
+    <div class="table-wrapper table-responsive">
+      <table class="table table--responsive">
+        <thead>
+          <tr>
+            <th scope="col">Limit</th>
+            <th scope="col">Plan default</th>
+            <% if (isProject) { %><th scope="col">Owner override</th><% } %>
+            <th scope="col">This override</th>
+            <th scope="col">Effective</th>
+            <th scope="col">Usage</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% fields.forEach(({ key, label }) => { %>
+          <% const isOverLimit = usage[key] !== undefined && usage[key] > effective[key]; %>
+          <tr>
+            <td data-label="Limit"><%= label %></td>
+            <td data-label="Plan default"><%= defaults[key] %></td>
+            <% if (isProject) { %><td data-label="Owner override"><%= show(inherited, key) %></td><% } %>
+            <td data-label="This override"><%= show(override, key) %></td>
+            <td data-label="Effective"><strong><%= effective[key] %></strong></td>
+            <td data-label="Usage">
+              <% if (usage[key] === undefined) { %>
+              <span class="text-muted">—</span>
+              <% } else { %>
+              <%= usage[key] %> of <%= effective[key] %>
+              <% if (isOverLimit) { %><span class="status-badge status-badge--failed">Over limit</span><% } %>
+              <% } %>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% if (override?.reason) { %>
+    <p class="text-sm text-muted mt-4">Last reason: <%= override.reason %></p>
     <% } %>
   </div>
 </div>
@@ -61,46 +70,45 @@
     <span class="card__title">Set Quota Override</span>
   </div>
   <div class="card__body">
+    <p class="text-sm text-muted mb-4">Leave a field empty to remove its override and inherit the value shown in the placeholder. Clear every field to remove the override entirely.</p>
     <form method="POST" action="/admin/quotas/<%= scopeType %>/<%= scopeId %>">
       <%- include('../../partials/csrf-field') %>
 
       <div class="form-grid form-grid--2">
-        <% const quotaFieldConfig = [
-          ['maxOwnedProjects', 'Max Owned Projects', 'Maximum projects this user can own.', { step: '1' }],
-          ['maxRunningApps', 'Max Running Apps', 'Maximum apps this scope can keep running at the same time.', { step: '1' }],
-          ['maxProjectMembers', 'Max Project Members', 'Maximum members allowed on a project.', { step: '1' }],
-          ['memoryMb', 'Memory (MB)', 'Runtime memory limit in megabytes.', { step: '1' }],
-          ['cpuCores', 'CPU Cores', 'CPU core allocation for runtime containers.', { step: '0.1' }],
-          ['deploymentsPerMonth', 'Deployments / Month', 'Maximum deployment attempts allowed each month.', { step: '1' }],
-          ['buildTimeoutSeconds', 'Build Timeout (seconds)', 'Maximum build time before a deployment is stopped.', { step: '1' }],
-          ['maxCustomDomains', 'Max Custom Domains', 'Maximum verified custom domains allowed.', { step: '1' }],
-          ['maxRollbackReleases', 'Max Rollback Releases', 'Number of healthy releases retained for rollback.', { step: '1' }],
-          ['logRetentionDays', 'Log Retention (days)', 'How long deployment logs should be retained.', { step: '1' }],
-        ]; %>
-        <% quotaFieldConfig.forEach(([key, label, tooltip, attrs]) => { %>
+        <% fields.forEach(({ key, label, hint, isInteger, min = 0 }) => { %>
+        <% const fieldError = hasErrors ? errors[key] : null; %>
+        <% const inheritedValue = isProject && hasValue(inherited, key) ? inherited[key] : defaults[key]; %>
         <div class="form-group form-group--floating">
           <label class="form-label" for="<%= key %>"><%= label %></label>
           <input type="number" id="<%= key %>" name="<%= key %>"
-                 class="form-input<%= (typeof errors !== 'undefined' && errors?.[key]) ? ' form-input--error' : '' %>"
-                 data-tooltip="<%= tooltip %>"
-                 min="0" step="<%= attrs.step %>" value="<%= quotaValue(key) %>" placeholder="Platform default"
-                 <% if (typeof errors !== 'undefined' && errors?.[key]) { %>aria-invalid="true" aria-describedby="<%= key %>-error"<% } %> />
-          <% if (typeof errors !== 'undefined' && errors?.[key]) { %>
-          <p class="form-error" id="<%= key %>-error" role="alert"><%= errors[key] %></p>
+                 class="form-input<%= fieldError ? ' form-input--error' : '' %>"
+                 data-tooltip="<%= hint %>"
+                 min="<%= min %>" step="<%= isInteger ? '1' : '0.05' %>"
+                 value="<%= values ? (values[key] ?? '') : (hasValue(override, key) ? override[key] : '') %>"
+                 placeholder="Inherit (<%= inheritedValue %>)"
+                 <% if (fieldError) { %>aria-invalid="true" aria-describedby="<%= key %>-error"<% } %> />
+          <% if (fieldError) { %>
+          <p class="form-error" id="<%= key %>-error" role="alert"><%= fieldError %></p>
           <% } %>
         </div>
         <% }) %>
       </div>
 
+      <% const reasonError = hasErrors ? errors.reason : null; %>
       <div class="form-group form-group--floating mt-4">
-        <label class="form-label" for="reason">Reason for override</label>
-        <input type="text" id="reason" name="reason" class="form-input"
-               value="<%= quota?.reason ?? '' %>" placeholder="Optional — appears in audit log" />
+        <label class="form-label" for="reason">Reason for change</label>
+        <input type="text" id="reason" name="reason" required maxlength="500"
+               class="form-input<%= reasonError ? ' form-input--error' : '' %>"
+               value="<%= values?.reason ?? '' %>" placeholder="Recorded in the audit log"
+               <% if (reasonError) { %>aria-invalid="true" aria-describedby="reason-error"<% } %> />
+        <% if (reasonError) { %>
+        <p class="form-error" id="reason-error" role="alert"><%= reasonError %></p>
+        <% } %>
       </div>
 
       <div class="button-group mt-6">
         <button type="submit" class="button button--primary" data-pending-label="Saving...">Save Quota Override</button>
-        <a href="/admin/users" class="button button--ghost">Cancel</a>
+        <a href="<%= isProject ? '/admin/projects' : `/admin/users/${scopeId}` %>" class="button button--ghost">Cancel</a>
       </div>
     </form>
   </div>

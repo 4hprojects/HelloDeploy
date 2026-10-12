@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus } from '@hellodeploy/contracts';
+import { Deployment, Project, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
@@ -53,6 +53,32 @@ describe('retention — cleanupOldReleases', () => {
     const stub = makeDockerStub();
     await cleanupOldReleases(project._id, stub.deps);
     assert.equal(stub.removedImages.length, 0);
+  });
+
+  it('keeps more releases when the owner quota raises maxRollbackReleases', async () => {
+    const project = await createProject();
+    await Quota.create({
+      scopeType: QuotaScope.USER,
+      scopeId: project.ownerId,
+      maxRollbackReleases: 5,
+    });
+    await seedHealthyReleases(project._id, 5);
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    assert.deepEqual(stub.removedImages, []);
+  });
+
+  it('keeps fewer releases when the project quota lowers maxRollbackReleases', async () => {
+    const project = await createProject();
+    await Quota.create({
+      scopeType: QuotaScope.PROJECT,
+      scopeId: project._id,
+      maxRollbackReleases: 1,
+    });
+    await seedHealthyReleases(project._id, 3);
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    assert.deepEqual(stub.removedImages.sort(), ['img-1', 'img-2']);
   });
 
   it('removes only the oldest releases beyond the newest three', async () => {

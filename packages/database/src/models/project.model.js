@@ -116,7 +116,6 @@ const projectSchema = new Schema(
     },
     activeDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
     deployHookTokenHash: { type: String, default: null },
-    quotaOverrideId: { type: Schema.Types.ObjectId, ref: 'Quota', default: null },
     configurationVersion: { type: Number, default: 1 },
     detection: { type: detectionSchema, default: () => ({}) },
     notificationPreference: {
