@@ -116,6 +116,13 @@ describe('container security — hardening flags in startContainer', () => {
     );
   });
 
+  it('restarts containers after a clean host or daemon shutdown (--restart unless-stopped)', () => {
+    assert.ok(
+      source.includes("'--restart',\n    'unless-stopped'"),
+      'on-failure leaves apps down after a reboot because SIGTERM shutdowns exit 0',
+    );
+  });
+
   it('does not mount the Docker socket (would allow container escape)', () => {
     assert.ok(
       !source.includes('/var/run/docker.sock'),

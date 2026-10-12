@@ -134,9 +134,11 @@ export async function startContainer({
     'no-new-privileges:true',
     '--cap-drop',
     'ALL',
-    // Crash loop protection (max 3 restarts before giving up)
+    // NOTE: on-failure left apps down after a reboot or Docker restart: a SIGTERM shutdown
+    // exits 0, which on-failure never restarts. Platform stops always go through
+    // stopAndRemoveContainer, so unless-stopped never revives a container we retired.
     '--restart',
-    'on-failure:3',
+    'unless-stopped',
     // Bound Docker's json-file log growth independently of database log capture.
     '--log-driver',
     'json-file',
