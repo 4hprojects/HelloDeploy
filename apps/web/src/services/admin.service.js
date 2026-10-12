@@ -243,7 +243,10 @@ export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp
   user.suspendedAt = new Date();
   user.suspensionReason = reason?.trim() || null;
   user.configVersion += 1;
-  await user.save();
+  // NOTE: accounts from before signup required a name fail full validation, and admin
+  // actions are how those records get cleaned up, so every admin save here validates
+  // only the fields it changes.
+  await user.save({ validateModifiedOnly: true });
 
   const revokedSessions = await revokeUserSessions(userId);
 
@@ -271,7 +274,7 @@ export async function reactivateUser({ userId, adminId, adminRole, sourceIp, cor
   user.suspendedAt = null;
   user.suspensionReason = null;
   user.configVersion += 1;
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   await auditUserAction('admin.user_reactivated', {
     userId,
@@ -309,7 +312,7 @@ export async function unlockUser({ userId, adminId, adminRole, sourceIp, correla
 
   user.failedLoginAttempts = 0;
   user.lockedUntil = null;
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   await auditUserAction('admin.user_unlocked', {
     userId,
@@ -335,7 +338,7 @@ export async function markEmailVerified({ userId, adminId, adminRole, sourceIp, 
   user.emailVerifiedAt = new Date();
   user.emailVerificationTokenHash = null;
   user.emailVerificationExpiresAt = null;
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   await auditUserAction('admin.user_email_verified', {
     userId,
@@ -447,7 +450,7 @@ export async function changeUserRole({
 
   user.platformRole = role;
   user.configVersion += 1;
-  await user.save();
+  await user.save({ validateModifiedOnly: true });
 
   // The session carries its own copy of the role, so without this a demoted
   // admin keeps admin access until they sign out.
@@ -502,7 +505,7 @@ export async function deleteUserPermanently(
     user.suspendedAt = new Date();
     user.suspensionReason = 'Account deletion in progress.';
     user.configVersion += 1;
-    await user.save();
+    await user.save({ validateModifiedOnly: true });
   }
   await revokeUserSessions(userId);
 
@@ -534,7 +537,11 @@ export async function deleteUserPermanently(
   await auditUserAction(
     'admin.user_deleted',
     { userId, adminId, adminRole, sourceIp, correlationId },
-    { email: user.email, name: `${user.firstName} ${user.lastName}`, deletedProjects },
+    {
+      email: user.email,
+      name: [user.firstName, user.lastName].filter(Boolean).join(' ') || null,
+      deletedProjects,
+    },
   );
 
   return { success: true, user, deletedProjects };
