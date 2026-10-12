@@ -5,6 +5,9 @@ import { NotificationStatus, PlatformRole, UserStatus } from '@hellodeploy/contr
 import { buildNotificationAad, encrypt } from '@hellodeploy/security';
 import { clearTestDb, startTestDb, stopTestDb } from '../helpers/worker-db.js';
 
+// CI has no .env, so the key must not come from the developer's environment.
+process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32, 9).toString('base64');
+
 const { handleSendNotification, isPermanentNotificationError, sweepNotifications } =
   await import('../../apps/worker/src/jobs/send-notification.job.js');
 
