@@ -44,6 +44,7 @@ import {
 import { buildProjectSettingsView } from '../services/project-settings-view.service.js';
 import { env } from '../config/env.js';
 import { getProjectDiscovery } from '../services/project-discovery.service.js';
+import { countDeploymentsThisMonth } from '../services/quota.service.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
@@ -173,10 +174,11 @@ export function getEditProject(req, res) {
 
 export async function renderProjectSettings(req, res, extras = {}) {
   const { deployHookTokenHash, ...projectForView } = req.project;
-  const [repository, domains, quota] = await Promise.all([
+  const [repository, domains, quota, deploymentsThisMonth] = await Promise.all([
     req.project.repositoryId ? Repository.findById(req.project.repositoryId).lean() : null,
     getProjectDomains(req.project._id),
     resolveProjectQuota(req.project._id, req.project.ownerId),
+    countDeploymentsThisMonth(req.project._id),
   ]);
 
   res.render('pages/projects/settings', {
@@ -187,6 +189,7 @@ export async function renderProjectSettings(req, res, extras = {}) {
     repository,
     domains,
     quota,
+    deploymentsThisMonth,
     hasDeployHook: Boolean(deployHookTokenHash),
     settingsState: buildProjectSettingsView({
       project: projectForView,

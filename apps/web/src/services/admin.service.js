@@ -33,6 +33,7 @@ import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 import { initiatePasswordReset, resendVerificationEmail } from './auth.service.js';
 import { deleteProject } from './project.service.js';
+import { countDeploymentsThisMonth } from './quota.service.js';
 
 const ADMIN_SEARCH_MAX_LENGTH = 200;
 
@@ -809,6 +810,7 @@ export async function getQuotaPageData(scopeType, scopeId) {
       : {
           maxProjectMembers: consumption.projectMembers,
           maxCustomDomains: consumption.customDomains,
+          deploymentsPerMonth: consumption.deploymentsThisMonth,
         };
 
   return {
@@ -869,7 +871,7 @@ export async function getQuotaConsumption(scopeType, scopeId) {
   }
 
   if (scopeType === QuotaScope.PROJECT) {
-    const [runningApps, projectMembers, customDomains] = await Promise.all([
+    const [runningApps, projectMembers, customDomains, deploymentsThisMonth] = await Promise.all([
       Deployment.countDocuments({
         projectId: scopeId,
         status: DeploymentStatus.HEALTHY,
@@ -877,8 +879,9 @@ export async function getQuotaConsumption(scopeType, scopeId) {
       }),
       ProjectMembership.countDocuments({ projectId: scopeId }),
       Domain.countDocuments({ projectId: scopeId, status: { $ne: DomainStatus.REMOVED } }),
+      countDeploymentsThisMonth(scopeId),
     ]);
-    return { runningApps, projectMembers, customDomains };
+    return { runningApps, projectMembers, customDomains, deploymentsThisMonth };
   }
 
   return {};

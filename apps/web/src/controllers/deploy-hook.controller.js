@@ -5,7 +5,7 @@ import {
   verifyDeployHookToken,
 } from '../services/project.service.js';
 import { createDeployment } from '../services/deployment.service.js';
-import { DeploymentTrigger } from '@hellodeploy/contracts';
+import { ApiError, DeploymentTrigger } from '@hellodeploy/contracts';
 
 export const getDeployHookSettings = asyncHandler(async (req, res) => {
   res.render('pages/projects/deploy-hook', {
@@ -80,7 +80,10 @@ export const postTriggerDeployHook = asyncHandler(async (req, res) => {
   });
 
   if (!result.success) {
-    return res.status(422).json({ error: { code: 'DEPLOY_FAILED', message: result.error } });
+    const isQuotaExceeded = result.code === ApiError.QUOTA_EXCEEDED;
+    return res.status(isQuotaExceeded ? 429 : 422).json({
+      error: { code: isQuotaExceeded ? result.code : 'DEPLOY_FAILED', message: result.error },
+    });
   }
 
   res.status(202).json({

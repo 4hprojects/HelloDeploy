@@ -71,7 +71,9 @@ function renderSettings(overrides = {}) {
       storageMb: 1024,
       buildTimeoutSeconds: 600,
       maxCustomDomains: 2,
+      deploymentsPerMonth: 10,
     },
+    deploymentsThisMonth: 3,
     hasDeployHook,
     settingsState: buildProjectSettingsView({
       project,
