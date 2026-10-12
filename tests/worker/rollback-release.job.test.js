@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, Project } from '@hellodeploy/database';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import { Deployment, Project, Quota } from '@hellodeploy/database';
+import { DeploymentStatus, DeploymentTrigger, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
@@ -71,6 +71,14 @@ describe('rollback-release job', () => {
   });
   beforeEach(async () => {
     await clearTestDb();
+  });
+
+  it('starts the rollback container with the current project quota memory', async () => {
+    const { project, sourceDeployment, rollbackDeployment } = await seed();
+    await Quota.create({ scopeType: QuotaScope.PROJECT, scopeId: project._id, memoryMb: 768 });
+    const { deps, calls } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    assert.equal(calls.startedContainers[0]?.memoryMb, 768);
   });
 
   it('marks the rollback HEALTHY on success', async () => {

@@ -104,6 +104,27 @@ if (production) {
   }
 }
 
+// Shared with the worker (same root .env): the plan defaults for projects
+// without a quota override, so admin and settings pages show what the worker applies.
+const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
+  min: 128,
+  max: 32768,
+});
+const buildTimeoutMs = parseIntegerEnv('BUILD_TIMEOUT_MS', optional('BUILD_TIMEOUT_MS', '600000'), {
+  min: 1000,
+  max: 86400000,
+});
+const quotaMaxMemoryMb = parseIntegerEnv(
+  'QUOTA_MAX_MEMORY_MB',
+  optional('QUOTA_MAX_MEMORY_MB', '2048'),
+  { min: 128, max: 1048576 },
+);
+const quotaMaxCpuCores = parseIntegerEnv(
+  'QUOTA_MAX_CPU_CORES',
+  optional('QUOTA_MAX_CPU_CORES', '2'),
+  { min: 1, max: 1024 },
+);
+
 export const env = {
   NODE_ENV: nodeEnv,
   PORT: port,
@@ -148,6 +169,11 @@ export const env = {
   GITHUB_APP_PRIVATE_KEY_PATH: optional('GITHUB_APP_PRIVATE_KEY_PATH', ''),
   GITHUB_APP_PRIVATE_KEY: optional('GITHUB_APP_PRIVATE_KEY', ''),
   GITHUB_WEBHOOK_SECRET: optional('GITHUB_WEBHOOK_SECRET', ''),
+
+  RUNTIME_MEMORY_MB: runtimeMemoryMb,
+  BUILD_TIMEOUT_MS: buildTimeoutMs,
+  QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
+  QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',

@@ -9,12 +9,14 @@ import {
   EnvironmentSecret,
   Domain,
   Repository,
+  Quota,
   mongoose,
 } from '@hellodeploy/database';
 import {
   ProjectRole,
   ProjectStatus,
   ApprovalStatus,
+  QuotaScope,
   AuditOutcome,
   JobType,
   normalizeSubdomainLabel,
@@ -520,6 +522,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     Domain.deleteMany({ projectId }),
     DeploymentEvent.deleteMany({ deploymentId: { $in: deploymentIds } }),
     Deployment.deleteMany({ projectId }),
+    Quota.deleteMany({ scopeType: QuotaScope.PROJECT, scopeId: projectId }),
   ]);
 
   await Project.deleteOne({ _id: projectId });

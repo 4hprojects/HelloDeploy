@@ -11,6 +11,10 @@ import {
   Notification,
   ProductEvent,
   mongoose,
+  getPlanDefaults,
+  getQuotaFieldsForScope,
+  resolveProjectQuota,
+  resolveUserQuota,
 } from '@hellodeploy/database';
 import {
   UserStatus,
@@ -686,47 +690,70 @@ export async function setQuotaOverride({
   scopeType,
   scopeId,
   limits,
+  cleared = [],
   adminId,
   adminRole,
   reason,
   sourceIp,
   correlationId,
 }) {
-  if (!Object.values(QuotaScope).includes(scopeType)) {
+  const fields = getQuotaFieldsForScope(scopeType);
+  if (fields.length === 0) {
     return { success: false, error: 'Invalid quota scope type.' };
   }
-
-  const allowedLimits = [
-    'maxOwnedProjects',
-    'maxRunningApps',
-    'maxProjectMembers',
-    'memoryMb',
-    'cpuCores',
-    'deploymentsPerMonth',
-    'buildTimeoutSeconds',
-    'maxCustomDomains',
-    'maxRollbackReleases',
-    'logRetentionDays',
-  ];
-  const cleanLimits = {};
-  for (const key of allowedLimits) {
-    if (limits[key] === undefined) {
-      continue;
-    }
-    if (!Number.isFinite(limits[key]) || limits[key] < 0) {
-      return { success: false, error: `Invalid quota value for ${key}.` };
-    }
-    cleanLimits[key] = limits[key];
+  const targetExists =
+    scopeType === QuotaScope.USER
+      ? await User.exists({ _id: scopeId })
+      : await Project.exists({ _id: scopeId });
+  if (!targetExists) {
+    return { success: false, error: `No matching ${scopeType.toLowerCase()} found.` };
   }
 
-  const quota = await Quota.findOneAndUpdate(
-    { scopeType, scopeId },
-    { $set: { ...cleanLimits, createdBy: adminId, reason: reason?.trim() || null } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+  const toSet = {};
+  const toUnset = {};
+  for (const { key } of fields) {
+    if (limits[key] !== undefined) {
+      if (!Number.isFinite(limits[key]) || limits[key] < 0) {
+        return { success: false, error: `Invalid quota value for ${key}.` };
+      }
+      toSet[key] = limits[key];
+    } else if (cleared.includes(key)) {
+      toUnset[key] = '';
+    }
+  }
+
+  const existing = await Quota.findOne({ scopeType, scopeId }).lean();
+  const changes = {};
+  for (const { key } of fields) {
+    const from = existing?.[key] ?? null;
+    const to = key in toSet ? toSet[key] : key in toUnset ? null : from;
+    if (from !== to) {
+      changes[key] = { from, to };
+    }
+  }
+
+  const hasRemainingOverride = fields.some(
+    ({ key }) => key in toSet || (!(key in toUnset) && (existing?.[key] ?? null) !== null),
   );
 
+  let quota = null;
+  if (hasRemainingOverride) {
+    quota = await Quota.findOneAndUpdate(
+      { scopeType, scopeId },
+      {
+        $set: { ...toSet, updatedBy: adminId, reason: reason?.trim() || null },
+        ...(Object.keys(toUnset).length > 0 && { $unset: toUnset }),
+        $setOnInsert: { createdBy: adminId },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean();
+  } else if (existing) {
+    // Nothing left to override — drop the document so platform defaults apply.
+    await Quota.deleteOne({ _id: existing._id });
+  }
+
   await writeAuditEvent({
-    action: 'admin.quota_updated',
+    action: hasRemainingOverride ? 'admin.quota_updated' : 'admin.quota_cleared',
     outcome: AuditOutcome.SUCCESS,
     actorId: adminId,
     actorRole: adminRole,
@@ -734,14 +761,66 @@ export async function setQuotaOverride({
     targetId: scopeId?.toString(),
     sourceIp,
     correlationId,
-    metadata: { scopeType, limits: Object.keys(cleanLimits) },
+    metadata: { scopeType, changes, reason: reason?.trim() || null },
   });
 
-  return { success: true, quota };
+  return { success: true, quota, changes };
 }
 
 export async function getQuotaOverride(scopeType, scopeId) {
   return Quota.findOne({ scopeType, scopeId }).lean();
+}
+
+/**
+ * Everything the admin quota page needs for one scope, or null when the scope
+ * type is not editable or the target record does not exist. For a project,
+ * `inherited` is the owner's USER override, which sits between the project
+ * override and the plan defaults.
+ */
+export async function getQuotaPageData(scopeType, scopeId) {
+  const fields = getQuotaFieldsForScope(scopeType);
+  if (fields.length === 0) {
+    return null;
+  }
+
+  let ownerId = null;
+  if (scopeType === QuotaScope.PROJECT) {
+    const project = await Project.findById(scopeId).select('ownerId').lean();
+    if (!project) {
+      return null;
+    }
+    ownerId = project.ownerId;
+  } else if (!(await User.exists({ _id: scopeId }))) {
+    return null;
+  }
+
+  const [override, inherited, effective, consumption, scopeName] = await Promise.all([
+    getQuotaOverride(scopeType, scopeId),
+    ownerId ? getQuotaOverride(QuotaScope.USER, ownerId) : null,
+    ownerId ? resolveProjectQuota(scopeId, ownerId) : resolveUserQuota(scopeId),
+    getQuotaConsumption(scopeType, scopeId),
+    getQuotaScopeName(scopeType, scopeId),
+  ]);
+
+  // Usage only where the count is measured against the same limit.
+  const usage =
+    scopeType === QuotaScope.USER
+      ? { maxOwnedProjects: consumption.ownedProjects, maxRunningApps: consumption.runningApps }
+      : {
+          maxProjectMembers: consumption.projectMembers,
+          maxCustomDomains: consumption.customDomains,
+        };
+
+  return {
+    fields,
+    defaults: getPlanDefaults(),
+    override,
+    inherited,
+    effective,
+    usage,
+    scopeName,
+    ownerId,
+  };
 }
 
 /**
@@ -752,7 +831,11 @@ export async function getQuotaOverride(scopeType, scopeId) {
 export async function getQuotaScopeName(scopeType, scopeId) {
   if (scopeType === QuotaScope.USER) {
     const user = await User.findById(scopeId).select('firstName lastName email').lean();
-    return user ? `${user.firstName} ${user.lastName} (${user.email})` : null;
+    if (!user) {
+      return null;
+    }
+    const name = [user.firstName, user.lastName].filter(Boolean).join(' ');
+    return name ? `${name} (${user.email})` : user.email;
   }
   if (scopeType === QuotaScope.PROJECT) {
     const project = await Project.findById(scopeId).select('name slug').lean();

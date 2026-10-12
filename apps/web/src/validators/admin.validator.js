@@ -1,54 +1,49 @@
-const INTEGER_QUOTA_FIELDS = [
-  ['maxOwnedProjects', 'Max owned projects'],
-  ['maxRunningApps', 'Max running apps'],
-  ['maxProjectMembers', 'Max project members'],
-  ['memoryMb', 'Memory (MB)'],
-  ['deploymentsPerMonth', 'Deployments / month'],
-  ['buildTimeoutSeconds', 'Build timeout (seconds)'],
-  ['maxCustomDomains', 'Max custom domains'],
-  ['maxRollbackReleases', 'Max rollback releases'],
-  ['logRetentionDays', 'Log retention (days)'],
-];
+import { getQuotaFieldsForScope } from '@hellodeploy/database';
 
-const FLOAT_QUOTA_FIELDS = [['cpuCores', 'CPU cores']];
+const REASON_MAX_LENGTH = 500;
 
 /**
- * Validate the admin quota-override form. Empty fields mean "no override"
- * and are omitted from `limits`; a non-empty field that isn't a valid
- * non-negative number is reported per-field instead of being silently
- * dropped.
+ * Validate the admin quota-override form for one scope. An empty field means
+ * "no override" and is listed in `cleared` so the stored value is removed; a
+ * non-empty field that isn't a valid non-negative number is reported per-field
+ * instead of being silently dropped. Fields that don't apply to the scope are
+ * ignored. `max` holds host ceilings keyed by field, so a typo can't hand one
+ * app more memory or CPU than the host has.
  *
- * @returns {{ errors: Record<string,string>, hasErrors: boolean, limits: Record<string,number> }}
+ * @param {Record<string, string>} body
+ * @param {string} scopeType
+ * @param {{ max?: Record<string, number> }} [options]
+ * @returns {{ errors: Record<string,string>, hasErrors: boolean, limits: Record<string,number>, cleared: string[], reason: string }}
  */
-export function validateSetQuota(body) {
+export function validateSetQuota(body, scopeType, { max = {} } = {}) {
   const errors = {};
   const limits = {};
+  const cleared = [];
 
-  for (const [key, label] of INTEGER_QUOTA_FIELDS) {
+  for (const { key, label, isInteger, min = 0 } of getQuotaFieldsForScope(scopeType)) {
     const raw = body[key]?.trim?.() ?? '';
     if (raw === '') {
+      cleared.push(key);
       continue;
     }
     const parsed = Number(raw);
-    if (!Number.isInteger(parsed) || parsed < 0) {
-      errors[key] = `${label} must be a whole number of 0 or more.`;
+    if (isInteger && (!Number.isInteger(parsed) || parsed < min)) {
+      errors[key] = `${label} must be a whole number of ${min} or more.`;
+    } else if (!Number.isFinite(parsed) || parsed < min) {
+      errors[key] = `${label} must be a number of ${min} or more.`;
+    } else if (max[key] !== undefined && parsed > max[key]) {
+      errors[key] = `${label} can be at most ${max[key]} on this host.`;
     } else {
       limits[key] = parsed;
     }
   }
 
-  for (const [key, label] of FLOAT_QUOTA_FIELDS) {
-    const raw = body[key]?.trim?.() ?? '';
-    if (raw === '') {
-      continue;
-    }
-    const parsed = Number(raw);
-    if (!Number.isFinite(parsed) || parsed < 0) {
-      errors[key] = `${label} must be a number of 0 or more.`;
-    } else {
-      limits[key] = parsed;
-    }
+  const reason = body.reason?.trim?.() ?? '';
+  if (reason === '') {
+    errors.reason = 'Give a reason — it is recorded in the audit log.';
+  } else if (reason.length > REASON_MAX_LENGTH) {
+    errors.reason = `Reason must be ${REASON_MAX_LENGTH} characters or fewer.`;
   }
 
-  return { errors, hasErrors: Object.keys(errors).length > 0, limits };
+  return { errors, hasErrors: Object.keys(errors).length > 0, limits, cleared, reason };
 }

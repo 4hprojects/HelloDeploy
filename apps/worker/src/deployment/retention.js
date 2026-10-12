@@ -1,10 +1,8 @@
-import { Project, Deployment } from '@hellodeploy/database';
+import { Project, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from './container.js';
 import { removeDockerImage } from './build.js';
-
-const MAX_HEALTHY_RELEASES = 3;
 
 // Statuses whose records may still need their image (running, about to run,
 // or eligible as a rollback source).
@@ -36,7 +34,18 @@ export async function isImageTagInUse(imageTag, excludeIds) {
 }
 
 /**
- * Keep at most MAX_HEALTHY_RELEASES per project.
+ * How many HEALTHY releases a project keeps, from its resolved
+ * maxRollbackReleases quota. Never below 1 so the live release is always kept.
+ *
+ * @param {{ _id: unknown, ownerId: unknown }} project
+ */
+export async function getReleaseKeepCount(project) {
+  const quota = await resolveProjectQuota(project._id, project.ownerId);
+  return Math.max(1, quota.maxRollbackReleases);
+}
+
+/**
+ * Keep at most the project's maxRollbackReleases quota of HEALTHY releases.
  * For any excess HEALTHY deployments (oldest first), stop the container and
  * remove the Docker image. Updates the record to reflect cleanup.
  *
@@ -55,13 +64,16 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
     })
       .sort({ sequenceNumber: -1 })
       .lean(),
-    Project.findById(projectId).select('activeDeploymentId').lean(),
+    Project.findById(projectId).select('activeDeploymentId ownerId').lean(),
   ]);
 
-  const activeDeploymentId = project?.activeDeploymentId?.toString();
-  const toClean = healthy
-    .slice(MAX_HEALTHY_RELEASES)
-    .filter((dep) => dep._id.toString() !== activeDeploymentId);
+  if (!project) {
+    return;
+  }
+
+  const keep = await getReleaseKeepCount(project);
+  const activeDeploymentId = project.activeDeploymentId?.toString();
+  const toClean = healthy.slice(keep).filter((dep) => dep._id.toString() !== activeDeploymentId);
 
   if (toClean.length === 0) {
     return;
@@ -72,7 +84,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
 
   logger.info('Retention: cleaning up old releases', {
     projectId,
-    keeping: MAX_HEALTHY_RELEASES,
+    keeping: keep,
     removing: toClean.length,
   });
 

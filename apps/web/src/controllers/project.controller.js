@@ -1,6 +1,13 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
-import { Deployment, EnvironmentSecret, Project, Repository, User } from '@hellodeploy/database';
+import {
+  Deployment,
+  EnvironmentSecret,
+  Project,
+  Repository,
+  User,
+  resolveProjectQuota,
+} from '@hellodeploy/database';
 import { verifyPassword } from '@hellodeploy/auth';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { getDeployments } from '../services/deployment.service.js';
@@ -28,7 +35,6 @@ import {
 } from '../validators/project.validator.js';
 import { buildSettingsSections } from '../config/project-navigation.js';
 import { getProjectDomains } from '../services/domain.service.js';
-import { resolveProjectQuota } from '../services/quota.service.js';
 import { projectReturnTarget } from '../utils/project-return-target.js';
 import { assessInitialApprovalReadiness } from '../services/approval-readiness.service.js';
 import {

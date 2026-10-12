@@ -67,17 +67,26 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | ---------------------------------- | --------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `WORKER_CONCURRENCY`               | no              | `1`                             | Parallel BullMQ deployment jobs per worker process                                                                                                                    |
 | `NOTIFICATION_WORKER_CONCURRENCY`  | no              | `4`                             | Independent parallel email-delivery jobs                                                                                                                              |
-| `BUILD_TIMEOUT_MS`                 | no              | `600000`                        | Hard cap on `docker build` duration                                                                                                                                   |
+| `BUILD_TIMEOUT_MS`                 | no              | `600000`                        | Default build time limit for projects without a quota override, and the host-wide hard cap no override can exceed. Read by web and worker (same `.env`)               |
 | `BUILD_MEMORY_MB`                  | no              | `1024`                          | Build memory ceiling. Enforced only through `BUILD_BUILDER_NAME`; BuildKit ignores the per-build flag                                                                 |
 | `BUILD_BUILDER_NAME`               | no              | empty                           | Dedicated `docker-container` buildx builder the worker creates with `BUILD_MEMORY_MB` as its memory limit; empty keeps Docker's default builder (memory not enforced) |
 | `USER_IMAGE_TEMPLATE_VERSION`      | no              | `legacy`                        | Default hosted user-image template (`legacy` or `optimized-v1`)                                                                                                       |
 | `USER_IMAGE_OPTIMIZED_PROJECT_IDS` | no              | empty                           | Comma-separated project ObjectIds allowed to use `optimized-v1`                                                                                                       |
-| `RUNTIME_MEMORY_MB`                | no              | `256`                           | Memory ceiling for each deployed application container                                                                                                                |
+| `RUNTIME_MEMORY_MB`                | no              | `256`                           | Default memory for each deployed application container when no quota override applies. Read by web and worker (same `.env`)                                           |
 | `BUILD_WORKSPACE_ROOT`             | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                                                                                                                                 |
 | `RELEASE_METADATA_ROOT`            | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                                                                                                                              |
 | `PROJECT_VOLUME_ROOT`              | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                                                                                                                                        |
 | `PORT_RANGE_START`                 | no              | `10000`                         | First loopback host port available for deployed containers                                                                                                            |
 | `PORT_RANGE_END`                   | no              | `19999`                         | Last loopback host port available for deployed containers                                                                                                             |
+
+## Quota ceilings (web)
+
+Upper bounds an admin quota override may set, so a typo can't give one app more than the host has. Overrides are edited at `/admin/quotas/:scopeType/:scopeId`; projects without an override use `RUNTIME_MEMORY_MB` and `BUILD_TIMEOUT_MS` above.
+
+| Variable              | Required (prod) | Default | Purpose                                            |
+| --------------------- | --------------- | ------- | -------------------------------------------------- |
+| `QUOTA_MAX_MEMORY_MB` | no              | `2048`  | Highest memory (MB) a quota override may assign    |
+| `QUOTA_MAX_CPU_CORES` | no              | `2`     | Highest CPU core count a quota override may assign |
 
 ## Email / notifications
 

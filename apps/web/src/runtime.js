@@ -1,5 +1,10 @@
 import { env } from './config/env.js';
-import { connectDatabase, disconnectDatabase, AuditEvent } from '@hellodeploy/database';
+import {
+  connectDatabase,
+  disconnectDatabase,
+  AuditEvent,
+  configurePlanDefaults,
+} from '@hellodeploy/database';
 import { configureAuditService, logger } from '@hellodeploy/observability';
 import { createApp } from './app.js';
 import { closeDeploymentQueue, getRedisConnection } from './queue/client.js';
@@ -16,6 +21,10 @@ async function start() {
   getRedisConnection();
 
   configureAuditService(AuditEvent);
+  configurePlanDefaults({
+    memoryMb: env.RUNTIME_MEMORY_MB,
+    buildTimeoutSeconds: Math.floor(env.BUILD_TIMEOUT_MS / 1000),
+  });
 
   const app = createApp();
 

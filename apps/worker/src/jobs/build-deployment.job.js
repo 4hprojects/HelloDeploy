@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { Project, Repository, Deployment } from '@hellodeploy/database';
+import { Project, Repository, Deployment, resolveProjectQuota } from '@hellodeploy/database';
 import {
   DeploymentStatus,
   JobType,
@@ -27,13 +27,7 @@ import {
   resolveImageTemplateVersion,
 } from '../deployment/template-policy.js';
 import { resolveBuildProfile } from '../deployment/build-profile.js';
-import {
-  logEvent,
-  updateStatus,
-  DEFAULT_MEMORY_MB,
-  DEFAULT_CPU_CORES,
-  DEFAULT_PIDS_LIMIT,
-} from '../deployment/pipeline.js';
+import { logEvent, updateStatus, toResourceLimits } from '../deployment/pipeline.js';
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 
@@ -406,6 +400,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   // ── BUILD stage ─────────────────────────────────────────────────────────────
+  const quota = await resolveProjectQuota(project._id, project.ownerId);
+  // BUILD_TIMEOUT_MS stays a host-wide ceiling over any per-project quota.
+  const buildTimeoutMs = Math.min(quota.buildTimeoutSeconds * 1000, env.BUILD_TIMEOUT_MS);
   await updateStatus(deploymentId, DeploymentStatus.BUILDING);
   await logEvent(
     deploymentId,
@@ -419,7 +416,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     await deps.buildDockerImage({
       contextDir: workDir,
       imageTag,
-      buildTimeoutMs: env.BUILD_TIMEOUT_MS,
+      buildTimeoutMs,
       buildMemoryMb: env.BUILD_MEMORY_MB,
       builderName: env.BUILD_BUILDER_NAME,
       noCache: noCache === true,
@@ -478,11 +475,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         deploymentId,
         imageId: imageTag,
         targetPort: project.buildConfiguration?.applicationPort ?? 3000,
-        resourceLimits: {
-          memoryMb: DEFAULT_MEMORY_MB,
-          cpuCores: DEFAULT_CPU_CORES,
-          pidsLimit: DEFAULT_PIDS_LIMIT,
-        },
+        resourceLimits: toResourceLimits(quota),
       },
       `activate-${deploymentId}`,
     );

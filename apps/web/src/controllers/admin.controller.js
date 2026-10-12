@@ -23,13 +23,12 @@ import {
   pauseQueue,
   resumeQueue,
   setQuotaOverride,
-  getQuotaOverride,
-  getQuotaConsumption,
-  getQuotaScopeName,
+  getQuotaPageData,
 } from '../services/admin.service.js';
 import { collectServerStats } from '../services/server-stats.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
+import { env } from '../config/env.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
 import { getUxMetrics } from '../services/product-analytics.service.js';
 import { isSafeReturnPath } from '../utils/safe-redirect.js';
@@ -208,39 +207,37 @@ export const getAdminAuditExport = asyncHandler(async (req, res) => {
 
 export const getAdminQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
-  const [quota, consumption, scopeName] = await Promise.all([
-    getQuotaOverride(scopeType, scopeId),
-    getQuotaConsumption(scopeType, scopeId),
-    getQuotaScopeName(scopeType, scopeId),
-  ]);
-  res.render('pages/admin/quota', {
-    title: 'Quota Override',
-    quota,
-    consumption,
-    scopeType,
-    scopeId,
-    scopeName,
-  });
+  const page = await getQuotaPageData(scopeType, scopeId);
+  if (!page) {
+    req.flash('error', 'Quota target not found.');
+    return res.redirect('/admin');
+  }
+  res.render('pages/admin/quota', { title: 'Quota Override', scopeType, scopeId, ...page });
 });
 
 export const postAdminSetQuota = asyncHandler(async (req, res) => {
   const { scopeType, scopeId } = req.params;
-  const { reason } = req.body;
+  const page = await getQuotaPageData(scopeType, scopeId);
+  if (!page) {
+    req.flash('error', 'Quota target not found.');
+    return res.redirect('/admin');
+  }
 
-  const { errors, hasErrors, limits } = validateSetQuota(req.body);
+  const { errors, hasErrors, limits, cleared, reason } = validateSetQuota(req.body, scopeType, {
+    max: {
+      memoryMb: env.QUOTA_MAX_MEMORY_MB,
+      cpuCores: env.QUOTA_MAX_CPU_CORES,
+      // The worker caps every build at BUILD_TIMEOUT_MS, so a higher override would be a lie.
+      buildTimeoutSeconds: Math.floor(env.BUILD_TIMEOUT_MS / 1000),
+    },
+  });
   if (hasErrors) {
-    const [quota, consumption, scopeName] = await Promise.all([
-      getQuotaOverride(scopeType, scopeId),
-      getQuotaConsumption(scopeType, scopeId),
-      getQuotaScopeName(scopeType, scopeId),
-    ]);
     return res.status(400).render('pages/admin/quota', {
       title: 'Quota Override',
-      quota: { ...quota, ...req.body },
-      consumption,
       scopeType,
       scopeId,
-      scopeName,
+      ...page,
+      formValues: req.body,
       errors,
     });
   }
@@ -249,6 +246,7 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
     scopeType,
     scopeId,
     limits,
+    cleared,
     adminId: req.session.user.id,
     adminRole: req.session.user.platformRole,
     reason,
@@ -258,8 +256,10 @@ export const postAdminSetQuota = asyncHandler(async (req, res) => {
 
   if (!result.success) {
     req.flash('error', result.error);
+  } else if (Object.keys(result.changes).length === 0) {
+    req.flash('success', 'No limits changed.');
   } else {
-    req.flash('success', 'Quota updated.');
+    req.flash('success', result.quota ? 'Quota updated.' : 'Override removed. Defaults apply.');
   }
 
   res.redirect(`/admin/quotas/${scopeType}/${scopeId}`);

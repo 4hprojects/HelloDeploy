@@ -25,6 +25,7 @@ const quotaSchema = new Schema(
     logRetentionDays: { type: Number, default: null },
 
     createdBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
+    updatedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     reason: { type: String, default: null, maxlength: 500 },
     effectiveFrom: { type: Date, default: null },
     effectiveTo: { type: Date, default: null },

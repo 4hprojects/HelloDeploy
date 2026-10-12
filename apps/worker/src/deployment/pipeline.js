@@ -32,6 +32,24 @@ export const DEFAULT_MEMORY_MB = env.RUNTIME_MEMORY_MB;
 export const DEFAULT_CPU_CORES = 0.25;
 export const DEFAULT_PIDS_LIMIT = 100;
 
+// Docker reads a 0 memory or CPU limit as "unlimited", so never pass less
+// than these even if a stored quota is out of range.
+const MIN_MEMORY_MB = 128;
+const MIN_CPU_CORES = 0.05;
+
+/**
+ * Container resource limits for a project's resolved quota.
+ *
+ * @param {{ memoryMb: number, cpuCores: number }} quota
+ */
+export function toResourceLimits(quota) {
+  return {
+    memoryMb: Math.max(MIN_MEMORY_MB, quota.memoryMb),
+    cpuCores: Math.max(MIN_CPU_CORES, quota.cpuCores),
+    pidsLimit: DEFAULT_PIDS_LIMIT,
+  };
+}
+
 // How long to wait after container start before health-checking (ms)
 export const STARTUP_DELAY_MS = 3_000;
 
