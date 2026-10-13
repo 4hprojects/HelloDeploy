@@ -13,8 +13,8 @@ const studyLogLineSchema = new Schema(
 );
 
 /**
- * Anonymized copy of a finished deployment, kept indefinitely for long-term
- * study after its raw logs expire. It holds no user, project, repository,
+ * Anonymized copy of a finished deployment, kept for up to five years
+ * (STUDY_RETENTION_YEARS) for long-term study after its raw logs expire. It holds no user, project, repository,
  * commit, or deployment identifiers: `studyId` and `studyProjectKey` are
  * random values stored only on the live Deployment and Project, so deleting
  * the project leaves nothing that links these rows back to it.
@@ -36,6 +36,8 @@ const studyDeploymentSchema = new Schema(
     stageMs: { type: Map, of: Number, default: () => ({}) },
     logLineCount: { type: Number, default: 0 },
     logs: { type: [studyLogLineSchema], default: () => [] },
+    // `day` plus STUDY_RETENTION_YEARS; the TTL index below deletes the row then.
+    expiresAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -46,6 +48,9 @@ const studyDeploymentSchema = new Schema(
 studyDeploymentSchema.index({ studyId: 1 }, { unique: true });
 studyDeploymentSchema.index({ day: 1 });
 studyDeploymentSchema.index({ studyProjectKey: 1, day: 1 });
+studyDeploymentSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+export const STUDY_RETENTION_YEARS = 5;
 
 export const StudyDeployment =
   mongoose.models.StudyDeployment ?? mongoose.model('StudyDeployment', studyDeploymentSchema);

@@ -7,6 +7,7 @@ import {
   Project,
   Repository,
   StudyDeployment,
+  STUDY_RETENTION_YEARS,
   User,
 } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
@@ -24,6 +25,10 @@ const BATCH_SIZE = 50;
 function startOfUtcDay(date) {
   const day = new Date(date);
   return new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate()));
+}
+
+function addYears(date, years) {
+  return new Date(Date.UTC(date.getUTCFullYear() + years, date.getUTCMonth(), date.getUTCDate()));
 }
 
 /**
@@ -56,6 +61,7 @@ export function buildStudyDocument({
     }
   });
 
+  const day = startOfUtcDay(deployment.createdAt);
   return {
     studyId,
     studyProjectKey,
@@ -68,7 +74,8 @@ export function buildStudyDocument({
       ? anonymizeLine(deployment.failureSummary, replacements).slice(0, 1000)
       : null,
     sequenceNumber: deployment.sequenceNumber ?? null,
-    day: startOfUtcDay(deployment.createdAt),
+    day,
+    expiresAt: addYears(day, STUDY_RETENTION_YEARS),
     queueWaitMs: firstEventAt === null ? null : Math.max(0, firstEventAt - createdAt),
     totalMs: completedAt === null ? null : Math.max(0, completedAt - createdAt),
     stageMs,
@@ -147,6 +154,15 @@ export async function archiveDeploymentsForStudy({
   newKey = randomUUID,
   batchSize = BATCH_SIZE,
 } = {}) {
+  // Rows written before expiresAt existed would otherwise never expire.
+  await StudyDeployment.updateMany({ expiresAt: null }, [
+    {
+      $set: {
+        expiresAt: { $dateAdd: { startDate: '$day', unit: 'year', amount: STUDY_RETENTION_YEARS } },
+      },
+    },
+  ]);
+
   let archived = 0;
   while (true) {
     const batch = await Deployment.find({

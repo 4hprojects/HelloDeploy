@@ -158,6 +158,32 @@ describe('archive-study job', () => {
     assert.equal(row.logLineCount, MAX_STUDY_LOG_LINES + 2);
   });
 
+  it('expires a study row five years after its deployment day', async () => {
+    await seedFinishedDeployment();
+    await run();
+    const row = await StudyDeployment.findOne().lean();
+    assert.equal(row.expiresAt.toISOString(), '2031-10-13T00:00:00.000Z');
+  });
+
+  it('gives rows archived before expiry existed an expiry date', async () => {
+    await StudyDeployment.collection.insertOne({
+      studyId: 'legacy-row',
+      studyProjectKey: 'legacy-project',
+      status: 'HEALTHY',
+      day: new Date('2026-09-01T00:00:00Z'),
+    });
+    await run();
+    const row = await StudyDeployment.findOne({ studyId: 'legacy-row' }).lean();
+    assert.equal(row.expiresAt.toISOString(), '2031-09-01T00:00:00.000Z');
+  });
+
+  it('lets MongoDB delete study rows once they expire', async () => {
+    await StudyDeployment.syncIndexes();
+    const indexes = await StudyDeployment.collection.indexes();
+    const ttl = indexes.find((index) => index.key.expiresAt === 1);
+    assert.equal(ttl?.expireAfterSeconds, 0);
+  });
+
   it('measures total deployment time', async () => {
     await seedFinishedDeployment();
     await run();
