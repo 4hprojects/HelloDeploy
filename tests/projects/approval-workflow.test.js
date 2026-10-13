@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { ApprovalRequest, Project, Repository } from '@hellodeploy/database';
+import { ApprovalRequest, EnvironmentSecret, Project, Repository } from '@hellodeploy/database';
 import {
   ApprovalStatus,
   DetectionStatus,
@@ -272,5 +272,52 @@ describe('initial project approval workflow', () => {
       assert.equal(savedRequest.status, ApprovalStatus.CHANGES_REQUESTED);
       assert.equal(savedProject.status, ProjectStatus.DRAFT);
     }
+  });
+
+  describe('a project whose application check found required variables', () => {
+    async function createProjectWithRequiredVariable() {
+      const { project } = await createReadyProject({
+        detection: {
+          status: DetectionStatus.READY,
+          issues: [],
+          checkedCommitSha: COMMIT,
+          checkedAt: new Date(),
+          requiredEnvironmentVariables: ['DATABASE_URL'],
+        },
+      });
+      await EnvironmentSecret.create({
+        projectId: project._id,
+        name: 'DATABASE_URL',
+        ciphertext: 'c',
+        iv: 'i',
+        authTag: 't',
+        createdBy: project.ownerId,
+        updatedBy: project.ownerId,
+      });
+      return project;
+    }
+
+    it('stays current in the admin queue once the variable is set', async () => {
+      const project = await createProjectWithRequiredVariable();
+      await submitReadyProject(project);
+
+      const queue = await getApprovalRequests();
+      assert.equal(queue.requests[0].snapshotState.isCurrent, true);
+    });
+
+    it('can be approved by an admin', async () => {
+      const project = await createProjectWithRequiredVariable();
+      const submitted = await submitReadyProject(project);
+
+      const reviewed = await reviewApprovalRequest({
+        requestId: submitted.request._id,
+        decision: ApprovalStatus.APPROVED,
+        note: '',
+        adminId: approvalObjectId(),
+        adminRole: 'ADMIN',
+      });
+
+      assert.equal(reviewed.success, true);
+    });
   });
 });

@@ -3,6 +3,7 @@ import {
   Project,
   ProjectMembership,
   ApprovalRequest,
+  EnvironmentSecret,
   Quota,
   Deployment,
   Domain,
@@ -970,12 +971,20 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
       .lean(),
     ApprovalRequest.countDocuments(query),
   ]);
+  const secretNamesByProject = await getSecretNamesByProject(
+    requests.map((request) => request.projectId?._id).filter(Boolean),
+  );
   return {
     requests: requests.map((request) => {
       const project = request.projectId;
       const repository = project?.repositoryId ?? null;
       const snapshot = project
-        ? isApprovalSnapshotCurrent({ request, project, repository })
+        ? isApprovalSnapshotCurrent({
+            request,
+            project,
+            repository,
+            configuredEnvironmentVariables: secretNamesByProject.get(project._id.toString()) ?? [],
+          })
         : {
             isCurrent: false,
             hasSnapshot: false,
@@ -994,6 +1003,18 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
     page,
     limit,
   };
+}
+
+async function getSecretNamesByProject(projectIds) {
+  const secrets = await EnvironmentSecret.find({ projectId: { $in: projectIds } })
+    .select('projectId name')
+    .lean();
+  const namesByProject = new Map();
+  for (const { projectId, name } of secrets) {
+    const key = projectId.toString();
+    namesByProject.set(key, [...(namesByProject.get(key) ?? []), name]);
+  }
+  return namesByProject;
 }
 
 export async function reviewApprovalRequest({
@@ -1050,10 +1071,16 @@ export async function reviewApprovalRequest({
           result = { success: false, error: 'Only draft projects can be approved.' };
           return;
         }
-        const repository = project.repositoryId
-          ? await Repository.findById(project.repositoryId).session(session)
-          : null;
-        const snapshot = isApprovalSnapshotCurrent({ request, project, repository });
+        const [repository, secrets] = await Promise.all([
+          project.repositoryId ? Repository.findById(project.repositoryId).session(session) : null,
+          EnvironmentSecret.find({ projectId: project._id }).select('name').session(session).lean(),
+        ]);
+        const snapshot = isApprovalSnapshotCurrent({
+          request,
+          project,
+          repository,
+          configuredEnvironmentVariables: secrets.map(({ name }) => name),
+        });
         if (!snapshot.hasSnapshot) {
           result = {
             success: false,

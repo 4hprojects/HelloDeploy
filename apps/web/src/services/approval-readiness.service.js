@@ -157,8 +157,17 @@ export function assessInitialApprovalReadiness({
   };
 }
 
-export function isApprovalSnapshotCurrent({ request, project, repository }) {
-  const readiness = assessInitialApprovalReadiness({ project, repository });
+export function isApprovalSnapshotCurrent({
+  request,
+  project,
+  repository,
+  configuredEnvironmentVariables = [],
+}) {
+  const readiness = assessInitialApprovalReadiness({
+    project,
+    repository,
+    configuredEnvironmentVariables,
+  });
   const hasSnapshot =
     Number.isInteger(request.snapshotConfigurationVersion) && Boolean(request.snapshotCommitSha);
   const configurationMatches =
