@@ -49,6 +49,18 @@ jobs:
       - name: Browser, accessibility, responsive, and visual tests
         run: npm run test:browser
 
+      # Screenshots, diffs, and traces are the only way to see why a visual
+      # test failed on the CI renderer; nothing is uploaded when it passes.
+      - name: Upload browser test results
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-results
+          path: |
+            test-results/playwright
+            playwright-report
+          retention-days: 14
+
       - name: Lighthouse lab budgets
         run: npm run performance:lab
 
