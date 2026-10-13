@@ -281,7 +281,7 @@ The host cannot receive inbound connections, so GitHub cannot push a deploy. Ins
 - the `CI` workflow (`ci.yml`) completed successfully on a push of that commit. CodeQL is ignored because its upload always fails on this plan;
 - that commit has not already failed to deploy.
 
-`upgrade.sh` still does the backup, queue drain, verification, and automatic rollback. A failed upgrade marks the unit failed and records the commit in `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json`; the next commit on `main` is tried normally. After a successful deploy only the newest 10 directories in `/var/backups/hellodeploy` are kept.
+`upgrade.sh` still does the backup, queue drain, verification, and automatic rollback. A failed upgrade marks the unit failed and records the commit in `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json`; the next commit on `main` is tried normally. After a successful deploy, `/var/backups/hellodeploy` keeps the newest 10 backups plus the first backup of each of the last 12 months as monthly restore points; older ones are deleted.
 
 **Install once.** `/opt/hellodeploy` must already run a release that contains `scripts/autodeploy.js`, so deploy that release with `upgrade.sh` first, then:
 
@@ -301,6 +301,17 @@ The installer pins GitHub's SSH host key, creates a read-only deploy key and pri
 | Retry a failed commit            | Remove it from `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json` |
 
 Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
+
+## Deployment study archive
+
+Raw deployment logs expire after 30 days. Every hour, and when it starts, the worker copies finished deployments (settled for 10 minutes) into the `study_deployments` collection. Each copy holds the outcome, failure code, timings per stage, and up to 2,000 log lines, after `apps/worker/src/deployment/study-anonymizer.js` has redacted secrets and replaced names, emails, repository and project names, domains, commit hashes, IP addresses, and private URL hosts with placeholders. Rows hold no user, project, repository, commit, or deployment ids. `studyProjectKey` and `studyId` are random values kept only on the live `Project` and `Deployment`, so a deleted project's rows can no longer be linked back. This is the retention the Privacy Policy describes.
+
+Export for analysis (NDJSON, one deployment per line, file mode 0600):
+
+```bash
+cd /opt/hellodeploy
+sudo node scripts/export-study-dataset.js --out ~/study.ndjson --since 2026-10-01
+```
 
 ## Rollback
 

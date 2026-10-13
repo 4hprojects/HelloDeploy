@@ -83,9 +83,27 @@ describe('autodeploy — parseGithubRepository', () => {
 });
 
 describe('autodeploy — selectBackupsToPrune', () => {
+  const now = () => new Date('2026-10-13T12:00:00Z');
+
   it('keeps the newest backups and ignores unrelated directories', () => {
     const names = ['20261001_120000', 'manual-keep', '20261003_090000', '20261002_100000'];
-    assert.deepEqual(selectBackupsToPrune(names, 2), ['20261001_120000']);
+    assert.deepEqual(selectBackupsToPrune(names, { keepNewest: 2, monthlyFor: 0, now }), [
+      '20261001_120000',
+    ]);
+  });
+
+  it('keeps the first backup of each recent month as a restore point', () => {
+    const names = ['20260901_000000', '20260915_000000', '20261010_000000'];
+    assert.deepEqual(selectBackupsToPrune(names, { keepNewest: 1, monthlyFor: 12, now }), [
+      '20260915_000000',
+    ]);
+  });
+
+  it('drops monthly restore points older than the retention window', () => {
+    const names = ['20251001_000000', '20251101_000000', '20261010_000000'];
+    assert.deepEqual(selectBackupsToPrune(names, { keepNewest: 1, monthlyFor: 12, now }), [
+      '20251001_000000',
+    ]);
   });
 });
 
@@ -111,7 +129,12 @@ function makeDeps(overrides = {}) {
   return { deps, calls };
 }
 
-const config = { branch: 'main', keepBackups: 1, maxRememberedFailures: 2 };
+const config = {
+  branch: 'main',
+  keepNewestBackups: 1,
+  monthlyBackupMonths: 0,
+  maxRememberedFailures: 2,
+};
 
 describe('autodeploy — runAutodeploy', () => {
   it('runs upgrade.sh for the new commit', async () => {

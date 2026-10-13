@@ -27,7 +27,9 @@ export const AUTODEPLOY_DEFAULTS = Object.freeze({
   tokenFile: '/etc/hellodeploy/autodeploy-github-token',
   stateFile: '/var/lib/hellodeploy/autodeploy-state.json',
   backupRoot: '/var/backups/hellodeploy',
-  keepBackups: 10,
+  keepNewestBackups: 10,
+  // Plus the first backup of each of the last 12 months, as monthly restore points.
+  monthlyBackupMonths: 12,
   maxRememberedFailures: 20,
 });
 
@@ -79,13 +81,31 @@ export function decideDeployment({ currentSha, remoteSha, isAncestor, ciRun, fai
   return { action: 'deploy', reason: 'CI passed on a newer commit.' };
 }
 
-/** Backup directory names to delete so that only the newest `keep` remain. */
-export function selectBackupsToPrune(names, keep) {
-  return names
-    .filter((name) => BACKUP_DIRECTORY_PATTERN.test(name))
-    .sort()
-    .reverse()
-    .slice(keep);
+/**
+ * Backup directory names to delete. Keeps the newest `keepNewest`, plus the
+ * oldest backup of each of the last `monthlyFor` calendar months (UTC,
+ * counting the current one) as monthly restore points.
+ */
+export function selectBackupsToPrune(names, { keepNewest, monthlyFor, now }) {
+  const backups = names.filter((name) => BACKUP_DIRECTORY_PATTERN.test(name)).sort();
+  const keep = new Set(keepNewest > 0 ? backups.slice(-keepNewest) : []);
+
+  const keptMonths = new Set();
+  const current = now();
+  for (let offset = 0; offset < monthlyFor; offset += 1) {
+    const month = new Date(Date.UTC(current.getUTCFullYear(), current.getUTCMonth() - offset, 1));
+    keptMonths.add(`${month.getUTCFullYear()}${String(month.getUTCMonth() + 1).padStart(2, '0')}`);
+  }
+  const monthsWithRestorePoint = new Set();
+  for (const name of backups) {
+    const month = name.slice(0, 6);
+    if (keptMonths.has(month) && !monthsWithRestorePoint.has(month)) {
+      monthsWithRestorePoint.add(month);
+      keep.add(name);
+    }
+  }
+
+  return backups.filter((name) => !keep.has(name)).reverse();
 }
 
 /**
@@ -148,7 +168,11 @@ export async function runAutodeploy(deps, config = AUTODEPLOY_DEFAULTS) {
     ...state,
     lastAttempt: { sha: remoteSha, outcome: 'deployed', at: attemptedAt },
   });
-  const pruned = selectBackupsToPrune(await deps.listBackups(), config.keepBackups);
+  const pruned = selectBackupsToPrune(await deps.listBackups(), {
+    keepNewest: config.keepNewestBackups,
+    monthlyFor: config.monthlyBackupMonths,
+    now: deps.now,
+  });
   for (const name of pruned) {
     await deps.removeBackup(name);
   }
