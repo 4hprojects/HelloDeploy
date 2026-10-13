@@ -88,6 +88,16 @@ Upper bounds an admin quota override may set, so a typo can't give one app more 
 | `QUOTA_MAX_MEMORY_MB` | no              | `2048`  | Highest memory (MB) a quota override may assign    |
 | `QUOTA_MAX_CPU_CORES` | no              | `2`     | Highest CPU core count a quota override may assign |
 
+## Project approval (web)
+
+| Variable                | Required (prod) | Default | Purpose                                                                        |
+| ----------------------- | --------------- | ------- | ------------------------------------------------------------------------------ |
+| `AUTO_APPROVAL_ENABLED` | no              | `false` | When `true`, low-risk project submissions are approved without an admin review |
+
+With the flag on, a submission that passes every readiness check and has no application-check warnings is approved on submit when it is a static, React, or Vue site, or when the owner is trusted: a Premium account, marked trusted by an admin on `/admin/users/:userId`, or already has an approved project. Everything else still waits in `/admin/approval-requests`. Each automatic approval writes a `project.auto_approved` audit event with its reasons.
+
+With the flag on, the web process also checks the queue every minute. A request nobody has reviewed within 30 minutes is approved **provisionally**, as long as its repository and settings still match the submission. The project goes live with a project quota override of 256 MB memory, 0.25 CPU and no custom domains, and stays in the approval queue until an admin confirms it (the override is removed) or suspends it (the container is stopped). Provisional approvals write a `project.provisionally_approved` audit event. Admins are emailed when a project enters the queue, whether or not the flag is on.
+
 ## Email / notifications
 
 Resend is optional. In production, when the complete email group or its Redis-backed notification queue is unavailable, password signup, verification resend, and password recovery return a clear service-unavailable response without creating replacement credentials. Google authentication and existing sessions remain available. Deployment mail remains non-blocking and its operational outcome is recorded on the durable notification record and in safe audit metadata.

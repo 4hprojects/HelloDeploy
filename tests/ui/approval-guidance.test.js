@@ -57,6 +57,11 @@ describe('initial project approval guidance', () => {
     assert.match(adminView, /name="decision" value="CHANGES_REQUESTED"/);
   });
 
+  it('marks the active queue view and keeps passing checks behind a disclosure', () => {
+    assert.match(adminView, /aria-current="page"/);
+    assert.match(adminView, /<summary>Show all checks/);
+  });
+
   it('keeps admin authorization, object-id validation, and CSRF forms in the path', () => {
     assert.match(adminRoutes, /router\.use\(requireAuth, requireAdmin\)/);
     assert.match(adminRoutes, /'requestId'/);

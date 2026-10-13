@@ -14,6 +14,8 @@ import {
   postResendVerification,
   postSendPasswordReset,
   postChangeUserRole,
+  postReviewProvisionalApproval,
+  postUpdateUserApprovalTrust,
   postDeleteUser,
   getAdminProjects,
   postAdminSuspendProject,
@@ -58,6 +60,7 @@ router.post('/users/:userId/unlock', postUnlockUser);
 router.post('/users/:userId/verify-email', postMarkEmailVerified);
 router.post('/users/:userId/resend-verification', postResendVerification);
 router.post('/users/:userId/password-reset', postSendPasswordReset);
+router.post('/users/:userId/auto-approval', postUpdateUserApprovalTrust);
 // Role changes and permanent deletion reshape who can administer the platform
 // and destroy data irreversibly, so they sit with the other Super Admin levers.
 router.post('/users/:userId/role', requireSuperAdmin, postChangeUserRole);
@@ -69,6 +72,7 @@ router.post('/projects/:projectId/reactivate', postAdminReactivateProject);
 
 router.get('/approval-requests', getApprovalRequestsList);
 router.post('/approval-requests/:requestId/review', postReviewApprovalRequest);
+router.post('/approval-requests/:requestId/provisional', postReviewProvisionalApproval);
 
 router.get('/domains', getAdminDomains);
 router.post('/domains/:domainId/approve', postApproveDomain);

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { PlatformRole, UserStatus } from '@hellodeploy/contracts';
+import { AccountTier, PlatformRole, UserStatus } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
 
@@ -48,6 +48,16 @@ const userSchema = new Schema(
       type: String,
       enum: Object.values(UserStatus),
       default: UserStatus.PENDING_VERIFICATION,
+    },
+    accountTier: {
+      type: String,
+      enum: Object.values(AccountTier),
+      default: AccountTier.FREE,
+    },
+    // Lets an admin vouch for an owner so their server apps skip the manual review.
+    isTrustedForAutoApproval: {
+      type: Boolean,
+      default: false,
     },
     emailVerifiedAt: {
       type: Date,

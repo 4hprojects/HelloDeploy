@@ -18,8 +18,11 @@ import {
   getProjects,
   adminSuspendProjectWithStop,
   adminReactivateProject,
+  ApprovalQueueView,
   getApprovalRequests,
   reviewApprovalRequest,
+  reviewProvisionalApproval,
+  updateUserApprovalTrust,
   pauseQueue,
   resumeQueue,
   setQuotaOverride,
@@ -29,6 +32,7 @@ import { collectServerStats } from '../services/server-stats.service.js';
 import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { env } from '../config/env.js';
+import { PROVISIONAL_APPROVAL_DELAY_MS } from '../services/provisional-approval.service.js';
 import { validateSetQuota } from '../validators/admin.validator.js';
 import { getUxMetrics } from '../services/product-analytics.service.js';
 import { isSafeReturnPath } from '../utils/safe-redirect.js';
@@ -409,6 +413,22 @@ export const postSendPasswordReset = asyncHandler(async (req, res) => {
   res.redirect(`/admin/users/${req.params.userId}`);
 });
 
+export const postUpdateUserApprovalTrust = asyncHandler(async (req, res) => {
+  const result = await updateUserApprovalTrust({
+    ...userActionContext(req),
+    accountTier: req.body.accountTier,
+    isTrusted: req.body.isTrusted === '1',
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `Auto-approval settings saved for ${fullName(result.user)}.`);
+  }
+
+  res.redirect(`/admin/users/${req.params.userId}`);
+});
+
 export const postChangeUserRole = asyncHandler(async (req, res) => {
   const result = await changeUserRole({ ...userActionContext(req), newRole: req.body.role });
 
@@ -502,15 +522,24 @@ export const postAdminReactivateProject = asyncHandler(async (req, res) => {
 
 export const getApprovalRequestsList = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
-  const { requests, total, limit } = await getApprovalRequests({ page });
+  const view = Object.values(ApprovalQueueView).includes(req.query.view)
+    ? req.query.view
+    : ApprovalQueueView.OPEN;
+  const now = new Date();
+  const { requests, total, counts, limit } = await getApprovalRequests({ page, view, now });
 
   res.render('pages/admin/approval-requests', {
     title: 'Approval Requests',
     requests,
     total,
+    counts,
+    view,
+    now,
     page,
     limit,
     totalPages: Math.ceil(total / limit),
+    isAutoApprovalEnabled: env.AUTO_APPROVAL_ENABLED,
+    provisionalDelayMs: PROVISIONAL_APPROVAL_DELAY_MS,
   });
 });
 
@@ -539,6 +568,31 @@ export const postReviewApprovalRequest = asyncHandler(async (req, res) => {
     req.flash(
       'success',
       decision === ApprovalStatus.APPROVED ? 'Project approved.' : 'Changes requested.',
+    );
+  }
+
+  res.redirect('/admin/approval-requests');
+});
+
+export const postReviewProvisionalApproval = asyncHandler(async (req, res) => {
+  const result = await reviewProvisionalApproval({
+    requestId: req.params.requestId,
+    decision: req.body.decision,
+    note: req.body.note,
+    adminId: req.session.user.id,
+    adminRole: req.session.user.platformRole,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash(
+      'success',
+      req.body.decision === 'CONFIRM'
+        ? 'Project confirmed. Provisional limits were removed.'
+        : 'Project suspended.',
     );
   }
 

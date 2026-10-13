@@ -7,6 +7,7 @@ import {
 } from '@hellodeploy/database';
 import { configureAuditService, logger } from '@hellodeploy/observability';
 import { createApp } from './app.js';
+import { approveOverdueRequests } from './services/provisional-approval.service.js';
 import { closeDeploymentQueue, getRedisConnection } from './queue/client.js';
 import { createGracefulShutdown, createShutdownSignalHandler } from './lifecycle.js';
 
@@ -26,6 +27,10 @@ async function start() {
     buildTimeoutSeconds: Math.floor(env.BUILD_TIMEOUT_MS / 1000),
   });
 
+  if (env.AUTO_APPROVAL_ENABLED) {
+    startProvisionalApprovalSweep();
+  }
+
   const app = createApp();
 
   const server = app.listen(env.PORT, env.HOST, () => {
@@ -44,6 +49,22 @@ async function start() {
   const handleShutdownSignal = createShutdownSignalHandler({ shutdown });
   process.once('SIGTERM', () => handleShutdownSignal('SIGTERM'));
   process.once('SIGINT', () => handleShutdownSignal('SIGINT'));
+}
+
+// Projects nobody reviewed within the delay go live with reduced limits until an admin decides.
+function startProvisionalApprovalSweep() {
+  const sweep = () =>
+    approveOverdueRequests()
+      .then((approved) => {
+        if (approved > 0) {
+          logger.info('[web] provisionally approved overdue projects', { approved });
+        }
+      })
+      .catch((err) =>
+        logger.error('[web] provisional approval sweep failed', { error: err.message }),
+      );
+  sweep();
+  setInterval(sweep, 60_000).unref();
 }
 
 await start();

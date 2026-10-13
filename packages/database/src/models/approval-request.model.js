@@ -9,7 +9,7 @@ const validationFindingSchema = new Schema(
     label: { type: String, required: true, maxlength: 120 },
     status: {
       type: String,
-      enum: ['PASS', 'WARNING', 'BLOCKING'],
+      enum: ['PASS', 'INFO', 'WARNING', 'BLOCKING'],
       required: true,
     },
     message: { type: String, required: true, maxlength: 500 },
@@ -38,6 +38,12 @@ const approvalRequestSchema = new Schema(
     snapshotConfigurationVersion: { type: Number, default: null, min: 1 },
     snapshotCommitSha: { type: String, default: null, maxlength: 40 },
     validationFindings: { type: [validationFindingSchema], default: [] },
+    // Approved by the system on submit rather than by an admin; reviewedBy stays null.
+    isAutoApproved: { type: Boolean, default: false },
+    autoApprovalReasons: { type: [String], default: [] },
+    // Live with reduced limits after nobody reviewed it in time; an admin still confirms or suspends.
+    isProvisional: { type: Boolean, default: false },
+    provisionalQuotaId: { type: Schema.Types.ObjectId, ref: 'Quota', default: null },
   },
   {
     timestamps: true,

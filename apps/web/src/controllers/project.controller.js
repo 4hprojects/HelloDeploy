@@ -368,6 +368,8 @@ export const postSubmitForReview = asyncHandler(async (req, res) => {
       approvalValues: { purpose: req.body.purpose ?? '' },
       approvalReadiness: result.readiness,
     });
+  } else if (result.isAutoApproved) {
+    req.flash('success', 'Your project was approved automatically. You can deploy it now.');
   } else {
     req.flash('success', 'Your project has been submitted for review.');
   }

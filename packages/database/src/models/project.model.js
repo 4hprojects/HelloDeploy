@@ -47,7 +47,7 @@ const reviewFlagSchema = new Schema(
 
 const detectionIssueSchema = new Schema(
   {
-    level: { type: String, enum: ['ERROR', 'WARNING'], required: true },
+    level: { type: String, enum: ['ERROR', 'WARNING', 'INFO'], required: true },
     message: { type: String, required: true, maxlength: 500 },
   },
   { _id: false },

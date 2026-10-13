@@ -149,12 +149,14 @@
         <% detectionResult.issues.forEach(issue => { %>
         <li class="detection-issue detection-issue--<%= issue.level.toLowerCase() %>">
           <div>
-            <strong class="detection-issue__level"><%= issue.level === 'ERROR' ? 'Fix required' : 'Recommendation' %></strong>
+            <strong class="detection-issue__level"><%= issue.level === 'ERROR' ? 'Fix required' : issue.level === 'INFO' ? 'Note' : 'Recommendation' %></strong>
             <p class="detection-issue__message"><%= issue.message %></p>
             <p class="detection-issue__action">
               <%= issue.level === 'ERROR'
                 ? 'Share this message with the person who built the app, then check again after they update the repository.'
-                : 'You can continue, but sharing this recommendation with the person who built the app can make deployments more reliable.' %>
+                : issue.level === 'INFO'
+                  ? 'No action needed.'
+                  : 'You can continue, but sharing this recommendation with the person who built the app can make deployments more reliable.' %>
             </p>
           </div>
         </li>

@@ -23,12 +23,17 @@ import {
   isReservedSubdomain,
   isValidSubdomainLabel,
 } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { generateToken, hashToken } from '@hellodeploy/security';
+import { env } from '../config/env.js';
 import { getDeploymentQueue } from '../queue/client.js';
 import { checkCanCreateProject, checkCanAddMember } from './quota.service.js';
-import { assessInitialApprovalReadiness } from './approval-readiness.service.js';
+import {
+  assessAutoApprovalEligibility,
+  assessInitialApprovalReadiness,
+} from './approval-readiness.service.js';
+import { notifyAdminsOfPendingReview } from './provisional-approval.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
 
 export async function checkSlugAvailability(value) {
@@ -547,7 +552,11 @@ export async function getLatestApprovalRequest(projectId) {
   return ApprovalRequest.findOne({ projectId }).sort({ createdAt: -1 }).lean();
 }
 
-export async function submitForReview({ projectId, actorId, purpose, sourceIp, correlationId }) {
+export async function submitForReview(
+  { projectId, actorId, purpose, sourceIp, correlationId },
+  deps = {},
+) {
+  const isAutoApprovalEnabled = deps.isAutoApprovalEnabled ?? env.AUTO_APPROVAL_ENABLED;
   const project = await Project.findById(projectId);
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -597,17 +606,42 @@ export async function submitForReview({ projectId, actorId, purpose, sourceIp, c
     };
   }
 
+  const snapshot = {
+    projectId,
+    requestedBy: actorId,
+    requestType: 'INITIAL_DEPLOYMENT',
+    purpose: normalizedPurpose,
+    snapshotConfigurationVersion: project.configurationVersion,
+    snapshotCommitSha: readiness.currentCommitSha,
+    validationFindings: readiness.findings,
+  };
+
+  if (isAutoApprovalEnabled) {
+    const autoApproval = await tryAutoApprove({ project, readiness, snapshot });
+    if (autoApproval) {
+      await writeAuditEvent({
+        action: 'project.auto_approved',
+        outcome: AuditOutcome.SUCCESS,
+        actorId,
+        targetType: 'project',
+        targetId: project._id.toString(),
+        sourceIp,
+        correlationId,
+        metadata: {
+          approvalRequestId: autoApproval._id.toString(),
+          configurationVersion: project.configurationVersion,
+          commitSha: readiness.currentCommitSha,
+          reasons: autoApproval.autoApprovalReasons,
+        },
+      });
+      await recordProductEvent({ name: 'approval_submitted', userId: actorId, projectId });
+      return { success: true, request: autoApproval, isAutoApproved: true };
+    }
+  }
+
   let request;
   try {
-    request = await ApprovalRequest.create({
-      projectId,
-      requestedBy: actorId,
-      requestType: 'INITIAL_DEPLOYMENT',
-      purpose: normalizedPurpose,
-      snapshotConfigurationVersion: project.configurationVersion,
-      snapshotCommitSha: readiness.currentCommitSha,
-      validationFindings: readiness.findings,
-    });
+    request = await ApprovalRequest.create(snapshot);
   } catch (err) {
     if (err?.code === 11000) {
       return { success: false, error: 'A review request is already pending for this project.' };
@@ -630,8 +664,74 @@ export async function submitForReview({ projectId, actorId, purpose, sourceIp, c
     },
   });
   await recordProductEvent({ name: 'approval_submitted', userId: actorId, projectId });
+  await notifyAdminsOfPendingReview({ project, correlationId }).catch((err) =>
+    logger.warn('Approval: could not notify admins of a pending review', {
+      projectId: project._id.toString(),
+      error: err.message,
+      correlationId,
+    }),
+  );
 
-  return { success: true, request };
+  return { success: true, request, isAutoApproved: false };
+}
+
+/**
+ * Approve a ready submission without an admin when the owner and runtime qualify.
+ * Returns the approved request, or null when the project must go to the queue.
+ */
+async function tryAutoApprove({ project, readiness, snapshot }) {
+  const ownedProjectIds = await Project.find({
+    ownerId: project.ownerId,
+    _id: { $ne: project._id },
+  }).distinct('_id');
+  const [owner, hasPriorApproval] = await Promise.all([
+    User.findById(project.ownerId).select('accountTier isTrustedForAutoApproval').lean(),
+    ApprovalRequest.exists({
+      projectId: { $in: ownedProjectIds },
+      status: ApprovalStatus.APPROVED,
+    }),
+  ]);
+  const eligibility = assessAutoApprovalEligibility({
+    project,
+    readiness,
+    owner,
+    hasPriorApproval: Boolean(hasPriorApproval),
+  });
+  if (!eligibility.isEligible) {
+    return null;
+  }
+
+  const session = await mongoose.startSession();
+  let request = null;
+  try {
+    await session.withTransaction(async () => {
+      request = null;
+      const activated = await Project.updateOne(
+        { _id: project._id, status: ProjectStatus.DRAFT },
+        { $set: { status: ProjectStatus.ACTIVE } },
+        { session },
+      );
+      // Someone else moved the project out of DRAFT; let the normal path report it.
+      if (activated.modifiedCount !== 1) {
+        return;
+      }
+      [request] = await ApprovalRequest.create(
+        [
+          {
+            ...snapshot,
+            status: ApprovalStatus.APPROVED,
+            reviewedAt: new Date(),
+            isAutoApproved: true,
+            autoApprovalReasons: eligibility.reasons,
+          },
+        ],
+        { session },
+      );
+    });
+  } finally {
+    await session.endSession();
+  }
+  return request;
 }
 
 // ─── Membership ────────────────────────────────────────────────────────────────

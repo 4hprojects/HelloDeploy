@@ -1,4 +1,4 @@
-import { DeploymentMode, DetectionStatus, RuntimeType } from '@hellodeploy/contracts';
+import { AccountTier, DeploymentMode, DetectionStatus, RuntimeType } from '@hellodeploy/contracts';
 
 const SUPPORTED_RUNTIMES = new Set([
   RuntimeType.STATIC,
@@ -8,6 +8,16 @@ const SUPPORTED_RUNTIMES = new Set([
   RuntimeType.VUE,
   RuntimeType.NEXTJS,
 ]);
+
+// No server process runs at runtime, so the blast radius is static files behind nginx.
+const LOW_RISK_RUNTIMES = new Set([RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE]);
+
+const DETECTION_ISSUE_FINDINGS = Object.freeze({
+  ERROR: { label: 'Application check issue', status: 'BLOCKING' },
+  WARNING: { label: 'Application check recommendation', status: 'WARNING' },
+  // Informational only: never blocks submission or automatic approval.
+  INFO: { label: 'Application check note', status: 'INFO' },
+});
 
 function finding(code, label, status, message) {
   return { code, label, status, message };
@@ -140,20 +150,55 @@ export function assessInitialApprovalReadiness({
   );
 
   for (const issue of project.detection?.issues ?? []) {
-    findings.push(
-      finding(
-        `detection_${issue.level.toLowerCase()}`,
-        issue.level === 'ERROR' ? 'Application check issue' : 'Application check recommendation',
-        issue.level === 'ERROR' ? 'BLOCKING' : 'WARNING',
-        issue.message,
-      ),
-    );
+    const { label, status } =
+      DETECTION_ISSUE_FINDINGS[issue.level] ?? DETECTION_ISSUE_FINDINGS.ERROR;
+    findings.push(finding(`detection_${issue.level.toLowerCase()}`, label, status, issue.message));
   }
 
   return {
     isReady: findings.every((item) => item.status !== 'BLOCKING'),
     findings,
     currentCommitSha: commitReady ? currentCommit : null,
+  };
+}
+
+/**
+ * Decide whether a ready submission can skip the admin queue.
+ *
+ * Returns reason codes either way so the audit trail shows why a project was or
+ * was not approved automatically.
+ */
+export function assessAutoApprovalEligibility({ project, readiness, owner, hasPriorApproval }) {
+  const blockers = [];
+  if (!readiness.isReady) {
+    blockers.push('not_ready');
+  }
+  if (readiness.findings.some((item) => item.status === 'WARNING')) {
+    blockers.push('detection_warnings');
+  }
+
+  const trustReasons = [];
+  if (owner?.accountTier === AccountTier.PREMIUM) {
+    trustReasons.push('premium_account');
+  }
+  if (owner?.isTrustedForAutoApproval) {
+    trustReasons.push('trusted_owner');
+  }
+  if (hasPriorApproval) {
+    trustReasons.push('prior_approval');
+  }
+
+  const isLowRiskRuntime = LOW_RISK_RUNTIMES.has(project.runtimeType);
+  if (!isLowRiskRuntime && trustReasons.length === 0) {
+    blockers.push('server_runtime_untrusted_owner');
+  }
+
+  if (blockers.length > 0) {
+    return { isEligible: false, reasons: blockers };
+  }
+  return {
+    isEligible: true,
+    reasons: [...(isLowRiskRuntime ? ['low_risk_runtime'] : []), ...trustReasons],
   };
 }
 

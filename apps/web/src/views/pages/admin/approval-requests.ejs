@@ -1,18 +1,72 @@
+<%
+const MINUTE_MS = 60 * 1000;
+const DAY_MS = 24 * 60 * MINUTE_MS;
+const formatDate = (d) => new Date(d).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' });
+const formatAge = (d) => {
+  const minutes = Math.max(0, Math.floor((now - new Date(d)) / MINUTE_MS));
+  if (minutes < 1) return 'just now';
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours} hour${hours === 1 ? '' : 's'} ago`;
+  const days = Math.floor(hours / 24);
+  return `${days} day${days === 1 ? '' : 's'} ago`;
+};
+const formatJoined = (d) => {
+  const days = Math.floor((now - new Date(d)) / DAY_MS);
+  if (days < 1) return 'Joined today';
+  if (days < 60) return `Joined ${days} day${days === 1 ? '' : 's'} ago`;
+  return `Joined ${new Date(d).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}`;
+};
+const tabs = [
+  { view: 'open', label: 'Open', hint: 'Pending and provisional' },
+  { view: 'pending', label: 'Pending review', hint: 'Not live yet' },
+  { view: 'provisional', label: 'Provisional', hint: 'Live with reduced limits' },
+  { view: 'decided', label: 'Decided', hint: 'Last 7 days' },
+];
+const decisionLabels = { APPROVED: 'Approved', CHANGES_REQUESTED: 'Changes requested', REJECTED: 'Rejected' };
+const decisionBadges = { APPROVED: 'healthy', CHANGES_REQUESTED: 'failed', REJECTED: 'failed' };
+const emptyCopy = {
+  open: ['Nothing waiting', 'There are no project reviews or provisional approvals waiting for a decision.'],
+  pending: ['No pending reviews', 'New project submissions appear here automatically.'],
+  provisional: ['No provisional approvals', 'Projects nobody reviewed in time appear here while they run with reduced limits.'],
+  decided: ['No recent decisions', 'Approvals and returned requests from the last 7 days appear here.'],
+};
+const staleCount = requests.filter((r) => r.status === 'PENDING' && !r.snapshotState.isCurrent).length;
+%>
 <div class="page-header">
   <h1 class="page-header__title">Approval Requests</h1>
-  <p class="page-header__subtitle"><%= total %> pending</p>
+  <p class="page-header__subtitle">Review what each project does and who runs it before it goes live.</p>
 </div>
+
+<nav aria-label="Approval queue views">
+  <ul class="stats-grid approval-tabs mb-6">
+    <% tabs.forEach((tab) => {
+      const isActive = view === tab.view;
+      const isAlert = tab.view === 'provisional' && counts.provisional > 0;
+    %>
+    <li>
+      <a href="?view=<%= tab.view %>"
+         class="stat-card stat-card--link<%= isActive ? ' stat-card--active' : '' %><%= isAlert ? ' stat-card--alert' : '' %>"
+         <%- isActive ? 'aria-current="page"' : '' %>>
+        <span class="stat-card__value"><%= counts[tab.view] %></span>
+        <span class="stat-card__label"><strong><%= tab.label %></strong> · <%= tab.hint %></span>
+      </a>
+    </li>
+    <% }) %>
+  </ul>
+</nav>
+
+<% if (staleCount > 0 && view !== 'decided') { %>
+<p class="text-sm text-muted mb-4">
+  <%= staleCount %> request<%= staleCount === 1 ? '' : 's' %> on this page changed after submission and need<%= staleCount === 1 ? 's' : '' %> the owner to resubmit.
+</p>
+<% } %>
 
 <% if (requests.length === 0) { %>
 <div class="empty-state">
   <div class="empty-state__icon"><%- include('../../partials/icon', { name: 'reviews' }) %></div>
-  <h2 class="empty-state__title">No pending requests</h2>
-  <p class="empty-state__description">There are no project reviews waiting for your decision.</p>
-  <ul class="empty-state__steps">
-    <li>New project review submissions appear here automatically.</li>
-    <li>Review the saved application purpose, source, and readiness findings.</li>
-    <li>Use the audit log to review recent admin decisions.</li>
-  </ul>
+  <h2 class="empty-state__title"><%= emptyCopy[view][0] %></h2>
+  <p class="empty-state__description"><%= emptyCopy[view][1] %></p>
   <div class="empty-state__actions">
     <a href="/admin/projects" class="button button--secondary">View Projects</a>
     <a href="/admin/audit-events" class="button button--ghost">Audit Log</a>
@@ -24,105 +78,238 @@
     const project = r.projectId;
     const repository = project?.repositoryId;
     const owner = project?.ownerId;
-    const submittedMs = Date.now() - new Date(r.createdAt).getTime();
-    const submittedHours = Math.max(0, Math.floor(submittedMs / 3600000));
-    const submittedAge = submittedHours < 1 ? 'Less than an hour ago' : submittedHours < 24 ? `${submittedHours} hour${submittedHours === 1 ? '' : 's'} ago` : `${Math.floor(submittedHours / 24)} day${Math.floor(submittedHours / 24) === 1 ? '' : 's'} ago`;
     const config = project?.buildConfiguration || {};
+    const isPending = r.status === 'PENDING';
+    const isDecided = !isPending && !r.isProvisional;
+    const isStale = isPending && r.snapshotState.hasSnapshot && !r.snapshotState.isCurrent;
+    const isLegacy = isPending && !r.snapshotState.hasSnapshot;
+    const findings = r.validationFindings?.length ? r.validationFindings : r.currentFindings || [];
+    const passedCount = findings.filter((item) => item.status === 'PASS').length;
+    const attention = findings.filter((item) => !['PASS', 'INFO'].includes(item.status));
+    const warningCount = attention.filter((item) => item.status === 'WARNING').length;
+    const blockingCount = attention.length - warningCount;
+    const repoUrl = repository?.fullName ? `https://github.com/${repository.fullName}` : null;
+    const provisionalAt = new Date(r.createdAt).getTime() + provisionalDelayMs;
+    const minutesUntilProvisional = Math.ceil((provisionalAt - now) / MINUTE_MS);
+    const projectLabel = project ? project.name : 'this project';
   %>
-  <article class="card mb-4 approval-review">
-    <div class="card__header">
-      <div>
-        <strong><%= project ? project.name : 'Missing project' %></strong>
-        <% if (project) { %><span class="text-muted text-sm"> · <%= project.slug %></span><% } %>
+  <article class="card mb-4 approval-review" aria-labelledby="request-<%= r._id %>">
+    <header class="card__header approval-review__header">
+      <div class="approval-review__title">
+        <h2 class="approval-review__name" id="request-<%= r._id %>">
+          <% if (project) { %><a href="/projects/<%= project.slug %>"><%= project.name %></a><% } else { %>Missing project<% } %>
+        </h2>
+        <div class="approval-review__badges">
+          <% if (r.isProvisional) { %>
+          <span class="status-badge status-badge--warning">Provisional · live</span>
+          <% } else if (isLegacy) { %>
+          <span class="status-badge status-badge--neutral">Legacy request</span>
+          <% } else if (isStale) { %>
+          <span class="status-badge status-badge--failed">Needs resubmission</span>
+          <% } else if (isPending) { %>
+          <span class="status-badge status-badge--pending">Pending review</span>
+          <% } else { %>
+          <span class="status-badge status-badge--<%= decisionBadges[r.status] || 'neutral' %>"><%= decisionLabels[r.status] || r.status %></span>
+          <% } %>
+          <% if (r.isAutoApproved) { %><span class="status-badge status-badge--info">Automatic</span><% } %>
+          <% if (project?.runtimeType) { %><span class="approval-review__chip"><%= project.runtimeType %></span><% } %>
+          <% if (project) { %><span class="text-sm text-muted"><%= project.slug %></span><% } %>
+        </div>
       </div>
-      <span class="text-sm text-muted"><%= submittedAge %></span>
-    </div>
+      <div class="approval-review__meta text-sm">
+        <span>Submitted <time datetime="<%= new Date(r.createdAt).toISOString() %>"><%= formatDate(r.createdAt) %></time> · <%= formatAge(r.createdAt) %></span>
+        <% if (isPending && isAutoApprovalEnabled) { %>
+          <% if (!r.snapshotState.isCurrent) { %>
+          <span class="text-muted">Won't go live automatically: needs resubmission</span>
+          <% } else if (minutesUntilProvisional > 0) { %>
+          <span class="approval-review__countdown">Goes live provisionally in <%= minutesUntilProvisional %> min</span>
+          <% } else { %>
+          <span class="approval-review__countdown">Due now: goes live provisionally on the next check</span>
+          <% } %>
+        <% } %>
+        <% if (isDecided && r.reviewedAt) { %>
+        <span class="text-muted">
+          Decided <time datetime="<%= new Date(r.reviewedAt).toISOString() %>"><%= formatDate(r.reviewedAt) %></time>
+          by <%= r.reviewedBy ? `${r.reviewedBy.firstName} ${r.reviewedBy.lastName}` : r.isAutoApproved ? 'HelloDeploy (automatic)' : 'an administrator' %>
+        </span>
+        <% } %>
+      </div>
+    </header>
+
     <div class="card__body">
-      <% if (!r.snapshotState.hasSnapshot) { %>
+      <% if (r.isProvisional) { %>
+      <div class="alert alert--info mb-4" role="status">
+        Nobody reviewed this within <%= provisionalDelayMs / MINUTE_MS %> minutes, so it is live with reduced limits (256 MB memory, 0.25 CPU, no custom domains). Confirm to lift the limits, or suspend it.
+      </div>
+      <% } else if (isLegacy) { %>
       <div class="alert alert--warning mb-4" role="alert">
         This is a legacy request without a saved review snapshot. It cannot be approved; request changes so the owner can resubmit.
       </div>
-      <% } else if (!r.snapshotState.isCurrent) { %>
+      <% } else if (isStale) { %>
       <div class="alert alert--warning mb-4" role="alert">
         The repository, application check, or project settings changed after submission. Approval is blocked until the owner checks and resubmits.
       </div>
       <% } %>
 
       <div class="approval-review__grid">
-        <section aria-labelledby="purpose-<%= r._id %>">
-          <h2 class="text-sm" id="purpose-<%= r._id %>">Application purpose</h2>
-          <p class="mt-1"><%= r.purpose || 'Not provided in this legacy request.' %></p>
-        </section>
-        <dl class="detail-list">
-          <dt>Owner</dt>
-          <dd><%= owner ? `${owner.firstName} ${owner.lastName} (${owner.email})` : 'Unavailable' %></dd>
-          <dt>Submitted by</dt>
-          <dd><%= r.requestedBy ? `${r.requestedBy.firstName} ${r.requestedBy.lastName} (${r.requestedBy.email})` : 'Unavailable' %></dd>
-          <dt>Source repository</dt>
-          <dd><%= repository?.fullName || 'Not connected' %></dd>
-          <dt>Production branch</dt>
-          <dd><%= project?.productionBranch || 'Not selected' %></dd>
-          <dt>Checked commit</dt>
-          <dd><code class="code-inline"><%= r.snapshotCommitSha ? r.snapshotCommitSha.slice(0, 7) : 'Not saved' %></code></dd>
-          <dt>Application type</dt>
-          <dd><%= project?.runtimeType || 'Not detected' %></dd>
-          <dt>Deployment mode</dt>
-          <dd><%= project?.deploymentMode?.replaceAll('_', ' ') || 'Unavailable' %></dd>
-          <dt>Configuration version</dt>
-          <dd><%= r.snapshotConfigurationVersion || 'Not saved' %></dd>
-        </dl>
-        <section aria-labelledby="config-<%= r._id %>">
-          <h2 class="text-sm" id="config-<%= r._id %>">Configuration summary</h2>
-          <dl class="detail-list mt-2">
-            <dt>Build command</dt><dd><code class="code-inline"><%= config.buildCommand || 'None' %></code></dd>
-            <dt>Start command</dt><dd><code class="code-inline"><%= config.startCommand || 'None' %></code></dd>
-            <dt>Output folder</dt><dd><code class="code-inline"><%= config.outputDirectory || 'None' %></code></dd>
-            <dt>Application port</dt><dd><%= config.applicationPort || 'Not used' %></dd>
-            <dt>Health check</dt><dd><code class="code-inline"><%= config.healthCheckPath || '/' %></code></dd>
-          </dl>
-        </section>
-        <section aria-labelledby="findings-<%= r._id %>">
-          <h2 class="text-sm" id="findings-<%= r._id %>">Readiness at submission</h2>
-          <% const findings = r.validationFindings?.length ? r.validationFindings : r.currentFindings; %>
-          <% if (findings?.length) { %>
-          <ul class="approval-findings mt-2">
-            <% findings.forEach(item => { %>
-            <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
-              <strong><%= item.label %></strong><span><%= item.message %></span>
-            </li>
-            <% }) %>
-          </ul>
-          <% } else { %>
-          <p class="text-sm text-muted mt-2">No findings were saved.</p>
-          <% } %>
-        </section>
+        <div class="approval-review__main">
+          <section aria-labelledby="purpose-<%= r._id %>">
+            <h3 class="approval-review__label" id="purpose-<%= r._id %>">Application purpose</h3>
+            <blockquote class="approval-review__purpose"><%= r.purpose || 'Not provided in this legacy request.' %></blockquote>
+          </section>
+
+          <section aria-labelledby="findings-<%= r._id %>" class="mt-6">
+            <h3 class="approval-review__label" id="findings-<%= r._id %>">Readiness at submission</h3>
+            <% if (findings.length) { %>
+            <p class="readiness-summary">
+              <span class="readiness-summary__item readiness-summary__item--pass"><%= passedCount %> passed</span>
+              <% if (warningCount > 0) { %><span class="readiness-summary__item readiness-summary__item--warning"><%= warningCount %> warning<%= warningCount === 1 ? '' : 's' %></span><% } %>
+              <% if (blockingCount > 0) { %><span class="readiness-summary__item readiness-summary__item--blocking"><%= blockingCount %> blocking</span><% } %>
+            </p>
+            <% if (attention.length) { %>
+            <ul class="approval-findings mt-2">
+              <% attention.forEach(item => { %>
+              <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
+                <strong><%= item.label %></strong><span><%= item.message %></span>
+              </li>
+              <% }) %>
+            </ul>
+            <% } %>
+            <details class="approval-review__details mt-2">
+              <summary>Show all checks (<%= findings.length %>)</summary>
+              <ul class="approval-findings mt-2">
+                <% findings.forEach(item => { %>
+                <li class="approval-finding approval-finding--<%= item.status.toLowerCase() %>">
+                  <strong><%= item.label %></strong><span><%= item.message %></span>
+                </li>
+                <% }) %>
+              </ul>
+            </details>
+            <% } else { %>
+            <p class="text-sm text-muted mt-2">No findings were saved.</p>
+            <% } %>
+          </section>
+        </div>
+
+        <aside class="approval-review__side">
+          <section class="approval-review__panel" aria-labelledby="owner-<%= r._id %>">
+            <h3 class="approval-review__label" id="owner-<%= r._id %>">Owner</h3>
+            <% if (owner) { %>
+            <p class="approval-review__owner-name">
+              <a href="/admin/users/<%= owner._id %>"><%= owner.firstName %> <%= owner.lastName %></a>
+            </p>
+            <p class="text-sm text-muted approval-review__wrap"><%= owner.email %></p>
+            <div class="approval-review__badges mt-2">
+              <span class="status-badge status-badge--<%= owner.accountTier === 'PREMIUM' ? 'success' : 'neutral' %>"><%= owner.accountTier === 'PREMIUM' ? 'Premium' : 'Free' %></span>
+              <% if (owner.isTrustedForAutoApproval) { %><span class="status-badge status-badge--info">Trusted</span><% } %>
+            </div>
+            <dl class="detail-list mt-2">
+              <dt>Account</dt>
+              <dd><%= owner.createdAt ? formatJoined(owner.createdAt) : 'Unknown' %></dd>
+              <dt>Other live projects</dt>
+              <dd><%= r.otherLiveProjects %><% if (r.otherLiveProjects === 0) { %> <span class="text-muted">· first project</span><% } %></dd>
+              <% if (r.requestedBy && String(r.requestedBy._id) !== String(owner._id)) { %>
+              <dt>Submitted by</dt>
+              <dd class="approval-review__wrap"><%= r.requestedBy.firstName %> <%= r.requestedBy.lastName %> (<%= r.requestedBy.email %>)</dd>
+              <% } %>
+            </dl>
+            <% } else { %>
+            <p class="text-sm text-muted">Owner unavailable.</p>
+            <% } %>
+          </section>
+
+          <section class="approval-review__panel" aria-labelledby="source-<%= r._id %>">
+            <h3 class="approval-review__label" id="source-<%= r._id %>">Source repository</h3>
+            <dl class="detail-list">
+              <dt>Repository</dt>
+              <dd class="approval-review__wrap">
+                <% if (repoUrl) { %><a href="<%= repoUrl %>" target="_blank" rel="noopener noreferrer"><%= repository.fullName %></a><% } else { %>Not connected<% } %>
+              </dd>
+              <dt>Branch</dt>
+              <dd><%= project?.productionBranch || 'Not selected' %></dd>
+              <dt>Checked commit</dt>
+              <dd>
+                <% if (r.snapshotCommitSha && repoUrl) { %>
+                <a href="<%= repoUrl %>/commit/<%= r.snapshotCommitSha %>" target="_blank" rel="noopener noreferrer"><code class="code-inline"><%= r.snapshotCommitSha.slice(0, 7) %></code></a>
+                <% } else { %>
+                <code class="code-inline"><%= r.snapshotCommitSha ? r.snapshotCommitSha.slice(0, 7) : 'Not saved' %></code>
+                <% } %>
+              </dd>
+            </dl>
+          </section>
+        </aside>
       </div>
 
-      <form method="POST" action="/admin/approval-requests/<%= r._id %>/review" class="review-form mt-4">
+      <details class="approval-review__details mt-4">
+        <summary>Configuration summary</summary>
+        <dl class="detail-list mt-2">
+          <dt>Build command</dt><dd><code class="code-inline"><%= config.buildCommand || 'None' %></code></dd>
+          <dt>Start command</dt><dd><code class="code-inline"><%= config.startCommand || 'None' %></code></dd>
+          <dt>Output folder</dt><dd><code class="code-inline"><%= config.outputDirectory || 'None' %></code></dd>
+          <dt>Application port</dt><dd><%= config.applicationPort || 'Not used' %></dd>
+          <dt>Health check</dt><dd><code class="code-inline"><%= config.healthCheckPath || '/' %></code></dd>
+          <dt>Deployment mode</dt><dd><%= project?.deploymentMode?.replaceAll('_', ' ') || 'Unavailable' %></dd>
+          <dt>Configuration version</dt><dd><%= r.snapshotConfigurationVersion || 'Not saved' %></dd>
+        </dl>
+      </details>
+
+      <% if (isDecided) { %>
+      <% if (r.adminNote) { %>
+      <div class="approval-note mt-4">
+        <strong>Review note</strong>
+        <p class="mt-1"><%= r.adminNote %></p>
+      </div>
+      <% } %>
+      <% } else if (r.isProvisional) { %>
+      <form method="POST" action="/admin/approval-requests/<%= r._id %>/provisional" class="approval-review__actions">
         <%- include('../../partials/csrf-field') %>
-        <div class="form-group mb-3">
-          <label for="note-<%= r._id %>" class="form-label">Review note</label>
-          <textarea id="note-<%= r._id %>" name="note" class="form-textarea" rows="3"
-            maxlength="1000" required aria-describedby="note-hint-<%= r._id %>"></textarea>
-          <p class="form-hint" id="note-hint-<%= r._id %>">Required when requesting changes; optional when approving.</p>
-        </div>
-        <div class="button-group">
-          <button type="submit" name="decision" value="APPROVED" class="button button--primary button--sm"
-            formnovalidate
-            data-confirm="Approve <%= project ? project.name : 'this project' %>? It will go live immediately."
-            data-confirm-title="Approve project"
-            data-confirm-accept-label="Approve"
-            data-confirm-pending-label="Approving..."
-            data-confirm-variant="success"
-            <%= !r.snapshotState.isCurrent ? 'disabled' : '' %>>Approve</button>
-          <button type="submit" name="decision" value="CHANGES_REQUESTED" class="button button--secondary button--sm"
-            data-confirm="Request changes on <%= project ? project.name : 'this project' %>? The owner will need to update and resubmit."
-            data-confirm-title="Request changes"
-            data-confirm-accept-label="Request Changes"
-            data-confirm-pending-label="Sending..."
-            data-confirm-variant="warning">Request changes</button>
+        <label for="note-<%= r._id %>" class="form-label">Review note</label>
+        <textarea id="note-<%= r._id %>" name="note" class="form-textarea" rows="3"
+          maxlength="1000" aria-describedby="note-hint-<%= r._id %>"></textarea>
+        <div class="approval-review__action-bar">
+          <p class="form-hint" id="note-hint-<%= r._id %>">Required when suspending; optional when confirming.</p>
+          <div class="button-group">
+            <button type="submit" name="decision" value="CONFIRM" class="button button--primary"
+              data-confirm="Confirm <%= projectLabel %>? Its provisional limits are removed."
+              data-confirm-title="Confirm project"
+              data-confirm-accept-label="Confirm"
+              data-confirm-pending-label="Confirming..."
+              data-confirm-variant="success">Confirm</button>
+            <button type="submit" name="decision" value="SUSPEND" class="button button--secondary"
+              data-confirm="Suspend <%= projectLabel %>? It goes offline immediately."
+              data-confirm-title="Suspend project"
+              data-confirm-accept-label="Suspend"
+              data-confirm-pending-label="Suspending..."
+              data-confirm-variant="warning">Suspend</button>
+          </div>
         </div>
       </form>
+      <% } else { %>
+      <form method="POST" action="/admin/approval-requests/<%= r._id %>/review" class="approval-review__actions">
+        <%- include('../../partials/csrf-field') %>
+        <label for="note-<%= r._id %>" class="form-label">Review note</label>
+        <textarea id="note-<%= r._id %>" name="note" class="form-textarea" rows="3"
+          maxlength="1000" aria-describedby="note-hint-<%= r._id %>"></textarea>
+        <div class="approval-review__action-bar">
+          <p class="form-hint" id="note-hint-<%= r._id %>">Required when requesting changes; optional when approving.</p>
+          <div class="button-group">
+            <button type="submit" name="decision" value="APPROVED" class="button button--primary"
+              data-confirm="Approve <%= projectLabel %>? It will go live immediately."
+              data-confirm-title="Approve project"
+              data-confirm-accept-label="Approve"
+              data-confirm-pending-label="Approving..."
+              data-confirm-variant="success"
+              <%= !r.snapshotState.isCurrent ? 'disabled' : '' %>>Approve</button>
+            <button type="submit" name="decision" value="CHANGES_REQUESTED" class="button button--secondary"
+              data-confirm="Request changes on <%= projectLabel %>? The owner will need to update and resubmit."
+              data-confirm-title="Request changes"
+              data-confirm-accept-label="Request Changes"
+              data-confirm-pending-label="Sending..."
+              data-confirm-variant="warning">Request changes</button>
+          </div>
+        </div>
+      </form>
+      <% } %>
     </div>
   </article>
   <% }) %>
@@ -130,9 +317,9 @@
 
 <% if (totalPages > 1) { %>
 <nav class="pagination mt-4" aria-label="Approval request pages">
-  <% if (page > 1) { %><a href="?page=<%= page - 1 %>" class="button button--ghost button--sm">Previous</a><% } %>
+  <% if (page > 1) { %><a href="?view=<%= view %>&page=<%= page - 1 %>" class="button button--ghost button--sm">Previous</a><% } %>
   <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
-  <% if (page < totalPages) { %><a href="?page=<%= page + 1 %>" class="button button--ghost button--sm">Next</a><% } %>
+  <% if (page < totalPages) { %><a href="?view=<%= view %>&page=<%= page + 1 %>" class="button button--ghost button--sm">Next</a><% } %>
 </nav>
 <% } %>
 <% } %>

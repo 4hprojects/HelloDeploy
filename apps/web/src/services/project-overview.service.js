@@ -82,7 +82,7 @@ export function buildProjectOverviewState({
     Boolean(repository?.lastCommitSha) &&
     activeDeployment.commitSha !== repository.lastCommitSha;
   const attentionFindings = (approvalReadiness?.findings ?? []).filter(
-    (finding) => finding.status !== 'PASS',
+    (finding) => !['PASS', 'INFO'].includes(finding.status),
   );
   const blockingFinding = attentionFindings.find((finding) => finding.status === 'BLOCKING');
 

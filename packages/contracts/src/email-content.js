@@ -50,6 +50,15 @@ export function buildEmailContent(kind, payload) {
       text: `Hi ${payload.firstName},\n\nHelloDeploy paused automatic deployment for ${payload.projectName} after detecting a high-risk file change. Review and deploy manually: ${payload.projectUrl}`,
     };
   }
+  if (kind === 'approval-requested') {
+    const projectName = escapeEmailHtml(payload.projectName);
+    const reviewUrl = escapeEmailHtml(payload.reviewUrl);
+    return {
+      subject: `Review needed: ${sanitizeEmailSubject(payload.projectName)}`,
+      html: `<p>Hi ${firstName},</p><p><strong>${projectName}</strong> is waiting for project review.</p><p><a href="${reviewUrl}">Open the approval queue</a></p><p>If automatic approval is on and nobody reviews it within ${payload.provisionalAfterMinutes} minutes, it goes live provisionally with reduced limits until an admin confirms or suspends it.</p>`,
+      text: `Hi ${payload.firstName},\n\n${payload.projectName} is waiting for project review: ${payload.reviewUrl}\n\nIf automatic approval is on and nobody reviews it within ${payload.provisionalAfterMinutes} minutes, it goes live provisionally with reduced limits until an admin confirms or suspends it.`,
+    };
+  }
   if (kind === 'deployment-result') {
     const projectName = escapeEmailHtml(payload.projectName);
     const dashboardUrl = escapeEmailHtml(payload.dashboardUrl);
