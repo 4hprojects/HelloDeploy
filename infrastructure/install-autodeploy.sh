@@ -50,8 +50,14 @@ trap 'rm -rf "$WORK_DIR"' EXIT
 install -d -m 0700 "$CONFIG_DIR" /root/.ssh
 
 section "GitHub host key"
-ssh-keyscan -T 10 -t ed25519 github.com 2>/dev/null > "$WORK_DIR/github_known_hosts"
-fingerprint=$(ssh-keygen -lf "$WORK_DIR/github_known_hosts" 2>/dev/null | awk '{print $2}')
+# Taken from GitHub's TLS-authenticated API rather than ssh-keyscan, which
+# intermittently returns nothing here; the pinned fingerprint is still checked.
+curl -fsS --max-time 20 https://api.github.com/meta \
+  | node -e 'let raw = ""; process.stdin.on("data", (c) => (raw += c)).on("end", () => {
+      const key = JSON.parse(raw).ssh_keys.find((k) => k.startsWith("ssh-ed25519 "));
+      if (key) console.log(`github.com ${key}`);
+    });' > "$WORK_DIR/github_known_hosts" || true
+fingerprint=$(ssh-keygen -lf "$WORK_DIR/github_known_hosts" 2>/dev/null | awk '{print $2}' || true)
 if [[ "$fingerprint" != "$GITHUB_ED25519_FINGERPRINT" ]]; then
   error "github.com presented ${fingerprint:-no key}, expected $GITHUB_ED25519_FINGERPRINT."
   error "Refusing to trust it. Check the network path, then re-run."
