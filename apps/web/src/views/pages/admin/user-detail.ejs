@@ -168,6 +168,34 @@ const returnTo = `/admin/users/${target._id}`;
 </div>
 <% } %>
 
+<% if (canManage) { %>
+<div class="card mt-6">
+  <div class="card__header">
+    <span class="card__title">Project Auto-Approval</span>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">
+      Premium and trusted owners can have server apps approved without a manual review when automatic approval is on.
+      Premium is a placeholder until billing exists.
+    </p>
+    <form method="POST" action="/admin/users/<%= target._id %>/auto-approval" class="form-inline">
+      <%- include('../../partials/csrf-field') %>
+      <select name="accountTier" class="form-select form-select--sm" aria-label="Account tier">
+        <% ['FREE', 'PREMIUM'].forEach(tier => { %>
+        <option value="<%= tier %>" <%= (target.accountTier || 'FREE') === tier ? 'selected' : '' %>><%= tier === 'FREE' ? 'Free' : 'Premium' %></option>
+        <% }) %>
+      </select>
+      <div class="checkbox-field">
+        <input type="checkbox" id="isTrusted" name="isTrusted" value="1" class="checkbox-input"
+               <%= target.isTrustedForAutoApproval ? 'checked' : '' %> />
+        <label for="isTrusted" class="checkbox-label">Trusted owner</label>
+      </div>
+      <button type="submit" class="button button--secondary button--sm">Save</button>
+    </form>
+  </div>
+</div>
+<% } %>
+
 <% if (canChangeRole) { %>
 <div class="card mt-6">
   <div class="card__header">

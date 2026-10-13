@@ -136,6 +136,9 @@
     </div>
     <%- include('../../partials/status-badge', { status: latestApproval.status }) %>
   </div>
+  <% if (latestApproval.isProvisional) { %>
+  <p class="text-sm mt-2">Approved provisionally. Your project can deploy with reduced limits (256 MB memory, no custom domains) until an administrator confirms it.</p>
+  <% } %>
   <% if (latestApproval.adminNote) { %>
   <div class="approval-note">
     <strong>Administrator note</strong>

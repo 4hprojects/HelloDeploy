@@ -175,6 +175,9 @@ export const env = {
   QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
   QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
+  // Off by default: every project waits for an admin unless this is turned on.
+  AUTO_APPROVAL_ENABLED: optional('AUTO_APPROVAL_ENABLED', 'false') === 'true',
+
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isGoogleAuthConfigured: () =>

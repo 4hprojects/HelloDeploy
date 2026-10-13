@@ -18,6 +18,7 @@ import {
   resolveUserQuota,
 } from '@hellodeploy/database';
 import {
+  AccountTier,
   UserStatus,
   ProjectStatus,
   ApprovalStatus,
@@ -327,6 +328,44 @@ export async function unlockUser({ userId, adminId, adminRole, sourceIp, correla
     sourceIp,
     correlationId,
   });
+
+  return { success: true, user };
+}
+
+export async function updateUserApprovalTrust({
+  userId,
+  accountTier,
+  isTrusted,
+  adminId,
+  adminRole,
+  sourceIp,
+  correlationId,
+}) {
+  const tier = allowlistedStatus(accountTier, AccountTier);
+  if (!tier) {
+    return { success: false, error: 'Invalid account tier.' };
+  }
+  const { user, error } = await findManageableUser({ userId, adminId, adminRole });
+  if (error) {
+    return { success: false, error };
+  }
+
+  const previous = {
+    accountTier: user.accountTier,
+    isTrustedForAutoApproval: user.isTrustedForAutoApproval,
+  };
+  user.accountTier = tier;
+  user.isTrustedForAutoApproval = isTrusted === true;
+  await user.save({ validateModifiedOnly: true });
+
+  await auditUserAction(
+    'admin.user_approval_trust_changed',
+    { userId, adminId, adminRole, sourceIp, correlationId },
+    {
+      from: previous,
+      to: { accountTier: tier, isTrustedForAutoApproval: user.isTrustedForAutoApproval },
+    },
+  );
 
   return { success: true, user };
 }
@@ -950,12 +989,48 @@ export async function adminSuspendProjectWithStop(
 
 // ─── Approval requests ────────────────────────────────────────────────────────
 
-export async function getApprovalRequests({ page = 1, limit = 20, status } = {}) {
-  const query = status ? { status } : { status: ApprovalStatus.PENDING };
+export const ApprovalQueueView = Object.freeze({
+  OPEN: 'open',
+  PENDING: 'pending',
+  PROVISIONAL: 'provisional',
+  DECIDED: 'decided',
+});
+
+const DECIDED_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
+
+function approvalQueueQuery(view, now) {
+  const pending = { status: ApprovalStatus.PENDING };
+  // Provisional approvals are already live, so they stay open until an admin decides.
+  const provisional = { status: ApprovalStatus.APPROVED, isProvisional: true };
+  if (view === ApprovalQueueView.PENDING) {
+    return pending;
+  }
+  if (view === ApprovalQueueView.PROVISIONAL) {
+    return provisional;
+  }
+  if (view === ApprovalQueueView.DECIDED) {
+    return {
+      status: { $ne: ApprovalStatus.PENDING },
+      isProvisional: { $ne: true },
+      reviewedAt: { $gte: new Date(now.getTime() - DECIDED_WINDOW_MS) },
+    };
+  }
+  return { $or: [pending, provisional] };
+}
+
+export async function getApprovalRequests({
+  page = 1,
+  limit = 20,
+  view = ApprovalQueueView.OPEN,
+  now = new Date(),
+} = {}) {
+  const query = approvalQueueQuery(view, now);
+  const sort =
+    view === ApprovalQueueView.DECIDED ? { reviewedAt: -1 } : { isProvisional: -1, createdAt: 1 };
   const skip = (page - 1) * limit;
-  const [requests, total] = await Promise.all([
+  const [requests, total, counts] = await Promise.all([
     ApprovalRequest.find(query)
-      .sort({ createdAt: 1 })
+      .sort(sort)
       .skip(skip)
       .limit(limit)
       .populate({
@@ -963,17 +1038,27 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
         select:
           'name slug status ownerId repositoryId productionBranch runtimeType deploymentMode buildConfiguration configurationVersion detection',
         populate: [
-          { path: 'ownerId', select: 'firstName lastName email' },
+          {
+            path: 'ownerId',
+            select: 'firstName lastName email accountTier isTrustedForAutoApproval createdAt',
+          },
           { path: 'repositoryId', select: 'fullName accessStatus lastCommitSha sourceType' },
         ],
       })
       .populate('requestedBy', 'firstName lastName email')
+      .populate('reviewedBy', 'firstName lastName')
       .lean(),
     ApprovalRequest.countDocuments(query),
+    countApprovalQueueViews(now),
   ]);
-  const secretNamesByProject = await getSecretNamesByProject(
-    requests.map((request) => request.projectId?._id).filter(Boolean),
-  );
+
+  const [liveProjectsByOwner, secretNamesByProject] = await Promise.all([
+    countLiveProjectsByOwner(
+      requests.map((request) => request.projectId?.ownerId?._id).filter(Boolean),
+    ),
+    getSecretNamesByProject(requests.map((request) => request.projectId?._id).filter(Boolean)),
+  ]);
+
   return {
     requests: requests.map((request) => {
       const project = request.projectId;
@@ -990,6 +1075,7 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
             hasSnapshot: false,
             readiness: { isReady: false, findings: [] },
           };
+      const ownerLiveProjects = liveProjectsByOwner.get(project?.ownerId?._id?.toString()) ?? 0;
       return {
         ...request,
         snapshotState: {
@@ -997,12 +1083,22 @@ export async function getApprovalRequests({ page = 1, limit = 20, status } = {})
           hasSnapshot: snapshot.hasSnapshot,
         },
         currentFindings: snapshot.readiness.findings,
+        otherLiveProjects: ownerLiveProjects - (project?.status === ProjectStatus.ACTIVE ? 1 : 0),
       };
     }),
     total,
+    counts,
     page,
     limit,
   };
+}
+
+async function countApprovalQueueViews(now) {
+  const views = Object.values(ApprovalQueueView);
+  const totals = await Promise.all(
+    views.map((view) => ApprovalRequest.countDocuments(approvalQueueQuery(view, now))),
+  );
+  return Object.fromEntries(views.map((view, index) => [view, totals[index]]));
 }
 
 async function getSecretNamesByProject(projectIds) {
@@ -1015,6 +1111,99 @@ async function getSecretNamesByProject(projectIds) {
     namesByProject.set(key, [...(namesByProject.get(key) ?? []), name]);
   }
   return namesByProject;
+}
+
+async function countLiveProjectsByOwner(ownerIds) {
+  if (ownerIds.length === 0) {
+    return new Map();
+  }
+  const rows = await Project.aggregate([
+    { $match: { ownerId: { $in: ownerIds }, status: ProjectStatus.ACTIVE } },
+    { $group: { _id: '$ownerId', count: { $sum: 1 } } },
+  ]);
+  return new Map(rows.map((row) => [row._id.toString(), row.count]));
+}
+
+export const ProvisionalDecision = Object.freeze({ CONFIRM: 'CONFIRM', SUSPEND: 'SUSPEND' });
+
+/**
+ * Settle a provisional approval: confirm lifts the provisional limits, suspend
+ * takes the project offline and closes the request.
+ */
+export async function reviewProvisionalApproval(
+  { requestId, decision, note, adminId, adminRole, sourceIp, correlationId },
+  deps = {},
+) {
+  if (!Object.values(ProvisionalDecision).includes(decision)) {
+    return { success: false, error: 'Invalid decision.' };
+  }
+  const normalizedNote = note?.trim() ?? '';
+  if (normalizedNote.length > 1000) {
+    return { success: false, error: 'The note must be 1000 characters or fewer.' };
+  }
+  if (decision === ProvisionalDecision.SUSPEND && !normalizedNote) {
+    return { success: false, error: 'Explain why the project is being suspended.' };
+  }
+
+  const request = await ApprovalRequest.findOne({
+    _id: requestId,
+    status: ApprovalStatus.APPROVED,
+    isProvisional: true,
+  });
+  if (!request) {
+    return { success: false, error: 'This provisional approval is no longer open.' };
+  }
+
+  if (decision === ProvisionalDecision.SUSPEND) {
+    const suspended = await adminSuspendProjectWithStop(
+      {
+        projectId: request.projectId,
+        adminId,
+        adminRole,
+        reason: normalizedNote,
+        sourceIp,
+        correlationId,
+      },
+      deps,
+    );
+    if (!suspended.success) {
+      return suspended;
+    }
+  }
+
+  const settled = await ApprovalRequest.updateOne(
+    { _id: request._id, isProvisional: true },
+    {
+      $set: {
+        isProvisional: false,
+        reviewedBy: adminId,
+        reviewedAt: new Date(),
+        adminNote: normalizedNote || null,
+        ...(decision === ProvisionalDecision.SUSPEND ? { status: ApprovalStatus.REJECTED } : {}),
+      },
+    },
+  );
+  if (settled.modifiedCount !== 1) {
+    return { success: false, error: 'This provisional approval is no longer open.' };
+  }
+
+  if (decision === ProvisionalDecision.CONFIRM && request.provisionalQuotaId) {
+    await Quota.deleteOne({ _id: request.provisionalQuotaId });
+  }
+
+  await writeAuditEvent({
+    action: `admin.approval_request.${decision === ProvisionalDecision.CONFIRM ? 'confirmed' : 'rejected'}`,
+    outcome: AuditOutcome.SUCCESS,
+    actorId: adminId,
+    actorRole: adminRole,
+    targetType: 'approval_request',
+    targetId: request._id.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { projectId: request.projectId.toString(), decision, provisional: true },
+  });
+
+  return { success: true };
 }
 
 export async function reviewApprovalRequest({

@@ -25,7 +25,7 @@ import { recordProductEvent } from './product-analytics.service.js';
  *   startCommand: string | null,
  *   outputDirectory: string | null,
  *   applicationPort: number | null,
- *   issues: Array<{ level: 'ERROR' | 'WARNING', message: string }>,
+ *   issues: Array<{ level: 'ERROR' | 'WARNING' | 'INFO', message: string }>,
  *   isValid: boolean,
  * }}
  */
@@ -178,13 +178,23 @@ export function detectRuntime(files) {
     });
   }
 
-  // ── Dockerfile warning ──────────────────────────────────────────────────────
+  // ── Dockerfile ──────────────────────────────────────────────────────────────
+  // The build always uses a generated Dockerfile, so a user's one only matters
+  // when the app relies on system packages it installs.
   if (files['Dockerfile'] !== null) {
-    issues.push({
-      level: 'WARNING',
-      message:
-        'A Dockerfile was found. HelloDeploy manages containerisation — your Dockerfile will be ignored.',
-    });
+    const systemPackages = findDockerfileSystemPackages(files['Dockerfile']);
+    issues.push(
+      systemPackages.length > 0
+        ? {
+            level: 'WARNING',
+            message: `Your Dockerfile installs extra packages (${systemPackages.join(', ')}). HelloDeploy builds its own image and ignores your Dockerfile, so these will not be available and the app may fail at runtime.`,
+          }
+        : {
+            level: 'INFO',
+            message:
+              'A Dockerfile was found. HelloDeploy builds its own container image, so your Dockerfile is ignored. No action is needed.',
+          },
+    );
   }
 
   const hasErrors = issues.some((i) => i.level === 'ERROR');
@@ -322,11 +332,71 @@ export async function fetchProjectFilesForRepository(repository, ref) {
   return files;
 }
 
+const INSTALL_VERBS = Object.freeze({
+  'apt-get': 'install',
+  apt: 'install',
+  apk: 'add',
+  yum: 'install',
+  dnf: 'install',
+  pip: 'install',
+  pip3: 'install',
+});
+const MAX_REPORTED_PACKAGES = 8;
+
+/**
+ * Names of the system and pip packages a Dockerfile's RUN steps install.
+ * A best-effort read of common install commands, not a shell parser.
+ */
+export function findDockerfileSystemPackages(content) {
+  const lines = String(content ?? '')
+    .replace(/\\\r?\n/g, ' ')
+    .split(/\r?\n/);
+  const packages = new Set();
+  for (const line of lines) {
+    const run = line.match(/^\s*RUN\s+(.*)$/i);
+    if (!run) {
+      continue;
+    }
+    for (const command of run[1].split(/&&|\|\||;|\|/)) {
+      for (const name of installedPackages(command.trim().split(/\s+/))) {
+        packages.add(name);
+      }
+    }
+  }
+  return [...packages].slice(0, MAX_REPORTED_PACKAGES);
+}
+
+function installedPackages(tokens) {
+  const managerIndex = tokens.findIndex((token) => Object.hasOwn(INSTALL_VERBS, token));
+  if (managerIndex === -1) {
+    return [];
+  }
+  const verbIndex = tokens.indexOf(INSTALL_VERBS[tokens[managerIndex]], managerIndex + 1);
+  if (verbIndex === -1) {
+    return [];
+  }
+  const names = [];
+  for (let index = verbIndex + 1; index < tokens.length; index += 1) {
+    const token = tokens[index];
+    if (token === '-r' || token === '--requirement') {
+      const file = tokens[index + 1];
+      if (file) {
+        names.push(`packages from ${file.slice(0, 60)}`);
+      }
+      index += 1;
+    } else if (token && !token.startsWith('-')) {
+      // Drop version pins such as ffmpeg=7.* or flask==3.0.
+      names.push(token.replace(/[=<>~!].*$/, '').slice(0, 60));
+    }
+  }
+  return names.filter(Boolean);
+}
+
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 function safeDetectionIssues(issues) {
   return issues.map(({ level, message }) => ({
-    level: level === 'WARNING' ? 'WARNING' : 'ERROR',
+    level: ['WARNING', 'INFO'].includes(level) ? level : 'ERROR',
     message: String(message).slice(0, 500),
   }));
 }

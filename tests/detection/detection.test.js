@@ -6,7 +6,8 @@ process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32).toString('base64');
 
-const { detectRuntime } = await import('../../apps/web/src/services/detection.service.js');
+const { detectRuntime, findDockerfileSystemPackages } =
+  await import('../../apps/web/src/services/detection.service.js');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -223,15 +224,29 @@ describe('detectRuntime — package manager contract', () => {
     }
   });
 
-  it('warns about Dockerfile presence', () => {
+  it('notes a plain Dockerfile without warning', () => {
     const result = detectRuntime(
       files({
         'package.json': pkg({ scripts: { start: 'node app.js' } }),
-        Dockerfile: 'FROM node:22',
+        Dockerfile: 'FROM node:22\nRUN npm ci\nCMD ["npm", "start"]',
         'package-lock.json': '{}',
       }),
     );
-    assert.ok(result.issues.some((i) => i.level === 'WARNING' && /Dockerfile/i.test(i.message)));
+    assert.deepEqual(
+      result.issues.map((i) => i.level),
+      ['INFO'],
+    );
+  });
+
+  it('warns and names the packages a Dockerfile installs', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ scripts: { start: 'node app.js' } }),
+        Dockerfile: 'FROM node:22\nRUN apt-get update && apt-get install -y ffmpeg',
+        'package-lock.json': '{}',
+      }),
+    );
+    assert.ok(result.issues.some((i) => i.level === 'WARNING' && /\(ffmpeg\)/.test(i.message)));
   });
 
   it('issues ERROR for invalid package.json JSON', () => {
@@ -239,5 +254,35 @@ describe('detectRuntime — package manager contract', () => {
     assert.equal(result.runtimeType, 'UNKNOWN');
     assert.equal(result.isValid, false);
     assert.ok(result.issues.some((i) => i.message.includes('valid JSON')));
+  });
+});
+
+describe('findDockerfileSystemPackages', () => {
+  it('reads packages across continued lines and drops version pins', () => {
+    const dockerfile = [
+      'FROM node:22',
+      'RUN apt-get update && apt-get install -y --no-install-recommends \\',
+      '    ffmpeg imagemagick=7.* \\',
+      '  && echo done',
+    ].join('\n');
+    assert.deepEqual(findDockerfileSystemPackages(dockerfile), ['ffmpeg', 'imagemagick']);
+  });
+
+  it('reports a pip requirements file instead of its flag', () => {
+    assert.deepEqual(findDockerfileSystemPackages('RUN pip3 install -r requirements.txt'), [
+      'packages from requirements.txt',
+    ]);
+  });
+
+  it('reads Alpine apk installs', () => {
+    assert.deepEqual(findDockerfileSystemPackages('RUN apk add --no-cache python3 make g++'), [
+      'python3',
+      'make',
+      'g++',
+    ]);
+  });
+
+  it('ignores npm installs', () => {
+    assert.deepEqual(findDockerfileSystemPackages('RUN npm ci && npm run build'), []);
   });
 });

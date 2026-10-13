@@ -62,6 +62,8 @@ The slug is the URL-safe project identifier used for the platform subdomain. For
 
 HelloDeploy runs user code on shared infrastructure. Initial approval lets an Admin review runtime, repository risk, resource needs, and acceptable-use concerns before deployment.
 
+When the platform has automatic approval turned on, some projects are approved as soon as you submit them: static, React, and Vue sites, and any project from a Premium account, an account an Admin has marked trusted, or an owner who already has an approved project. The project still has to pass every readiness check with no application-check warnings. Everything else is reviewed by an Admin. If no Admin reviews it within 30 minutes, the project is approved provisionally: it can deploy with reduced limits (256 MB memory, no custom domains) until an Admin confirms or suspends it.
+
 ### Can I have more than one project?
 
 The default free limit is one owned project. Admins can grant user-specific or project-specific quota overrides.

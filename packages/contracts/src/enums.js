@@ -27,6 +27,15 @@ export const UserStatus = Object.freeze({
   ARCHIVED: 'ARCHIVED',
 });
 
+/**
+ * Account billing tier.
+ * NOTE: placeholder until billing exists — admins set PREMIUM by hand for paying clients.
+ */
+export const AccountTier = Object.freeze({
+  FREE: 'FREE',
+  PREMIUM: 'PREMIUM',
+});
+
 /** Project lifecycle status */
 export const ProjectStatus = Object.freeze({
   DRAFT: 'DRAFT',
