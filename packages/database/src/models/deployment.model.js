@@ -39,6 +39,9 @@ const deploymentSchema = new Schema(
     sourceDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
     // For rollback deployments: which live deployment the rollback replaced.
     replacedDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
+    // Random key of this deployment's anonymized study copy; deleted with the deployment.
+    studyId: { type: String, default: null },
+    studyArchivedAt: { type: Date, default: null },
   },
   {
     timestamps: true,
@@ -50,6 +53,7 @@ const deploymentSchema = new Schema(
 deploymentSchema.index({ projectId: 1, sequenceNumber: 1 }, { unique: true });
 deploymentSchema.index({ projectId: 1, status: 1 });
 deploymentSchema.index({ status: 1 });
+deploymentSchema.index({ studyArchivedAt: 1, status: 1 });
 
 export const Deployment =
   mongoose.models.Deployment ?? mongoose.model('Deployment', deploymentSchema);

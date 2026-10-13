@@ -61,12 +61,17 @@
         <tr>
           <td>Rollback releases retained</td>
           <td>3</td>
-          <td>The 3 most recent healthy releases are kept; older ones are removed.</td>
+          <td>The 3 most recent healthy releases are kept by default; older ones are removed.</td>
         </tr>
         <tr>
           <td>Deployment log retention</td>
-          <td>7 days</td>
-          <td>Build and runtime logs are permanently deleted after 7 days.</td>
+          <td>30 days</td>
+          <td>Build and runtime logs are permanently deleted after 30 days.</td>
+        </tr>
+        <tr>
+          <td>Anonymized deployment records</td>
+          <td>Indefinite</td>
+          <td>An anonymized copy of each finished deployment's outcome, timings, and log lines is kept to improve build reliability. See the Privacy Policy.</td>
         </tr>
       </tbody>
     </table>

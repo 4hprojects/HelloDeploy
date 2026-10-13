@@ -32,6 +32,7 @@ import { handleSetProjectMaintenance } from './jobs/set-project-maintenance.job.
 import { handleCleanupReleases } from './jobs/cleanup-releases.job.js';
 import { createGracefulWorkerShutdown } from './lifecycle.js';
 import { handleSendNotification, sweepNotifications } from './jobs/send-notification.job.js';
+import { archiveDeploymentsForStudy } from './jobs/archive-study.job.js';
 import { setNotificationQueue } from './queue/notification-queue.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
@@ -166,6 +167,20 @@ const notificationSweepInterval = setInterval(
 );
 notificationSweepInterval.unref();
 
+// Raw deployment logs expire after 30 days; copy finished deployments into
+// the anonymized study archive well before that.
+const runStudyArchive = () =>
+  archiveDeploymentsForStudy()
+    .then((archived) => {
+      if (archived > 0) {
+        logger.info('Worker: archived deployments for study', { archived });
+      }
+    })
+    .catch((err) => logger.error('Worker: study archive sweep failed', { error: err.message }));
+runStudyArchive();
+const studyArchiveInterval = setInterval(runStudyArchive, 60 * 60 * 1000);
+studyArchiveInterval.unref();
+
 worker.on('completed', (job) => {
   logger.info('Worker: job completed', { jobId: job.id, jobType: job.name });
 });
@@ -191,6 +206,7 @@ const shutdown = createGracefulWorkerShutdown({
   workers: [worker, notificationWorker],
   closeRedis: async () => {
     clearInterval(notificationSweepInterval);
+    clearInterval(studyArchiveInterval);
     await Promise.all([queue.close(), notificationQueue.close()]);
     await redis.quit();
   },

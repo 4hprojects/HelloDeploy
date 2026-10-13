@@ -118,6 +118,8 @@ const projectSchema = new Schema(
     deployHookTokenHash: { type: String, default: null },
     configurationVersion: { type: Number, default: 1 },
     detection: { type: detectionSchema, default: () => ({}) },
+    // Random key that groups this project's anonymized study rows; deleted with the project.
+    studyKey: { type: String, default: null },
     notificationPreference: {
       type: String,
       enum: ['ALL', 'FAILURE_ONLY', 'NONE'],
