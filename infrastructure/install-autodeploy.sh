@@ -47,7 +47,13 @@ fi
 
 WORK_DIR=$(mktemp -d)
 trap 'rm -rf "$WORK_DIR"' EXIT
-install -d -m 0700 "$CONFIG_DIR" /root/.ssh
+# /etc/hellodeploy already holds platform configuration such as the GitHub App
+# key, which web and worker read through the hellodeploy-config group. Never
+# change an existing directory's owner or mode; the token file below is 0600.
+if [[ ! -d "$CONFIG_DIR" ]]; then
+  install -d -m 0750 -o root -g hellodeploy-config "$CONFIG_DIR"
+fi
+install -d -m 0700 /root/.ssh
 
 section "GitHub host key"
 # Taken from GitHub's TLS-authenticated API rather than ssh-keyscan, which

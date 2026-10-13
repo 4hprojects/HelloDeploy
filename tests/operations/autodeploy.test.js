@@ -195,6 +195,11 @@ describe('autodeploy — host integration files', () => {
     assert.match(installer, /SHA256:\+DiY3wvvV6TuJJhbpZisF\/zLDA0zPMSvHdkr4UvCOqU/);
   });
 
+  it('never changes the mode of an existing /etc/hellodeploy', () => {
+    // It holds the GitHub App key that web and worker read through their group.
+    assert.doesNotMatch(installer, /install -d -m 0700 "\$CONFIG_DIR"/);
+  });
+
   it('keeps the CI token out of the process list', () => {
     assert.match(installer, /-H @"\$WORK_DIR\/auth-header"/);
   });
