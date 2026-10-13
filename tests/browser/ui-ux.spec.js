@@ -438,6 +438,8 @@ test('stable authenticated dashboard visual', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
   await expect(page).toHaveScreenshot('dashboard-1440.png', {
     fullPage: true,
+    // Earlier tests create the latest deployment at run time, so its timestamp differs every run.
+    mask: [page.locator('.activity-list span')],
     maxDiffPixelRatio: 0.04,
   });
 });
