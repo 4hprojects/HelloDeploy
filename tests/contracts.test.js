@@ -186,6 +186,7 @@ describe('contracts — getFailureCopy', () => {
       'REPO_ACCESS_REVOKED',
       'GITHUB_TOKEN_FAILED',
       'CLONE_FAILED',
+      'BUILD_WORKSPACE_FAILED',
       'BUILD_CONTEXT_INVALID',
       'DOCKERFILE_GENERATION_FAILED',
       'BUILD_FAILED',

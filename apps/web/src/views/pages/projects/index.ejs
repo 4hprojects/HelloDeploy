@@ -6,15 +6,30 @@
     return `/projects?${params.toString()}`;
   };
 %>
-<div class="page-header page-header--actions"><div><h1 class="page-header__title">Projects</h1><p class="page-header__subtitle"><%= total %> project<%= total === 1 ? '' : 's' %> match this view.</p></div><a href="/projects/new" class="button button--primary">New Project</a></div>
+<div class="page-header page-header--actions"><div><h1 class="page-header__title">Projects</h1></div><a href="/projects/new" class="button button--primary">New Project</a></div>
 
-<form class="filter-bar" method="GET" action="/projects" role="search">
-  <div class="form-group"><label class="form-label" for="project-search">Search</label><input class="form-input" id="project-search" name="q" value="<%= filters.q %>" placeholder="Name, address, or repository"></div>
-  <div class="form-group"><label class="form-label" for="project-status">Status</label><select class="form-select" id="project-status" name="status"><option value="">All statuses</option><% [['setup','Setup'],['needs_attention','Needs attention'],['awaiting_review','Awaiting review'],['ready_to_deploy','Ready to deploy'],['deploying','Deploying'],['live','Live'],['failed','Failed'],['suspended','Suspended'],['archived','Archived']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
-  <div class="form-group"><label class="form-label" for="project-role">Role</label><select class="form-select" id="project-role" name="role"><option value="">All roles</option><% ['OWNER','MAINTAINER','VIEWER'].forEach(value => { %><option value="<%= value %>" <%= filters.role === value ? 'selected' : '' %>><%= value[0] + value.slice(1).toLowerCase() %></option><% }) %></select></div>
-  <div class="form-group"><label class="form-label" for="project-sort">Sort</label><select class="form-select" id="project-sort" name="sort"><% [['updated_desc','Recently updated'],['updated_asc','Oldest updated'],['name_asc','Name A–Z'],['name_desc','Name Z–A'],['state_asc','Status']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.sort === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
-  <button class="button button--secondary" type="submit">Apply</button><% if (filters.q || filters.role || filters.status || filters.sort !== 'updated_desc') { %><a class="button button--ghost" href="/projects">Clear</a><% } %>
+<form class="filter-bar project-filters" id="project-filters" method="GET" action="/projects" role="search" aria-label="Filter projects">
+  <div class="project-filters__grid">
+    <div class="form-group project-filters__search">
+      <label class="form-label" for="project-search">Search</label>
+      <div class="search-field">
+        <input class="form-input search-field__input" type="search" id="project-search" name="q" value="<%= filters.q %>" placeholder="Name, address, or repository" autocomplete="off">
+        <button class="button button--secondary search-field__button" type="submit">Search</button>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label" for="project-status">Status</label><select class="form-select" id="project-status" name="status" data-auto-submit><option value="">All statuses</option><% [['setup','Setup'],['needs_attention','Needs attention'],['awaiting_review','Awaiting review'],['ready_to_deploy','Ready to deploy'],['deploying','Deploying'],['live','Live'],['failed','Failed'],['suspended','Suspended'],['archived','Archived']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
+    <div class="form-group"><label class="form-label" for="project-role">Role</label><select class="form-select" id="project-role" name="role" data-auto-submit><option value="">All roles</option><% ['OWNER','MAINTAINER','VIEWER'].forEach(value => { %><option value="<%= value %>" <%= filters.role === value ? 'selected' : '' %>><%= value[0] + value.slice(1).toLowerCase() %></option><% }) %></select></div>
+    <% if (filters.q || filters.role || filters.status || filters.sort !== 'updated_desc') { %><a class="button button--ghost project-filters__clear" href="/projects">Clear</a><% } %>
+  </div>
 </form>
+
+<div class="project-results">
+  <p class="project-results__count text-sm text-muted"><%= total %> project<%= total === 1 ? ' matches' : 's match' %> this view.</p>
+  <div class="project-results__sort">
+    <label class="form-label" for="project-sort">Sort</label>
+    <select class="form-select" id="project-sort" name="sort" form="project-filters" data-auto-submit><% [['updated_desc','Recently updated'],['updated_asc','Oldest updated'],['name_asc','Name A–Z'],['name_desc','Name Z–A'],['state_asc','Status']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.sort === value ? 'selected' : '' %>><%= label %></option><% }) %></select>
+  </div>
+</div>
 
 <% if (rows.length === 0) { %><div class="empty-state"><h2 class="empty-state__title"><%= total === 0 && !filters.q && !filters.role && !filters.status ? 'No projects yet' : 'No matching projects' %></h2><p class="empty-state__description">Try clearing a filter, or create a project when you are ready.</p><ol class="empty-state__steps"><li>Choose a permanent project address</li><li>Connect a supported repository</li><li>Run detection, configure secrets, then deploy</li></ol><div class="empty-state__actions"><a class="button button--primary" href="/projects/new">Create Project</a></div></div><% } else { %>
 <div class="project-list" role="list"><% rows.forEach(row => { %><article class="project-list-card" role="listitem"><div><a class="project-list-card__title" href="/projects/<%= row.project.slug %>"><%= row.project.name %></a><p class="text-sm text-muted"><%= row.project.slug %><% if (row.repository) { %> · <%= row.repository.fullName %><% } %></p></div><div><span class="status-badge status-badge--<%= row.derivedState.tone %>"><%= row.derivedState.label %></span> <span class="role-pill"><%= row.role %></span></div><div class="text-sm text-muted">Updated <%= new Date(row.project.updatedAt).toLocaleDateString('en-GB') %></div><a href="/projects/<%= row.project.slug %>" class="button button--secondary button--sm">Open project</a></article><% }) %></div>
