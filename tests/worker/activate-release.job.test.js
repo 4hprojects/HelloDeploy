@@ -279,6 +279,28 @@ describe('activate-release job', () => {
     );
   });
 
+  it('names the database cause when the app cannot reach a local database', async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({
+      httpHealthCheck: async () => ({ healthy: false, error: 'fetch failed' }),
+      getContainerLogs: async () => ['MongoNetworkError: connect ECONNREFUSED 127.0.0.1:27017'],
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'APP_DATABASE_UNREACHABLE');
+  });
+
+  it('warns when a PORT secret differs from the application port', async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({ getProjectEnvVars: async () => ({ PORT: '3009' }) });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const events = await DeploymentEvent.find({
+      deploymentId: deployment._id,
+      level: 'WARN',
+    }).lean();
+    assert.ok(events.some((e) => e.messageRedacted.startsWith('Your environment sets PORT=3009')));
+  });
+
   it("records the app's own output when the health check fails", async () => {
     const { project, deployment } = await seed();
     const { deps } = makeDeps({

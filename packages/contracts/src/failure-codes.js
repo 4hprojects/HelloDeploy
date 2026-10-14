@@ -44,6 +44,20 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "Your app started, but didn't respond in time to confirm it's working.",
     action: `Check your app's "working-page check" setting, or ${ASK_BUILDER_ACTION.toLowerCase()}`,
   },
+  APP_DATABASE_UNREACHABLE: {
+    message: "Your app couldn't connect to its database.",
+    action:
+      "Its database address points to the app's own computer, which only works on a developer's machine. On the Environment page, replace it with an online database address (for example from MongoDB Atlas), then deploy again.",
+  },
+  APP_PORT_MISMATCH: {
+    message: 'Your app is running, but on a different port than HelloDeploy expects.',
+    action:
+      'In Settings, set the application port to the one your app reports in the log below, or ask the person who built the app to use the PORT value HelloDeploy provides.',
+  },
+  APP_BUILD_OUTPUT_MISSING: {
+    message: "Your app's files weren't built before it started.",
+    action: `In Settings, add the build command your app needs (often "npm run build"). ${ASK_BUILDER_ACTION}`,
+  },
   SUBDOMAIN_INVALID: {
     message: "The web address for your app isn't available.",
     action: 'Try a different project name, or contact support.',
