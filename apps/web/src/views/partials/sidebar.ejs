@@ -39,6 +39,8 @@
             <span class="sidebar__setup-mark sidebar__setup-mark--done"><span aria-hidden="true">✓</span><span class="sr-only">, setup step done</span></span>
             <% } else if (item.setupMark === 'next') { %>
             <span class="sidebar__setup-mark sidebar__setup-mark--next">Next<span class="sr-only"> setup step</span></span>
+            <% } else if (item.setupMark === 'pending') { %>
+            <span class="sidebar__setup-mark sidebar__setup-mark--pending">Pending<span class="sr-only"> custom domain setup</span></span>
             <% } %>
           </a>
         </li>

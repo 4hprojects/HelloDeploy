@@ -4,6 +4,7 @@ import { ProjectRole } from '@hellodeploy/contracts';
 
 import {
   buildProjectNavigation,
+  withDomainMark,
   withSetupMarks,
 } from '../../apps/web/src/config/project-navigation.js';
 
@@ -44,5 +45,20 @@ describe('sidebar setup marks', () => {
 
   it('returns the navigation unchanged once setup is over', () => {
     assert.equal(withSetupMarks(navigation, null), navigation);
+  });
+});
+
+describe('sidebar custom domain mark', () => {
+  it('marks Domains pending while a custom domain is mid-setup', () => {
+    assert.equal(markFor(withDomainMark(navigation, true), 'domains'), 'pending');
+  });
+
+  it('leaves Domains unmarked when no domain is pending', () => {
+    assert.equal(markFor(withDomainMark(navigation, false), 'domains'), undefined);
+  });
+
+  it('leaves the setup marks on other items alone', () => {
+    const items = withDomainMark(withSetupMarks(navigation, guide(['project'], 'source')), true);
+    assert.equal(markFor(items, 'repository'), 'next');
   });
 });

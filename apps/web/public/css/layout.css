@@ -168,6 +168,14 @@
   color: var(--color-text);
 }
 
+.sidebar__setup-mark--pending {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-warning);
+  border-radius: var(--radius-full);
+  background: var(--color-warning-bg);
+  color: var(--color-text);
+}
+
 .sidebar__link--button {
   width: 100%;
   background: none;

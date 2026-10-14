@@ -1,4 +1,4 @@
-import { ProjectRole } from '@hellodeploy/contracts';
+import { DomainRoutingState, DomainStatus, ProjectRole } from '@hellodeploy/contracts';
 
 const PROJECT_NAVIGATION = Object.freeze([
   { key: 'overview', label: 'Overview', path: '', icon: 'overview' },
@@ -75,6 +75,46 @@ export function buildProjectNavigation(slug, role, currentPath = '') {
     const active = item.path ? currentPath.startsWith(href) : currentPath === base;
     return { ...item, href, active };
   });
+}
+
+// A custom domain that still needs the owner or the platform: mid-setup, failed,
+// or live in Nginx while the last routing check found traffic going elsewhere.
+// Never-checked routing (UNKNOWN) does not count, or every older working domain
+// would be flagged.
+export const PENDING_DOMAIN_FILTER = Object.freeze({
+  $or: [
+    {
+      status: {
+        $in: [
+          DomainStatus.PENDING_VERIFICATION,
+          DomainStatus.VERIFYING,
+          DomainStatus.VERIFIED,
+          DomainStatus.PENDING_ADMIN_APPROVAL,
+          DomainStatus.ACTIVATING,
+          DomainStatus.FAILED,
+        ],
+      },
+    },
+    {
+      status: DomainStatus.ACTIVE,
+      routingState: {
+        $in: [
+          DomainRoutingState.NOT_POINTED,
+          DomainRoutingState.TUNNEL_DOWN,
+          DomainRoutingState.FOREIGN,
+        ],
+      },
+    },
+  ],
+});
+
+export function withDomainMark(navigation, hasPendingDomain) {
+  if (!hasPendingDomain) {
+    return navigation;
+  }
+  return navigation.map((item) =>
+    item.key === 'domains' ? { ...item, setupMark: 'pending' } : item,
+  );
 }
 
 export function withSetupMarks(navigation, setupGuide) {

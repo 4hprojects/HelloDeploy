@@ -1,7 +1,11 @@
-import { Project } from '@hellodeploy/database';
+import { Domain, Project } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 
-import { withSetupMarks } from '../config/project-navigation.js';
+import {
+  PENDING_DOMAIN_FILTER,
+  withDomainMark,
+  withSetupMarks,
+} from '../config/project-navigation.js';
 import { loadProjectOverviewState } from '../services/project-overview-loader.service.js';
 import { toSetupGuide } from '../services/project-overview.service.js';
 
@@ -22,8 +26,11 @@ export function attachSetupState(req, res) {
     const project = req.project;
     const base = `/projects/${project.slug}`;
     const page = res.locals.setupGuidePage;
-    loadOverviewState(project, req.membership.role, locals.overviewState)
-      .then((overviewState) => {
+    Promise.all([
+      loadOverviewState(project, req.membership.role, locals.overviewState),
+      Domain.exists({ projectId: project._id, ...PENDING_DOMAIN_FILTER }),
+    ])
+      .then(([overviewState, pendingDomain]) => {
         const guide = toSetupGuide(overviewState, {
           base,
           currentPath: page ? `${base}/${page}` : base,
@@ -32,7 +39,10 @@ export function attachSetupState(req, res) {
           view,
           {
             ...locals,
-            projectNavigation: withSetupMarks(res.locals.projectNavigation, guide),
+            projectNavigation: withDomainMark(
+              withSetupMarks(res.locals.projectNavigation, guide),
+              Boolean(pendingDomain),
+            ),
             setupGuide: page ? guide : null,
           },
           callback,
