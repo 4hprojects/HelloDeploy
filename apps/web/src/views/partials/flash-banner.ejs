@@ -8,7 +8,7 @@
 <% if (_flash.error) { %>
 <div class="flash flash--error" role="alert" aria-live="assertive">
   <%- include('icon', { name: 'x', className: 'flash__icon' }) %>
-  <span><%= _flash.error %></span>
+  <span><%= _flash.error %><% if (_flash.upgradeOffer) { %> <a href="/premium">Upgrade to Premium</a> for unlimited deployments.<% } %></span>
 </div>
 <% } %>
 <% if (_flash.info) { %>

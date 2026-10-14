@@ -300,6 +300,12 @@ export function getHowItWorks(_req, res) {
   res.render('pages/how-it-works', { title: 'How It Works' });
 }
 
+// Placeholder until Premium sign-up exists; linked from the monthly deployment
+// limit message.
+export function getPremium(_req, res) {
+  res.render('pages/premium', { title: 'HelloDeploy Premium' });
+}
+
 export function getPilot(_req, res) {
   res.render('pages/pilot', { title: 'Pilot and Pricing' });
 }

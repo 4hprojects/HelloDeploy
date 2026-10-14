@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, Domain, Quota } from '@hellodeploy/database';
+import { Deployment, Domain, Quota, User } from '@hellodeploy/database';
 import {
+  AccountTier,
   ApiError,
   DeploymentStatus,
   DeploymentTrigger,
@@ -55,6 +56,28 @@ describe('quota caps — deployments per month', () => {
     await seedDeployments(project._id, 3);
     const refusal = await checkDeploymentQuota(project);
     assert.equal(refusal?.code, ApiError.QUOTA_EXCEEDED);
+  });
+
+  it('offers Premium when the monthly allowance is used', async () => {
+    const project = await createProject();
+    await setProjectQuota(project._id, { deploymentsPerMonth: 3 });
+    await seedDeployments(project._id, 3);
+    const refusal = await checkDeploymentQuota(project);
+    assert.equal(refusal?.offerPremium, true);
+  });
+
+  it('lets a Premium owner deploy past the monthly allowance', async () => {
+    const owner = await User.create({
+      email: 'premium-owner@example.com',
+      firstName: 'Pre',
+      lastName: 'Mium',
+      passwordHash: 'not-a-real-hash',
+      accountTier: AccountTier.PREMIUM,
+    });
+    const project = await createProject({ ownerId: owner._id });
+    await setProjectQuota(project._id, { deploymentsPerMonth: 3 });
+    await seedDeployments(project._id, 3);
+    assert.equal(await checkDeploymentQuota(project), null);
   });
 
   it('does not count deployments from a previous month', async () => {
