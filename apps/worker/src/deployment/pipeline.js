@@ -376,23 +376,27 @@ export async function runReleasePipeline({
   // deployment as soon as the exit is visible instead of after the full window.
   const startupDeadline = Date.now() + deps.startupDelayMs;
   let state = await deps.inspectContainer(cName);
-  while (state.running && Date.now() < startupDeadline) {
+  while (!hasCrashed(state) && Date.now() < startupDeadline) {
     await new Promise((r) => setTimeout(r, Math.min(500, startupDeadline - Date.now())));
     state = await deps.inspectContainer(cName);
   }
-  if (!state.running) {
+  if (hasCrashed(state)) {
+    // NOTE: Docker resets ExitCode while it restarts a container, so once a
+    // restart has happened the code no longer describes the crash.
+    const crashDetail =
+      state.running || state.restartCount > 0
+        ? `kept crashing (restarted ${state.restartCount} time${state.restartCount === 1 ? '' : 's'})`
+        : `exited immediately (code ${state.exitCode})`;
     await logEvent(
       deploymentId,
       'DEPLOY',
       'ERROR',
-      `${opts.logLabel} exited immediately (code ${state.exitCode}). Possible crash or missing start command.`,
+      `${opts.logLabel} ${crashDetail}. Possible crash or missing start command.`,
       correlationId,
     );
+    await logContainerOutput(deps, cName, deploymentId, correlationId);
     await deps.stopAndRemoveContainer(cName);
-    return fail(
-      'CONTAINER_CRASHED_ON_STARTUP',
-      `Container exited with code ${state.exitCode} immediately after start.`,
-    );
+    return fail('CONTAINER_CRASHED_ON_STARTUP', `Container ${crashDetail} right after start.`);
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
@@ -419,6 +423,7 @@ export async function runReleasePipeline({
       `Health check failed: ${health.error ?? 'timeout'}`,
       correlationId,
     );
+    await logContainerOutput(deps, cName, deploymentId, correlationId);
     await deps.stopAndRemoveContainer(cName);
     return fail(
       'HEALTH_CHECK_FAILED',
@@ -676,4 +681,21 @@ export async function runReleasePipeline({
   }
 
   return { ok: true, containerId, hostPort, containerName: cName };
+}
+
+function hasCrashed(state) {
+  return !state.running || state.restarting || state.restartCount > 0;
+}
+
+// The container is removed right after a failed start, taking the app's own
+// error output with it; copy the tail into the deployment log first so the
+// owner can see why it failed. Optional dep: test doubles may omit it.
+async function logContainerOutput(deps, cName, deploymentId, correlationId) {
+  if (!deps.getContainerLogs) {
+    return;
+  }
+  const lines = await deps.getContainerLogs(cName);
+  for (const line of lines) {
+    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `[app] ${line}`, correlationId);
+  }
 }

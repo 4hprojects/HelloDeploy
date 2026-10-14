@@ -185,16 +185,55 @@ export async function startContainer({
  */
 export async function inspectContainer(containerIdOrName) {
   try {
-    const json = await runDocker(['inspect', '--format', '{{json .State}}', containerIdOrName]);
-    const state = JSON.parse(json);
+    const json = await runDocker([
+      'inspect',
+      '--format',
+      '{"state":{{json .State}},"restartCount":{{.RestartCount}}}',
+      containerIdOrName,
+    ]);
+    const { state, restartCount } = JSON.parse(json);
+    // NOTE: under `--restart unless-stopped` a crashing app reports Running=true
+    // between restarts, so Restarting and RestartCount are the crash signals.
     return {
       status: state.Status ?? 'unknown',
       running: state.Running ?? false,
+      restarting: state.Restarting ?? false,
+      restartCount: restartCount ?? 0,
       exitCode: state.ExitCode ?? -1,
     };
   } catch {
-    return { status: 'missing', running: false, exitCode: -1 };
+    return { status: 'missing', running: false, restarting: false, restartCount: 0, exitCode: -1 };
   }
+}
+
+/**
+ * Last `tail` lines of a container's stdout and stderr. Non-fatal: returns []
+ * when the container is gone or docker fails, since callers only use this to
+ * explain a failure that is already being reported.
+ */
+export function getContainerLogs(containerIdOrName, tail = 50) {
+  return new Promise((resolve) => {
+    const proc = spawn('docker', ['logs', '--tail', String(tail), containerIdOrName], {
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const chunks = [];
+    proc.stdout.on('data', (d) => chunks.push(d));
+    proc.stderr.on('data', (d) => chunks.push(d));
+    proc.on('close', (code) => {
+      if (code !== 0) {
+        resolve([]);
+        return;
+      }
+      resolve(
+        Buffer.concat(chunks)
+          .toString('utf8')
+          .split('\n')
+          .map((line) => line.trimEnd())
+          .filter(Boolean),
+      );
+    });
+    proc.on('error', () => resolve([]));
+  });
 }
 
 /**
