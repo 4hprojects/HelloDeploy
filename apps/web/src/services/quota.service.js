@@ -119,6 +119,7 @@ export async function checkDomainQuota(project) {
     return {
       code: ApiError.QUOTA_EXCEEDED,
       error: `This project has ${domainCount} of ${quota.maxCustomDomains} custom domains allowed. Remove one before adding another.`,
+      limit: quota.maxCustomDomains,
     };
   }
   return null;

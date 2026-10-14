@@ -1,3 +1,4 @@
+import { env } from '../config/env.js';
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   stashPendingDomainVerification,
@@ -20,6 +21,8 @@ import {
   connectCustomHostname,
   routingTargetFor,
 } from '../services/domain.service.js';
+import { checkDomainQuota } from '../services/quota.service.js';
+import { buildApplicationUrl } from '../services/project-overview.service.js';
 import {
   CUSTOM_HOSTNAME_LIMIT,
   defaultCustomHostnameClient,
@@ -30,7 +33,10 @@ import {
 
 export const getDomains = asyncHandler(async (req, res) => {
   const project = req.project;
-  const domains = await getProjectDomains(project._id);
+  const [domains, domainQuotaRefusal] = await Promise.all([
+    getProjectDomains(project._id),
+    checkDomainQuota(project),
+  ]);
   const pending = consumePendingDomainVerification(req);
 
   res.render('pages/projects/domains', {
@@ -39,6 +45,11 @@ export const getDomains = asyncHandler(async (req, res) => {
     membership: req.membership,
     domains: domains.map((domain) => ({ ...domain, routingTarget: routingTargetFor(domain) })),
     customHostnamesEnabled: isCustomHostnamesEnabled(),
+    domainLimit: domainQuotaRefusal ? domainQuotaRefusal.limit : null,
+    platformAppUrl: buildApplicationUrl({
+      subdomain: project.platformSubdomain ?? project.slug,
+      deploymentDomain: env.DEPLOYMENT_DOMAIN,
+    }),
     verificationToken: pending.token,
     pendingHostname: pending.hostname,
   });
@@ -192,7 +203,10 @@ export const postCheckDomainRouting = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else if (result.state === 'LIVE') {
-    req.flash('success', 'This domain is live — public traffic reaches your app.');
+    req.flash(
+      'success',
+      'This domain is live — public traffic reaches your app. See what to do next below.',
+    );
   } else if (!result.recordReady) {
     req.flash('info', result.detail);
   } else {
