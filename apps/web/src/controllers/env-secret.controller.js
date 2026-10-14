@@ -8,6 +8,7 @@ import {
   importEnvFile,
   previewEnvFile,
   bulkUpdateSecrets,
+  revealSecretValues,
 } from '../services/env-secret.service.js';
 
 function preventEnvironmentCaching(res) {
@@ -37,7 +38,15 @@ export const getEnvironment = asyncHandler(async (req, res) => {
 async function renderEnvironment(
   req,
   res,
-  { errors = {}, values = {}, importErrors = {}, bulkErrors = {}, bulkValues = {}, bulkEditMode },
+  {
+    errors = {},
+    values = {},
+    importErrors = {},
+    bulkErrors = {},
+    bulkValues = {},
+    bulkEditMode,
+    revealedValues = null,
+  },
 ) {
   const project = req.project;
   const secrets = await listSecretNames(project._id);
@@ -53,6 +62,7 @@ async function renderEnvironment(
     bulkErrors,
     bulkValues,
     bulkEditMode: typeof bulkEditMode === 'boolean' ? bulkEditMode : req.query.edit === 'all',
+    revealedValues,
   });
 }
 
@@ -195,6 +205,16 @@ export const postDeleteSecret = asyncHandler(async (req, res) => {
   }
 
   res.redirect(`/projects/${project.slug}/environment`);
+});
+
+// Rendered from the POST rather than redirected, so the values never sit in a
+// URL, the browser history, or a cached GET; reloading the page hides them.
+export const postRevealSecrets = asyncHandler(async (req, res) => {
+  const revealedValues = await revealSecretValues(req.project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+  await renderEnvironment(req, res, { bulkEditMode: false, revealedValues });
 });
 
 export const postDeleteAllSecrets = asyncHandler(async (req, res) => {

@@ -18,10 +18,6 @@ const environmentController = await readFile(
   new URL('../../apps/web/src/controllers/env-secret.controller.js', import.meta.url),
   'utf8',
 );
-const environmentService = await readFile(
-  new URL('../../apps/web/src/services/env-secret.service.js', import.meta.url),
-  'utf8',
-);
 const projectRoutes = await readFile(
   new URL('../../apps/web/src/routes/pages/project.routes.js', import.meta.url),
   'utf8',
@@ -44,12 +40,25 @@ describe('.env file upload UI', () => {
     assert.match(environment, /Unchanged — enter replacement/);
     assert.match(environment, /Blank keeps current/);
     assert.match(environment, /password-toggle/);
-    assert.match(environment, /cannot be viewed again/);
-    assert.match(environment, /permanently write-only/);
+    assert.match(environment, /stays hidden unless the project owner chooses Show all values/);
     assert.doesNotMatch(environment, /Reveal value/);
-    assert.doesNotMatch(environmentController, /postRevealSecret/);
-    assert.doesNotMatch(environmentService, /export async function revealSecretValue/);
     assert.doesNotMatch(projectRoutes, /environment\/:name\/reveal/);
+  });
+
+  // Values are revealed all at once, owner-only, after a confirmation dialog,
+  // through a CSRF-protected POST so they never land in a URL or cached GET.
+  it('reveals all values only through a confirmed, CSRF-protected POST', () => {
+    assert.match(
+      environment,
+      /<form method="POST" action="\/projects\/<%= project\.slug %>\/environment\/reveal"\s+data-confirm=/,
+    );
+  });
+
+  it('limits revealing values to the project owner', () => {
+    assert.match(
+      projectRoutes,
+      /router\.post\('\/:slug\/environment\/reveal', requireAuth, ownerOnly, postRevealSecrets\)/,
+    );
   });
 
   it('reads the selected file into the protected form without logging its contents', () => {

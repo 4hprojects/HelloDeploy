@@ -138,7 +138,7 @@
           <% if (formErrors.value) { %>
           <p class="form-error" id="value-error" role="alert"><%= formErrors.value %></p>
           <% } else { %>
-          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately and cannot be viewed again. Replace it if you need to change it.</p>
+          <p class="form-hint text-xs text-muted" id="value-hint">Value is encrypted immediately and stays hidden unless the project owner chooses Show all values. Replace it if you need to change it.</p>
           <% } %>
         </div>
       </div>
@@ -158,6 +158,19 @@
         <% if (locals.bulkEditMode === true) { %>
         <a href="/projects/<%= project.slug %>/environment" class="button button--ghost button--sm">Cancel editing</a>
         <% } else { %>
+        <% if (locals.revealedValues) { %>
+        <a href="/projects/<%= project.slug %>/environment" class="button button--ghost button--sm">Hide values</a>
+        <% } else { %>
+        <form method="POST" action="/projects/<%= project.slug %>/environment/reveal"
+              data-confirm="Every value will be visible on this screen until you leave or reload the page. Make sure no one else can see your screen. This is recorded in the project's audit log."
+              data-confirm-title="Show all secret values?"
+              data-confirm-accept-label="Show Values"
+              data-confirm-pending-label="Showing..."
+              data-confirm-variant="warning">
+          <%- include('../../partials/csrf-field') %>
+          <button type="submit" class="button button--ghost button--sm">Show all values</button>
+        </form>
+        <% } %>
         <a href="/projects/<%= project.slug %>/environment?edit=all" class="button button--secondary button--sm">Edit</a>
         <form method="POST" action="/projects/<%= project.slug %>/environment/delete-all"
               data-confirm="Delete all <%= secrets.length %> secret<%= secrets.length === 1 ? '' : 's' %> for <%= project.name %>? This cannot be undone. Your live app keeps its current values until you deploy again."
@@ -241,6 +254,8 @@
                   <%- include('../../partials/icon', { name: 'eye', className: 'password-toggle__icon' }) %>
                 </button>
               </div>
+              <% } else if (locals.revealedValues) { %>
+              <code class="code-inline stored-secret-value"><%= locals.revealedValues[secret.name] ?? '' %></code>
               <% } else { %>
               ••••••••
               <% } %>
@@ -286,8 +301,9 @@
   <div class="card__body">
     <p class="text-sm">
       <strong>Security notice:</strong>
-      Secret values are encrypted with AES-256-GCM and are permanently write-only in the web interface.
-      Replace a saved value to change it; HelloDeploy never loads existing plaintext into this page.
+      Secret values are encrypted with AES-256-GCM and stay hidden on this page. The project owner can
+      choose Show all values to check them; every reveal is recorded in the audit log, and the values
+      disappear again when the page is reloaded. Replace a saved value to change it.
       Environment pages are not browser-cached, and you should rotate secrets after any exposure you no longer trust.
       Secrets are injected into your container at runtime only — they are never written to disk or included in build artifacts.
       <strong>Adding, editing, or deleting a secret does not update your live app.</strong> Deploy again from the

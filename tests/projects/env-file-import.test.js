@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { EnvironmentSecret } from '@hellodeploy/database';
+import { AuditEvent, EnvironmentSecret } from '@hellodeploy/database';
+import { configureAuditService } from '@hellodeploy/observability';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 import {
@@ -12,6 +13,7 @@ import {
   importEnvFile,
   parseEnvFile,
   previewEnvFile,
+  revealSecretValues,
 } from '../../apps/web/src/services/env-secret.service.js';
 
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -316,5 +318,39 @@ describe('deleting all secrets', () => {
     const result = await deleteAllSecrets(objectId(), objectId());
 
     assert.deepEqual(result, { success: false, error: 'There are no secrets to delete.' });
+  });
+});
+
+describe('revealing all secret values', () => {
+  before(async () => {
+    await startTestDb();
+    configureAuditService(AuditEvent);
+  });
+  beforeEach(clearTestDb);
+  after(async () => {
+    configureAuditService(null);
+    await stopTestDb();
+  });
+
+  it('returns every decrypted value for the project', async () => {
+    const projectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+
+    assert.deepEqual(await revealSecretValues(projectId, actorId), {
+      API_KEY: 'first',
+      PORT: '3000',
+    });
+  });
+
+  it('records who revealed the values without recording the values', async () => {
+    const projectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=very-secret-value', actorId);
+
+    await revealSecretValues(projectId, actorId);
+
+    const event = await AuditEvent.findOne({ action: 'project.secrets_revealed' }).lean();
+    assert.deepEqual(event.metadata, { count: 1, names: ['API_KEY'] });
   });
 });

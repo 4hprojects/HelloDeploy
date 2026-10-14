@@ -485,8 +485,8 @@ export async function deleteAllSecrets(projectId, actorId, opts = {}) {
 
 /**
  * Decrypt all secrets for a project into a plain key-value map.
- * FOR INTERNAL USE ONLY — called by the deployment worker, never by web controllers.
- * Never send the output of this function to a client.
+ * Web controllers must not call this directly: the only path to a client is
+ * `revealSecretValues`, which records an audit event first.
  *
  * @returns {Promise<Record<string, string>>}
  */
@@ -497,4 +497,28 @@ export async function getDecryptedSecrets(projectId) {
     result[s.name] = decryptSecretRecord(s);
   }
   return result;
+}
+
+/**
+ * Decrypt every secret so the project owner can see them, after recording who
+ * looked. The audit metadata carries names only, never values.
+ *
+ * @returns {Promise<Record<string, string>>}
+ */
+export async function revealSecretValues(projectId, actorId, opts = {}) {
+  const values = await getDecryptedSecrets(projectId);
+  const names = Object.keys(values);
+
+  await writeAuditEvent({
+    action: 'project.secrets_revealed',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: projectId.toString(),
+    sourceIp: opts.sourceIp,
+    correlationId: opts.correlationId,
+    metadata: { count: names.length, names },
+  });
+
+  return values;
 }
