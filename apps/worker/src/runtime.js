@@ -16,6 +16,7 @@ import {
 import { JobType, validateJobPayload } from '@hellodeploy/contracts';
 import { logger, configureAuditService } from '@hellodeploy/observability';
 import { env } from './config/env.js';
+import { guardWorkerDatabase } from './config/database-guard.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
 import { validateNginxConfig } from './nginx/helper-client.js';
@@ -75,6 +76,10 @@ if (env.BUILD_BUILDER_NAME) {
 
 await connectDatabase(env.MONGODB_URI);
 logger.info('Worker: database connected');
+await guardWorkerDatabase({
+  isProduction: env.NODE_ENV === 'production',
+  nginxEnabled: env.NGINX_ENABLED,
+});
 
 configureAuditService(AuditEvent);
 configurePlanDefaults({

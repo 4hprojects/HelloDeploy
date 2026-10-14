@@ -182,6 +182,7 @@ describe('contracts — getFailureCopy', () => {
       'HEALTH_CHECK_FAILED',
       'SUBDOMAIN_INVALID',
       'NGINX_ROUTE_FAILED',
+      'ROUTE_NOT_CONNECTED',
       'PROJECT_NOT_FOUND',
       'REPO_ACCESS_REVOKED',
       'GITHUB_TOKEN_FAILED',

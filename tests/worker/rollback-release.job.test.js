@@ -6,6 +6,10 @@ import { DeploymentStatus, DeploymentTrigger, QuotaScope } from '@hellodeploy/co
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
+// These cases cover rollback bookkeeping, not routing; env is read when the
+// pipeline loads, so release without an Nginx route before importing it.
+process.env.ALLOW_UNROUTED_RELEASES = 'true';
+
 const { handleRollbackRelease } =
   await import('../../apps/worker/src/jobs/rollback-release.job.js');
 
