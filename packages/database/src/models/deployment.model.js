@@ -42,6 +42,13 @@ const deploymentSchema = new Schema(
     // Random key of this deployment's anonymized study copy; deleted with the deployment.
     studyId: { type: String, default: null },
     studyArchivedAt: { type: Date, default: null },
+    // Last observed state of activeContainerId, written by the worker at go-live
+    // and by its periodic uptime sweep; the web process has no Docker access.
+    runtime: {
+      containerStartedAt: { type: Date, default: null },
+      isRunning: { type: Boolean, default: false },
+      checkedAt: { type: Date, default: null },
+    },
   },
   {
     timestamps: true,

@@ -41,6 +41,16 @@
     <p class="project-home-summary__eyebrow"><%= overviewState.eyebrow %></p>
     <h2 class="project-home-summary__title" id="project-home-title"><%= overviewState.title %></h2>
     <p class="project-home-summary__description"><%= overviewState.description %></p>
+    <% if (overviewState.uptime) { %>
+    <p class="project-home-uptime project-home-uptime--<%= overviewState.uptime.state %>">
+      <% if (overviewState.uptime.startedAt) { %>
+      <time datetime="<%= overviewState.uptime.startedAt %>" data-uptime-since="<%= overviewState.uptime.startedAt %>"
+        title="Container started <%= new Date(overviewState.uptime.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) %>"><%= overviewState.uptime.label %></time>
+      <% } else { %>
+      <%= overviewState.uptime.label %>
+      <% } %>
+    </p>
+    <% } %>
 
     <div class="project-home-summary__row">
       <% if (overviewState.appUrl) { %>

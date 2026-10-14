@@ -1994,6 +1994,28 @@
     window.setTimeout(poll, 2000);
   }
 
+  // Keeps the overview's "Running for" line current while the page stays open.
+  // Mirrors toAppUptime and formatUptime on the server.
+  function initAppUptime() {
+    const uptime = document.querySelector('[data-uptime-since]');
+    if (!uptime) {
+      return;
+    }
+    const startedAt = new Date(uptime.dataset.uptimeSince).getTime();
+    window.setInterval(() => {
+      const seconds = Math.max(0, Math.floor((Date.now() - startedAt) / 1000));
+      if (seconds < 60) {
+        uptime.textContent = 'Running for less than a minute';
+        return;
+      }
+      const d = Math.floor(seconds / 86400);
+      const h = Math.floor((seconds % 86400) / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const duration = d > 0 ? `${d}d ${h}h ${m}m` : h > 0 ? `${h}h ${m}m` : `${m}m`;
+      uptime.textContent = `Running for ${duration}`;
+    }, 60_000);
+  }
+
   function init() {
     initThemeToggle();
     initPublicNav();
@@ -2018,6 +2040,7 @@
     initSettingsEditGroups();
     initDnsCopyButtons();
     initDomainStatusPolling();
+    initAppUptime();
   }
 
   if (document.readyState === 'loading') {

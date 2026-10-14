@@ -11,6 +11,7 @@ import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
+import { toRuntimeState } from './container-uptime-sweep.js';
 import { diagnoseAppOutput } from './failure-diagnosis.js';
 import {
   generateServerBlock,
@@ -653,10 +654,17 @@ export async function runReleasePipeline({
 
     await Project.updateOne({ _id: projectId }, { $set: { activeDeploymentId: deploymentId } });
 
+    // Seed uptime now so the overview shows it before the first periodic sweep.
+    const liveState = await deps.inspectContainer(cName);
+    const completedAt = new Date();
     await updateStatus(
       deploymentId,
       DeploymentStatus.HEALTHY,
-      { activeContainerId: containerId, completedAt: new Date() },
+      {
+        activeContainerId: containerId,
+        completedAt,
+        runtime: toRuntimeState(liveState, completedAt),
+      },
       statusOptions,
     );
   } catch (err) {

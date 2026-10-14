@@ -7,6 +7,12 @@ import {
   ProjectStatus,
 } from '@hellodeploy/contracts';
 
+import { formatUptime } from '../utils/format-uptime.js';
+
+// The worker records container state every minute; older than this means it
+// stopped checking, and a "Running for" figure could be wrong.
+export const UPTIME_STALE_AFTER_MS = 5 * 60_000;
+
 const IN_FLIGHT_STATUSES = new Set([
   DeploymentStatus.QUEUED,
   DeploymentStatus.VALIDATING,
@@ -62,6 +68,7 @@ export function buildProjectOverviewState({
   approvalReadiness,
   membershipRole,
   appUrl,
+  now = new Date(),
 }) {
   const base = `/projects/${project.slug}`;
   const latestDeployment = deployments[0] ?? null;
@@ -164,6 +171,7 @@ export function buildProjectOverviewState({
     inFlightDeployment,
     appLive,
     appUrl: appLive ? appUrl : null,
+    uptime: appLive ? toAppUptime(activeDeployment, now) : null,
     showMilestones: !appLive,
     newCommitAvailable,
     canSubmit:
@@ -190,6 +198,7 @@ export function buildProjectOverviewState({
       primaryAction: null,
       appLive: false,
       appUrl: null,
+      uptime: null,
       showMilestones: false,
       newCommitAvailable: false,
       canSubmit: false,
@@ -500,4 +509,26 @@ function findAfterStep(milestones, currentPath) {
 
 function toPath(href) {
   return href?.split('#')[0] ?? null;
+}
+
+/**
+ * How long the live app's container has been running, from the state the
+ * worker last recorded. Null when that state is missing or stale, so the page
+ * never shows a figure nobody is checking.
+ */
+export function toAppUptime(deployment, now = new Date()) {
+  const runtime = deployment?.runtime;
+  if (!runtime?.checkedAt || now - new Date(runtime.checkedAt) > UPTIME_STALE_AFTER_MS) {
+    return null;
+  }
+  if (!runtime.isRunning || !runtime.containerStartedAt) {
+    return { state: 'not-running', startedAt: null, label: "Your app isn't running right now" };
+  }
+  const startedAt = new Date(runtime.containerStartedAt);
+  const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
+  return {
+    state: 'running',
+    startedAt: startedAt.toISOString(),
+    label: seconds < 60 ? 'Running for less than a minute' : `Running for ${formatUptime(seconds)}`,
+  };
 }

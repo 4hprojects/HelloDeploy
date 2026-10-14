@@ -34,6 +34,10 @@ import { handleCleanupReleases } from './jobs/cleanup-releases.job.js';
 import { createGracefulWorkerShutdown } from './lifecycle.js';
 import { handleSendNotification, sweepNotifications } from './jobs/send-notification.job.js';
 import { archiveDeploymentsForStudy } from './jobs/archive-study.job.js';
+import {
+  sweepContainerUptime,
+  CONTAINER_UPTIME_SWEEP_MS,
+} from './deployment/container-uptime-sweep.js';
 import { setNotificationQueue } from './queue/notification-queue.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
@@ -186,6 +190,15 @@ runStudyArchive();
 const studyArchiveInterval = setInterval(runStudyArchive, 60 * 60 * 1000);
 studyArchiveInterval.unref();
 
+// Feeds the "Running for" line on project overviews; the web has no Docker access.
+const runContainerUptimeSweep = () =>
+  sweepContainerUptime().catch((err) =>
+    logger.error('Worker: container uptime sweep failed', { error: err.message }),
+  );
+runContainerUptimeSweep();
+const containerUptimeInterval = setInterval(runContainerUptimeSweep, CONTAINER_UPTIME_SWEEP_MS);
+containerUptimeInterval.unref();
+
 worker.on('completed', (job) => {
   logger.info('Worker: job completed', { jobId: job.id, jobType: job.name });
 });
@@ -212,6 +225,7 @@ const shutdown = createGracefulWorkerShutdown({
   closeRedis: async () => {
     clearInterval(notificationSweepInterval);
     clearInterval(studyArchiveInterval);
+    clearInterval(containerUptimeInterval);
     await Promise.all([queue.close(), notificationQueue.close()]);
     await redis.quit();
   },
