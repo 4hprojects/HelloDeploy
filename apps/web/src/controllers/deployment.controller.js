@@ -1,7 +1,13 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentTrigger, getFailureCopy, getStatusPresentation } from '@hellodeploy/contracts';
+import {
+  DeploymentStatus,
+  DeploymentTrigger,
+  getFailureCopy,
+  getStatusPresentation,
+} from '@hellodeploy/contracts';
 import { isTerminal } from '@hellodeploy/deployment-core';
 import { Deployment, DeploymentEvent } from '@hellodeploy/database';
+import { env } from '../config/env.js';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
 import { subscribeDeployLogs } from '../services/deploy-log-stream.js';
 import {
@@ -15,6 +21,7 @@ import {
   getDeployment,
   getDeploymentEvents,
 } from '../services/deployment.service.js';
+import { buildApplicationUrl } from '../services/project-overview.service.js';
 
 const DEPLOYMENTS_PER_PAGE = 20;
 
@@ -68,6 +75,14 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     ? await Deployment.findById(deployment.replacedDeploymentId).lean()
     : null;
   const failureCopy = deployment.failureCode ? getFailureCopy(deployment.failureCode) : null;
+  const isCurrentRelease = project.activeDeploymentId?.toString() === deployment._id.toString();
+  const appUrl =
+    isCurrentRelease && deployment.status === DeploymentStatus.HEALTHY
+      ? buildApplicationUrl({
+          subdomain: project.platformSubdomain ?? project.slug,
+          deploymentDomain: env.DEPLOYMENT_DOMAIN,
+        })
+      : null;
 
   res.render('pages/projects/deployment-detail', {
     title: `Deployment #${deployment.sequenceNumber} – ${project.name}`,
@@ -78,7 +93,8 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     failureCopy,
     rollbackSource,
     replacedDeployment,
-    isCurrentRelease: project.activeDeploymentId?.toString() === deployment._id.toString(),
+    isCurrentRelease,
+    appUrl,
   });
 });
 

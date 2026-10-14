@@ -27,7 +27,7 @@
   <% if (locals.currentProject && currentProject) { %>
   <div class="sidebar__section">
     <p class="sidebar__section-title"><%= currentProject.name %></p>
-    <ul class="sidebar__nav" role="list">
+    <ul class="sidebar__nav" role="list" data-deployment-refresh="project-nav">
       <% (locals.projectNavigation || []).forEach((item) => { %>
         <li>
           <a href="<%= item.href %>"
