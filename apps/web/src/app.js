@@ -29,6 +29,7 @@ import {
   getHowItWorks,
   getSupportedApps,
   getPilot,
+  getPremium,
   getPublicStatus,
   getRobots,
   getSitemap,
@@ -178,6 +179,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.get('/docs/:topic', getDocsTopic);
   app.get('/supported-apps', getSupportedApps);
   app.get('/pilot', getPilot);
+  app.get('/premium', getPremium);
   app.get('/status', getPublicStatus);
   app.get('/robots.txt', getRobots);
   app.get('/sitemap.xml', getSitemap);

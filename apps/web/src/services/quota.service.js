@@ -3,10 +3,12 @@ import {
   Domain,
   Project,
   ProjectMembership,
+  User,
   resolveUserQuota,
   resolveProjectQuota,
 } from '@hellodeploy/database';
 import {
+  AccountTier,
   ApiError,
   DeploymentStatus,
   DeploymentTrigger,
@@ -71,7 +73,7 @@ export async function countRunningApps(ownerId) {
  * @returns {Promise<{ error: string, code: string } | null>}
  */
 export async function checkDeploymentQuota(project) {
-  const [quota, ownerQuota, deploymentsThisMonth, isRunning] = await Promise.all([
+  const [quota, ownerQuota, deploymentsThisMonth, isRunning, owner] = await Promise.all([
     resolveProjectQuota(project._id, project.ownerId),
     resolveUserQuota(project.ownerId),
     countDeploymentsThisMonth(project._id),
@@ -80,12 +82,17 @@ export async function checkDeploymentQuota(project) {
       status: DeploymentStatus.HEALTHY,
       activeContainerId: { $ne: null },
     }),
+    User.findById(project.ownerId).select('accountTier').lean(),
   ]);
 
-  if (deploymentsThisMonth >= quota.deploymentsPerMonth) {
+  // Premium owners deploy without a monthly allowance; everyone else is
+  // offered the upgrade when they reach it.
+  const isPremium = owner?.accountTier === AccountTier.PREMIUM;
+  if (!isPremium && deploymentsThisMonth >= quota.deploymentsPerMonth) {
     return {
       code: ApiError.QUOTA_EXCEEDED,
       error: `This project has used ${deploymentsThisMonth} of ${quota.deploymentsPerMonth} deployments this month. The allowance resets on the 1st (UTC).`,
+      offerPremium: true,
     };
   }
 

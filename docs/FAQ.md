@@ -164,7 +164,7 @@ The default limits include one owned project, one running application, 256 MB me
 
 ### Can limits be increased?
 
-Yes. Admins or Super Admins can apply user-specific or project-specific overrides.
+Yes. Admins or Super Admins can apply user-specific or project-specific overrides. Premium accounts have no monthly deployment limit; see [Premium](/premium) for how to get one.
 
 ### Are deployments isolated?
 

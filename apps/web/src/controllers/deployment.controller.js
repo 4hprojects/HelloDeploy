@@ -120,6 +120,9 @@ export const postCreateDeployment = asyncHandler(async (req, res) => {
       });
     }
     req.flash('error', result.error);
+    if (result.offerPremium) {
+      req.flash('upgradeOffer', true);
+    }
     return res.redirect(`/projects/${project.slug}`);
   }
 

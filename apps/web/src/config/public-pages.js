@@ -113,6 +113,11 @@ export const PUBLIC_PAGES = Object.freeze([
       'Understand HelloDeploy’s free pilot status, limits, availability, recovery scope, and support expectations.',
   },
   {
+    path: '/premium',
+    title: 'HelloDeploy Premium',
+    description: 'What a HelloDeploy Premium account includes and how to get one.',
+  },
+  {
     path: '/status',
     title: 'Service Status',
     description: 'View the current public readiness of the HelloDeploy pilot.',
