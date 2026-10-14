@@ -789,6 +789,8 @@ export async function setDomainTunnel(domainId, tunnelIdRaw, adminId, opts = {})
 // ─── Routing reachability probe ────────────────────────────────────────────────
 
 const ROUTE_HEADER = 'x-hellodeploy-route';
+export const ROUTING_RECORD_NOT_READY_DETAIL =
+  "Not connected yet, and that's expected for now. Your domain still points to its old host (often your registrar's parking page), and your HelloDeploy record isn't ready. You don't need to do anything yet: the record and step-by-step instructions will appear on this page when it is.";
 const ROUTING_PROBE_TIMEOUT_MS = 15_000;
 
 /**
@@ -873,7 +875,15 @@ export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch)
     clearTimeout(timer);
   }
 
-  const { state, detail } = classifyRoutingProbe(observed, hostname);
+  const classified = classifyRoutingProbe(observed, hostname);
+  const { state } = classified;
+  // Before the CNAME target exists the owner has nothing to change, so a
+  // failed check is expected and must not read as an instruction.
+  const recordReady = Boolean(domain.tunnelId);
+  const detail =
+    recordReady || state === DomainRoutingState.LIVE
+      ? classified.detail
+      : ROUTING_RECORD_NOT_READY_DETAIL;
   const checkedAt = new Date();
   await Domain.updateOne(
     { _id: domainId, projectId },
@@ -881,5 +891,5 @@ export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch)
   );
   logger.info('Domain routing checked', { hostname, state });
 
-  return { success: true, state, detail, checkedAt };
+  return { success: true, state, detail, checkedAt, recordReady };
 }

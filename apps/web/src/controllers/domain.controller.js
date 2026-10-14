@@ -179,6 +179,8 @@ export const postCheckDomainRouting = asyncHandler(async (req, res) => {
     req.flash('error', result.error);
   } else if (result.state === 'LIVE') {
     req.flash('success', 'This domain is live — public traffic reaches your app.');
+  } else if (!result.recordReady) {
+    req.flash('info', result.detail);
   } else {
     req.flash('error', result.detail);
   }

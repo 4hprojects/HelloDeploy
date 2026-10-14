@@ -204,12 +204,32 @@ describe('routing record guidance', () => {
     assert.match(html, /Don't delete them yet/);
   });
 
-  it('tells the owner to delete the old records for the name before adding the CNAME', async () => {
+  it('shows which record to remove and which to add', async () => {
     const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
     assert.match(
       html,
-      /<strong>Delete<\/strong> every A, AAAA or CNAME record named exactly\s+<code class="code-inline">hellorun\.online<\/code>/,
+      /<th scope="row">Remove<\/th>[\s\S]*?<th scope="row">Add<\/th>[\s\S]*?cfargotunnel\.com/,
     );
+  });
+
+  it('walks the owner through deleting the old records by name', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(
+      html,
+      /is exactly <code class="code-inline">hellorun\.online<\/code>[\s\S]*?<strong>Delete<\/strong>/,
+    );
+  });
+
+  it('reassures the owner that email records stay untouched', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, /Your email keeps working/);
+  });
+
+  it('shows an expected waiting result without error styling', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, routingDetail: 'Not connected yet, and that is expected.' }],
+    });
+    assert.match(html, /<span class="text-muted text-sm" role="status">Not connected yet/);
   });
 
   it('stops calling a routed domain connected before routing is confirmed', async () => {
