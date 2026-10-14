@@ -10,6 +10,11 @@ const API_BASE = 'https://api.cloudflare.com/client/v4';
 const REQUEST_TIMEOUT_MS = 15_000;
 const DUPLICATE_HOSTNAME_CODE = 1406;
 
+// Cloudflare includes 100 custom hostnames on the Free plan and bills each one
+// beyond that every month. Hard-coded rather than configurable so the platform
+// can't start paying by accident; raise it only after deciding to pay.
+export const CUSTOM_HOSTNAME_LIMIT = 100;
+
 export function isCustomHostnamesEnabled(config = env) {
   return Boolean(
     config.CLOUDFLARE_API_TOKEN && config.CLOUDFLARE_ZONE_ID && config.CUSTOM_HOSTNAME_TARGET,
@@ -56,7 +61,7 @@ export function createCustomHostnameClient({ token, zoneId, fetchImpl = fetch })
           error: first?.message ?? `Cloudflare API HTTP ${response.status}`,
         };
       }
-      return { ok: true, result: payload.result };
+      return { ok: true, result: payload.result, resultInfo: payload.result_info };
     } catch (err) {
       return {
         ok: false,
@@ -95,6 +100,19 @@ export function createCustomHostnameClient({ token, zoneId, fetchImpl = fetch })
 
     remove(id) {
       return call('DELETE', `${base}/${encodeURIComponent(id)}`);
+    },
+
+    // Counts everything on the zone, including hostnames added by hand in the
+    // dashboard, because that is what Cloudflare bills.
+    async count() {
+      const listed = await call('GET', `${base}?per_page=1`);
+      if (!listed.ok) {
+        return listed;
+      }
+      const total = listed.resultInfo?.total_count;
+      return Number.isInteger(total)
+        ? { ok: true, result: total }
+        : { ok: false, code: null, error: 'Cloudflare did not report a hostname count' };
     },
   };
 }

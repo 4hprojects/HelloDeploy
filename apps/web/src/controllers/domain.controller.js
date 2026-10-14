@@ -20,7 +20,11 @@ import {
   connectCustomHostname,
   routingTargetFor,
 } from '../services/domain.service.js';
-import { isCustomHostnamesEnabled } from '../services/cloudflare-custom-hostnames.js';
+import {
+  CUSTOM_HOSTNAME_LIMIT,
+  defaultCustomHostnameClient,
+  isCustomHostnamesEnabled,
+} from '../services/cloudflare-custom-hostnames.js';
 
 // ─── Project-scoped domain management ─────────────────────────────────────────
 
@@ -165,8 +169,14 @@ export const getAdminDomains = asyncHandler(async (req, res) => {
     ),
   );
 
+  const customHostnameClient = defaultCustomHostnameClient();
+  const counted = customHostnameClient ? await customHostnameClient.count() : null;
+
   res.render('pages/admin/domains', {
     routableDomains,
+    customHostnameUsage: customHostnameClient
+      ? { used: counted.ok ? counted.result : null, limit: CUSTOM_HOSTNAME_LIMIT }
+      : null,
     title: 'Domain Approval Queue',
     domains,
     liveTxtRecordsById,

@@ -99,6 +99,24 @@ describe('Cloudflare custom hostname client', () => {
   });
 });
 
+describe('counting custom hostnames on the zone', () => {
+  it('reads the total Cloudflare reports', async () => {
+    const { fetchImpl } = recordingFetch([
+      jsonResponse(200, { success: true, result: [], result_info: { total_count: 42 } }),
+    ]);
+    const client = createCustomHostnameClient({ token: 't', zoneId: ZONE, fetchImpl });
+
+    assert.deepEqual(await client.count(), { ok: true, result: 42 });
+  });
+
+  it('reports a missing total as an error rather than zero', async () => {
+    const { fetchImpl } = recordingFetch([jsonResponse(200, { success: true, result: [] })]);
+    const client = createCustomHostnameClient({ token: 't', zoneId: ZONE, fetchImpl });
+
+    assert.equal((await client.count()).ok, false);
+  });
+});
+
 describe('custom hostname helpers', () => {
   it('is enabled only when token, zone, and target are all set', () => {
     assert.equal(

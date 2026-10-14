@@ -7,6 +7,7 @@ import { enqueueJob } from '@hellodeploy/queue';
 import { env } from '../config/env.js';
 import { getDeploymentQueue } from '../queue/client.js';
 import {
+  CUSTOM_HOSTNAME_LIMIT,
   defaultCustomHostnameClient,
   logCustomHostnameFailure,
   toCustomHostnameFields,
@@ -803,6 +804,8 @@ const CONNECTABLE_DOMAIN_STATUSES = [
 ];
 const CUSTOM_HOSTNAMES_UNAVAILABLE_COPY =
   'Automatic connection is not available on this platform yet. An administrator will prepare your record.';
+const CUSTOM_HOSTNAME_LIMIT_COPY =
+  "HelloDeploy can't connect more custom domains right now. Your domain is verified and nothing is lost: contact support and we'll connect it.";
 const CUSTOM_HOSTNAME_CONNECT_FAILED_COPY =
   "HelloDeploy couldn't prepare your DNS record just now. Try again in a minute; contact support if it keeps happening.";
 
@@ -826,22 +829,57 @@ function resolveCustomHostnameClient(opts) {
 }
 
 // Register (or refresh) the hostname with Cloudflare and store what it reports.
-// Returns the updated domain, or null when Cloudflare could not be reached.
+// Resolves to { domain } or { failure: 'limit' | 'unavailable' }.
 async function syncCustomHostname(domain, client) {
-  const response = domain.cfCustomHostnameId
-    ? await client.get(domain.cfCustomHostnameId)
-    : await client.register(domain.hostnameNormalized);
-  if (!response.ok) {
-    logCustomHostnameFailure(
-      domain.cfCustomHostnameId ? 'refresh' : 'register',
-      domain.hostnameNormalized,
-      response,
-    );
-    return null;
+  if (domain.cfCustomHostnameId) {
+    const refreshed = await client.get(domain.cfCustomHostnameId);
+    if (!refreshed.ok) {
+      logCustomHostnameFailure('refresh', domain.hostnameNormalized, refreshed);
+      return { failure: 'unavailable' };
+    }
+    return { domain: await storeCustomHostname(domain, refreshed.result) };
   }
+
+  // Fail closed: an unknown count must not risk registering a billed hostname.
+  const before = await client.count();
+  if (!before.ok) {
+    logCustomHostnameFailure('count', domain.hostnameNormalized, before);
+    return { failure: 'unavailable' };
+  }
+  if (before.result >= CUSTOM_HOSTNAME_LIMIT) {
+    logger.warn('CustomHostname: platform limit reached', {
+      hostname: domain.hostnameNormalized,
+      count: before.result,
+      limit: CUSTOM_HOSTNAME_LIMIT,
+    });
+    return { failure: 'limit' };
+  }
+
+  const registered = await client.register(domain.hostnameNormalized);
+  if (!registered.ok) {
+    logCustomHostnameFailure('register', domain.hostnameNormalized, registered);
+    return { failure: 'unavailable' };
+  }
+
+  // Two owners registering at the same moment can both pass the first check;
+  // whoever finds the zone over the limit afterwards backs out its own entry.
+  const after = await client.count();
+  if (!after.ok || after.result > CUSTOM_HOSTNAME_LIMIT) {
+    await client.remove(registered.result.id);
+    logger.warn('CustomHostname: platform limit reached', {
+      hostname: domain.hostnameNormalized,
+      count: after.ok ? after.result : null,
+      limit: CUSTOM_HOSTNAME_LIMIT,
+    });
+    return { failure: 'limit' };
+  }
+  return { domain: await storeCustomHostname(domain, registered.result) };
+}
+
+function storeCustomHostname(domain, result) {
   return Domain.findOneAndUpdate(
     { _id: domain._id },
-    { $set: toCustomHostnameFields(response.result) },
+    { $set: toCustomHostnameFields(result) },
     { new: true },
   ).lean();
 }
@@ -889,10 +927,14 @@ export async function connectCustomHostname(domainId, projectId, actorId, opts =
   }
 
   const wasRegistered = Boolean(domain.cfCustomHostnameId);
-  const updated = await syncCustomHostname(domain, client);
-  if (!updated) {
+  const synced = await syncCustomHostname(domain, client);
+  if (synced.failure === 'limit') {
+    return { success: false, error: CUSTOM_HOSTNAME_LIMIT_COPY };
+  }
+  if (synced.failure) {
     return { success: false, error: CUSTOM_HOSTNAME_CONNECT_FAILED_COPY };
   }
+  const updated = synced.domain;
   if (!wasRegistered) {
     await writeAuditEvent({
       action: 'domain.custom_hostname_registered',
@@ -987,9 +1029,9 @@ export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch,
   // here; for registered ones this refreshes Cloudflare's validation status.
   const client = resolveCustomHostnameClient(opts);
   if (client && CONNECTABLE_DOMAIN_STATUSES.includes(domain.status)) {
-    const connected = await syncCustomHostname(domain, client);
-    if (connected) {
-      domain = connected;
+    const synced = await syncCustomHostname(domain, client);
+    if (synced.domain) {
+      domain = synced.domain;
     }
   }
 
