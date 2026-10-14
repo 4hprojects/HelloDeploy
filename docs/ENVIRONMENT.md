@@ -38,16 +38,21 @@ To enable Google authentication, create an OAuth 2.0 **Web application** client 
 
 ## Platform / routing
 
-| Variable                       | Used by     | Required (prod) | Default                               | Purpose                                                                                  |
-| ------------------------------ | ----------- | --------------- | ------------------------------------- | ---------------------------------------------------------------------------------------- |
-| `PLATFORM_DOMAIN`              | web, worker | no              | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility |
-| `DEPLOYMENT_DOMAIN`            | worker      | no              | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`      |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no              | `.hellodeploy.online`                 | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                     |
-| `NGINX_ENABLED`                | worker      | no              | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation       |
-| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no              | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                            |
-| `NGINX_BINARY_PATH`            | worker      | no              | `nginx`                               | nginx binary used for `-t` validation and reload                                         |
-| `NGINX_HELPER_SOCKET`          | worker      | no              | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                         |
-| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no              | `15000`                               | Maximum time to wait for the local Nginx helper                                          |
+| Variable                       | Used by     | Required (prod)    | Default                               | Purpose                                                                                                                                                                          |
+| ------------------------------ | ----------- | ------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_DOMAIN`              | web, worker | no                 | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility                                                                                         |
+| `DEPLOYMENT_DOMAIN`            | worker      | no                 | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                                                                              |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no                 | `.hellodeploy.online`                 | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                                                                             |
+| `NGINX_ENABLED`                | worker      | no                 | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                                                                               |
+| `ALLOW_UNROUTED_RELEASES`      | worker      | no (must be unset) | `false`                               | Local pipeline testing only: lets a release go live with `NGINX_ENABLED=false`. Without it, such a release fails as `ROUTE_NOT_CONNECTED` and the previous release keeps serving |
+| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no                 | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                                                                                                                    |
+| `NGINX_BINARY_PATH`            | worker      | no                 | `nginx`                               | nginx binary used for `-t` validation and reload                                                                                                                                 |
+| `NGINX_HELPER_SOCKET`          | worker      | no                 | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                                                                                                                 |
+| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no                 | `15000`                               | Maximum time to wait for the local Nginx helper                                                                                                                                  |
+
+### Local development must not share production's database or queue
+
+A worker started by `npm run dev` on the production host picks up production deployments whenever its `MONGODB_URI` and `REDIS_*` point at production's. On 2026-10-14, such a worker, running with `NGINX_ENABLED=false`, took real deployments and marked them live with no route. Use a separate MongoDB database and a separate Redis instance or db index for development. A production worker records `deployment-environment: production` in its database, and a worker with Nginx routing off refuses to start against a database carrying that marker.
 
 ## GitHub App
 

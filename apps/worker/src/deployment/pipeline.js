@@ -618,7 +618,7 @@ export async function runReleasePipeline({
         await Project.updateOne({ _id: projectId }, { $set: { platformSubdomain: subdomain } });
       }
     }
-  } else {
+  } else if (env.ALLOW_UNROUTED_RELEASES) {
     await logEvent(
       deploymentId,
       'DEPLOY',
@@ -626,6 +626,17 @@ export async function runReleasePipeline({
       'Nginx routing disabled (NGINX_ENABLED=false) — the app will not be reachable via its platform subdomain.',
       correlationId,
     );
+  } else {
+    // Going live here would retire the serving release for one nobody can reach.
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'ERROR',
+      'This worker has Nginx routing disabled (NGINX_ENABLED=false), so the release could not be connected to its address. The previous release keeps serving.',
+      correlationId,
+    );
+    await deps.stopAndRemoveContainer(cName);
+    return fail('ROUTE_NOT_CONNECTED', 'Release not routed: this worker has Nginx disabled.');
   }
 
   // ── Persist active state, then retire the previous container ────────────────

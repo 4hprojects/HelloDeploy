@@ -66,6 +66,11 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "HelloDeploy couldn't connect your app to its web address.",
     action: TRY_AGAIN_ACTION,
   },
+  ROUTE_NOT_CONNECTED: {
+    message: "Your app started, but HelloDeploy couldn't connect it to its web address.",
+    action:
+      "This is a problem on HelloDeploy's side, not in your app, and the version that was already live is still serving. Try deploying again, or contact support if it keeps happening.",
+  },
   PROJECT_NOT_ACTIVE: {
     message: 'This website was suspended while the release was being published.',
     action:

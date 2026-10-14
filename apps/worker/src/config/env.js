@@ -89,6 +89,7 @@ const masterKey = production
   : optional('HELLODEPLOY_MASTER_KEY', 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=');
 const nextMasterKey = optional('HELLODEPLOY_MASTER_KEY_NEXT', '');
 const nginxEnabled = optional('NGINX_ENABLED', 'false') === 'true';
+const allowUnroutedReleases = optional('ALLOW_UNROUTED_RELEASES', 'false') === 'true';
 const platformDomainRaw = optional('PLATFORM_DOMAIN', 'hellodeploy.online');
 const deploymentDomainRaw = optional('DEPLOYMENT_DOMAIN', platformDomainRaw);
 const platformDomain = production
@@ -114,6 +115,9 @@ if (production) {
     throw new ConfigurationError(
       'NGINX_ENABLED must be true in production for the V1 local Nginx helper.',
     );
+  }
+  if (allowUnroutedReleases) {
+    throw new ConfigurationError('ALLOW_UNROUTED_RELEASES must not be set in production.');
   }
   assertAllOrNoneEnvironment(
     [
@@ -173,6 +177,8 @@ export const env = {
   DEPLOYMENT_DOMAIN: deploymentDomain,
   // When true the worker skips nginx operations (useful for local dev without nginx)
   NGINX_ENABLED: nginxEnabled,
+  // Local pipeline testing only: lets a release go live without an Nginx route.
+  ALLOW_UNROUTED_RELEASES: allowUnroutedReleases,
 
   // Master encryption key for decrypting environment secrets at build/runtime
   HELLODEPLOY_MASTER_KEY: masterKey,
