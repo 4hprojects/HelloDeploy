@@ -1,3 +1,5 @@
+import { PLATFORM_MANAGED_ENV_NAMES } from '@hellodeploy/contracts';
+
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   listSecretNames,
@@ -8,6 +10,7 @@ import {
   importEnvFile,
   previewEnvFile,
   bulkUpdateSecrets,
+  revealSecretValues,
 } from '../services/env-secret.service.js';
 
 function preventEnvironmentCaching(res) {
@@ -31,13 +34,22 @@ export const getEnvironment = asyncHandler(async (req, res) => {
     bulkErrors: {},
     bulkValues: {},
     bulkEditMode: req.query.edit === 'all',
+    platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
   });
 });
 
 async function renderEnvironment(
   req,
   res,
-  { errors = {}, values = {}, importErrors = {}, bulkErrors = {}, bulkValues = {}, bulkEditMode },
+  {
+    errors = {},
+    values = {},
+    importErrors = {},
+    bulkErrors = {},
+    bulkValues = {},
+    bulkEditMode,
+    revealedValues = null,
+  },
 ) {
   const project = req.project;
   const secrets = await listSecretNames(project._id);
@@ -53,6 +65,8 @@ async function renderEnvironment(
     bulkErrors,
     bulkValues,
     bulkEditMode: typeof bulkEditMode === 'boolean' ? bulkEditMode : req.query.edit === 'all',
+    revealedValues,
+    platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
   });
 }
 
@@ -116,11 +130,15 @@ function parseImportSelections(raw) {
   return { error: 'Your import choices could not be read. Choose the file again.' };
 }
 
-function describeImport({ count, productionCount, skipped }) {
+function describeImport({ count, productionCount, skipped, platformManaged }) {
   const noun = count === 1 ? 'variable' : 'variables';
   const production = productionCount > 0 ? ` (${productionCount} production)` : '';
   const skippedNote = skipped.length > 0 ? ` Skipped without a value: ${skipped.join(', ')}.` : '';
-  return `${count} environment ${noun} imported${production}.${skippedNote}`;
+  const platformNote =
+    platformManaged.length > 0
+      ? ` ${platformManaged.join(', ')} was not imported: HelloDeploy sets it from the application port in Settings.`
+      : '';
+  return `${count} environment ${noun} imported${production}.${skippedNote}${platformNote}`;
 }
 
 export const postPreviewEnvFile = asyncHandler(async (req, res) => {
@@ -195,6 +213,16 @@ export const postDeleteSecret = asyncHandler(async (req, res) => {
   }
 
   res.redirect(`/projects/${project.slug}/environment`);
+});
+
+// Rendered from the POST rather than redirected, so the values never sit in a
+// URL, the browser history, or a cached GET; reloading the page hides them.
+export const postRevealSecrets = asyncHandler(async (req, res) => {
+  const revealedValues = await revealSecretValues(req.project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+  await renderEnvironment(req, res, { bulkEditMode: false, revealedValues });
 });
 
 export const postDeleteAllSecrets = asyncHandler(async (req, res) => {

@@ -8,6 +8,7 @@ import {
   AuditOutcome,
   ProjectStatus,
   RepositorySourceType,
+  PLATFORM_MANAGED_ENV_NAMES,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -183,7 +184,10 @@ export async function createDeployment({
     return { success: false, ...quotaRefusal };
   }
 
-  const requiredNames = project.detection?.requiredEnvironmentVariables ?? [];
+  // Detections stored before PORT became platform-managed still list it.
+  const requiredNames = (project.detection?.requiredEnvironmentVariables ?? []).filter(
+    (name) => !PLATFORM_MANAGED_ENV_NAMES.includes(name),
+  );
   if (requiredNames.length > 0) {
     const configured = await EnvironmentSecret.find({ projectId }).distinct('name');
     const configuredNames = new Set(configured);

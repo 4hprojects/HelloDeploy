@@ -153,10 +153,13 @@ export async function startContainer({
     `hellodeploy.project=${projectId}`,
     '--label',
     `hellodeploy.deployment=${deploymentId}`,
-    // Always inject PORT so the app knows which port to listen on
+    ...envArgs,
+    // Always inject PORT so the app knows which port to listen on. It comes
+    // after the project's own variables because Docker keeps the last value:
+    // a PORT secret must not move the app off the port the health check and
+    // nginx route target.
     '--env',
     `PORT=${appPort}`,
-    ...envArgs,
   ];
 
   // Static containers get a read-only root filesystem + tmpfs for nginx temp files

@@ -6,7 +6,7 @@ process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32).toString('base64');
 
-const { detectRuntime, findDockerfileSystemPackages } =
+const { detectRuntime, detectRequiredEnvironmentVariables, findDockerfileSystemPackages } =
   await import('../../apps/web/src/services/detection.service.js');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -187,6 +187,37 @@ describe('detectRuntime — NODEJS', () => {
     );
     assert.equal(result.runtimeType, 'NODEJS');
     assert.equal(result.isValid, true);
+  });
+
+  it('starts from the port documented in the sample env file', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ scripts: { start: 'node index.js' } }),
+        'package-lock.json': '{}',
+        '.env.example': 'NODE_ENV=production\nPORT=4000 # local port\n',
+      }),
+    );
+    assert.equal(result.applicationPort, 4000);
+  });
+
+  it('falls back to port 3000 when the sample env file has no port', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ scripts: { start: 'node index.js' } }),
+        'package-lock.json': '{}',
+        '.env.example': 'NODE_ENV=production\n',
+      }),
+    );
+    assert.equal(result.applicationPort, 3000);
+  });
+});
+
+describe('detectRequiredEnvironmentVariables', () => {
+  it('never asks the owner for PORT, which HelloDeploy sets itself', () => {
+    assert.deepEqual(
+      detectRequiredEnvironmentVariables({ '.env.example': 'PORT=3000\nMONGODB_URI=\n' }),
+      ['MONGODB_URI'],
+    );
   });
 });
 

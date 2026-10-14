@@ -185,3 +185,7 @@ export const RuntimeType = Object.freeze({
   NEXTJS: 'NEXTJS',
   UNKNOWN: 'UNKNOWN',
 });
+
+// Environment variables HelloDeploy sets on every app container itself. Owners
+// must not be asked for them, and a secret with one of these names is ignored.
+export const PLATFORM_MANAGED_ENV_NAMES = Object.freeze(['PORT']);

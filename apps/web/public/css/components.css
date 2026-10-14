@@ -2318,6 +2318,11 @@ a.setup-guide__step-link:hover .setup-guide__label {
   min-width: min(24rem, 55vw);
 }
 
+.stored-secret-value {
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .project-settings-layout {
   display: grid;
   grid-template-columns: minmax(11rem, 14rem) minmax(0, 1fr);

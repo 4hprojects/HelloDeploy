@@ -11,6 +11,7 @@ import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
+import { diagnoseAppOutput } from './failure-diagnosis.js';
 import {
   generateServerBlock,
   generateCustomDomainServerBlock,
@@ -299,6 +300,15 @@ export async function runReleasePipeline({
       `Injecting ${Object.keys(envVars).length} environment secret(s).`,
       correlationId,
     );
+    if (envVars.PORT !== undefined && envVars.PORT !== String(appPort)) {
+      await logEvent(
+        deploymentId,
+        'DEPLOY',
+        'WARN',
+        `Your environment sets PORT=${envVars.PORT}, but HelloDeploy gives your app PORT=${appPort} (the application port in Settings). Change one so they match.`,
+        correlationId,
+      );
+    }
   } catch {
     await logEvent(
       deploymentId,
@@ -394,9 +404,12 @@ export async function runReleasePipeline({
       `${opts.logLabel} ${crashDetail}. Possible crash or missing start command.`,
       correlationId,
     );
-    await logContainerOutput(deps, cName, deploymentId, correlationId);
+    const diagnosis = await reportAppOutput(deps, cName, deploymentId, correlationId, appPort);
     await deps.stopAndRemoveContainer(cName);
-    return fail('CONTAINER_CRASHED_ON_STARTUP', `Container ${crashDetail} right after start.`);
+    return fail(
+      diagnosis?.failureCode ?? 'CONTAINER_CRASHED_ON_STARTUP',
+      diagnosis?.detail ?? `Container ${crashDetail} right after start.`,
+    );
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
@@ -423,11 +436,12 @@ export async function runReleasePipeline({
       `Health check failed: ${health.error ?? 'timeout'}`,
       correlationId,
     );
-    await logContainerOutput(deps, cName, deploymentId, correlationId);
+    const diagnosis = await reportAppOutput(deps, cName, deploymentId, correlationId, appPort);
     await deps.stopAndRemoveContainer(cName);
     return fail(
-      'HEALTH_CHECK_FAILED',
-      `Health check did not pass: ${health.error ?? 'no response within timeout'}`,
+      diagnosis?.failureCode ?? 'HEALTH_CHECK_FAILED',
+      diagnosis?.detail ??
+        `Health check did not pass: ${health.error ?? 'no response within timeout'}`,
     );
   }
 
@@ -689,13 +703,19 @@ function hasCrashed(state) {
 
 // The container is removed right after a failed start, taking the app's own
 // error output with it; copy the tail into the deployment log first so the
-// owner can see why it failed. Optional dep: test doubles may omit it.
-async function logContainerOutput(deps, cName, deploymentId, correlationId) {
+// owner can see why it failed, and name the cause when it is a known one.
+// Optional dep: test doubles may omit it.
+async function reportAppOutput(deps, cName, deploymentId, correlationId, appPort) {
   if (!deps.getContainerLogs) {
-    return;
+    return null;
   }
   const lines = await deps.getContainerLogs(cName);
   for (const line of lines) {
     await logEvent(deploymentId, 'DEPLOY', 'ERROR', `[app] ${line}`, correlationId);
   }
+  const diagnosis = diagnoseAppOutput(lines, { appPort });
+  if (diagnosis) {
+    await logEvent(deploymentId, 'DEPLOY', 'ERROR', diagnosis.detail, correlationId);
+  }
+  return diagnosis;
 }

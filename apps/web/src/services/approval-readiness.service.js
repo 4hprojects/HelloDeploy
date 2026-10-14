@@ -1,4 +1,10 @@
-import { AccountTier, DeploymentMode, DetectionStatus, RuntimeType } from '@hellodeploy/contracts';
+import {
+  AccountTier,
+  DeploymentMode,
+  DetectionStatus,
+  PLATFORM_MANAGED_ENV_NAMES,
+  RuntimeType,
+} from '@hellodeploy/contracts';
 
 const SUPPORTED_RUNTIMES = new Set([
   RuntimeType.STATIC,
@@ -128,7 +134,10 @@ export function assessInitialApprovalReadiness({
   );
 
   const configuredNames = new Set(configuredEnvironmentVariables);
-  const requiredNames = project.detection?.requiredEnvironmentVariables ?? [];
+  // Detections stored before PORT became platform-managed still list it.
+  const requiredNames = (project.detection?.requiredEnvironmentVariables ?? []).filter(
+    (name) => !PLATFORM_MANAGED_ENV_NAMES.includes(name),
+  );
   if (requiredNames.length > 0) {
     const missingNames = requiredNames.filter((name) => !configuredNames.has(name));
     add(

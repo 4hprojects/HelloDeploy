@@ -201,3 +201,24 @@ Open Round 1 §3 items (navigation drift, thin dashboard, deployments auto-refre
 ## Positives confirmed this round
 
 Nonce-based CSP with `scriptSrcAttr 'none'`; timing-safe compares on every token path; Argon2id at OWASP params; session regeneration on sign-in; secrets AES-256-GCM at rest and never rendered; argv-only spawns (no shell) across git/docker/nginx; non-host, memory-capped and time-bounded builds with runtime secrets withheld; cap-dropped, loopback-published, pids-limited containers; zero-downtime nginx swap ordering; Redis-backed rate limits failing closed in prod; comprehensive Mongo indexes; 74 behavioral test files with no skipped tests; exactly one TODO marker in the whole tree.
+
+---
+
+# Round 3 — helloeventhub deploy failures, 2026-10-14
+
+One TypeScript monorepo app failed to deploy five times in a row, each for a different reason. Every one was owner-fixable or a platform gap, but HelloDeploy reported most of them as either "couldn't download your code" or "didn't respond in time", so neither the owner nor the operator could tell what was wrong.
+
+| #   | What the owner saw                        | Real cause                                                                                                        | Fix                                                                                                                          |
+| --- | ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| 1   | "Couldn't download your code from GitHub" | Worker could not create `/var/lib/hellodeploy/builds/<id>` (`EACCES`)                                             | [x] PR #92: reported as `BUILD_WORKSPACE_FAILED`, a platform-side problem                                                    |
+| 2   | "Didn't respond in time"                  | App crash-looped; `--restart unless-stopped` (PR #76) kept `Running=true`, and the container's output was deleted | [x] PR #93: restarts count as a crash; last 50 lines of app output kept as `[app]` log lines                                 |
+| 3   | "Immediately stopped running"             | Node/Express templates ignored the saved build command, so `dist/server.js` never existed                         | [x] PR #94: build stage runs the build command when one is set                                                               |
+| 4   | "Didn't respond in time"                  | Database address in Environment was a local-dev `localhost` value                                                 | [x] Recognized from app output as `APP_DATABASE_UNREACHABLE` with a plain-language fix                                       |
+| 5   | "Didn't respond in time"                  | App listened on 3009; HelloDeploy checked 3000. A `PORT` secret silently overrode the platform's `PORT`           | [x] Platform `PORT` now wins and a differing `PORT` secret is warned about; mismatches are recognized as `APP_PORT_MISMATCH` |
+
+Root cause of #5, found afterwards: detection listed every name in `.env.example` as required and blocked deploys until each was set, so the owner was forced to enter a `PORT` and used their local value. **Fixed:** `PORT` is now platform-managed (`PLATFORM_MANAGED_ENV_NAMES`). It is never required, can't be saved or imported as a secret, and detection takes the app's port from the sample file instead.
+
+### Still open
+
+- [ ] **Dev and production may share Redis** — a dev-tree worker (`npm run dev`) whose `.env` points at `127.0.0.1:6379` can take production jobs and fail them with `EACCES`. The likeliest cause of #1, not yet confirmed. **Fix:** give dev its own Redis (or never start the worker in dev), and consider having the worker refuse to start when its user cannot write `BUILD_WORKSPACE_ROOT`. _Effort: S._
+- [ ] **Slow crashes still read as health-check failures** — an app that retries its database for ~30s outlives the 3s startup window. Output diagnosis covers the known causes; unknown ones still fall back to `HEALTH_CHECK_FAILED`. _Effort: M._

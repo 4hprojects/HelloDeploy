@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { EnvironmentSecret } from '@hellodeploy/database';
+import { AuditEvent, EnvironmentSecret } from '@hellodeploy/database';
+import { configureAuditService } from '@hellodeploy/observability';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 import {
@@ -12,6 +13,8 @@ import {
   importEnvFile,
   parseEnvFile,
   previewEnvFile,
+  revealSecretValues,
+  setSecret,
 } from '../../apps/web/src/services/env-secret.service.js';
 
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32, 7).toString('base64');
@@ -139,7 +142,7 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    const first = await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    const first = await importEnvFile(projectId, 'API_KEY=first\nAPP_PORT=3000', actorId);
     const second = await importEnvFile(projectId, 'API_KEY=rotated', actorId);
 
     assert.equal(first.count, 2);
@@ -147,7 +150,7 @@ describe('.env file import', () => {
     assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 2);
     assert.deepEqual(await getDecryptedSecrets(projectId), {
       API_KEY: 'rotated',
-      PORT: '3000',
+      APP_PORT: '3000',
     });
 
     const stored = await EnvironmentSecret.findOne({ projectId, name: 'API_KEY' }).lean();
@@ -189,7 +192,7 @@ describe('.env file import', () => {
   });
 
   it('skips an empty value and reports it when no choice was made', async () => {
-    const result = await importEnvFile(objectId(), 'PORT=3000\nRESEND_API_KEY=', objectId());
+    const result = await importEnvFile(objectId(), 'APP_PORT=3000\nRESEND_API_KEY=', objectId());
     assert.deepEqual(result.skipped, ['RESEND_API_KEY']);
   });
 
@@ -203,7 +206,7 @@ describe('.env file import', () => {
 
   it('writes nothing when an included variable still has no value', async () => {
     const projectId = objectId();
-    const result = await importEnvFile(projectId, 'PORT=3000\nRESEND_API_KEY=', objectId(), {
+    const result = await importEnvFile(projectId, 'APP_PORT=3000\nRESEND_API_KEY=', objectId(), {
       selections: { RESEND_API_KEY: { include: true, source: 'local' } },
     });
     assert.equal(await EnvironmentSecret.countDocuments({ projectId }), 0);
@@ -212,15 +215,15 @@ describe('.env file import', () => {
 
   it('ignores selections for names that are not in the file', async () => {
     const projectId = objectId();
-    await importEnvFile(projectId, 'PORT=3000', objectId(), {
+    await importEnvFile(projectId, 'APP_PORT=3000', objectId(), {
       selections: { INJECTED: { include: true, source: 'local', value: 'x' } },
     });
-    assert.deepEqual(await getDecryptedSecrets(projectId), { PORT: '3000' });
+    assert.deepEqual(await getDecryptedSecrets(projectId), { APP_PORT: '3000' });
   });
 
   it('refuses an import where every variable was removed', async () => {
-    const result = await importEnvFile(objectId(), 'PORT=3000', objectId(), {
-      selections: { PORT: { include: false } },
+    const result = await importEnvFile(objectId(), 'APP_PORT=3000', objectId(), {
+      selections: { APP_PORT: { include: false } },
     });
     assert.match(result.error, /Nothing to import/);
   });
@@ -229,13 +232,13 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nAPP_PORT=3000', actorId);
 
     const result = await bulkUpdateSecrets(
       projectId,
       [
         { name: 'API_KEY', value: 'rotated' },
-        { name: 'PORT', value: '' },
+        { name: 'APP_PORT', value: '' },
       ],
       actorId,
     );
@@ -243,7 +246,7 @@ describe('.env file import', () => {
     assert.deepEqual(result, { success: true, count: 1 });
     assert.deepEqual(await getDecryptedSecrets(projectId), {
       API_KEY: 'rotated',
-      PORT: '3000',
+      APP_PORT: '3000',
     });
   });
 
@@ -251,13 +254,13 @@ describe('.env file import', () => {
     const projectId = objectId();
     const actorId = objectId();
 
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nAPP_PORT=3000', actorId);
 
     const blankResult = await bulkUpdateSecrets(
       projectId,
       [
         { name: 'API_KEY', value: '' },
-        { name: 'PORT', value: '' },
+        { name: 'APP_PORT', value: '' },
       ],
       actorId,
     );
@@ -293,7 +296,7 @@ describe('deleting all secrets', () => {
   it('removes every secret for the project', async () => {
     const projectId = objectId();
     const actorId = objectId();
-    await importEnvFile(projectId, 'API_KEY=first\nPORT=3000', actorId);
+    await importEnvFile(projectId, 'API_KEY=first\nAPP_PORT=3000', actorId);
 
     await deleteAllSecrets(projectId, actorId);
 
@@ -316,5 +319,67 @@ describe('deleting all secrets', () => {
     const result = await deleteAllSecrets(objectId(), objectId());
 
     assert.deepEqual(result, { success: false, error: 'There are no secrets to delete.' });
+  });
+});
+
+describe('revealing all secret values', () => {
+  before(async () => {
+    await startTestDb();
+    configureAuditService(AuditEvent);
+  });
+  beforeEach(clearTestDb);
+  after(async () => {
+    configureAuditService(null);
+    await stopTestDb();
+  });
+
+  it('returns every decrypted value for the project', async () => {
+    const projectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=first\nAPP_PORT=3000', actorId);
+
+    assert.deepEqual(await revealSecretValues(projectId, actorId), {
+      API_KEY: 'first',
+      APP_PORT: '3000',
+    });
+  });
+
+  it('records who revealed the values without recording the values', async () => {
+    const projectId = objectId();
+    const actorId = objectId();
+    await importEnvFile(projectId, 'API_KEY=very-secret-value', actorId);
+
+    await revealSecretValues(projectId, actorId);
+
+    const event = await AuditEvent.findOne({ action: 'project.secrets_revealed' }).lean();
+    assert.deepEqual(event.metadata, { count: 1, names: ['API_KEY'] });
+  });
+});
+
+describe('PORT is set by HelloDeploy, not stored as a secret', () => {
+  before(startTestDb);
+  beforeEach(clearTestDb);
+  after(stopTestDb);
+
+  it('refuses to save a PORT secret', async () => {
+    const result = await setSecret(objectId(), 'PORT', '3009', objectId());
+
+    assert.equal(result.success, false);
+  });
+
+  it('imports the other variables and leaves PORT out', async () => {
+    const projectId = objectId();
+    await importEnvFile(projectId, 'PORT=3009\nAPI_KEY=first', objectId());
+
+    assert.deepEqual(await getDecryptedSecrets(projectId), { API_KEY: 'first' });
+  });
+
+  it('leaves PORT out of the import review', () => {
+    const result = previewEnvFile('PORT=3009\nAPI_KEY=first');
+
+    assert.deepEqual(
+      result.entries.map((entry) => entry.name),
+      ['API_KEY'],
+    );
   });
 });
