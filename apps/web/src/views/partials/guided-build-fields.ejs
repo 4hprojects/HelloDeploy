@@ -35,8 +35,9 @@
         HelloDeploy found the command that prepares your app. Keep it unless the person who built
         the app gave you a different one. A common value is <code class="code-inline">npm run build</code>.
       <% } else { %>
-        Most server apps do not need a separate build step. Leave this blank unless the person who
-        built the app provided a command.
+        HelloDeploy runs this before starting your app. Apps written in TypeScript or bundled
+        before running need one, such as <code class="code-inline">npm run build</code>. Leave it
+        blank if the person who built the app did not provide one.
       <% } %>
     </p>
     <% if (_gbErrors.buildCommand) { %>
