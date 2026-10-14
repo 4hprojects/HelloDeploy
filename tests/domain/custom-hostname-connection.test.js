@@ -31,6 +31,8 @@ function fakeClient(overrides = {}) {
       calls.remove.push(id);
       return { ok: true, result: { id } };
     },
+    // An otherwise empty zone: only this client's own registrations count.
+    count: async () => ({ ok: true, result: calls.register.length - calls.remove.length }),
     ...overrides,
   };
   return { client, calls };
@@ -145,5 +147,72 @@ describe('connecting a custom domain without an administrator', () => {
     );
 
     assert.equal(result.detail, CERTIFICATE_PENDING_DETAIL);
+  });
+
+  it('refuses a new hostname once the platform has 100', async () => {
+    const { domain, projectId } = await createDomain();
+    const { client } = fakeClient({ count: async () => ({ ok: true, result: 100 }) });
+
+    const result = await connectCustomHostname(domain._id, projectId, objectId(), {
+      customHostnames: client,
+    });
+
+    assert.match(result.error, /can't connect more custom domains right now/);
+  });
+
+  it('never asks Cloudflare to register at the limit', async () => {
+    const { domain, projectId } = await createDomain();
+    const { client, calls } = fakeClient({ count: async () => ({ ok: true, result: 100 }) });
+
+    await connectCustomHostname(domain._id, projectId, objectId(), { customHostnames: client });
+
+    assert.deepEqual(calls.register, []);
+  });
+
+  it('refuses to register when the count is unknown', async () => {
+    const { domain, projectId } = await createDomain();
+    const { client, calls } = fakeClient({
+      count: async () => ({ ok: false, code: null, error: 'timed out' }),
+    });
+
+    await connectCustomHostname(domain._id, projectId, objectId(), { customHostnames: client });
+
+    assert.deepEqual(calls.register, []);
+  });
+
+  it('backs out its own hostname when a simultaneous registration crossed the limit', async () => {
+    const { domain, projectId } = await createDomain();
+    let counted = 0;
+    const { client, calls } = fakeClient({
+      count: async () => ({ ok: true, result: counted++ === 0 ? 99 : 101 }),
+    });
+
+    await connectCustomHostname(domain._id, projectId, objectId(), { customHostnames: client });
+
+    assert.deepEqual(calls.remove, ['cf-1']);
+  });
+
+  it('stores no id for a backed-out hostname', async () => {
+    const { domain, projectId } = await createDomain();
+    let counted = 0;
+    const { client } = fakeClient({
+      count: async () => ({ ok: true, result: counted++ === 0 ? 99 : 101 }),
+    });
+
+    await connectCustomHostname(domain._id, projectId, objectId(), { customHostnames: client });
+
+    const fresh = await Domain.findById(domain._id).lean();
+    assert.equal(fresh.cfCustomHostnameId, null);
+  });
+
+  it('keeps refreshing an already registered domain at the limit', async () => {
+    const { domain, projectId } = await createDomain({ cfCustomHostnameId: 'cf-1' });
+    const { client } = fakeClient({ count: async () => ({ ok: true, result: 100 }) });
+
+    const result = await connectCustomHostname(domain._id, projectId, objectId(), {
+      customHostnames: client,
+    });
+
+    assert.equal(result.success, true);
   });
 });

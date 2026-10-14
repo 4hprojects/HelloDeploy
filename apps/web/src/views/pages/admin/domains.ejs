@@ -83,6 +83,27 @@
 </div>
 <% } %>
 
+<% if (locals.customHostnameUsage) { %>
+<% const _usage = customHostnameUsage; %>
+<% const _nearLimit = _usage.used !== null && _usage.used >= _usage.limit * 0.9; %>
+<div class="card mt-4<%= _nearLimit ? ' card--warning' : '' %>">
+  <div class="card__body">
+    <p class="text-sm"><strong>Cloudflare custom hostnames:</strong>
+      <% if (_usage.used === null) { %>
+        usage unavailable (Cloudflare could not be reached)
+      <% } else { %>
+        <%= _usage.used %> of <%= _usage.limit %> used
+      <% } %>
+    </p>
+    <% if (_nearLimit) { %>
+    <p class="text-sm mt-2">Close to the free allowance. At <%= _usage.limit %>, owners can't connect
+      new domains. Remove stale hostnames in the Cloudflare dashboard, or raise the limit in code only
+      after deciding to pay.</p>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
 <div class="card mt-4">
   <div class="card__header">
     <h2 class="card__title">Custom domain tunnels</h2>

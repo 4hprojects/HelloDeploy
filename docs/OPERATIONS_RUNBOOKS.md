@@ -250,6 +250,8 @@ One-time setup that lets owners connect a custom domain themselves: they point o
    Then restart the web service: `sudo systemctl restart hellodeploy-web`. Setting only some of the three variables fails startup on purpose.
 6. **Check it.** On a verified domain's page, **Get my DNS record** appears. After the owner swaps their records, **Check routing** reaches Live. Admin → Domains shows "Connected automatically" for such domains.
 
+**Hard cap at 100.** Cloudflare includes 100 custom hostnames and bills each one beyond that monthly, so HelloDeploy never registers more than `CUSTOM_HOSTNAME_LIMIT` (100, hard-coded in `apps/web/src/services/cloudflare-custom-hostnames.js`). It counts what Cloudflare reports, including hostnames added by hand, and refuses when that count can't be read. At the limit, owners see "HelloDeploy can't connect more custom domains right now" and the web log records `CustomHostname: platform limit reached`. Admin → Domains shows the usage and turns amber from 90. To make room, delete stale hostnames under **SSL/TLS → Custom Hostnames**. Raise the constant only after deciding to pay.
+
 Domains connected with a tunnel before this change keep working. Migrate them one at a time: register the hostname (Get my DNS record), switch the owner's CNAME to `customers.hellodeploy.online`, confirm Live, then retire the per-domain connector.
 
 ## Backup

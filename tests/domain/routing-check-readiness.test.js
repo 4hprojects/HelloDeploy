@@ -4,10 +4,16 @@ import { Domain } from '@hellodeploy/database';
 import { DomainStatus } from '@hellodeploy/contracts';
 
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
-import {
-  checkDomainRouting,
-  ROUTING_RECORD_NOT_READY_DETAIL,
-} from '../../apps/web/src/services/domain.service.js';
+
+// The web config loads the repository .env, which may hold real Cloudflare
+// credentials. dotenv never overrides a variable that is already set, so
+// blanking them before the service loads keeps this test off the real API.
+process.env.CLOUDFLARE_API_TOKEN = '';
+process.env.CLOUDFLARE_ZONE_ID = '';
+process.env.CUSTOM_HOSTNAME_TARGET = '';
+
+const { checkDomainRouting, ROUTING_RECORD_NOT_READY_DETAIL } =
+  await import('../../apps/web/src/services/domain.service.js');
 
 // Cloudflare's answer while the owner's old A records are still proxied.
 const cloudflare525 = async () => new Response('', { status: 525 });
@@ -21,7 +27,7 @@ async function check(fields) {
     status: DomainStatus.ACTIVE,
     ...fields,
   });
-  return checkDomainRouting(domain._id, projectId, cloudflare525);
+  return checkDomainRouting(domain._id, projectId, cloudflare525, { customHostnames: null });
 }
 
 describe('routing check before and after the CNAME record exists', () => {
