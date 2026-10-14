@@ -284,6 +284,49 @@ describe('generateDockerfile — NODEJS', () => {
   });
 });
 
+describe('generateDockerfile — Node build command', () => {
+  const builtNode = (overrides = {}) =>
+    generateDockerfile({
+      runtimeType: 'NODEJS',
+      buildCommand: 'npm run build',
+      startCommand: 'node apps/api/dist/server.js',
+      outputDirectory: null,
+      applicationPort: 3000,
+      ...overrides,
+    });
+
+  it('runs the build after installing dev dependencies', () => {
+    assert.match(builtNode(), /RUN npm ci --prefer-offline\n[^]*RUN npm run build\n/);
+  });
+
+  it('drops dev dependencies after the build', () => {
+    assert.match(builtNode(), /RUN npm run build\nRUN npm prune --omit=dev\n/);
+  });
+
+  it('ships the built app to a runtime stage owned by the node user', () => {
+    assert.match(builtNode(), /COPY --from=builder --chown=node:node \/app \.\/\nUSER node\n/);
+  });
+
+  it('resolves a build command that calls a locally installed binary', () => {
+    assert.match(
+      builtNode({ buildCommand: 'tsc -p apps/api' }),
+      /ENV PATH=\/app\/node_modules\/\.bin:\$PATH\nRUN tsc -p apps\/api/,
+    );
+  });
+
+  it('runs the build for EXPRESS projects too', () => {
+    assert.ok(builtNode({ runtimeType: 'EXPRESS' }).includes('RUN npm run build'));
+  });
+
+  it('runs the build under the optimized template as well', () => {
+    assert.ok(builtNode({ templateVersion: 'optimized-v1' }).includes('RUN npm run build'));
+  });
+
+  it('rejects a build command that would inject a directive', () => {
+    assert.throws(() => builtNode({ buildCommand: 'npm run build\nUSER root' }), /Build command/);
+  });
+});
+
 describe('generateDockerfile — UNKNOWN', () => {
   it('throws for unsupported runtime', () => {
     assert.throws(

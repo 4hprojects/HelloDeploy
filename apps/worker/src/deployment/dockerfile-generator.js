@@ -100,6 +100,7 @@ export function generateDockerfile(config) {
     case RuntimeType.EXPRESS:
     case RuntimeType.NODEJS:
       return generateNode({
+        buildCommand,
         startCommand: startCommand ?? 'node server.js',
         applicationPort: applicationPort ?? 3000,
         optimized: templateVersion === ImageTemplateVersion.OPTIMIZED_V1,
@@ -162,11 +163,35 @@ CMD ["node", "server.js"]
 `;
 }
 
-function generateNode({ startCommand, applicationPort, optimized }) {
+function generateNode({ buildCommand, startCommand, applicationPort, optimized }) {
   // Keep the approved start command as one JSON-encoded shell argument. This
   // preserves common package-script operators such as `&&` without allowing a
   // newline to inject another Dockerfile directive (guarded above).
   const cmdJson = JSON.stringify(['sh', '-c', startCommand]);
+
+  // Apps that compile before starting (TypeScript, bundlers) need their dev
+  // dependencies for the build only. Source is copied before `npm ci` because
+  // postinstall/prepare scripts may need it; pruning afterwards leaves the same
+  // production-only node_modules the single-stage templates ship.
+  if (buildCommand) {
+    return `FROM ${NODE_IMAGE} AS builder
+WORKDIR /app
+COPY . .
+RUN npm ci --prefer-offline
+ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+RUN npm prune --omit=dev
+
+FROM ${NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=node:node /app ./
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ${cmdJson}
+`;
+  }
 
   if (optimized) {
     return `FROM ${NODE_IMAGE} AS deps
