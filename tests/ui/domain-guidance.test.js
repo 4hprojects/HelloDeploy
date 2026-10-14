@@ -351,6 +351,21 @@ describe('admin-free custom domain connection', () => {
     assert.match(html, /ALIAS, ANAME or "CNAME flattening"/);
   });
 
+  it('tells a connected domain on Cloudflare to use DNS only', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, cfCustomHostnameId: 'cf-1' }],
+      customHostnamesEnabled: true,
+    });
+    assert.match(html, /set Proxy status to <strong>DNS only<\/strong> \(grey cloud\)/);
+  });
+
+  it('keeps the proxied instruction for a tunnel-connected domain', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, tunnelId: '79fad542-82f7-4225-b917-4fcdb042e280' }],
+    });
+    assert.match(html, /leave Proxy status on \(orange cloud\)/);
+  });
+
   it('shows an extra validation record when Cloudflare asks for one', async () => {
     const html = await renderDomains({
       domains: [

@@ -305,7 +305,11 @@
       </div>
       <div class="dns-record__row dns-record__row--plain">
         <span class="dns-record__label">Proxy</span>
-        <code class="dns-record__value">Proxied (orange cloud), if your DNS is on Cloudflare</code>
+        <% if (domain.cfCustomHostnameId) { %>
+        <code class="dns-record__value">DNS only (grey cloud), if your DNS is on Cloudflare</code>
+        <% } else { %>
+        <code class="dns-record__value">Proxied (orange cloud)</code>
+        <% } %>
       </div>
       <div class="dns-record__row dns-record__row--plain">
         <span class="dns-record__label">TTL</span>
@@ -364,8 +368,14 @@
         <code class="code-inline">_hellodeploy-verify</code> or <code class="code-inline">_dmarc</code>),
         <code class="code-inline">www</code>, and MX or TXT records. Your email keeps working.</li>
       <li>Add a new record: Type <strong>CNAME</strong>, Name <code class="code-inline">@</code>, and
-        paste the target with the Copy button above as its value. In Cloudflare, leave Proxy status
-        on (orange cloud). Leave TTL on automatic, then save.</li>
+        paste the target with the Copy button above as its value.
+        <% if (domain.cfCustomHostnameId) { %>
+        In Cloudflare, set Proxy status to <strong>DNS only</strong> (grey cloud): HelloDeploy's
+        Cloudflare already protects your address.
+        <% } else { %>
+        In Cloudflare, leave Proxy status on (orange cloud).
+        <% } %>
+        Leave TTL on automatic, then save.</li>
       <li>Come back here, wait 1–5 minutes, and select <strong>Check routing</strong>. If something
         is still wrong, the message will say what.</li>
     </ol>
