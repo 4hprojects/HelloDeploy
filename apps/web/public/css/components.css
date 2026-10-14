@@ -1996,12 +1996,6 @@ a.setup-guide__step-link:hover .setup-guide__label {
 .align-self-end {
   align-self: flex-end;
 }
-.filter-input--search {
-  max-width: 18rem;
-}
-.filter-select--status {
-  max-width: 12rem;
-}
 .card--form-narrow {
   max-width: 32rem;
 }
@@ -3563,34 +3557,41 @@ a.setup-guide__step-link:hover .setup-guide__label {
   flex: 1;
 }
 
-/* Projects list: search with its button, then filters that apply on change. Laid out by
-   the form's own width, since the sidebar makes the viewport a poor guide. */
-.project-filters {
+/* List filters (projects, admin users, admin projects): search with its button, then
+   filters that apply on change. Laid out by the form's own width, since the sidebar
+   makes the viewport a poor guide. */
+.list-filters {
   container-type: inline-size;
 }
-.project-filters__grid {
+.list-filters__grid {
   flex: 1;
   display: grid;
   grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(9rem, 1fr));
   align-items: end;
   gap: var(--space-3);
 }
-.project-filters__grid:has(.project-filters__clear) {
+.list-filters__grid:has(.list-filters__clear) {
   grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(9rem, 1fr)) auto;
 }
-.project-filters .form-group {
+.list-filters--one-select .list-filters__grid {
+  grid-template-columns: minmax(14rem, 2fr) minmax(9rem, 1fr);
+}
+.list-filters--one-select .list-filters__grid:has(.list-filters__clear) {
+  grid-template-columns: minmax(14rem, 2fr) minmax(9rem, 1fr) auto;
+}
+.list-filters .form-group {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
   min-width: 0;
 }
-.project-filters .form-input,
-.project-filters .form-select,
-.project-filters .button,
+.list-filters .form-input,
+.list-filters .form-select,
+.list-filters .button,
 .project-results .form-select {
   min-height: 2.75rem;
 }
-.project-filters .project-filters__grid .project-filters__clear {
+.list-filters .list-filters__grid .list-filters__clear {
   width: auto;
 }
 .search-field {
@@ -3602,7 +3603,7 @@ a.setup-guide__step-link:hover .setup-guide__label {
   border-top-right-radius: 0;
   border-bottom-right-radius: 0;
 }
-.project-filters .search-field .search-field__button {
+.list-filters .search-field .search-field__button {
   width: auto;
   flex: none;
   margin-left: -1px;
@@ -3615,14 +3616,20 @@ a.setup-guide__step-link:hover .setup-guide__label {
   z-index: 1;
 }
 @container (max-width: 38rem) {
-  .project-filters__grid,
-  .project-filters__grid:has(.project-filters__clear) {
+  .list-filters__grid,
+  .list-filters__grid:has(.list-filters__clear) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
-  .project-filters__grid:has(.project-filters__clear) {
+  .list-filters__grid:has(.list-filters__clear) {
     grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
   }
-  .project-filters__search {
+  .list-filters--one-select .list-filters__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .list-filters--one-select .list-filters__grid:has(.list-filters__clear) {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+  .list-filters__search {
     grid-column: 1 / -1;
   }
 }

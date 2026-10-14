@@ -3,25 +3,29 @@
   <p class="page-header__subtitle"><%= total %> total</p>
 </div>
 
-<form method="GET" action="/admin/projects" class="filter-bar mb-6">
-  <input
-    type="search"
-    name="search"
-    class="form-input filter-input--search"
-    placeholder="Search by name or slug…"
-    value="<%= filters.search %>"
-  />
-  <select name="status" class="form-select filter-select--status">
-    <option value="">All statuses</option>
-    <option value="DRAFT" <%= filters.status === 'DRAFT' ? 'selected' : '' %>>Draft</option>
-    <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
-    <option value="SUSPENDED" <%= filters.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
-    <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
-  </select>
-  <button type="submit" class="button button--secondary">Filter</button>
-  <% if (filters.search || filters.status) { %>
-  <a href="/admin/projects" class="button button--ghost">Clear</a>
-  <% } %>
+<form method="GET" action="/admin/projects" class="filter-bar list-filters list-filters--one-select mb-6" role="search" aria-label="Filter projects">
+  <div class="list-filters__grid">
+    <div class="form-group list-filters__search">
+      <label class="form-label" for="admin-project-search">Search</label>
+      <div class="search-field">
+        <input class="form-input search-field__input" type="search" id="admin-project-search" name="search" value="<%= filters.search %>" placeholder="Search by name or slug…" autocomplete="off">
+        <button class="button button--secondary search-field__button" type="submit">Search</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="admin-project-status">Status</label>
+      <select class="form-select" id="admin-project-status" name="status" data-auto-submit>
+        <option value="">All statuses</option>
+        <option value="DRAFT" <%= filters.status === 'DRAFT' ? 'selected' : '' %>>Draft</option>
+        <option value="ACTIVE" <%= filters.status === 'ACTIVE' ? 'selected' : '' %>>Active</option>
+        <option value="SUSPENDED" <%= filters.status === 'SUSPENDED' ? 'selected' : '' %>>Suspended</option>
+        <option value="ARCHIVED" <%= filters.status === 'ARCHIVED' ? 'selected' : '' %>>Archived</option>
+      </select>
+    </div>
+    <% if (filters.search || filters.status) { %>
+    <a href="/admin/projects" class="button button--ghost list-filters__clear">Clear</a>
+    <% } %>
+  </div>
 </form>
 
 <% if (projects.length === 0) { %>

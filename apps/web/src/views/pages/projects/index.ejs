@@ -8,9 +8,9 @@
 %>
 <div class="page-header page-header--actions"><div><h1 class="page-header__title">Projects</h1></div><a href="/projects/new" class="button button--primary">New Project</a></div>
 
-<form class="filter-bar project-filters" id="project-filters" method="GET" action="/projects" role="search" aria-label="Filter projects">
-  <div class="project-filters__grid">
-    <div class="form-group project-filters__search">
+<form class="filter-bar list-filters" id="project-filters" method="GET" action="/projects" role="search" aria-label="Filter projects">
+  <div class="list-filters__grid">
+    <div class="form-group list-filters__search">
       <label class="form-label" for="project-search">Search</label>
       <div class="search-field">
         <input class="form-input search-field__input" type="search" id="project-search" name="q" value="<%= filters.q %>" placeholder="Name, address, or repository" autocomplete="off">
@@ -19,7 +19,7 @@
     </div>
     <div class="form-group"><label class="form-label" for="project-status">Status</label><select class="form-select" id="project-status" name="status" data-auto-submit><option value="">All statuses</option><% [['setup','Setup'],['needs_attention','Needs attention'],['awaiting_review','Awaiting review'],['ready_to_deploy','Ready to deploy'],['deploying','Deploying'],['live','Live'],['failed','Failed'],['suspended','Suspended'],['archived','Archived']].forEach(([value,label]) => { %><option value="<%= value %>" <%= filters.status === value ? 'selected' : '' %>><%= label %></option><% }) %></select></div>
     <div class="form-group"><label class="form-label" for="project-role">Role</label><select class="form-select" id="project-role" name="role" data-auto-submit><option value="">All roles</option><% ['OWNER','MAINTAINER','VIEWER'].forEach(value => { %><option value="<%= value %>" <%= filters.role === value ? 'selected' : '' %>><%= value[0] + value.slice(1).toLowerCase() %></option><% }) %></select></div>
-    <% if (filters.q || filters.role || filters.status || filters.sort !== 'updated_desc') { %><a class="button button--ghost project-filters__clear" href="/projects">Clear</a><% } %>
+    <% if (filters.q || filters.role || filters.status || filters.sort !== 'updated_desc') { %><a class="button button--ghost list-filters__clear" href="/projects">Clear</a><% } %>
   </div>
 </form>
 
