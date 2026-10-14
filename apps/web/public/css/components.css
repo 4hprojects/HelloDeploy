@@ -805,6 +805,21 @@
   color: var(--color-text-muted);
 }
 
+.project-home-uptime {
+  margin: var(--space-2) 0 0;
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+
+/* Warning hue is too light for small text, so it marks the border and the
+   text stays full-contrast. */
+.project-home-uptime--not-running {
+  padding-left: var(--space-2);
+  border-left: 3px solid var(--color-warning);
+  color: var(--color-text);
+  font-weight: var(--font-semibold);
+}
+
 .project-home-summary__row {
   display: flex;
   flex-wrap: wrap;

@@ -11,6 +11,7 @@ import {
 import {
   buildApplicationUrl,
   buildProjectOverviewState,
+  toAppUptime,
   toSetupGuide,
 } from '../../apps/web/src/services/project-overview.service.js';
 
@@ -394,5 +395,64 @@ describe('setup guide for project sub-pages', () => {
   it('counts completed setup steps', () => {
     const guide = toSetupGuide(fixture(), { base, currentPath: `${base}/environment` });
     assert.equal(guide.doneCount, 4);
+  });
+});
+
+describe('live app uptime', () => {
+  const NOW = new Date('2026-10-15T12:00:00Z');
+  const STARTED_AT = new Date('2026-10-12T07:48:00Z');
+  const liveDeployment = (runtime) => ({
+    _id: '64b7f8e2a1c9d4f5b6a7c8e1',
+    status: DeploymentStatus.HEALTHY,
+    commitSha: COMMIT,
+    runtime,
+  });
+  const freshRunning = {
+    containerStartedAt: STARTED_AT,
+    isRunning: true,
+    checkedAt: new Date('2026-10-15T11:59:00Z'),
+  };
+
+  it('shows how long a freshly checked container has been running', () => {
+    const uptime = toAppUptime(liveDeployment(freshRunning), NOW);
+    assert.equal(uptime.label, 'Running for 3d 4h 12m');
+  });
+
+  it('exposes the container start time for the live ticker', () => {
+    const uptime = toAppUptime(liveDeployment(freshRunning), NOW);
+    assert.equal(uptime.startedAt, STARTED_AT.toISOString());
+  });
+
+  it('says a just-started container has run for less than a minute', () => {
+    const uptime = toAppUptime(
+      liveDeployment({ ...freshRunning, containerStartedAt: new Date('2026-10-15T11:59:30Z') }),
+      NOW,
+    );
+    assert.equal(uptime.label, 'Running for less than a minute');
+  });
+
+  it('reports a freshly checked container that is down as not running', () => {
+    const uptime = toAppUptime(liveDeployment({ ...freshRunning, isRunning: false }), NOW);
+    assert.equal(uptime.state, 'not-running');
+  });
+
+  it('hides uptime when the last check is too old to trust', () => {
+    const uptime = toAppUptime(
+      liveDeployment({ ...freshRunning, checkedAt: new Date('2026-10-15T11:50:00Z') }),
+      NOW,
+    );
+    assert.equal(uptime, null);
+  });
+
+  it('hides uptime for a release the worker has never checked', () => {
+    assert.equal(toAppUptime(liveDeployment(undefined), NOW), null);
+  });
+
+  it('includes uptime in the state of a live project', () => {
+    const state = fixture({
+      project: { status: ProjectStatus.ACTIVE },
+      activeDeployment: liveDeployment({ ...freshRunning, checkedAt: new Date() }),
+    });
+    assert.equal(state.uptime.state, 'running');
   });
 });

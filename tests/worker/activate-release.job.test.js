@@ -89,6 +89,17 @@ describe('activate-release job', () => {
     assert.equal(fresh.activeContainerId, 'container-id-new');
   });
 
+  it('records when the live container started so uptime shows right away', async () => {
+    const { project, deployment } = await seed();
+    const startedAt = new Date('2026-10-15T08:00:00Z');
+    const { deps } = makeDeps({
+      inspectContainer: async () => ({ status: 'running', running: true, exitCode: 0, startedAt }),
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.deepEqual(fresh.runtime.containerStartedAt, startedAt);
+  });
+
   it('points the project at the new deployment on success', async () => {
     const { project, deployment } = await seed();
     const { deps } = makeDeps();

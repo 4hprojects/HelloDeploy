@@ -184,7 +184,8 @@ export async function startContainer({
  * Inspect a container and return its current state.
  *
  * @param {string} containerIdOrName
- * @returns {Promise<{ status: string, running: boolean, exitCode: number }>}
+ * @returns {Promise<{ status: string, running: boolean, restarting: boolean,
+ *   restartCount: number, exitCode: number, startedAt: Date | null }>}
  */
 export async function inspectContainer(containerIdOrName) {
   try {
@@ -203,10 +204,27 @@ export async function inspectContainer(containerIdOrName) {
       restarting: state.Restarting ?? false,
       restartCount: restartCount ?? 0,
       exitCode: state.ExitCode ?? -1,
+      startedAt: parseContainerStartedAt(state.StartedAt),
     };
   } catch {
-    return { status: 'missing', running: false, restarting: false, restartCount: 0, exitCode: -1 };
+    return {
+      status: 'missing',
+      running: false,
+      restarting: false,
+      restartCount: 0,
+      exitCode: -1,
+      startedAt: null,
+    };
   }
+}
+
+/**
+ * Docker's State.StartedAt as a Date, or null when the container never started:
+ * Docker reports the zero time `0001-01-01T00:00:00Z` for that.
+ */
+export function parseContainerStartedAt(value) {
+  const startedAt = new Date(value);
+  return Number.isNaN(startedAt.getTime()) || startedAt.getTime() <= 0 ? null : startedAt;
 }
 
 /**

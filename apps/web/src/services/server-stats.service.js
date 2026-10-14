@@ -6,6 +6,7 @@ import { getDeploymentQueue } from '../queue/client.js';
 import { env } from '../config/env.js';
 import { checkWorkerReadiness } from './worker-readiness.service.js';
 import { processStartedAt, releaseMetadata, releaseSha } from '../utils/release-sha.js';
+import { formatUptime } from '../utils/format-uptime.js';
 
 // Docker daemon connectivity is intentionally not checked here: the web
 // process has no Docker socket access by design (privilege isolation from
@@ -74,19 +75,6 @@ export async function collectServerStats(deps = {}) {
     },
     collectedAt: new Date().toISOString(),
   };
-}
-
-function formatUptime(seconds) {
-  const d = Math.floor(seconds / 86400);
-  const h = Math.floor((seconds % 86400) / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (d > 0) {
-    return `${d}d ${h}h ${m}m`;
-  }
-  if (h > 0) {
-    return `${h}h ${m}m`;
-  }
-  return `${m}m`;
 }
 
 async function getMemoryStats() {
