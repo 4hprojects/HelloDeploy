@@ -48,6 +48,14 @@ server {
     # says nothing about where the owner's DNS actually points.
     add_header X-HelloDeploy-Route "${routeHost ?? fqdn}" always;
 
+    # Cloudflare ends TLS and the tunnel reaches nginx over plain HTTP, so $scheme
+    # is always "http". Pass on the visitor-facing scheme Cloudflare sends, or apps
+    # that redirect HTTP to HTTPS redirect forever.
+    set $forwarded_proto $scheme;
+    if ($http_x_forwarded_proto) {
+        set $forwarded_proto $http_x_forwarded_proto;
+    }
+
     # Request limits
     client_max_body_size 10m;
     client_body_timeout 30s;
@@ -60,7 +68,7 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $forwarded_proto;
         proxy_set_header X-Forwarded-Host $host;
 
         # Timeouts
