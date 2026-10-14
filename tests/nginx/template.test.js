@@ -84,7 +84,34 @@ describe('generateServerBlock', () => {
     assert.ok(config.includes('proxy_set_header Host $host;'));
     assert.ok(config.includes('proxy_set_header X-Real-IP $remote_addr;'));
     assert.ok(config.includes('proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;'));
-    assert.ok(config.includes('proxy_set_header X-Forwarded-Proto $scheme;'));
+    assert.ok(config.includes('proxy_set_header X-Forwarded-Proto $forwarded_proto;'));
+  });
+
+  // The tunnel reaches nginx over HTTP, so $scheme alone made HTTPS-only apps
+  // redirect forever (helloeventhub, 2026-10-15).
+  it('passes on the visitor-facing scheme Cloudflare sends', () => {
+    const config = generateServerBlock({
+      subdomain: 'app',
+      domain: 'example.com',
+      port: 10003,
+      deploymentId: 'y',
+      generatedAt: FIXED_DATE,
+    });
+    assert.match(
+      config,
+      /if \(\$http_x_forwarded_proto\) \{\n\s+set \$forwarded_proto \$http_x_forwarded_proto;/,
+    );
+  });
+
+  it('falls back to the connection scheme when no forwarded scheme arrives', () => {
+    const config = generateServerBlock({
+      subdomain: 'app',
+      domain: 'example.com',
+      port: 10003,
+      deploymentId: 'y',
+      generatedAt: FIXED_DATE,
+    });
+    assert.ok(config.includes('set $forwarded_proto $scheme;'));
   });
 
   it('includes WebSocket upgrade headers', () => {
@@ -162,6 +189,16 @@ describe('X-HelloDeploy-Route header', () => {
       generatedAt: FIXED_DATE,
     });
     assert.ok(config.includes('add_header X-HelloDeploy-Route "hellopera.online" always;'));
+  });
+
+  it('passes the visitor-facing scheme for a custom hostname too', () => {
+    const config = generateCustomDomainServerBlock({
+      hostname: 'helloeventhub.online',
+      port: 10002,
+      deploymentId: 'abc123',
+      generatedAt: FIXED_DATE,
+    });
+    assert.ok(config.includes('proxy_set_header X-Forwarded-Proto $forwarded_proto;'));
   });
 
   it('never advertises the empty-domain artefact for a custom hostname', () => {
