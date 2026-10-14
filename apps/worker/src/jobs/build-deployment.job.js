@@ -49,6 +49,11 @@ function isRetryableCloneError(err) {
   );
 }
 
+// WHY: a workspace the worker can't write to (wrong owner on BUILD_WORKSPACE_ROOT,
+// full disk) surfaces from the clone step, but blaming GitHub sends the owner
+// checking their repository for a fault that lives on this host.
+const LOCAL_FS_ERROR_CODES = new Set(['EACCES', 'EPERM', 'ENOSPC', 'EROFS']);
+
 async function cloneWithRetry(cloneFn, sleep, onRetry) {
   for (let attempt = 1; attempt <= CLONE_RETRY_ATTEMPTS; attempt += 1) {
     try {
@@ -244,7 +249,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
     await failBuild({
-      failureCode: 'CLONE_FAILED',
+      failureCode: LOCAL_FS_ERROR_CODES.has(err.code) ? 'BUILD_WORKSPACE_FAILED' : 'CLONE_FAILED',
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });

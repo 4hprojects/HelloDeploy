@@ -332,6 +332,18 @@ describe('build-deployment job', () => {
     assert.equal(calls.builds.length, 0);
   });
 
+  it('marks BUILD_WORKSPACE_FAILED when the workspace cannot be created', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps } = makeDeps({
+      cloneExactCommit: async () => {
+        throw Object.assign(new Error('permission denied'), { code: 'EACCES' });
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'BUILD_WORKSPACE_FAILED');
+  });
+
   it('notifies for clone, validation, build, and activation-enqueue failures', async () => {
     const cases = [
       ['CLONE_FAILED', { cloneExactCommit: async () => Promise.reject(new Error('clone')) }],

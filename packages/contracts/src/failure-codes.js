@@ -74,6 +74,10 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "HelloDeploy couldn't download your code from GitHub.",
     action: 'Check that your repository and branch still exist, or contact support.',
   },
+  BUILD_WORKSPACE_FAILED: {
+    message: 'HelloDeploy had a problem on its side while preparing your build.',
+    action: `Nothing is wrong with your code. ${TRY_AGAIN_ACTION}`,
+  },
   BUILD_CONTEXT_INVALID: {
     message: "Something in your project's files isn't safe or supported for building.",
     action: ASK_BUILDER_ACTION,
