@@ -6,6 +6,7 @@
     </p>
   </div>
 </div>
+<%- include('../../partials/setup-guide') %>
 
 <% if (!repo) { %>
 <div class="card">
@@ -128,6 +129,10 @@
       <% } %>
     </div>
     <% } %>
+    <% } else { %>
+    <p class="detection-summary__action form-hint">
+      Only the project owner can run the app check. Ask the owner to click <strong>Check my app</strong>.
+    </p>
     <% } %>
   </div>
 </section>

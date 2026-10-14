@@ -1,5 +1,6 @@
 import { Project, ProjectMembership } from '@hellodeploy/database';
 import { buildProjectNavigation } from '../config/project-navigation.js';
+import { attachSetupState } from './attach-setup-guide.js';
 
 function forbidden(res) {
   return res.status(403).render('pages/error', {
@@ -55,6 +56,7 @@ export function requireProjectRole(...allowedRoles) {
       membership.role,
       req.originalUrl.split('?')[0],
     );
+    attachSetupState(req, res);
     next();
   };
 }

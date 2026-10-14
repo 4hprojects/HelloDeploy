@@ -1,16 +1,8 @@
 import { asyncHandler } from '../utils/async-handler.js';
 import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
-import {
-  Deployment,
-  EnvironmentSecret,
-  Project,
-  Repository,
-  User,
-  resolveProjectQuota,
-} from '@hellodeploy/database';
+import { Project, Repository, User, resolveProjectQuota } from '@hellodeploy/database';
 import { verifyPassword } from '@hellodeploy/auth';
 import { writeAuditEvent } from '@hellodeploy/observability';
-import { getDeployments } from '../services/deployment.service.js';
 import {
   createProject,
   updateProject,
@@ -24,7 +16,6 @@ import {
   updateMemberRole,
   transferOwnership,
   submitForReview,
-  getLatestApprovalRequest,
   checkSlugAvailability,
 } from '../services/project.service.js';
 import {
@@ -36,11 +27,7 @@ import {
 import { buildSettingsSections } from '../config/project-navigation.js';
 import { getProjectDomains } from '../services/domain.service.js';
 import { projectReturnTarget } from '../utils/project-return-target.js';
-import { assessInitialApprovalReadiness } from '../services/approval-readiness.service.js';
-import {
-  buildApplicationUrl,
-  buildProjectOverviewState,
-} from '../services/project-overview.service.js';
+import { loadProjectOverviewState } from '../services/project-overview-loader.service.js';
 import { buildProjectSettingsView } from '../services/project-settings-view.service.js';
 import { env } from '../config/env.js';
 import { getProjectDiscovery } from '../services/project-discovery.service.js';
@@ -111,35 +98,21 @@ export const getSlugAvailability = asyncHandler(async (req, res) => {
 async function renderProjectOverview(req, res, extras = {}) {
   const project = req.project;
 
-  const [repository, deployments, latestApproval, activeDeployment, secretRecords, domains] =
-    await Promise.all([
-      project.repositoryId ? Repository.findById(project.repositoryId).lean() : null,
-      getDeployments(project._id, 5),
-      getLatestApprovalRequest(project._id),
-      project.activeDeploymentId ? Deployment.findById(project.activeDeploymentId).lean() : null,
-      EnvironmentSecret.find({ projectId: project._id }).select('name').lean(),
-      getProjectDomains(project._id),
-    ]);
-
-  const approvalReadiness = assessInitialApprovalReadiness({
-    project,
-    repository,
-    configuredEnvironmentVariables: secretRecords.map(({ name }) => name),
-  });
-  const appUrl = buildApplicationUrl({
-    subdomain: project.platformSubdomain ?? project.slug,
-    deploymentDomain: env.DEPLOYMENT_DOMAIN,
-  });
-  const overviewState = buildProjectOverviewState({
-    project,
-    repository,
-    deployments,
-    activeDeployment,
-    latestApproval,
-    approvalReadiness,
-    membershipRole: req.membership.role,
-    appUrl,
-  });
+  const [
+    {
+      overviewState,
+      repository,
+      deployments,
+      activeDeployment,
+      latestApproval,
+      approvalReadiness,
+      appUrl,
+    },
+    domains,
+  ] = await Promise.all([
+    loadProjectOverviewState(project, req.membership.role),
+    getProjectDomains(project._id),
+  ]);
 
   res.render('pages/projects/show', {
     title: project.name,

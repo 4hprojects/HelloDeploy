@@ -42,6 +42,14 @@ const PROJECT_NAVIGATION = Object.freeze([
   },
 ]);
 
+const SETUP_STEPS_BY_NAV_KEY = Object.freeze({
+  overview: ['project', 'approval'],
+  repository: ['source'],
+  detection: ['check'],
+  environment: ['environment'],
+  deployments: ['deployment', 'live'],
+});
+
 export const SETTINGS_SECTIONS = Object.freeze([
   { key: 'general', label: 'General', currentPath: '/edit' },
   { key: 'source-build', label: 'App Setup', currentPath: '/detection' },
@@ -66,6 +74,26 @@ export function buildProjectNavigation(slug, role, currentPath = '') {
     const href = `${base}${item.path}`;
     const active = item.path ? currentPath.startsWith(href) : currentPath === base;
     return { ...item, href, active };
+  });
+}
+
+export function withSetupMarks(navigation, setupGuide) {
+  if (!setupGuide) {
+    return navigation;
+  }
+  const nextStepKey = setupGuide.milestones[setupGuide.nextStepIndex]?.key;
+  return navigation.map((item) => {
+    const stepKeys = SETUP_STEPS_BY_NAV_KEY[item.key];
+    if (!stepKeys) {
+      return { ...item, setupMark: null };
+    }
+    const steps = setupGuide.milestones.filter((milestone) => stepKeys.includes(milestone.key));
+    const setupMark = stepKeys.includes(nextStepKey)
+      ? 'next'
+      : steps.every((milestone) => milestone.done)
+        ? 'done'
+        : null;
+    return { ...item, setupMark };
   });
 }
 

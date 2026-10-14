@@ -1,0 +1,68 @@
+<% if (locals.setupGuide) {
+  const guide = locals.setupGuide;
+  const focusIndex = guide.pageStepIndex !== -1 ? guide.pageStepIndex : guide.nextStepIndex;
+  const focusStep = guide.milestones[focusIndex];
+%>
+<aside class="setup-guide" aria-label="Setup progress">
+  <div class="setup-guide__top">
+    <nav class="setup-guide__stepper" aria-label="Setup steps">
+      <ol class="setup-guide__steps">
+        <% guide.milestones.forEach((milestone, index) => {
+          const isNext = index === guide.nextStepIndex && !milestone.done;
+          const isPage = index === guide.pageStepIndex;
+          const isJoined = milestone.done && index > 0 && guide.milestones[index - 1].done;
+          const classes = ['setup-guide__step'];
+          if (milestone.done) classes.push('setup-guide__step--done');
+          if (isNext) classes.push('setup-guide__step--next');
+          if (isPage) classes.push('setup-guide__step--page');
+          if (isJoined) classes.push('setup-guide__step--joined');
+          const tag = milestone.href ? 'a' : 'span';
+        %>
+        <li class="<%= classes.join(' ') %>">
+          <<%= tag %> class="setup-guide__step-link"<% if (milestone.href) { %> href="<%= milestone.href %>"<% } %><% if (isPage) { %> aria-current="step"<% } %>>
+            <span class="setup-guide__dot" aria-hidden="true"><%= milestone.done ? '✓' : index + 1 %></span>
+            <span class="setup-guide__label"><%= milestone.shortLabel %></span>
+            <span class="sr-only"><%= milestone.done ? ', complete' : isNext ? ', next step' : '' %></span>
+            <% if (isPage) { %><span class="setup-guide__here">You're here</span><% } %>
+          </<%= tag %>>
+        </li>
+        <% }) %>
+      </ol>
+    </nav>
+    <div class="setup-guide__meta">
+      <p class="setup-guide__count"><%= guide.doneCount %> of <%= guide.total %> complete</p>
+      <% if (focusStep) { %><p class="setup-guide__focus" aria-hidden="true">Step <%= focusIndex + 1 %> · <%= focusStep.shortLabel %></p><% } %>
+      <a class="setup-guide__overview" href="<%= guide.overviewHref %>">Overview</a>
+    </div>
+  </div>
+
+  <div class="setup-guide__action-row">
+    <p class="setup-guide__text">
+      <strong><%= guide.isOnNextStep ? "You're on this step." : guide.title %></strong>
+      <span><%= guide.description %></span>
+    </p>
+    <% if (guide.isOnNextStep) { %>
+      <% if (guide.afterStep) { %>
+      <a class="setup-guide__after" href="<%= guide.afterStep.href %>">After this: <%= guide.afterStep.label %> <span aria-hidden="true">→</span></a>
+      <% } %>
+    <% } else if (guide.nextAction) { %>
+    <div class="setup-guide__action">
+      <% if (guide.nextAction.method === 'POST') { %>
+      <form method="POST" action="<%= guide.nextAction.href %>">
+        <%- include('csrf-field') %>
+        <button type="submit" class="button button--primary"
+          <% if (guide.nextAction.pendingLabel) { %>data-pending-label="<%= guide.nextAction.pendingLabel %>"<% } %>>
+          <%= guide.nextAction.label %> <span aria-hidden="true">→</span>
+        </button>
+      </form>
+      <% } else { %>
+      <a href="<%= guide.nextAction.href %>" class="button button--primary"
+        <% if (guide.nextAction.external) { %>target="_blank" rel="noopener noreferrer"<% } %>>
+        <%= guide.nextAction.label %> <span aria-hidden="true">→</span>
+      </a>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</aside>
+<% } %>
