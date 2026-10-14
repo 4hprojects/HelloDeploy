@@ -258,6 +258,27 @@ describe('activate-release job', () => {
     assert.equal(fresh.failureCode, 'CONTAINER_CRASHED_ON_STARTUP');
   });
 
+  it('reports the restart count instead of a reset exit code for a restarting app', async () => {
+    const { project, deployment } = await seed();
+    let started = false;
+    const { deps } = makeDeps({
+      startContainer: async () => {
+        started = true;
+        return 'container-id-new';
+      },
+      inspectContainer: async () =>
+        started
+          ? { status: 'running', running: true, restarting: false, restartCount: 2, exitCode: 0 }
+          : { status: 'missing', running: false, exitCode: -1 },
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(
+      fresh.failureSummary,
+      'Container kept crashing (restarted 2 times) right after start.',
+    );
+  });
+
   it("records the app's own output when the health check fails", async () => {
     const { project, deployment } = await seed();
     const { deps } = makeDeps({

@@ -381,19 +381,22 @@ export async function runReleasePipeline({
     state = await deps.inspectContainer(cName);
   }
   if (hasCrashed(state)) {
+    // NOTE: Docker resets ExitCode while it restarts a container, so once a
+    // restart has happened the code no longer describes the crash.
+    const crashDetail =
+      state.running || state.restartCount > 0
+        ? `kept crashing (restarted ${state.restartCount} time${state.restartCount === 1 ? '' : 's'})`
+        : `exited immediately (code ${state.exitCode})`;
     await logEvent(
       deploymentId,
       'DEPLOY',
       'ERROR',
-      `${opts.logLabel} exited immediately (code ${state.exitCode}). Possible crash or missing start command.`,
+      `${opts.logLabel} ${crashDetail}. Possible crash or missing start command.`,
       correlationId,
     );
     await logContainerOutput(deps, cName, deploymentId, correlationId);
     await deps.stopAndRemoveContainer(cName);
-    return fail(
-      'CONTAINER_CRASHED_ON_STARTUP',
-      `Container exited with code ${state.exitCode} immediately after start.`,
-    );
+    return fail('CONTAINER_CRASHED_ON_STARTUP', `Container ${crashDetail} right after start.`);
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
