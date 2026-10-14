@@ -3542,6 +3542,90 @@ a.setup-guide__step-link:hover .setup-guide__label {
   min-width: 10rem;
   flex: 1;
 }
+
+/* Projects list: search with its button, then filters that apply on change. Laid out by
+   the form's own width, since the sidebar makes the viewport a poor guide. */
+.project-filters {
+  container-type: inline-size;
+}
+.project-filters__grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(9rem, 1fr));
+  align-items: end;
+  gap: var(--space-3);
+}
+.project-filters__grid:has(.project-filters__clear) {
+  grid-template-columns: minmax(14rem, 2fr) repeat(2, minmax(9rem, 1fr)) auto;
+}
+.project-filters .form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+.project-filters .form-input,
+.project-filters .form-select,
+.project-filters .button,
+.project-results .form-select {
+  min-height: 2.75rem;
+}
+.project-filters .project-filters__grid .project-filters__clear {
+  width: auto;
+}
+.search-field {
+  display: flex;
+}
+.search-field__input {
+  flex: 1;
+  min-width: 0;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+.project-filters .search-field .search-field__button {
+  width: auto;
+  flex: none;
+  margin-left: -1px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+.search-field__input:focus-visible,
+.search-field__button:focus-visible {
+  position: relative;
+  z-index: 1;
+}
+@container (max-width: 38rem) {
+  .project-filters__grid,
+  .project-filters__grid:has(.project-filters__clear) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .project-filters__grid:has(.project-filters__clear) {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) auto;
+  }
+  .project-filters__search {
+    grid-column: 1 / -1;
+  }
+}
+.project-results {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin: var(--space-4) 0 var(--space-3);
+}
+.project-results__count {
+  margin: 0;
+}
+.project-results__sort {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.project-results__sort .form-select {
+  width: auto;
+}
 .project-list {
   display: grid;
   gap: var(--space-3);
