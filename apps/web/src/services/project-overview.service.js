@@ -37,6 +37,9 @@ function findingAction(slug, findingCode, role) {
   if (findingCode === 'deployment_mode' || findingCode === 'runtime_configuration') {
     return getAction('Review settings', `/projects/${slug}/settings`);
   }
+  if (findingCode === 'required_environment') {
+    return getAction('Add variables', `/projects/${slug}/environment`);
+  }
   return getAction('Check my app', `/projects/${slug}/detection`);
 }
 
@@ -92,30 +95,35 @@ export function buildProjectOverviewState({
   const milestones = [
     {
       key: 'project',
+      shortLabel: 'Address',
       label: 'Project address chosen',
       done: Boolean(project.slug),
       href: base,
     },
     {
       key: 'source',
+      shortLabel: 'Source',
       label: 'Source connected',
       done: sourceConnected,
       href: canConfigure(membershipRole) ? `${base}/repository` : null,
     },
     {
       key: 'check',
+      shortLabel: 'App check',
       label: 'App check passed',
       done: appCheckCurrent,
       href: `${base}/detection`,
     },
     {
       key: 'environment',
+      shortLabel: 'Variables',
       label: 'Required variables set',
       done: !environmentFinding || environmentFinding.status === 'PASS',
       href: canConfigure(membershipRole) ? `${base}/environment` : null,
     },
     {
       key: 'approval',
+      shortLabel: 'Approval',
       label: 'Project approved',
       done: approvalComplete,
       href: canConfigure(membershipRole)
@@ -126,12 +134,14 @@ export function buildProjectOverviewState({
     },
     {
       key: 'deployment',
+      shortLabel: 'Deploy',
       label: 'First deployment started',
       done: deployments.length > 0,
       href: `${base}/deployments`,
     },
     {
       key: 'live',
+      shortLabel: 'Live',
       label: 'First healthy release live',
       done: appLive,
       href: appLive ? appUrl : `${base}/deployments`,
@@ -203,22 +213,27 @@ export function buildProjectOverviewState({
 
   if (project.status === ProjectStatus.DRAFT && !appCheckCurrent) {
     const neverChecked = !project.detection?.checkedAt;
+    const phase = neverChecked ? 'SETUP' : 'NEEDS_ATTENTION';
+    const tone = neverChecked ? 'neutral' : 'attention';
+    if (!canConfigure(membershipRole)) {
+      return {
+        ...result,
+        phase,
+        tone,
+        title: 'Waiting for the project owner',
+        description: 'The project owner needs to run the app check before setup can continue.',
+        primaryAction: null,
+      };
+    }
     return {
       ...result,
-      phase: neverChecked ? 'SETUP' : 'NEEDS_ATTENTION',
-      tone: neverChecked ? 'neutral' : 'attention',
+      phase,
+      tone,
       title: neverChecked ? 'Check how your app should run' : 'Check your app again',
       description: neverChecked
         ? 'HelloDeploy will identify the recommended build and start settings.'
         : 'The repository changed or the last app check needs attention.',
-      primaryAction: getAction(
-        canConfigure(membershipRole)
-          ? neverChecked
-            ? 'Check my app'
-            : 'Check again'
-          : 'View app check',
-        `${base}/detection`,
-      ),
+      primaryAction: getAction(neverChecked ? 'Check my app' : 'Check again', `${base}/detection`),
     };
   }
 
@@ -420,4 +435,69 @@ export function buildProjectOverviewState({
       : getAction('View deployments', `${base}/deployments`),
     canSubmit: false,
   };
+}
+
+// Overview-relative anchors (#submit-review) must point back at the overview from sub-pages.
+function toProjectHref(href, base) {
+  return href?.startsWith('#') ? `${base}${href}` : href;
+}
+
+export function toSetupGuide(overviewState, { base, currentPath }) {
+  if (!overviewState.showMilestones || overviewState.appLive) {
+    return null;
+  }
+  const milestones = overviewState.milestones.map((milestone) => ({
+    ...milestone,
+    href: toProjectHref(milestone.href, base),
+  }));
+  const nextAction = overviewState.primaryAction
+    ? {
+        ...overviewState.primaryAction,
+        href: toProjectHref(overviewState.primaryAction.href, base),
+      }
+    : null;
+  const isOnNextStep = Boolean(nextAction) && toPath(nextAction.href) === currentPath;
+  const nextStepIndex = findNextStepIndex(milestones, nextAction);
+  const pageStepIndex = milestones.findIndex((milestone) => milestone.href === currentPath);
+  return {
+    overviewHref: base,
+    title: overviewState.title,
+    description: overviewState.description,
+    tone: overviewState.tone,
+    doneCount: milestones.filter((milestone) => milestone.done).length,
+    total: milestones.length,
+    nextStepIndex,
+    pageStepIndex,
+    afterStep: isOnNextStep ? findAfterStep(milestones, currentPath) : null,
+    milestones,
+    nextAction,
+    isOnNextStep,
+  };
+}
+
+// An exact match keeps "#submit-review" on the approval step rather than the overview step.
+function findNextStepIndex(milestones, nextAction) {
+  const firstOpen = milestones.findIndex((milestone) => !milestone.done);
+  if (!nextAction) {
+    return firstOpen;
+  }
+  const exact = milestones.findIndex((milestone) => milestone.href === nextAction.href);
+  if (exact !== -1) {
+    return exact;
+  }
+  const samePage = milestones.findIndex(
+    (milestone) => !milestone.done && toPath(milestone.href) === toPath(nextAction.href),
+  );
+  return samePage === -1 ? firstOpen : samePage;
+}
+
+function findAfterStep(milestones, currentPath) {
+  const step = milestones.find(
+    (milestone) => !milestone.done && milestone.href && toPath(milestone.href) !== currentPath,
+  );
+  return step ? { label: step.label, href: step.href } : null;
+}
+
+function toPath(href) {
+  return href?.split('#')[0] ?? null;
 }

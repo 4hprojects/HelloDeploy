@@ -143,6 +143,31 @@
   height: 1rem;
 }
 
+.sidebar__setup-mark {
+  display: inline-flex;
+  margin-left: auto;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.sidebar__setup-mark--done {
+  width: 1.125rem;
+  height: 1.125rem;
+  border-radius: 50%;
+  background: var(--color-green-light);
+  color: var(--color-green);
+}
+
+.sidebar__setup-mark--next {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-orange);
+  border-radius: var(--radius-full);
+  background: var(--color-orange-light);
+  color: var(--color-text);
+}
+
 .sidebar__link--button {
   width: 100%;
   background: none;

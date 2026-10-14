@@ -11,6 +11,7 @@ import {
 import {
   buildApplicationUrl,
   buildProjectOverviewState,
+  toSetupGuide,
 } from '../../apps/web/src/services/project-overview.service.js';
 
 const COMMIT = 'a'.repeat(40);
@@ -83,6 +84,22 @@ describe('project overview lifecycle state', () => {
     const stale = fixture({ repository: { lastCommitSha: 'b'.repeat(40) } });
     assert.equal(stale.phase, 'NEEDS_ATTENTION');
     assert.equal(stale.milestones.find((item) => item.key === 'check').done, false);
+  });
+
+  it('tells non-owners the app check is waiting on the project owner', () => {
+    const state = fixture({
+      membershipRole: ProjectRole.VIEWER,
+      project: { detection: { status: DetectionStatus.NOT_RUN } },
+    });
+    assert.equal(state.title, 'Waiting for the project owner');
+  });
+
+  it('gives non-owners no app check action they cannot complete', () => {
+    const state = fixture({
+      membershipRole: ProjectRole.VIEWER,
+      project: { detection: { status: DetectionStatus.NOT_RUN } },
+    });
+    assert.equal(state.primaryAction, null);
   });
 
   it('blocks the unsupported legacy deployment mode', () => {
@@ -306,5 +323,76 @@ describe('project overview lifecycle state', () => {
       }),
       null,
     );
+  });
+});
+
+describe('setup guide for project sub-pages', () => {
+  const base = '/projects/sample-app';
+  const missingVariables = {
+    isReady: false,
+    findings: [
+      {
+        code: 'required_environment',
+        status: 'BLOCKING',
+        message: 'Set the missing variables: API_KEY.',
+      },
+    ],
+  };
+
+  it('is hidden once the app is live', () => {
+    const state = fixture({
+      project: { status: ProjectStatus.ACTIVE },
+      activeDeployment: { _id: 'd1', status: DeploymentStatus.HEALTHY, commitSha: COMMIT },
+    });
+    assert.equal(toSetupGuide(state, { base, currentPath: `${base}/deployments` }), null);
+  });
+
+  it('points to environment variables after the app check passes', () => {
+    const guide = toSetupGuide(fixture({ approvalReadiness: missingVariables }), {
+      base,
+      currentPath: `${base}/detection`,
+    });
+    assert.equal(guide.nextAction.href, `${base}/environment`);
+  });
+
+  it('tells the user when they are already on the next step', () => {
+    const state = fixture({ project: { detection: { status: DetectionStatus.NOT_RUN } } });
+    const guide = toSetupGuide(state, { base, currentPath: `${base}/detection` });
+    assert.equal(guide.isOnNextStep, true);
+  });
+
+  it('links overview anchors back to the overview page', () => {
+    const guide = toSetupGuide(fixture(), { base, currentPath: `${base}/environment` });
+    assert.equal(guide.nextAction.href, `${base}#submit-review`);
+  });
+
+  it('highlights the step the next action belongs to', () => {
+    const guide = toSetupGuide(fixture(), { base, currentPath: `${base}/environment` });
+    assert.equal(guide.milestones[guide.nextStepIndex].key, 'approval');
+  });
+
+  it('falls back to the first unfinished step when the action has no step', () => {
+    const state = fixture({ project: { deploymentMode: DeploymentMode.APPROVAL_REQUIRED } });
+    const guide = toSetupGuide(state, { base, currentPath: `${base}/environment` });
+    assert.equal(guide.milestones[guide.nextStepIndex].key, 'approval');
+  });
+
+  it('matches the step that belongs to the current page', () => {
+    const guide = toSetupGuide(fixture(), { base, currentPath: `${base}/environment` });
+    assert.equal(guide.milestones[guide.pageStepIndex].key, 'environment');
+  });
+
+  it('names the step after this one when the user is on the next step', () => {
+    const state = fixture({ project: { detection: { status: DetectionStatus.NOT_RUN } } });
+    const guide = toSetupGuide(state, { base, currentPath: `${base}/detection` });
+    assert.deepEqual(guide.afterStep, {
+      label: 'Project approved',
+      href: `${base}#submit-review`,
+    });
+  });
+
+  it('counts completed setup steps', () => {
+    const guide = toSetupGuide(fixture(), { base, currentPath: `${base}/environment` });
+    assert.equal(guide.doneCount, 4);
   });
 });

@@ -20,6 +20,7 @@
   </div>
   <% } %>
 </div>
+<%- include('../../partials/setup-guide') %>
 
 <form method="GET" class="filter-bar mb-6" aria-label="Filter deployment history">
   <div class="form-group"><label class="form-label" for="deployment-result">Result</label><select class="form-select" id="deployment-result" name="result"><option value="">All results</option><% ['HEALTHY','FAILED','CANCELLED','ROLLED_BACK'].forEach(value => { %><option value="<%= value %>" <%= filters.result === value ? 'selected' : '' %>><%= statusPresentation('deployment', value).label %></option><% }) %></select></div>

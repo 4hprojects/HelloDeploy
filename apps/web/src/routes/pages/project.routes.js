@@ -75,12 +75,17 @@ import {
 } from '../../controllers/deployment.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 import { requireEditableProject } from '../../middleware/require-editable-project.js';
+import { attachSetupGuide } from '../../middleware/attach-setup-guide.js';
 
 const router = Router();
 
 const anyRole = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER, ProjectRole.VIEWER);
 const ownerOrMaintainer = requireProjectRole(ProjectRole.OWNER, ProjectRole.MAINTAINER);
 const ownerOnly = requireProjectRole(ProjectRole.OWNER);
+const repositoryGuide = attachSetupGuide('repository');
+const detectionGuide = attachSetupGuide('detection');
+const environmentGuide = attachSetupGuide('environment');
+const deploymentsGuide = attachSetupGuide('deployments');
 
 for (const param of ['userId', 'deploymentId', 'domainId']) {
   router.param(param, validateObjectId);
@@ -153,7 +158,7 @@ router.post(
 );
 
 // Repository
-router.get('/:slug/repository', requireAuth, ownerOnly, getRepository);
+router.get('/:slug/repository', requireAuth, ownerOnly, repositoryGuide, getRepository);
 router.post(
   '/:slug/repository/inspect',
   requireAuth,
@@ -213,8 +218,15 @@ router.post(
 );
 
 // Detection
-router.get('/:slug/detection', requireAuth, anyRole, getDetection);
-router.post('/:slug/detection', requireAuth, ownerOnly, requireEditableProject, postRunDetection);
+router.get('/:slug/detection', requireAuth, anyRole, detectionGuide, getDetection);
+router.post(
+  '/:slug/detection',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  detectionGuide,
+  postRunDetection,
+);
 router.post(
   '/:slug/build-configuration',
   requireAuth,
@@ -238,7 +250,7 @@ router.post(
 );
 
 // Deployments
-router.get('/:slug/deployments', requireAuth, anyRole, getDeploymentList);
+router.get('/:slug/deployments', requireAuth, anyRole, deploymentsGuide, getDeploymentList);
 router.post(
   '/:slug/deployments',
   requireAuth,
@@ -271,13 +283,21 @@ router.post(
 );
 
 // Environment secrets
-router.get('/:slug/environment', requireAuth, ownerOnly, getEnvironment);
-router.post('/:slug/environment', requireAuth, ownerOnly, requireEditableProject, postSetSecret);
+router.get('/:slug/environment', requireAuth, ownerOnly, environmentGuide, getEnvironment);
+router.post(
+  '/:slug/environment',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  environmentGuide,
+  postSetSecret,
+);
 router.post(
   '/:slug/environment/import',
   requireAuth,
   ownerOnly,
   requireEditableProject,
+  environmentGuide,
   postImportEnvFile,
 );
 router.post(
@@ -292,6 +312,7 @@ router.post(
   requireAuth,
   ownerOnly,
   requireEditableProject,
+  environmentGuide,
   postBulkUpdateSecrets,
 );
 router.post(

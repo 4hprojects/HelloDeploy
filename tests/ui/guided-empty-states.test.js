@@ -52,6 +52,11 @@ const projectController = await readFile(
   'utf8',
 );
 
+const projectOverviewLoader = await readFile(
+  new URL('../../apps/web/src/services/project-overview-loader.service.js', import.meta.url),
+  'utf8',
+);
+
 const adminApprovals = await readFile(
   new URL('../../apps/web/src/views/pages/admin/approval-requests.ejs', import.meta.url),
   'utf8',
@@ -79,7 +84,8 @@ describe('guided empty states', () => {
   });
 
   it('surfaces one primary next onboarding action', () => {
-    assert.match(projectController, /buildProjectOverviewState/);
+    assert.match(projectController, /loadProjectOverviewState/);
+    assert.match(projectOverviewLoader, /buildProjectOverviewState/);
     assert.match(projectShow, /overviewState\.primaryAction/);
     assert.match(projectShow, /project-home-summary/);
     assert.match(projectShow, /overviewState\.milestones/);

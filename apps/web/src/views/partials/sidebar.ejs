@@ -35,6 +35,11 @@
              <%- item.active ? 'aria-current="page"' : '' %>>
             <%- include('icon', { name: item.icon, className: 'sidebar__icon' }) %>
             <span><%= item.label %></span>
+            <% if (item.setupMark === 'done') { %>
+            <span class="sidebar__setup-mark sidebar__setup-mark--done"><span aria-hidden="true">✓</span><span class="sr-only">, setup step done</span></span>
+            <% } else if (item.setupMark === 'next') { %>
+            <span class="sidebar__setup-mark sidebar__setup-mark--next">Next<span class="sr-only"> setup step</span></span>
+            <% } %>
           </a>
         </li>
       <% }) %>

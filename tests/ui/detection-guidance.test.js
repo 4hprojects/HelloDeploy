@@ -156,6 +156,18 @@ describe('guided detection inputs', () => {
     assert.match(html, /Working-page check/);
   });
 
+  it('hides the app check button from non-owner roles', async () => {
+    const html = await renderDetection({ role: 'VIEWER' });
+
+    assert.doesNotMatch(html, /action="\/projects\/sample-app\/detection"/);
+  });
+
+  it('tells non-owner roles that only the owner can run the app check', async () => {
+    const html = await renderDetection({ role: 'VIEWER' });
+
+    assert.match(html, /Only the project owner can run the app check/);
+  });
+
   it('shares runtime-aware fields across detection and project settings', () => {
     assert.match(detection, /partials\/guided-build-fields/);
     assert.match(settings, /partials\/guided-build-fields/);
