@@ -4,7 +4,7 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 // Enable the nginx path so route activation/failure behavior is exercised.
 process.env.NGINX_ENABLED = 'true';
 
-import { Deployment, Domain, Project } from '@hellodeploy/database';
+import { Deployment, DeploymentEvent, Domain, Project } from '@hellodeploy/database';
 import { DeploymentStatus, DomainStatus } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
@@ -238,6 +238,35 @@ describe('activate-release job', () => {
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.failureCode, 'CONTAINER_CRASHED_ON_STARTUP');
     assert.equal(calls.stoppedContainers.length, 1);
+  });
+
+  it('fails with CONTAINER_CRASHED_ON_STARTUP when docker keeps restarting the app', async () => {
+    const { project, deployment } = await seed();
+    let started = false;
+    const { deps } = makeDeps({
+      startContainer: async () => {
+        started = true;
+        return 'container-id-new';
+      },
+      inspectContainer: async () =>
+        started
+          ? { status: 'running', running: true, restarting: false, restartCount: 2, exitCode: 1 }
+          : { status: 'missing', running: false, exitCode: -1 },
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'CONTAINER_CRASHED_ON_STARTUP');
+  });
+
+  it("records the app's own output when the health check fails", async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({
+      httpHealthCheck: async () => ({ healthy: false, error: 'fetch failed' }),
+      getContainerLogs: async () => ['Error: MONGODB_URI is not set'],
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const events = await DeploymentEvent.find({ deploymentId: deployment._id }).lean();
+    assert.ok(events.some((e) => e.messageRedacted === '[app] Error: MONGODB_URI is not set'));
   });
 
   it('applies payload resource limits to the started container', async () => {

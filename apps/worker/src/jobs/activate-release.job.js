@@ -6,6 +6,7 @@ import {
   ensureNetwork,
   startContainer,
   inspectContainer,
+  getContainerLogs,
   stopAndRemoveContainer,
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
@@ -26,6 +27,7 @@ const defaultDeps = {
   ensureNetwork,
   startContainer,
   inspectContainer,
+  getContainerLogs,
   stopAndRemoveContainer,
   httpHealthCheck,
   removeDockerImage,
