@@ -255,9 +255,17 @@
     </h3>
 
     <% if (!domain.tunnelId) { %>
-    <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
-      this address; the record you need will appear here once it is ready. If the address already
-      opens your app, use Check routing to confirm it.</p>
+    <p class="text-sm"><strong>What happens next</strong></p>
+    <ol class="domain-routing-steps text-sm">
+      <li>Ownership is verified. An administrator is preparing the connection for this address in
+        the Cloudflare account that manages it. You don't need to do anything yet; the record you
+        need will appear here once it is ready.</li>
+      <li>Meanwhile, look at your DNS records. If
+        <code class="code-inline"><%= domain.hostnameNormalized %></code> already has A, AAAA or
+        CNAME records (for example from your registrar's parking page), you will replace them in
+        the next step. Don't delete them yet, or your address stops working sooner than it needs to.</li>
+      <li>If the address already opens your app, use Check routing to confirm it.</li>
+    </ol>
     <% } else { %>
     <div class="dns-record" data-dns-record>
       <div class="dns-record__row dns-record__row--plain">
@@ -295,6 +303,55 @@
     <p class="form-hint">Some providers ask only for the part before your domain, and write
       <code class="code-inline">@</code> for the domain itself. The finished record must apply to
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
+    <p class="text-sm mt-4"><strong>How to add it</strong></p>
+    <p class="text-sm">DNS records are signposts that tell browsers where your website lives. Right
+      now the signpost for <code class="code-inline"><%= domain.hostnameNormalized %></code> points
+      to your old host. You will swap it for the one above. Do this in Cloudflare
+      (<a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer">dash.cloudflare.com</a>),
+      the same place you added the TXT record in step 2.</p>
+    <div class="table-wrapper table-responsive table-responsive--flush mt-2">
+    <table class="table table--responsive text-sm">
+      <caption class="sr-only">DNS records for <%= domain.hostnameNormalized %> before and after</caption>
+      <thead>
+        <tr><th scope="col"><span class="sr-only">Change</span></th><th scope="col">Type</th><th scope="col">Name</th><th scope="col">Content / Target</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <th scope="row">Remove</th>
+          <td data-label="Type">A, AAAA or CNAME</td>
+          <td data-label="Name"><code class="code-inline"><%= domain.hostnameNormalized %></code></td>
+          <td data-label="Content / Target">Your old host, often numbers like <code class="code-inline">15.197.148.33</code></td>
+        </tr>
+        <tr>
+          <th scope="row">Add</th>
+          <td data-label="Type">CNAME</td>
+          <td data-label="Name"><code class="code-inline">@</code></td>
+          <td data-label="Content / Target"><code class="code-inline"><%= domain.tunnelId %>.cfargotunnel.com</code></td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+    <ol class="domain-routing-steps text-sm">
+      <li>Sign in to Cloudflare and select the domain
+        <strong><%= domain.hostnameNormalized %></strong>.</li>
+      <li>In the left menu, open <strong>DNS</strong> → <strong>Records</strong>. You will see a table
+        with the columns Type, Name, Content and Proxy status.</li>
+      <li>Find each row whose <strong>Type</strong> is A, AAAA or CNAME and whose <strong>Name</strong>
+        is exactly <code class="code-inline"><%= domain.hostnameNormalized %></code>. Usually there are
+        one or two, with numbers in Content. For each one, select <strong>Edit</strong>, then
+        <strong>Delete</strong>, and confirm.</li>
+      <li>Don't touch any other rows: names starting with an underscore (like
+        <code class="code-inline">_hellodeploy-verify</code> or <code class="code-inline">_dmarc</code>),
+        <code class="code-inline">www</code>, and MX or TXT records. Your email keeps working.</li>
+      <li>Select <strong>Add record</strong>. Set Type to <strong>CNAME</strong>, Name to
+        <code class="code-inline">@</code>, and paste the Target with the Copy button above. Leave
+        Proxy status on (orange cloud) and TTL on Auto, then select <strong>Save</strong>.</li>
+      <li>Come back here, wait 1–5 minutes, and select <strong>Check routing</strong>. If something
+        is still wrong, the message will say what.</li>
+    </ol>
+    <p class="form-hint">Do the delete and add steps together: your address is offline in between.</p>
+    <p class="form-hint"><code class="code-inline">www.<%= domain.hostnameNormalized %></code> is
+      not connected by this record. Ask support if you need it too.</p>
     <% } %>
 
     <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>
@@ -308,7 +365,7 @@
       </form>
       <% } %>
       <% if (domain.routingDetail) { %>
-      <span class="form-error text-sm" role="status"><%= domain.routingDetail %></span>
+      <span class="<%= domain.tunnelId ? 'form-error' : 'text-muted' %> text-sm" role="status"><%= domain.routingDetail %></span>
       <% } else { %>
       <span class="text-muted text-sm">Not checked yet.</span>
       <% } %>

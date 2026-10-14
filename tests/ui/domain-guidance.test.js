@@ -199,6 +199,39 @@ describe('routing record guidance', () => {
     assert.match(html, /administrator is preparing the connection/);
   });
 
+  it('tells a waiting owner to keep existing records until the CNAME is ready', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain] });
+    assert.match(html, /Don't delete them yet/);
+  });
+
+  it('shows which record to remove and which to add', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(
+      html,
+      /<th scope="row">Remove<\/th>[\s\S]*?<th scope="row">Add<\/th>[\s\S]*?cfargotunnel\.com/,
+    );
+  });
+
+  it('walks the owner through deleting the old records by name', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(
+      html,
+      /is exactly <code class="code-inline">hellorun\.online<\/code>[\s\S]*?<strong>Delete<\/strong>/,
+    );
+  });
+
+  it('reassures the owner that email records stay untouched', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(html, /Your email keeps working/);
+  });
+
+  it('shows an expected waiting result without error styling', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, routingDetail: 'Not connected yet, and that is expected.' }],
+    });
+    assert.match(html, /<span class="text-muted text-sm" role="status">Not connected yet/);
+  });
+
   it('stops calling a routed domain connected before routing is confirmed', async () => {
     const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
     assert.match(html, /Add the CNAME record above so visitors reach it/);
@@ -218,11 +251,12 @@ describe('routing record guidance', () => {
           ...verifiedDomain,
           tunnelId,
           routingState: 'TUNNEL_DOWN',
-          routingDetail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+          routingDetail:
+            "Your domain points to HelloDeploy, but the connection for it isn't running yet. (HTTP 530)",
         },
       ],
     });
-    assert.match(html, /no tunnel connector for this hostname/);
+    assert.match(html, /the connection for it isn&#39;t running yet/);
   });
 
   it('offers a routing check for an active domain with no recorded tunnel', async () => {
