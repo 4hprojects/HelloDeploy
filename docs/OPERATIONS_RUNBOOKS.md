@@ -233,6 +233,25 @@ status, attempt count, and lifecycle timestamps. A database status proves local
 processing or provider acknowledgement only; inbox delivery and live webhook receipt
 remain external release gates.
 
+## Admin-free custom domains (Cloudflare for SaaS)
+
+One-time setup that lets owners connect a custom domain themselves: they point one CNAME at `customers.hellodeploy.online` from any DNS provider, and no per-domain tunnel is needed. Design: `docs/design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md`. Until all three environment variables below are set, the old tunnel flow stays in place.
+
+1. **Enable custom hostnames.** In the Cloudflare dashboard, open the `hellodeploy.online` zone → **SSL/TLS** → **Custom Hostnames** and enable Cloudflare for SaaS. The first 100 hostnames are free; Cloudflare may ask for a payment method on file.
+2. **Create the fallback origin.** In the same zone, under **DNS** → **Records**, add a proxied `CNAME customers → d2fae729-9a0c-4c3b-a2c5-6ebaca6de6d0.cfargotunnel.com` (the platform tunnel). Back in **Custom Hostnames**, set **Fallback Origin** to `customers.hellodeploy.online` and wait for it to show Active.
+3. **Let the platform tunnel pass custom hostnames to nginx.** The platform tunnel runs two connectors with separate configs, `/etc/cloudflared/config.yml` (`cloudflared.service`) and `/etc/cloudflared/hellodeploy.yml` (`cloudflared-hellodeploy.service`), and Cloudflare spreads requests across both. In **both** files, change the last ingress rule from `- service: http_status:404` to `- service: http://localhost:80`, then run `sudo systemctl restart cloudflared cloudflared-hellodeploy`. nginx answers unknown hostnames with its default server, and HelloDeploy writes a server block for each connected domain.
+4. **Create an API token.** Under **My Profile** → **API Tokens** → **Create Token** → **Custom token**, grant **Zone · SSL and Certificates · Edit** on the `hellodeploy.online` zone only. Copy the zone id from the zone's Overview page.
+5. **Configure HelloDeploy.** Add to `/opt/hellodeploy/.env`:
+   ```
+   CLOUDFLARE_API_TOKEN=<token>
+   CLOUDFLARE_ZONE_ID=<zone id>
+   CUSTOM_HOSTNAME_TARGET=customers.hellodeploy.online
+   ```
+   Then restart the web service: `sudo systemctl restart hellodeploy-web`. Setting only some of the three variables fails startup on purpose.
+6. **Check it.** On a verified domain's page, **Get my DNS record** appears. After the owner swaps their records, **Check routing** reaches Live. Admin → Domains shows "Connected automatically" for such domains.
+
+Domains connected with a tunnel before this change keep working. Migrate them one at a time: register the hostname (Get my DNS record), switch the owner's CNAME to `customers.hellodeploy.online`, confirm Live, then retire the per-domain connector.
+
 ## Backup
 
 Back up these assets before upgrades and after major configuration changes:

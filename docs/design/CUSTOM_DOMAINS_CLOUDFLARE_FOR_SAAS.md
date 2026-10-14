@@ -1,6 +1,6 @@
 # Custom Domains Without Admin Tunnels (Cloudflare for SaaS)
 
-**Status:** proposal, for review before any build. **Written:** 2026-10-14.
+**Status:** built behind configuration (2026-10-14); enable with the runbook in `docs/OPERATIONS_RUNBOOKS.md`. Registration runs in the web app when the owner selects **Get my DNS record** or **Check routing**, not in the worker's verification job. **Written:** 2026-10-14.
 
 ## Problem
 

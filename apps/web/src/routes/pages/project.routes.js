@@ -61,6 +61,7 @@ import {
   postRemoveDomain,
   getDomainStatuses,
   postCheckDomainRouting,
+  postConnectDomain,
 } from '../../controllers/domain.controller.js';
 import {
   getDeploymentList,
@@ -348,6 +349,13 @@ router.post(
   requireAuth,
   ownerOnly,
   postCheckDomainRouting,
+);
+router.post(
+  '/:slug/domains/:domainId/connect',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postConnectDomain,
 );
 router.post(
   '/:slug/domains/:domainId/remove',

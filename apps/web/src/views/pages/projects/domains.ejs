@@ -18,7 +18,7 @@
   const pendingWithoutToken = pendingDomains.filter(domain =>
     domain.status === 'PENDING_VERIFICATION' &&
     (!verificationToken || domain.hostnameNormalized !== pendingHostname));
-  const routableDomains = domains.filter(domain => domain.tunnelId);
+  const routableDomains = domains.filter(domain => domain.routingTarget);
   const liveDomains = domains.filter(domain => domain.routingState === 'LIVE');
   const routingSetupDomains = verifiedDomains.filter(domain => domain.routingState !== 'LIVE');
   const dnsRecordName = pendingHostname ? `_hellodeploy-verify.${pendingHostname}` : '';
@@ -254,7 +254,19 @@
       <code class="code-inline"><%= domain.hostnameNormalized %></code>
     </h3>
 
-    <% if (!domain.tunnelId) { %>
+    <% if (!domain.routingTarget && locals.customHostnamesEnabled) { %>
+    <p class="text-sm">Ownership is verified. Next, HelloDeploy prepares the one DNS record that
+      sends visitors to your app. It takes a few seconds.</p>
+    <% if (membership.role === 'OWNER') { %>
+    <form method="POST" action="/projects/<%= project.slug %>/domains/<%= domain._id %>/connect">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--primary button--sm"
+        data-pending-label="Preparing...">Get my DNS record</button>
+    </form>
+    <% } else { %>
+    <p class="form-hint">The project owner can get the DNS record here.</p>
+    <% } %>
+    <% } else if (!domain.routingTarget) { %>
     <p class="text-sm"><strong>What happens next</strong></p>
     <ol class="domain-routing-steps text-sm">
       <li>Ownership is verified. An administrator is preparing the connection for this address in
@@ -283,9 +295,9 @@
       </div>
       <div class="dns-record__row">
         <span class="dns-record__label">Target / Content</span>
-        <code class="dns-record__value"><%= domain.tunnelId %>.cfargotunnel.com</code>
+        <code class="dns-record__value"><%= domain.routingTarget %></code>
         <button type="button" class="button button--secondary button--sm dns-copy-button"
-          data-copy-value="<%= domain.tunnelId %>.cfargotunnel.com"
+          data-copy-value="<%= domain.routingTarget %>"
           data-copy-label="CNAME record target">
           <%- include('../../partials/icon', { name: 'copy' }) %>
           <span>Copy</span>
@@ -293,7 +305,7 @@
       </div>
       <div class="dns-record__row dns-record__row--plain">
         <span class="dns-record__label">Proxy</span>
-        <code class="dns-record__value">Proxied (orange cloud)</code>
+        <code class="dns-record__value">Proxied (orange cloud), if your DNS is on Cloudflare</code>
       </div>
       <div class="dns-record__row dns-record__row--plain">
         <span class="dns-record__label">TTL</span>
@@ -306,9 +318,16 @@
     <p class="text-sm mt-4"><strong>How to add it</strong></p>
     <p class="text-sm">DNS records are signposts that tell browsers where your website lives. Right
       now the signpost for <code class="code-inline"><%= domain.hostnameNormalized %></code> points
-      to your old host. You will swap it for the one above. Do this in Cloudflare
+      to your old host. You will swap it for the one above.
+      <% if (domain.cfCustomHostnameId) { %>
+      Do this where your domain's DNS is managed: the same place you added the TXT record in
+      step 2. That is often the company you bought the domain from (GoDaddy, Namecheap,
+      Hostinger…), or Cloudflare if you moved the domain there.
+      <% } else { %>
+      Do this in Cloudflare
       (<a href="https://dash.cloudflare.com" target="_blank" rel="noopener noreferrer">dash.cloudflare.com</a>),
-      the same place you added the TXT record in step 2.</p>
+      the same place you added the TXT record in step 2.
+      <% } %></p>
     <div class="table-wrapper table-responsive table-responsive--flush mt-2">
     <table class="table table--responsive text-sm">
       <caption class="sr-only">DNS records for <%= domain.hostnameNormalized %> before and after</caption>
@@ -326,35 +345,73 @@
           <th scope="row">Add</th>
           <td data-label="Type">CNAME</td>
           <td data-label="Name"><code class="code-inline">@</code></td>
-          <td data-label="Content / Target"><code class="code-inline"><%= domain.tunnelId %>.cfargotunnel.com</code></td>
+          <td data-label="Content / Target"><code class="code-inline"><%= domain.routingTarget %></code></td>
         </tr>
       </tbody>
     </table>
     </div>
     <ol class="domain-routing-steps text-sm">
-      <li>Sign in to Cloudflare and select the domain
-        <strong><%= domain.hostnameNormalized %></strong>.</li>
-      <li>In the left menu, open <strong>DNS</strong> → <strong>Records</strong>. You will see a table
-        with the columns Type, Name, Content and Proxy status.</li>
-      <li>Find each row whose <strong>Type</strong> is A, AAAA or CNAME and whose <strong>Name</strong>
-        is exactly <code class="code-inline"><%= domain.hostnameNormalized %></code>. Usually there are
-        one or two, with numbers in Content. For each one, select <strong>Edit</strong>, then
-        <strong>Delete</strong>, and confirm.</li>
-      <li>Don't touch any other rows: names starting with an underscore (like
+      <li>Sign in where your DNS is managed and open the DNS settings for
+        <strong><%= domain.hostnameNormalized %></strong>. Providers call it "DNS", "DNS records",
+        "Manage DNS" or "Zone editor". In Cloudflare: select the domain, then <strong>DNS</strong> →
+        <strong>Records</strong>. You will see a list with a Type, a Name (or Host) and a Content
+        (or Value, or Points to) for each record.</li>
+      <li>Find each record whose <strong>Type</strong> is A, AAAA or CNAME and whose
+        <strong>Name</strong> is exactly <code class="code-inline"><%= domain.hostnameNormalized %></code>.
+        Some providers show it as <code class="code-inline">@</code>. Usually there are one or two,
+        with numbers as their value. <strong>Delete</strong> each one.</li>
+      <li>Don't touch any other records: names starting with an underscore (like
         <code class="code-inline">_hellodeploy-verify</code> or <code class="code-inline">_dmarc</code>),
         <code class="code-inline">www</code>, and MX or TXT records. Your email keeps working.</li>
-      <li>Select <strong>Add record</strong>. Set Type to <strong>CNAME</strong>, Name to
-        <code class="code-inline">@</code>, and paste the Target with the Copy button above. Leave
-        Proxy status on (orange cloud) and TTL on Auto, then select <strong>Save</strong>.</li>
+      <li>Add a new record: Type <strong>CNAME</strong>, Name <code class="code-inline">@</code>, and
+        paste the target with the Copy button above as its value. In Cloudflare, leave Proxy status
+        on (orange cloud). Leave TTL on automatic, then save.</li>
       <li>Come back here, wait 1–5 minutes, and select <strong>Check routing</strong>. If something
         is still wrong, the message will say what.</li>
     </ol>
+    <% if (domain.cfCustomHostnameId) { %>
+    <p class="form-hint">If your provider won't accept a CNAME for <code class="code-inline">@</code>
+      (the domain itself), look for an ALIAS, ANAME or "CNAME flattening" option, or ask their
+      support to point <code class="code-inline"><%= domain.hostnameNormalized %></code> at
+      <code class="code-inline"><%= domain.routingTarget %></code>.</p>
+    <% } %>
+    <% if ((domain.cfValidationRecords || []).length) { %>
+    <p class="text-sm mt-4"><strong>If the check says your certificate is still pending</strong></p>
+    <p class="form-hint">Cloudflare may also ask for this record to confirm the address. Add it the
+      same way, then check routing again.</p>
+    <% domain.cfValidationRecords.forEach(function (record) { %>
+    <div class="dns-record">
+      <div class="dns-record__row dns-record__row--plain">
+        <span class="dns-record__label">Type</span>
+        <code class="dns-record__value"><%= record.type %></code>
+      </div>
+      <div class="dns-record__row">
+        <span class="dns-record__label">Name</span>
+        <code class="dns-record__value"><%= record.name %></code>
+        <button type="button" class="button button--secondary button--sm dns-copy-button"
+          data-copy-value="<%= record.name %>" data-copy-label="Validation record name">
+          <%- include('../../partials/icon', { name: 'copy' }) %>
+          <span>Copy</span>
+        </button>
+      </div>
+      <div class="dns-record__row">
+        <span class="dns-record__label">Value</span>
+        <code class="dns-record__value"><%= record.value %></code>
+        <button type="button" class="button button--secondary button--sm dns-copy-button"
+          data-copy-value="<%= record.value %>" data-copy-label="Validation record value">
+          <%- include('../../partials/icon', { name: 'copy' }) %>
+          <span>Copy</span>
+        </button>
+      </div>
+    </div>
+    <% }); %>
+    <% } %>
     <p class="form-hint">Do the delete and add steps together: your address is offline in between.</p>
     <p class="form-hint"><code class="code-inline">www.<%= domain.hostnameNormalized %></code> is
       not connected by this record. Ask support if you need it too.</p>
     <% } %>
 
-    <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>
+    <% if (domain.routingTarget || domain.status === 'ACTIVE') { %>
     <div class="domain-routing-record__actions">
       <% if (membership.role === 'OWNER') { %>
       <form method="POST"
@@ -365,7 +422,7 @@
       </form>
       <% } %>
       <% if (domain.routingDetail) { %>
-      <span class="<%= domain.tunnelId ? 'form-error' : 'text-muted' %> text-sm" role="status"><%= domain.routingDetail %></span>
+      <span class="<%= domain.routingTarget ? 'form-error' : 'text-muted' %> text-sm" role="status"><%= domain.routingDetail %></span>
       <% } else { %>
       <span class="text-muted text-sm">Not checked yet.</span>
       <% } %>
@@ -402,7 +459,7 @@
         <tr>
           <td data-label="Domain">
             <code class="code-inline domain-hostname"><%= domain.hostnameNormalized %></code>
-            <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>
+            <% if (domain.routingTarget || domain.status === 'ACTIVE') { %>
             <a href="https://<%= domain.hostnameNormalized %>" class="table-link text-xs ml-2"
               target="_blank" rel="noopener"
               aria-label="Open <%= domain.hostnameNormalized %> in a new tab"
@@ -425,8 +482,10 @@
               <% } else if (domain.status === 'ACTIVE') { %>
                 <% if (domain.routingState === 'LIVE') { %>
                   Live — visitors reach your app.
-                <% } else if (domain.tunnelId) { %>
+                <% } else if (domain.routingTarget) { %>
                   Routing is ready here. Add the CNAME record above so visitors reach it.
+                <% } else if (locals.customHostnamesEnabled) { %>
+                  Routing is ready here. Get your DNS record above.
                 <% } else { %>
                   Routing is ready here. An administrator is preparing the connection.
                 <% } %>

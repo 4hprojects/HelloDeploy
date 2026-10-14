@@ -36,6 +36,15 @@ const domainSchema = new Schema(
     // after `cloudflared tunnel create`; the owner points a CNAME at
     // <tunnelId>.cfargotunnel.com.
     tunnelId: { type: String, default: null, maxlength: 100 },
+    // Cloudflare for SaaS custom hostname on the platform zone. When set, the
+    // owner points a CNAME at CUSTOM_HOSTNAME_TARGET and no tunnel is needed.
+    cfCustomHostnameId: { type: String, default: null, maxlength: 100 },
+    cfHostnameStatus: { type: String, default: null, maxlength: 50 },
+    cfSslStatus: { type: String, default: null, maxlength: 50 },
+    cfValidationRecords: {
+      type: [{ _id: false, type: { type: String }, name: String, value: String }],
+      default: [],
+    },
     // Result of the last end-to-end reachability probe. Nginx routing being
     // ACTIVE says nothing about whether public DNS reaches this platform.
     routingState: {
@@ -44,7 +53,7 @@ const domainSchema = new Schema(
       default: DomainRoutingState.UNKNOWN,
     },
     routingCheckedAt: { type: Date, default: null },
-    routingDetail: { type: String, default: null, maxlength: 200 },
+    routingDetail: { type: String, default: null, maxlength: 500 },
     // Admin who approved the domain
     approvedBy: { type: Schema.Types.ObjectId, ref: 'User', default: null },
     approvedAt: { type: Date, default: null },
