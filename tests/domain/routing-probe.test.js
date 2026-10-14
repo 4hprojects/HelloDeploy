@@ -51,4 +51,17 @@ describe('classifyRoutingProbe', () => {
     const { state } = classifyRoutingProbe({ status: 530, routeHeader: null }, HOSTNAME);
     assert.notEqual(state, 'FOREIGN');
   });
+
+  it('tells the owner to replace old records when Cloudflare reaches another origin', () => {
+    const { detail } = classifyRoutingProbe({ status: 525 }, 'hellorun.online');
+    assert.match(
+      detail,
+      /Replace them with the CNAME record shown above\. \(Cloudflare HTTP 525\)/,
+    );
+  });
+
+  it('tells the owner to remove old records when another server answers', () => {
+    const { detail } = classifyRoutingProbe({ status: 200, routeHeader: null }, 'hellorun.online');
+    assert.match(detail, /Remove the old A or CNAME records for this name/);
+  });
 });

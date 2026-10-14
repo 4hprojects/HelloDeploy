@@ -808,7 +808,7 @@ export function classifyRoutingProbe(observed, hostname) {
   if (observed.error) {
     return {
       state: DomainRoutingState.NOT_POINTED,
-      detail: `Could not reach ${hostname}: ${observed.error}`,
+      detail: `We couldn't reach ${hostname} at all. Check that its DNS records exist and have finished updating, which can take a few minutes. (${observed.error})`,
     };
   }
 
@@ -818,13 +818,14 @@ export function classifyRoutingProbe(observed, hostname) {
   if (observed.status === 530) {
     return {
       state: DomainRoutingState.TUNNEL_DOWN,
-      detail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+      detail:
+        "Your domain points to HelloDeploy, but the connection for it isn't running yet. If you just added the record, wait a few minutes and check again; otherwise contact support. (HTTP 530)",
     };
   }
   if (observed.status >= 521 && observed.status <= 526) {
     return {
       state: DomainRoutingState.NOT_POINTED,
-      detail: `Cloudflare could not reach an origin for this hostname (HTTP ${observed.status}).`,
+      detail: `Your domain still sends visitors to another server, usually old A or CNAME records for this name at your DNS provider. Replace them with the CNAME record shown above. (Cloudflare HTTP ${observed.status})`,
     };
   }
 
@@ -835,8 +836,8 @@ export function classifyRoutingProbe(observed, hostname) {
   return {
     state: DomainRoutingState.FOREIGN,
     detail: observed.routeHeader
-      ? `Another HelloDeploy route answered: ${observed.routeHeader}.`
-      : `A server answered (HTTP ${observed.status}) but it is not this platform.`,
+      ? `This address is connected to a different HelloDeploy site (${observed.routeHeader}). Check that the CNAME record uses the target shown above.`
+      : `Another server answered for ${hostname} instead of HelloDeploy. Remove the old A or CNAME records for this name and add the CNAME record shown above. (HTTP ${observed.status})`,
   };
 }
 

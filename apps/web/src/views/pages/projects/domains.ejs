@@ -255,9 +255,17 @@
     </h3>
 
     <% if (!domain.tunnelId) { %>
-    <p class="form-hint">Ownership is verified. An administrator is preparing the connection for
-      this address; the record you need will appear here once it is ready. If the address already
-      opens your app, use Check routing to confirm it.</p>
+    <p class="text-sm"><strong>What happens next</strong></p>
+    <ol class="domain-routing-steps text-sm">
+      <li>Ownership is verified. An administrator is preparing the connection for this address in
+        the Cloudflare account that manages it. You don't need to do anything yet; the record you
+        need will appear here once it is ready.</li>
+      <li>Meanwhile, look at your DNS records. If
+        <code class="code-inline"><%= domain.hostnameNormalized %></code> already has A, AAAA or
+        CNAME records (for example from your registrar's parking page), you will replace them in
+        the next step. Don't delete them yet, or your address stops working sooner than it needs to.</li>
+      <li>If the address already opens your app, use Check routing to confirm it.</li>
+    </ol>
     <% } else { %>
     <div class="dns-record" data-dns-record>
       <div class="dns-record__row dns-record__row--plain">
@@ -295,6 +303,20 @@
     <p class="form-hint">Some providers ask only for the part before your domain, and write
       <code class="code-inline">@</code> for the domain itself. The finished record must apply to
       <code class="code-inline"><%= domain.hostnameNormalized %></code>.</p>
+    <p class="text-sm mt-4"><strong>How to add it</strong></p>
+    <ol class="domain-routing-steps text-sm">
+      <li>Open the DNS records for your domain. In Cloudflare: select the domain, then
+        <strong>DNS</strong> → <strong>Records</strong>.</li>
+      <li><strong>Delete</strong> every A, AAAA or CNAME record named exactly
+        <code class="code-inline"><%= domain.hostnameNormalized %></code>. They send visitors to your
+        old host. Leave other records alone, such as <code class="code-inline">_hellodeploy-verify</code>,
+        <code class="code-inline">_dmarc</code>, email (MX) and other TXT records.</li>
+      <li>Select <strong>Add record</strong> and enter the CNAME record above. Set proxy status to
+        <strong>Proxied</strong> (orange cloud) and save.</li>
+      <li>Wait 1–5 minutes, then select <strong>Check routing</strong> below.</li>
+    </ol>
+    <p class="form-hint"><code class="code-inline">www.<%= domain.hostnameNormalized %></code> is
+      not connected by this record. Ask support if you need it too.</p>
     <% } %>
 
     <% if (domain.tunnelId || domain.status === 'ACTIVE') { %>

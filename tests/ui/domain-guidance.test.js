@@ -199,6 +199,19 @@ describe('routing record guidance', () => {
     assert.match(html, /administrator is preparing the connection/);
   });
 
+  it('tells a waiting owner to keep existing records until the CNAME is ready', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain] });
+    assert.match(html, /Don't delete them yet/);
+  });
+
+  it('tells the owner to delete the old records for the name before adding the CNAME', async () => {
+    const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
+    assert.match(
+      html,
+      /<strong>Delete<\/strong> every A, AAAA or CNAME record named exactly\s+<code class="code-inline">hellorun\.online<\/code>/,
+    );
+  });
+
   it('stops calling a routed domain connected before routing is confirmed', async () => {
     const html = await renderDomains({ domains: [{ ...verifiedDomain, tunnelId }] });
     assert.match(html, /Add the CNAME record above so visitors reach it/);
@@ -218,11 +231,12 @@ describe('routing record guidance', () => {
           ...verifiedDomain,
           tunnelId,
           routingState: 'TUNNEL_DOWN',
-          routingDetail: 'Cloudflare reached no tunnel connector for this hostname (HTTP 530).',
+          routingDetail:
+            "Your domain points to HelloDeploy, but the connection for it isn't running yet. (HTTP 530)",
         },
       ],
     });
-    assert.match(html, /no tunnel connector for this hostname/);
+    assert.match(html, /the connection for it isn&#39;t running yet/);
   });
 
   it('offers a routing check for an active domain with no recorded tunnel', async () => {

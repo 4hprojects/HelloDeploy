@@ -253,8 +253,10 @@ Each project can request one custom domain by default.
 5. Add the TXT record with the provider that manages the domain's nameservers. For example, use Cloudflare when the nameservers are Cloudflare even if the domain was purchased from GoDaddy.
 6. Wait for DNS propagation, then select **Check DNS record**.
 7. HelloDeploy verifies ownership and prepares routing automatically when the project has a healthy active deployment.
-8. Add the **CNAME record** shown under "Send your visitors to HelloDeploy". The TXT record only proves that the address is yours; this second record is what actually sends visitors to your app. It appears once an administrator has prepared the connection for your address.
-9. Select **Check routing**. The page confirms the domain is live, or explains what is still wrong — DNS not pointing here yet, a disconnected connector, or another server answering for the address.
+8. Wait for the **CNAME record** to appear under "Send your visitors to HelloDeploy". The TXT record only proves that the address is yours; this second record is what actually sends visitors to your app. It appears once an administrator has prepared the connection in the Cloudflare account that manages your domain. Until then, leave your existing records in place.
+9. Open your domain's DNS records (in Cloudflare: select the domain, then **DNS** → **Records**) and **delete every A, AAAA or CNAME record named exactly your domain**. These usually point at your registrar's parking page or your old host, and while they exist visitors are sent there instead. Keep the `_hellodeploy-verify` TXT record, email (MX) records and other TXT records.
+10. **Add** the CNAME record shown on the page: name `@` (or the part before your domain), the target ending in `.cfargotunnel.com`, proxy status **Proxied** (orange cloud), TTL Auto.
+11. Wait 1–5 minutes, then select **Check routing**. The page confirms the domain is live, or explains in plain words what is still wrong: old records still sending visitors elsewhere, the connection not running yet, or another server answering for the address.
 
 A domain can show as connected inside HelloDeploy while the address still does not open for visitors. That means routing exists here but the CNAME record is missing or points elsewhere; **Check routing** distinguishes the two.
 
