@@ -164,4 +164,10 @@ describe('quota caps — custom domains', () => {
     const result = await addDomain(project._id, 'two.example.com', objectId());
     assert.equal(result.code, ApiError.QUOTA_EXCEEDED);
   });
+
+  it('reports the project limit when refusing a domain', async () => {
+    const project = await createProject();
+    await claimDomain(project._id, 'one.example.com');
+    assert.equal((await checkDomainQuota(project))?.limit, 1);
+  });
 });

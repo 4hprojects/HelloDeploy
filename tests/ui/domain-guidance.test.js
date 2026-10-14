@@ -52,6 +52,8 @@ function renderDomains(overrides = {}) {
     customHostnamesEnabled: overrides.customHostnamesEnabled ?? false,
     verificationToken: overrides.verificationToken ?? null,
     pendingHostname: overrides.pendingHostname ?? null,
+    domainLimit: overrides.domainLimit ?? null,
+    platformAppUrl: overrides.platformAppUrl ?? 'https://hellorun-e783.hellodeploy.online',
     csrfToken: 'test-token',
     statusPresentation: overrides.statusPresentation,
   });
@@ -380,5 +382,55 @@ describe('admin-free custom domain connection', () => {
       customHostnamesEnabled: true,
     });
     assert.match(html, /data-copy-value="_cf-custom-hostname\.helloeventhub\.online"/);
+  });
+});
+
+describe('after a domain goes live', () => {
+  const liveDomain = {
+    _id: '64b7f8e2a1c9d4f5b6a7c8dc',
+    hostnameNormalized: 'helloeventhub.online',
+    status: 'ACTIVE',
+    routingState: 'LIVE',
+    cfCustomHostnameId: 'cf-1',
+    createdAt: new Date('2026-10-14T00:00:00.000Z'),
+    updatedAt: new Date('2026-10-14T00:00:00.000Z'),
+  };
+
+  it('links to the live site in a new tab', async () => {
+    const html = await renderDomains({ domains: [liveDomain] });
+    assert.match(
+      html,
+      /href="https:\/\/helloeventhub\.online"\s+target="_blank" rel="noopener noreferrer">\s+Open your site/,
+    );
+  });
+
+  it('explains how to make www reach the app', async () => {
+    const html = await renderDomains({ domains: [liveDomain] });
+    assert.match(html, /template <strong>Redirect from WWW to root<\/strong>/);
+  });
+
+  it('tells the owner which record must stay in place', async () => {
+    const html = await renderDomains({ domains: [liveDomain] });
+    assert.match(html, /Leave the CNAME[\s\S]*?customers\.hellodeploy\.online<\/code>\s+in place/);
+  });
+
+  it('points to the HelloDeploy address as a backup', async () => {
+    const html = await renderDomains({ domains: [liveDomain] });
+    assert.match(html, />hellorun-e783\.hellodeploy\.online<\/a>/);
+  });
+
+  it('shows no live panel before the domain is live', async () => {
+    const html = await renderDomains({ domains: [{ ...liveDomain, routingState: 'UNKNOWN' }] });
+    assert.doesNotMatch(html, /Open your site/);
+  });
+
+  it('replaces the add form with the limit once the project is full', async () => {
+    const html = await renderDomains({ domains: [liveDomain], domainLimit: 1 });
+    assert.match(html, /This project includes 1 custom domain\./);
+  });
+
+  it('hides the add form once the project is full', async () => {
+    const html = await renderDomains({ domains: [liveDomain], domainLimit: 1 });
+    assert.doesNotMatch(html, /name="hostname"/);
   });
 });

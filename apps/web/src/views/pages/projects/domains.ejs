@@ -209,12 +209,70 @@
 </section>
 <% } %>
 
+<% liveDomains.forEach(function (domain) { %>
+<section class="domain-setup-panel" aria-labelledby="live-title-<%= domain._id %>">
+  <p class="domain-setup-panel__eyebrow">Live</p>
+  <h2 id="live-title-<%= domain._id %>"><code class="code-inline"><%= domain.hostnameNormalized %></code> is live</h2>
+  <p>Visitors who go to your address now reach your app.</p>
+  <div class="button-group mt-3">
+    <a class="button button--primary button--sm" href="https://<%= domain.hostnameNormalized %>"
+      target="_blank" rel="noopener noreferrer">
+      Open your site <%- include('../../partials/icon', { name: 'external' }) %><span class="sr-only"> (opens in a new tab)</span>
+    </a>
+    <button type="button" class="button button--secondary button--sm dns-copy-button"
+      data-copy-value="https://<%= domain.hostnameNormalized %>" data-copy-label="Site address">
+      <%- include('../../partials/icon', { name: 'copy' }) %>
+      <span>Copy address</span>
+    </button>
+  </div>
+
+  <p class="text-sm mt-4"><strong>What's next</strong></p>
+  <ol class="domain-routing-steps text-sm">
+    <li><strong>Make www work too.</strong>
+      <code class="code-inline">www.<%= domain.hostnameNormalized %></code> doesn't open your app
+      yet. Redirect it to your main address where your DNS is managed. In Cloudflare:
+      <strong>Rules</strong> → <strong>Redirect Rules</strong> → <strong>Create rule</strong> →
+      template <strong>Redirect from WWW to root</strong>, then deploy it. Other providers call
+      this domain forwarding or a URL redirect: forward
+      <code class="code-inline">www.<%= domain.hostnameNormalized %></code> to
+      <code class="code-inline">https://<%= domain.hostnameNormalized %></code>.</li>
+    <% if (domain.routingTarget) { %>
+    <li><strong>Keep your DNS records.</strong> Leave the CNAME
+      <code class="code-inline">@</code> → <code class="code-inline"><%= domain.routingTarget %></code>
+      in place: deleting or changing it takes your address offline. Records starting with
+      <code class="code-inline">_hellodeploy-verify</code> and
+      <code class="code-inline">_cf-custom-hostname</code> can stay too.</li>
+    <% } %>
+    <% if (locals.platformAppUrl) { %>
+    <li><strong>Your HelloDeploy address still works.</strong>
+      <a href="<%= platformAppUrl %>" target="_blank" rel="noopener noreferrer"><%= platformAppUrl.replace(/^https:\/\//, '') %></a>
+      keeps serving the same app, which is handy as a backup link.</li>
+    <% } %>
+    <li><strong>If it ever stops working,</strong> select <strong>Check routing</strong>. The
+      message will say what changed.</li>
+  </ol>
+  <% if (membership.role === 'OWNER') { %>
+  <form method="POST" action="/projects/<%= project.slug %>/domains/<%= domain._id %>/routing-check">
+    <%- include('../../partials/csrf-field') %>
+    <button type="submit" class="button button--secondary button--sm"
+      data-pending-label="Checking...">Check routing</button>
+  </form>
+  <% } %>
+</section>
+<% }); %>
+
 <% if (membership.role === 'OWNER') { %>
 <section class="domain-page-section" aria-labelledby="add-domain-title">
   <header class="domain-page-section__header">
     <h2 id="add-domain-title"><%= domains.length ? 'Add another domain' : 'Add your domain' %></h2>
+    <% if (!locals.domainLimit) { %>
     <p>Enter the complete address, such as <code class="code-inline">app.yourdomain.com</code> or <code class="code-inline">yourdomain.com</code>.</p>
+    <% } %>
   </header>
+  <% if (locals.domainLimit) { %>
+  <p class="text-sm">This project includes <%= domainLimit %> custom domain<%= domainLimit === 1 ? '' : 's' %>.
+    Remove a domain to add a different one. Need more? <a href="/premium">See Premium</a>.</p>
+  <% } else { %>
   <% const domainFormErrors = locals.errors || {}; %>
   <% const domainFormValues = locals.values || {}; %>
   <%- include('../../partials/form-errors', { errors: domainFormErrors }) %>
@@ -237,6 +295,7 @@
     <button type="submit" class="button button--primary"
       data-pending-label="Adding...">Add domain</button>
   </form>
+  <% } %>
 </section>
 <% } %>
 
