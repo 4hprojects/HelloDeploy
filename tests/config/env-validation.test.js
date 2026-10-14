@@ -128,6 +128,21 @@ describe('environment validation', () => {
     assert.match(result.stdout, /GOOGLE_CLIENT_SECRET/);
   });
 
+  it('rejects partial Cloudflare custom hostname configuration', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        NODE_ENV: 'development',
+        CLOUDFLARE_API_TOKEN: 'token',
+        CLOUDFLARE_ZONE_ID: 'zone',
+        CUSTOM_HOSTNAME_TARGET: '',
+      },
+    });
+    assert.match(result.stdout, /Missing: CUSTOM_HOSTNAME_TARGET/);
+  });
+
   it('rejects partial production Turnstile configuration', () => {
     const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
     const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {

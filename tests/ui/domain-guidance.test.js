@@ -31,11 +31,25 @@ const pendingDomain = {
   createdAt: new Date('2026-07-02T00:00:00.000Z'),
 };
 
+const CUSTOM_HOSTNAME_TARGET = 'customers.hellodeploy.online';
+
+// Mirrors the controller, which resolves each domain's target before rendering.
+function withRoutingTarget(domain) {
+  if (domain.cfCustomHostnameId) {
+    return { ...domain, routingTarget: CUSTOM_HOSTNAME_TARGET };
+  }
+  return {
+    ...domain,
+    routingTarget: domain.tunnelId ? `${domain.tunnelId}.cfargotunnel.com` : null,
+  };
+}
+
 function renderDomains(overrides = {}) {
   return renderFile(domainsPath, {
     project,
     membership: overrides.membership ?? { role: 'OWNER' },
-    domains: overrides.domains ?? [],
+    domains: (overrides.domains ?? []).map(withRoutingTarget),
+    customHostnamesEnabled: overrides.customHostnamesEnabled ?? false,
     verificationToken: overrides.verificationToken ?? null,
     pendingHostname: overrides.pendingHostname ?? null,
     csrfToken: 'test-token',
@@ -288,5 +302,68 @@ describe('routing record guidance', () => {
 
   it('lays all five setup steps out on one row', () => {
     assert.match(layoutCss, /\.domain-steps \{[^}]*repeat\(5, minmax\(0, 1fr\)\)/);
+  });
+});
+
+describe('admin-free custom domain connection', () => {
+  const verifiedDomain = {
+    _id: '64b7f8e2a1c9d4f5b6a7c8db',
+    hostnameNormalized: 'helloeventhub.online',
+    status: 'ACTIVE',
+    createdAt: new Date('2026-10-14T00:00:00.000Z'),
+    updatedAt: new Date('2026-10-14T00:00:00.000Z'),
+  };
+
+  it('offers the owner the DNS record without waiting for an administrator', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain], customHostnamesEnabled: true });
+    assert.match(
+      html,
+      /action="\/projects\/hellorun-e783\/domains\/64b7f8e2a1c9d4f5b6a7c8db\/connect"[\s\S]*?Get my DNS record/,
+    );
+  });
+
+  it('keeps the administrator wording when the feature is off', async () => {
+    const html = await renderDomains({ domains: [verifiedDomain] });
+    assert.doesNotMatch(html, /Get my DNS record/);
+  });
+
+  it('points a connected domain at the shared platform target', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, cfCustomHostnameId: 'cf-1' }],
+      customHostnamesEnabled: true,
+    });
+    assert.match(html, /data-copy-value="customers\.hellodeploy\.online"/);
+  });
+
+  it('lets a connected domain use any DNS provider', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, cfCustomHostnameId: 'cf-1' }],
+      customHostnamesEnabled: true,
+    });
+    assert.match(html, /often the company you bought the domain from/);
+  });
+
+  it('explains what to do when a provider refuses a CNAME on the root domain', async () => {
+    const html = await renderDomains({
+      domains: [{ ...verifiedDomain, cfCustomHostnameId: 'cf-1' }],
+      customHostnamesEnabled: true,
+    });
+    assert.match(html, /ALIAS, ANAME or "CNAME flattening"/);
+  });
+
+  it('shows an extra validation record when Cloudflare asks for one', async () => {
+    const html = await renderDomains({
+      domains: [
+        {
+          ...verifiedDomain,
+          cfCustomHostnameId: 'cf-1',
+          cfValidationRecords: [
+            { type: 'TXT', name: '_cf-custom-hostname.helloeventhub.online', value: 'abc-123' },
+          ],
+        },
+      ],
+      customHostnamesEnabled: true,
+    });
+    assert.match(html, /data-copy-value="_cf-custom-hostname\.helloeventhub\.online"/);
   });
 });

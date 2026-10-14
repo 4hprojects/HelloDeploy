@@ -54,6 +54,16 @@ To enable Google authentication, create an OAuth 2.0 **Web application** client 
 
 A worker started by `npm run dev` on the production host picks up production deployments whenever its `MONGODB_URI` and `REDIS_*` point at production's. On 2026-10-14, such a worker, running with `NGINX_ENABLED=false`, took real deployments and marked them live with no route. Use a separate MongoDB database and a separate Redis instance or db index for development. A production worker records `deployment-environment: production` in its database, and a worker with Nginx routing off refuses to start against a database carrying that marker.
 
+## Custom domains (web)
+
+All three set enables admin-free custom domains (Cloudflare for SaaS, see `docs/OPERATIONS_RUNBOOKS.md`); none keeps the per-domain tunnel flow. A partial set fails startup.
+
+| Variable                 | Used by | Required (prod) | Default | Purpose                                                                          |
+| ------------------------ | ------- | --------------- | ------- | -------------------------------------------------------------------------------- |
+| `CLOUDFLARE_API_TOKEN`   | web     | no              | —       | Token with _SSL and Certificates: Edit_ on the platform zone only                |
+| `CLOUDFLARE_ZONE_ID`     | web     | no              | —       | Zone id of `hellodeploy.online`                                                  |
+| `CUSTOM_HOSTNAME_TARGET` | web     | no              | —       | Fallback origin owners point their CNAME at, e.g. `customers.hellodeploy.online` |
+
 ## GitHub App
 
 The platform can start without a GitHub App, but repository connection, webhooks, and deployments require the complete integration. In production, configure every row in this group or leave the entire group empty; partial configuration fails validation. Use either the private-key path or the inline private key, not both.

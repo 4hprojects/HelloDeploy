@@ -4,7 +4,13 @@ import { Domain, Project } from '@hellodeploy/database';
 import { DomainStatus, DomainType, DomainRoutingState, AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent, logger } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
+import { env } from '../config/env.js';
 import { getDeploymentQueue } from '../queue/client.js';
+import {
+  defaultCustomHostnameClient,
+  logCustomHostnameFailure,
+  toCustomHostnameFields,
+} from './cloudflare-custom-hostnames.js';
 import { checkDomainQuota } from './quota.service.js';
 import { JobType } from '@hellodeploy/contracts';
 
@@ -615,6 +621,7 @@ export async function removeDomain(domainId, projectId, actorId, opts = {}) {
       });
     });
 
+    await releaseCustomHostname(domain, opts);
     return { success: true, queued: true };
   }
 
@@ -645,6 +652,7 @@ export async function removeDomain(domainId, projectId, actorId, opts = {}) {
     },
   });
 
+  await releaseCustomHostname(domain, opts);
   return { success: true, queued: false };
 }
 
@@ -786,9 +794,128 @@ export async function setDomainTunnel(domainId, tunnelIdRaw, adminId, opts = {})
   return { success: true, tunnelId };
 }
 
+// ─── Cloudflare custom hostnames ───────────────────────────────────────────────
+
+const CONNECTABLE_DOMAIN_STATUSES = [
+  DomainStatus.VERIFIED,
+  DomainStatus.ACTIVATING,
+  DomainStatus.ACTIVE,
+];
+const CUSTOM_HOSTNAMES_UNAVAILABLE_COPY =
+  'Automatic connection is not available on this platform yet. An administrator will prepare your record.';
+const CUSTOM_HOSTNAME_CONNECT_FAILED_COPY =
+  "HelloDeploy couldn't prepare your DNS record just now. Try again in a minute; contact support if it keeps happening.";
+
+/**
+ * The CNAME target an owner points their domain at, or null while none exists.
+ * Custom-hostname domains share one platform target; legacy domains have a
+ * per-domain tunnel made by an administrator.
+ */
+export function routingTargetFor(domain, target = env.CUSTOM_HOSTNAME_TARGET) {
+  if (domain.cfCustomHostnameId && target) {
+    return target;
+  }
+  if (domain.tunnelId) {
+    return `${domain.tunnelId}.cfargotunnel.com`;
+  }
+  return null;
+}
+
+function resolveCustomHostnameClient(opts) {
+  return opts.customHostnames === undefined ? defaultCustomHostnameClient() : opts.customHostnames;
+}
+
+// Register (or refresh) the hostname with Cloudflare and store what it reports.
+// Returns the updated domain, or null when Cloudflare could not be reached.
+async function syncCustomHostname(domain, client) {
+  const response = domain.cfCustomHostnameId
+    ? await client.get(domain.cfCustomHostnameId)
+    : await client.register(domain.hostnameNormalized);
+  if (!response.ok) {
+    logCustomHostnameFailure(
+      domain.cfCustomHostnameId ? 'refresh' : 'register',
+      domain.hostnameNormalized,
+      response,
+    );
+    return null;
+  }
+  return Domain.findOneAndUpdate(
+    { _id: domain._id },
+    { $set: toCustomHostnameFields(response.result) },
+    { new: true },
+  ).lean();
+}
+
+// Best effort: a hostname left on the zone is only a stale entry, and must not
+// block the owner from removing the domain.
+async function releaseCustomHostname(domain, opts) {
+  if (!domain.cfCustomHostnameId) {
+    return;
+  }
+  const client = resolveCustomHostnameClient(opts);
+  if (!client) {
+    return;
+  }
+  const response = await client.remove(domain.cfCustomHostnameId);
+  if (!response.ok) {
+    logCustomHostnameFailure('remove', domain.hostnameNormalized, response);
+    return;
+  }
+  await Domain.updateOne(
+    { _id: domain._id },
+    {
+      $set: {
+        cfCustomHostnameId: null,
+        cfHostnameStatus: null,
+        cfSslStatus: null,
+        cfValidationRecords: [],
+      },
+    },
+  );
+}
+
+/** Owner action: get the DNS record for a verified domain without an admin. */
+export async function connectCustomHostname(domainId, projectId, actorId, opts = {}) {
+  const client = resolveCustomHostnameClient(opts);
+  if (!client) {
+    return { success: false, error: CUSTOM_HOSTNAMES_UNAVAILABLE_COPY };
+  }
+  const domain = await Domain.findOne({ _id: domainId, projectId }).lean();
+  if (!domain) {
+    return { success: false, error: 'Domain not found.' };
+  }
+  if (!CONNECTABLE_DOMAIN_STATUSES.includes(domain.status)) {
+    return { success: false, error: 'Verify that you own this domain first.' };
+  }
+
+  const wasRegistered = Boolean(domain.cfCustomHostnameId);
+  const updated = await syncCustomHostname(domain, client);
+  if (!updated) {
+    return { success: false, error: CUSTOM_HOSTNAME_CONNECT_FAILED_COPY };
+  }
+  if (!wasRegistered) {
+    await writeAuditEvent({
+      action: 'domain.custom_hostname_registered',
+      outcome: AuditOutcome.SUCCESS,
+      actorId,
+      targetType: 'domain',
+      targetId: domainId.toString(),
+      sourceIp: opts.sourceIp,
+      correlationId: opts.correlationId,
+      metadata: {
+        hostname: updated.hostnameNormalized,
+        customHostnameId: updated.cfCustomHostnameId,
+      },
+    });
+  }
+  return { success: true, routingTarget: routingTargetFor(updated) };
+}
+
 // ─── Routing reachability probe ────────────────────────────────────────────────
 
 const ROUTE_HEADER = 'x-hellodeploy-route';
+export const CERTIFICATE_PENDING_DETAIL =
+  'Your record is in place. Cloudflare is preparing the secure certificate for your address, which usually takes a few minutes. Check routing again shortly.';
 export const ROUTING_RECORD_NOT_READY_DETAIL =
   "Not connected yet, and that's expected for now. Your domain still points to its old host (often your registrar's parking page), and your HelloDeploy record isn't ready. You don't need to do anything yet: the record and step-by-step instructions will appear on this page when it is.";
 const ROUTING_PROBE_TIMEOUT_MS = 15_000;
@@ -851,10 +978,19 @@ export function classifyRoutingProbe(observed, hostname) {
  *
  * @param {(url: string, init?: object) => Promise<Response>} [fetchImpl] - injectable for tests
  */
-export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch) {
-  const domain = await Domain.findOne({ _id: domainId, projectId }).lean();
+export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch, opts = {}) {
+  let domain = await Domain.findOne({ _id: domainId, projectId }).lean();
   if (!domain) {
     return { success: false, error: 'Domain not found.' };
+  }
+  // Domains verified before custom hostnames were enabled get their record
+  // here; for registered ones this refreshes Cloudflare's validation status.
+  const client = resolveCustomHostnameClient(opts);
+  if (client && CONNECTABLE_DOMAIN_STATUSES.includes(domain.status)) {
+    const connected = await syncCustomHostname(domain, client);
+    if (connected) {
+      domain = connected;
+    }
   }
 
   const hostname = domain.hostnameNormalized;
@@ -879,11 +1015,18 @@ export async function checkDomainRouting(domainId, projectId, fetchImpl = fetch)
   const { state } = classified;
   // Before the CNAME target exists the owner has nothing to change, so a
   // failed check is expected and must not read as an instruction.
-  const recordReady = Boolean(domain.tunnelId);
-  const detail =
-    recordReady || state === DomainRoutingState.LIVE
-      ? classified.detail
-      : ROUTING_RECORD_NOT_READY_DETAIL;
+  const recordReady = Boolean(routingTargetFor(domain));
+  let detail = classified.detail;
+  if (!recordReady && state !== DomainRoutingState.LIVE) {
+    detail = ROUTING_RECORD_NOT_READY_DETAIL;
+  } else if (
+    state !== DomainRoutingState.LIVE &&
+    domain.cfHostnameStatus === 'active' &&
+    domain.cfSslStatus !== 'active'
+  ) {
+    // Cloudflare has seen the owner's CNAME; only the certificate is missing.
+    detail = CERTIFICATE_PENDING_DETAIL;
+  }
   const checkedAt = new Date();
   await Domain.updateOne(
     { _id: domainId, projectId },

@@ -17,7 +17,10 @@ import {
   getLiveVerificationTxtRecords,
   setDomainTunnel,
   checkDomainRouting,
+  connectCustomHostname,
+  routingTargetFor,
 } from '../services/domain.service.js';
+import { isCustomHostnamesEnabled } from '../services/cloudflare-custom-hostnames.js';
 
 // ─── Project-scoped domain management ─────────────────────────────────────────
 
@@ -30,7 +33,8 @@ export const getDomains = asyncHandler(async (req, res) => {
     title: `Custom Domains – ${project.name}`,
     project,
     membership: req.membership,
-    domains,
+    domains: domains.map((domain) => ({ ...domain, routingTarget: routingTargetFor(domain) })),
+    customHostnamesEnabled: isCustomHostnamesEnabled(),
     verificationToken: pending.token,
     pendingHostname: pending.hostname,
   });
@@ -186,6 +190,23 @@ export const postCheckDomainRouting = asyncHandler(async (req, res) => {
   }
 
   res.redirect(`/projects/${project.slug}/domains`);
+});
+
+export const postConnectDomain = asyncHandler(async (req, res) => {
+  const { domainId } = req.params;
+  const project = req.project;
+
+  const result = await connectCustomHostname(domainId, project._id, req.session.user.id, {
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (result.success) {
+    req.flash('success', 'Your DNS record is ready. Follow the steps below to add it.');
+  } else {
+    req.flash('error', result.error);
+  }
+  res.redirect(`/projects/${project.slug}/domains#routing-records`);
 });
 
 export const postSetDomainTunnel = asyncHandler(async (req, res) => {

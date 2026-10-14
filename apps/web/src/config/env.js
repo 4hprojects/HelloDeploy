@@ -67,6 +67,14 @@ if (production && (process.env.RESEND_API_KEY || process.env.RESEND_WEBHOOK_SECR
     'Resend email',
   );
 }
+assertAllOrNoneEnvironment(
+  [
+    ['CLOUDFLARE_API_TOKEN', process.env.CLOUDFLARE_API_TOKEN],
+    ['CLOUDFLARE_ZONE_ID', process.env.CLOUDFLARE_ZONE_ID],
+    ['CUSTOM_HOSTNAME_TARGET', process.env.CUSTOM_HOSTNAME_TARGET],
+  ],
+  'Cloudflare custom hostnames',
+);
 if (production) {
   assertPairedEnvironment(
     'TURNSTILE_SITE_KEY',
@@ -139,6 +147,12 @@ export const env = {
   PLATFORM_DOMAIN: platformDomain,
   DEPLOYMENT_DOMAIN: deploymentDomain,
   PLATFORM_SUBDOMAIN_SUFFIX: platformSubdomainSuffix,
+
+  // Cloudflare for SaaS custom hostnames; all three set enables the admin-free
+  // custom domain flow, none keeps the per-domain tunnel flow.
+  CLOUDFLARE_API_TOKEN: optional('CLOUDFLARE_API_TOKEN', ''),
+  CLOUDFLARE_ZONE_ID: optional('CLOUDFLARE_ZONE_ID', ''),
+  CUSTOM_HOSTNAME_TARGET: optional('CUSTOM_HOSTNAME_TARGET', ''),
 
   RESEND_API_KEY: optional('RESEND_API_KEY', ''),
   EMAIL_FROM: optional('EMAIL_FROM', 'noreply@hellodeploy.online'),

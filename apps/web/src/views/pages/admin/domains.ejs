@@ -116,7 +116,10 @@
             <% } %>
           </td>
           <td data-label="Tunnel">
-            <% if (d.tunnelId) { %>
+            <% if (d.cfCustomHostnameId) { %>
+              <span>Connected automatically (Cloudflare custom hostname)</span>
+              <span class="text-xs d-block text-muted">Cloudflare: <%= d.cfHostnameStatus || 'unknown' %>, certificate <%= d.cfSslStatus || 'unknown' %>. Routing: <%= d.routingState || 'UNKNOWN' %></span>
+            <% } else if (d.tunnelId) { %>
               <code class="code-inline"><%= d.tunnelId %>.cfargotunnel.com</code>
               <span class="text-xs d-block text-muted">Routing: <%= d.routingState || 'UNKNOWN' %></span>
             <% } else { %>
@@ -125,6 +128,7 @@
             <% } %>
           </td>
           <td class="text-right" data-label="Record tunnel">
+            <% if (!d.cfCustomHostnameId) { %>
             <form method="POST" action="/admin/domains/<%= d._id %>/tunnel" class="form-inline">
               <%- include('../../partials/csrf-field') %>
               <label class="sr-only" for="tunnel-<%= d._id %>">Tunnel id for <%= d.hostnameNormalized %></label>
@@ -134,6 +138,7 @@
               <button type="submit" class="button button--secondary button--sm"
                 data-pending-label="Saving...">Save</button>
             </form>
+            <% } %>
           </td>
         </tr>
         <% }) %>
