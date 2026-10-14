@@ -9,7 +9,9 @@
 <%- include('../../partials/setup-guide') %>
 
 <%
-  const detectedRequiredNames = project.detection?.requiredEnvironmentVariables || [];
+  const platformManagedEnvNames = locals.platformManagedEnvNames || [];
+  const detectedRequiredNames = (project.detection?.requiredEnvironmentVariables || [])
+    .filter(name => !platformManagedEnvNames.includes(name));
   const storedSecretNames = new Set(secrets.map(secret => secret.name));
 %>
 <% if (detectedRequiredNames.length > 0) { %>

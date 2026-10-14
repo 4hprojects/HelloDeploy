@@ -1,3 +1,5 @@
+import { PLATFORM_MANAGED_ENV_NAMES } from '@hellodeploy/contracts';
+
 import { asyncHandler } from '../utils/async-handler.js';
 import {
   listSecretNames,
@@ -32,6 +34,7 @@ export const getEnvironment = asyncHandler(async (req, res) => {
     bulkErrors: {},
     bulkValues: {},
     bulkEditMode: req.query.edit === 'all',
+    platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
   });
 });
 
@@ -63,6 +66,7 @@ async function renderEnvironment(
     bulkValues,
     bulkEditMode: typeof bulkEditMode === 'boolean' ? bulkEditMode : req.query.edit === 'all',
     revealedValues,
+    platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
   });
 }
 
@@ -126,11 +130,15 @@ function parseImportSelections(raw) {
   return { error: 'Your import choices could not be read. Choose the file again.' };
 }
 
-function describeImport({ count, productionCount, skipped }) {
+function describeImport({ count, productionCount, skipped, platformManaged }) {
   const noun = count === 1 ? 'variable' : 'variables';
   const production = productionCount > 0 ? ` (${productionCount} production)` : '';
   const skippedNote = skipped.length > 0 ? ` Skipped without a value: ${skipped.join(', ')}.` : '';
-  return `${count} environment ${noun} imported${production}.${skippedNote}`;
+  const platformNote =
+    platformManaged.length > 0
+      ? ` ${platformManaged.join(', ')} was not imported: HelloDeploy sets it from the application port in Settings.`
+      : '';
+  return `${count} environment ${noun} imported${production}.${skippedNote}${platformNote}`;
 }
 
 export const postPreviewEnvFile = asyncHandler(async (req, res) => {

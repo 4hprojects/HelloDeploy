@@ -1,12 +1,15 @@
 import { EnvironmentSecret } from '@hellodeploy/database';
 import { buildSecretAad, encrypt, decrypt } from '@hellodeploy/security';
-import { AuditOutcome } from '@hellodeploy/contracts';
+import { AuditOutcome, PLATFORM_MANAGED_ENV_NAMES } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { parse } from 'dotenv';
 
 const NAME_PATTERN = /^[A-Z_][A-Z0-9_]*$/;
 export const MAX_ENV_FILE_BYTES = 64 * 1024;
 export const MAX_ENV_FILE_SECRETS = 100;
+
+export const PLATFORM_MANAGED_NAME_ERROR =
+  'HelloDeploy sets PORT for your app automatically from the application port in Settings. Change it there instead.';
 
 export function validateSecretName(name) {
   if (!name || typeof name !== 'string') {
@@ -213,14 +216,16 @@ export function previewEnvFile(content) {
   }
   return {
     success: true,
-    entries: parsed.entries.map((entry) => ({
-      name: entry.name,
-      line: entry.line,
-      hasLocalValue: Boolean(entry.localValue),
-      hasProductionValue: entry.productionValue !== null,
-      productionLine: entry.productionLine,
-      productionSource: entry.productionSource,
-    })),
+    entries: parsed.entries
+      .filter((entry) => !PLATFORM_MANAGED_ENV_NAMES.includes(entry.name))
+      .map((entry) => ({
+        name: entry.name,
+        line: entry.line,
+        hasLocalValue: Boolean(entry.localValue),
+        hasProductionValue: entry.productionValue !== null,
+        productionLine: entry.productionLine,
+        productionSource: entry.productionSource,
+      })),
   };
 }
 
@@ -244,8 +249,13 @@ export async function importEnvFile(projectId, content, actorId, opts = {}) {
   const selections = opts.selections ?? {};
   const writes = [];
   const skipped = [];
+  const platformManaged = [];
   let productionCount = 0;
   for (const entry of parsed.entries) {
+    if (PLATFORM_MANAGED_ENV_NAMES.includes(entry.name)) {
+      platformManaged.push(entry.name);
+      continue;
+    }
     const selection = Object.hasOwn(selections, entry.name) ? selections[entry.name] : null;
     if (selection?.include === false) {
       continue;
@@ -286,7 +296,7 @@ export async function importEnvFile(projectId, content, actorId, opts = {}) {
       return result;
     }
   }
-  return { success: true, count: writes.length, productionCount, skipped };
+  return { success: true, count: writes.length, productionCount, skipped, platformManaged };
 }
 
 function normalizeBulkSecretRows(rows) {
@@ -375,6 +385,9 @@ export async function setSecret(projectId, name, value, actorId, opts = {}) {
   const nameError = validateSecretName(name);
   if (nameError) {
     return { success: false, error: nameError };
+  }
+  if (PLATFORM_MANAGED_ENV_NAMES.includes(name)) {
+    return { success: false, error: PLATFORM_MANAGED_NAME_ERROR };
   }
   if (!value || typeof value !== 'string') {
     return { success: false, error: 'Secret value is required.' };

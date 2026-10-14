@@ -4,6 +4,7 @@ import {
   AuditOutcome,
   RepositorySourceType,
   DetectionStatus,
+  PLATFORM_MANAGED_ENV_NAMES,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
@@ -122,10 +123,10 @@ export function detectRuntime(files) {
     outputDirectory = 'dist';
   } else if ('express' in deps) {
     runtimeType = RuntimeType.EXPRESS;
-    applicationPort = 3000;
+    applicationPort = findSamplePort(files) ?? 3000;
   } else if (scripts.start) {
     runtimeType = RuntimeType.NODEJS;
-    applicationPort = 3000;
+    applicationPort = findSamplePort(files) ?? 3000;
   } else {
     runtimeType = RuntimeType.UNKNOWN;
     issues.push({
@@ -402,6 +403,22 @@ function safeDetectionIssues(issues) {
 }
 
 /** Extract names only from conventional environment sample files. Values are never retained. */
+// An app that ignores PORT and listens on its own fixed port usually documents
+// that port in its sample env file; starting from it avoids a first deploy
+// that health-checks the wrong port.
+function findSamplePort(files) {
+  for (const path of ['.env.example', '.env.sample', '.env.template']) {
+    const match = files[path]?.match?.(
+      /^\s*(?:export\s+)?PORT\s*=\s*["']?(\d{2,5})["']?\s*(?:#.*)?$/m,
+    );
+    const port = match ? Number(match[1]) : null;
+    if (port >= 1 && port <= 65535) {
+      return port;
+    }
+  }
+  return null;
+}
+
 export function detectRequiredEnvironmentVariables(files) {
   const names = new Set();
   for (const path of ['.env.example', '.env.sample', '.env.template']) {
@@ -411,8 +428,9 @@ export function detectRequiredEnvironmentVariables(files) {
     }
     for (const line of content.split(/\r?\n/).slice(0, 500)) {
       const match = line.match(/^\s*(?:export\s+)?([A-Z_][A-Z0-9_]*)\s*=/i);
-      if (match) {
-        names.add(match[1].toUpperCase());
+      const name = match?.[1].toUpperCase();
+      if (name && !PLATFORM_MANAGED_ENV_NAMES.includes(name)) {
+        names.add(name);
       }
       if (names.size >= 100) {
         break;

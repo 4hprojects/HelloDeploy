@@ -216,6 +216,8 @@ One TypeScript monorepo app failed to deploy five times in a row, each for a dif
 | 4   | "Didn't respond in time"                  | Database address in Environment was a local-dev `localhost` value                                                 | [x] Recognized from app output as `APP_DATABASE_UNREACHABLE` with a plain-language fix                                       |
 | 5   | "Didn't respond in time"                  | App listened on 3009; HelloDeploy checked 3000. A `PORT` secret silently overrode the platform's `PORT`           | [x] Platform `PORT` now wins and a differing `PORT` secret is warned about; mismatches are recognized as `APP_PORT_MISMATCH` |
 
+Root cause of #5, found afterwards: detection listed every name in `.env.example` as required and blocked deploys until each was set, so the owner was forced to enter a `PORT` and used their local value. **Fixed:** `PORT` is now platform-managed (`PLATFORM_MANAGED_ENV_NAMES`). It is never required, can't be saved or imported as a secret, and detection takes the app's port from the sample file instead.
+
 ### Still open
 
 - [ ] **Dev and production may share Redis** — a dev-tree worker (`npm run dev`) whose `.env` points at `127.0.0.1:6379` can take production jobs and fail them with `EACCES`. The likeliest cause of #1, not yet confirmed. **Fix:** give dev its own Redis (or never start the worker in dev), and consider having the worker refuse to start when its user cannot write `BUILD_WORKSPACE_ROOT`. _Effort: S._
