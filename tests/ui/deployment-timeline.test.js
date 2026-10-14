@@ -57,7 +57,8 @@ function renderDeployment(overrides = {}) {
       ...overrides.deployment,
     },
     events: overrides.events ?? healthyEvents,
-    isCurrentRelease: true,
+    isCurrentRelease: overrides.isCurrentRelease ?? true,
+    appUrl: overrides.appUrl ?? null,
     failureCopy: overrides.failureCopy ?? null,
     rollbackSource: null,
     statusPresentation: (_kind, status) => ({ label: status, hint: '', tone: 'healthy' }),
@@ -254,5 +255,45 @@ describe('deployment timeline UI', () => {
       deploymentDetail,
       /data-detail-duration data-started-at="<%= new Date\(deployment\.startedAt\)\.toISOString\(\) %>"/,
     );
+  });
+});
+
+describe('deployment success next steps', () => {
+  const APP_URL = 'https://hellorun.hellodeploy.online';
+
+  it('links the live release to the app in a new tab', async () => {
+    const html = await renderDeployment({ appUrl: APP_URL });
+    assert.match(
+      html,
+      /<a class="button button--primary button--sm" href="https:\/\/hellorun\.hellodeploy\.online" target="_blank" rel="noopener noreferrer">/,
+    );
+  });
+
+  it('shows the live address in the success message', async () => {
+    const html = await renderDeployment({ appUrl: APP_URL });
+    assert.match(
+      html,
+      /Your app is live at[\s\S]*?<strong>hellorun\.hellodeploy\.online<\/strong>/,
+    );
+  });
+
+  it('offers a way back to the project overview', async () => {
+    const html = await renderDeployment({ appUrl: APP_URL });
+    assert.match(html, /href="\/projects\/hellorun">Back to Overview<\/a>/);
+  });
+
+  it('never links to an app address it could not build', async () => {
+    const html = await renderDeployment({ appUrl: null });
+    assert.doesNotMatch(html, /Open your app/);
+  });
+
+  it('does not offer to open the app from a release that is no longer live', async () => {
+    const html = await renderDeployment({ isCurrentRelease: false, appUrl: APP_URL });
+    assert.doesNotMatch(html, /Open your app/);
+  });
+
+  it('offers no next steps on a failed deployment', async () => {
+    const html = await renderDeployment({ deployment: { status: 'FAILED' } });
+    assert.doesNotMatch(html, /Back to Overview/);
   });
 });

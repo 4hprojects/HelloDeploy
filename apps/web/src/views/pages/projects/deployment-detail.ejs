@@ -37,7 +37,25 @@
 
 <div data-deployment-refresh="result" class="alert alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
   <strong><%= deployment.status === 'HEALTHY' ? 'Deployment completed successfully.' : deployment.status === 'FAILED' ? 'Deployment did not go live.' : deployment.status === 'CANCELLED' ? 'Deployment was cancelled.' : 'Deployment is in progress.' %></strong>
+  <% if (deployment.status === 'HEALTHY' && isCurrentRelease && locals.appUrl) { %>
+  <p class="text-sm mt-1">
+    Your app is live at
+    <a href="<%= appUrl %>" target="_blank" rel="noopener noreferrer"><strong><%= appUrl.replace(/^https:\/\//, '') %></strong></a>.
+    Open it to check that everything looks right.
+  </p>
+  <% } else { %>
   <p class="text-sm mt-1"><%= isCurrentRelease ? 'This is the release currently serving the platform URL.' : project.activeDeploymentId ? 'Another healthy deployment is currently serving traffic.' : 'No healthy release is currently live.' %></p>
+  <% } %>
+  <% if (deployment.status === 'HEALTHY') { %>
+  <div class="button-group mt-3">
+    <% if (isCurrentRelease && locals.appUrl) { %>
+    <a class="button button--primary button--sm" href="<%= appUrl %>" target="_blank" rel="noopener noreferrer">
+      Open your app <%- include('../../partials/icon', { name: 'external' }) %><span class="sr-only"> (opens in a new tab)</span>
+    </a>
+    <% } %>
+    <a class="button button--secondary button--sm" href="/projects/<%= project.slug %>">Back to Overview</a>
+  </div>
+  <% } %>
 </div>
 
 <!-- Deployment info cards -->
