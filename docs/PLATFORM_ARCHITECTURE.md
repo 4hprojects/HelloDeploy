@@ -38,7 +38,7 @@ Browser or application visitor
       Cloudflare edge/TLS
               |
               v
-      Cloudflare Tunnel
+      Cloudflare Tunnel   (custom domains: CNAME -> customers.hellodeploy.online)
               |
               v
           Host Nginx
@@ -75,30 +75,23 @@ The single-host model does not mean a single privileged process. OS identities a
 
 - `hellodeploy.online` is the HelloDeploy dashboard, authentication, API, webhook, and deploy-hook host.
 - `<project-slug>.hellodeploy.online` is the default hostname for a hosted project.
-- An approved custom domain routes to exactly one project.
+- A verified custom domain routes to exactly one project. With Cloudflare for SaaS configured (`CLOUDFLARE_*`), owners point a CNAME at the fixed fallback origin `customers.hellodeploy.online`, which the platform tunnel carries to Nginx; otherwise an administrator provisions a per-domain tunnel. See [Custom Domains via Cloudflare for SaaS](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md).
 - Nginx routes only to loopback-published container ports.
 - Cloudflare provides public TLS and forwards the original HTTPS protocol through the trusted ingress path.
 
 The dashboard domain and application wildcard are separated to avoid collisions between platform routes and user projects.
 
-## Current Local Pilot
+## Current Production Host
 
-The current Ubuntu 26.04 laptop is the live HelloDeploy pilot host. It is not a remote control workstation and it does not delegate application deployment to another hosting provider. Direct inspection on 2026-07-13 established this boundary:
+The Ubuntu 26.04 pilot host has been hardened in place. HelloDeploy now runs from a reviewed release at `/opt/hellodeploy` under the separate systemd web, worker, and Nginx-helper services, with Docker and Nginx serving hosted applications. Inbound ports stay closed: all public traffic, including the application wildcard and custom domains, arrives through Cloudflare Tunnel. New releases reach the host through the pull-based automatic deploy described in [Operations Runbooks](OPERATIONS_RUNBOOKS.md#automatic-deploys).
 
-- The web and worker run from the repository under the interactive account rather than isolated systemd identities.
-- Local Redis is active and both local and public web readiness pass.
-- Cloudflare Tunnel sends the dashboard hostnames directly to the active web port.
-- Docker, the HelloDeploy systemd units and identities, the constrained helper runtime, and the managed application route directory are absent.
-- The configured Nginx dashboard upstream is inactive, the tunnel bypasses Nginx, and no wildcard application tunnel route exists.
-- The public session cookie fails the required `Secure` attribute.
-
-This state proves a publicly reachable dashboard pilot. It does not prove that HelloDeploy can currently build, run, route, or roll back customer applications on this host. Productionization will harden this same machine in place, with a verified backup and rollback path before service or traffic changes.
+The 2026-07-13 inspection that predates this hardening (dashboard-only pilot, no Docker, no wildcard route) is kept in [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md#current-local-pilot-evidence-snapshot) as history.
 
 ## Deployment Lifecycle
 
 1. A verified user creates a project and either connects a public GitHub HTTPS source without credentials or authorizes a repository through the GitHub App. Private sources and Automatic deployment require the app.
 2. HelloDeploy detects the runtime and validates the build, start, output, port, filter, and health settings.
-3. The Owner stores environment variables; values are encrypted before persistence and omitted from ordinary settings pages and logs.
+3. The Owner stores environment variables; values are encrypted before persistence and omitted from settings pages and logs; only the Owner can reveal them, on purpose, and each reveal is audited.
 4. After required approval, an Owner or Maintainer requests a deployment, or an eligible signed push webhook creates one.
 5. The web process writes durable deployment state and submits a BullMQ job.
 6. The worker locks the project, clones the exact commit, sanitizes the build context, and builds a Docker image.
@@ -118,7 +111,7 @@ This state proves a publicly reachable dashboard pilot. It does not prove that H
 
 ## Supported and Deferred Scope
 
-V1 supports Static, React, Vue, Express, generic Node.js, and constrained Next.js applications. It includes GitHub integration, manual and eligible automatic deployments, environment secrets, live logs, health checks, project subdomains, approved custom domains, maintenance, rollback, quotas, project roles, and administrative review.
+V1 supports Static, React, Vue, Express, generic Node.js, and constrained Next.js applications. It includes GitHub integration, manual and eligible automatic deployments, environment secrets, live logs, health checks, project subdomains, verified custom domains, maintenance, rollback, quotas, project roles, and administrative review.
 
 V1 does not include remote deployment agents, multiple deployment nodes, vendor-managed application deployments, Kubernetes, autoscaling, billing, user database hosting, arbitrary Docker Compose, privileged containers, or the deferred runtimes listed in the blueprint.
 

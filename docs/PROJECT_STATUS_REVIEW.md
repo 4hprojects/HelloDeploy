@@ -2,6 +2,8 @@
 
 Updated: 2026-08-18
 
+> **Snapshot.** This review reflects the project as of 2026-08-18 and is not kept current. For what is open now, see [Priorities](PRIORITIES.md) and [Improvements](IMPROVEMENTS.md); for release status, see the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+
 This is a synthesized snapshot — architecture, test/code-quality posture, whether the
 project is still heading toward its original goal, and an estimated completion
 percentage. It is not a live-updating source of truth: for current execution status

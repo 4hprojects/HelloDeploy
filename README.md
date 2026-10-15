@@ -5,12 +5,14 @@ HelloDeploy is a self-hosted web application deployment platform. It lets users 
 ## Features
 
 - GitHub App integration with automatic, manual, or approval-gated deployments
+- Tiered automatic approval for low-risk projects, with provisional approval when no Admin reviews in time
 - Runtime detection with owner-overridable build/start commands, port, and health check path
 - Build filters (included/ignored path globs) to skip irrelevant pushes in monorepos
 - Deploy hooks — secret URLs for triggering deploys from CI pipelines
 - Live deployment logs (SSE), cancel/retry, and rollback to retained healthy releases
-- Custom domains with DNS verification, per-project maintenance mode, and notification preferences
-- Encrypted environment secrets, per-project quotas, role-based project membership, and full audit logging
+- Plain-language reasons for common build and startup failures, and live app uptime on the project overview
+- Self-service custom domains with DNS verification and automatic activation, per-project maintenance mode, and notification preferences
+- Encrypted environment secrets, per-project quotas, role-based project membership with email invitations, and full audit logging
 
 See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [IMPROVEMENTS.md](docs/IMPROVEMENTS.md) for the current engineering backlog.
 

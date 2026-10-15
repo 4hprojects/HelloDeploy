@@ -32,23 +32,23 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 | `GOOGLE_CLIENT_ID`            | web         | no              | —               | Google OAuth 2.0 web client ID; must be paired with `GOOGLE_CLIENT_SECRET`                                                         |
 | `GOOGLE_CLIENT_SECRET`        | web         | no              | —               | Google OAuth 2.0 web client secret; must be paired with `GOOGLE_CLIENT_ID`                                                         |
 
-Turnstile is enabled only when `NODE_ENV=production`. In development and test modes, the web application ignores both Turnstile variables so local sessions and automated tests do not render the widget or contact Cloudflare. Production requires the site and secret keys to be configured together.
+Turnstile is enabled only when `NODE_ENV=production`. In development and test modes, the web application ignores both Turnstile variables so local sessions and automated tests do not render the widget or contact Cloudflare. Production requires the site and secret keys to be configured together: set both or leave both empty.
 
 To enable Google authentication, create an OAuth 2.0 **Web application** client in Google Cloud, configure its consent screen, and register the exact authorized redirect URI `https://<PLATFORM_DOMAIN>/auth/google/callback`. For local development, register `http://localhost:3000/auth/google/callback` as a separate redirect URI. Set both Google variables or leave both empty; partial configuration fails startup validation. HelloDeploy requests only `openid email profile` and does not retain Google access or refresh tokens.
 
 ## Platform / routing
 
-| Variable                       | Used by     | Required (prod)    | Default                               | Purpose                                                                                                                                                                          |
-| ------------------------------ | ----------- | ------------------ | ------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PLATFORM_DOMAIN`              | web, worker | no                 | dashboard host / `hellodeploy.online` | Public dashboard and authentication hostname; worker fallback for backward compatibility                                                                                         |
-| `DEPLOYMENT_DOMAIN`            | worker      | no                 | worker `PLATFORM_DOMAIN`              | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                                                                              |
-| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no                 | `.hellodeploy.online`                 | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                                                                             |
-| `NGINX_ENABLED`                | worker      | no                 | `false`                               | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                                                                               |
-| `ALLOW_UNROUTED_RELEASES`      | worker      | no (must be unset) | `false`                               | Local pipeline testing only: lets a release go live with `NGINX_ENABLED=false`. Without it, such a release fails as `ROUTE_NOT_CONNECTED` and the previous release keeps serving |
-| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no                 | `/etc/nginx/hellodeploy.d`            | Directory for generated per-app nginx configs                                                                                                                                    |
-| `NGINX_BINARY_PATH`            | worker      | no                 | `nginx`                               | nginx binary used for `-t` validation and reload                                                                                                                                 |
-| `NGINX_HELPER_SOCKET`          | worker      | no                 | `/run/hellodeploy/nginx-helper.sock`  | Local Unix socket used to request privileged Nginx route changes                                                                                                                 |
-| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no                 | `15000`                               | Maximum time to wait for the local Nginx helper                                                                                                                                  |
+| Variable                       | Used by     | Required (prod)    | Default                                                                              | Purpose                                                                                                                                                                          |
+| ------------------------------ | ----------- | ------------------ | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PLATFORM_DOMAIN`              | web, worker | no                 | web `localhost:<PORT>` / worker `hellodeploy.online`                                 | Public dashboard and authentication hostname; worker fallback for backward compatibility                                                                                         |
+| `DEPLOYMENT_DOMAIN`            | web, worker | no                 | web: `PLATFORM_SUBDOMAIN_SUFFIX` without the leading dot / worker: `PLATFORM_DOMAIN` | Wildcard application routing base; a project serves at `<slug>.<DEPLOYMENT_DOMAIN>`                                                                                              |
+| `PLATFORM_SUBDOMAIN_SUFFIX`    | web         | no                 | `.hellodeploy.online`                                                                | Dashboard display suffix; keep equal to `.` plus `DEPLOYMENT_DOMAIN`                                                                                                             |
+| `NGINX_ENABLED`                | worker      | no                 | `false`                                                                              | When `true`, the worker writes nginx server blocks and reloads nginx on activation                                                                                               |
+| `ALLOW_UNROUTED_RELEASES`      | worker      | no (must be unset) | `false`                                                                              | Local pipeline testing only: lets a release go live with `NGINX_ENABLED=false`. Without it, such a release fails as `ROUTE_NOT_CONNECTED` and the previous release keeps serving |
+| `NGINX_HELLODEPLOY_CONFIG_DIR` | worker      | no                 | `/etc/nginx/hellodeploy.d`                                                           | Directory for generated per-app nginx configs                                                                                                                                    |
+| `NGINX_BINARY_PATH`            | worker      | no                 | `nginx` (Nginx helper: `/usr/sbin/nginx`)                                            | nginx binary used for `-t` validation and reload                                                                                                                                 |
+| `NGINX_HELPER_SOCKET`          | worker      | no                 | `/run/hellodeploy/nginx-helper.sock`                                                 | Local Unix socket used to request privileged Nginx route changes                                                                                                                 |
+| `NGINX_HELPER_TIMEOUT_MS`      | worker      | no                 | `15000`                                                                              | Maximum time to wait for the local Nginx helper                                                                                                                                  |
 
 ### Local development must not share production's database or queue
 
@@ -89,8 +89,8 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | `USER_IMAGE_OPTIMIZED_PROJECT_IDS` | no              | empty                           | Comma-separated project ObjectIds allowed to use `optimized-v1`                                                                                                       |
 | `RUNTIME_MEMORY_MB`                | no              | `256`                           | Default memory for each deployed application container when no quota override applies. Read by web and worker (same `.env`)                                           |
 | `BUILD_WORKSPACE_ROOT`             | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                                                                                                                                 |
-| `RELEASE_METADATA_ROOT`            | no              | `/var/lib/hellodeploy/releases` | Release metadata storage                                                                                                                                              |
-| `PROJECT_VOLUME_ROOT`              | no              | `/var/lib/hellodeploy/projects` | Per-project persistent volumes                                                                                                                                        |
+| `RELEASE_METADATA_ROOT`            | no              | `/var/lib/hellodeploy/releases` | Reserved: parsed by the worker but not read by any code path yet, so setting it has no effect                                                                         |
+| `PROJECT_VOLUME_ROOT`              | no              | `/var/lib/hellodeploy/projects` | Reserved for per-project persistent volumes: parsed by the worker but not read by any code path yet, so setting it has no effect                                      |
 | `PORT_RANGE_START`                 | no              | `10000`                         | First loopback host port available for deployed containers                                                                                                            |
 | `PORT_RANGE_END`                   | no              | `19999`                         | Last loopback host port available for deployed containers                                                                                                             |
 
@@ -117,11 +117,11 @@ With the flag on, the web process also checks the queue every minute. A request 
 
 Resend is optional. In production, when the complete email group or its Redis-backed notification queue is unavailable, password signup, verification resend, and password recovery return a clear service-unavailable response without creating replacement credentials. Google authentication and existing sessions remain available. Deployment mail remains non-blocking and its operational outcome is recorded on the durable notification record and in safe audit metadata.
 
-| Variable                | Used by     | Default                      | Purpose                                                                             |
-| ----------------------- | ----------- | ---------------------------- | ----------------------------------------------------------------------------------- |
-| `RESEND_API_KEY`        | web, worker | —                            | Resend API key; password signup and recovery are unavailable when email is disabled |
-| `EMAIL_FROM`            | web, worker | `noreply@hellodeploy.online` | From address for outbound mail                                                      |
-| `RESEND_WEBHOOK_SECRET` | web, worker | —                            | Signing secret for `/api/webhooks/resend`; required with the API key in production  |
+| Variable                | Used by     | Default                                                                              | Purpose                                                                             |
+| ----------------------- | ----------- | ------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------- |
+| `RESEND_API_KEY`        | web, worker | —                                                                                    | Resend API key; password signup and recovery are unavailable when email is disabled |
+| `EMAIL_FROM`            | web, worker | web `noreply@hellodeploy.online` / worker `HelloDeploy <noreply@hellodeploy.online>` | From address for outbound mail                                                      |
+| `RESEND_WEBHOOK_SECRET` | web, worker | —                                                                                    | Signing secret for `/api/webhooks/resend`; required with the API key in production  |
 
 When email is enabled in production, all three variables must be set. Configure Resend to send `email.sent`, `email.delivered`, `email.delivery_delayed`, `email.failed`, `email.bounced`, and `email.suppressed` events to `https://<PLATFORM_DOMAIN>/api/webhooks/resend`. Run `npm run email:index:repair` to inspect the obsolete user-verification TTL index and rerun with `-- --apply` during a maintenance window to drop only that exact unsafe index.
 
@@ -139,14 +139,21 @@ npm run production:check -- https://your-platform-domain.example
 
 These values control host lifecycle scripts and do not belong in the application `.env`:
 
-| Variable                                      | Purpose                                                                                                                                   |
-| --------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `HELLODEPLOY_RELEASE_REF`                     | Required immutable tag or full commit for installation                                                                                    |
-| `HELLODEPLOY_ALLOW_CANDIDATE_OS=true`         | Explicitly acknowledges Ubuntu 26.04 candidate validation after the protected backup and rollback baseline passes; does not grant support |
-| `HELLODEPLOY_PILOT_BACKUP_VERIFIED=true`      | Required for Ubuntu 26.04 installation after off-host storage, retrieval, and integrity verification                                      |
-| `HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED=true` | Required for Ubuntu 26.04 installation after exact rollback preparation                                                                   |
-| `HELLODEPLOY_PREPARE_ONLY=true`               | Prepares an inactive in-place foundation without ingress or service activation                                                            |
-| `HELLODEPLOY_CONFIG_SOURCE`                   | Root-owned private reviewed production configuration used without generating or changing secrets                                          |
+| Variable                                      | Purpose                                                                                                                                        |
+| --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `HELLODEPLOY_RELEASE_REF`                     | Required immutable tag or full commit for installation                                                                                         |
+| `HELLODEPLOY_ALLOW_CANDIDATE_OS=true`         | Explicitly acknowledges Ubuntu 26.04 candidate validation after the protected backup and rollback baseline passes; does not grant support      |
+| `HELLODEPLOY_PILOT_BACKUP_VERIFIED=true`      | Required for Ubuntu 26.04 installation after off-host storage, retrieval, and integrity verification                                           |
+| `HELLODEPLOY_ROLLBACK_BASELINE_VERIFIED=true` | Required for Ubuntu 26.04 installation after exact rollback preparation                                                                        |
+| `HELLODEPLOY_PREPARE_ONLY=true`               | Prepares an inactive in-place foundation without ingress or service activation                                                                 |
+| `HELLODEPLOY_CONFIG_SOURCE`                   | Root-owned private reviewed production configuration used without generating or changing secrets                                               |
+| `HELLODEPLOY_REPO_URL`                        | Repository `install.sh` clones; defaults to `https://github.com/4hprojects/HelloDeploy.git`                                                    |
+| `HELLODEPLOY_DATABASE_BACKUP_MODE`            | `local` (default) or `external`; `external` makes `upgrade.sh` skip the database in its pre-upgrade backup (for managed MongoDB)               |
+| `HELLODEPLOY_UPGRADE_DRAIN_TIMEOUT_MS`        | How long `scripts/queue-maintenance.js` waits for active jobs to drain before an upgrade; default `600000` (10 minutes), max 1 hour            |
+| `HELLODEPLOY_EXPECTED_RELEASE_COMMIT`         | Full commit the `activate-*`, `deactivate-*`, `revert-*`, and `verify-prepared-installation.sh` scripts require the installed release to match |
+| `HELLODEPLOY_TUNNEL_CREDENTIALS_DIR`          | Where `provision-custom-domain-tunnel.sh` finds `cloudflared` credentials; defaults to the invoking (`sudo`) user's `~/.cloudflared`           |
+
+`npm run production:check` also accepts `HELLODEPLOY_EXPECTED_RELEASE_COMMIT` (or `--expected-sha`) and `PUBLIC_BASE_URL` in place of the URL argument. Under PM2, `HELLODEPLOY_LOG_DIR` points `ecosystem.config.cjs` at a shared log directory instead of PM2's own.
 
 Preflight uses the corresponding `--allow-candidate-os` flag. Both paths fail closed by default, and neither acknowledgment bypasses Docker, service, routing, capacity, or recovery checks.
 

@@ -16,7 +16,7 @@ It does not grant the web process Docker access or change stored secret formats.
 The 2026-10-09 remediation closes the remaining deterministic repository gaps:
 authorized deployment rows continue polling through terminal state, terminal actions
 refresh without navigation, environment values are permanently write-only in the web
-application, `.env` confirmation previews names only, and rollback records can identify
+application (superseded by PR #95: Owners can now reveal values on purpose, audited), `.env` confirmation previews names only, and rollback records can identify
 both the replaced release and target. Existing encrypted secret records remain valid and
 worker-only decryption is unchanged.
 

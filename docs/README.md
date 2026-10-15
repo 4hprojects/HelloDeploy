@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-08-14
+Updated: 2026-10-15
 
 Use this index as the starting point for repository documentation. The top-level README stays concise; this file owns the detailed documentation map.
 
@@ -59,6 +59,7 @@ Point-in-time reports retained in [`archive/`](archive/) for historical record o
 - [Hardening and Pilot Report](archive/HARDENING_AND_PILOT_REPORT.md) - local measurements and pilot checklist from early July, superseded by the Live Workflow Acceptance Checklist.
 - [Phase Task Tracker](archive/PHASE_TASK_TRACKER.md) - superseded phase-based tracker retained as historical implementation and validation evidence.
 - [Project Settings UX Specification](archive/PROJECT_SETTINGS_UX_SPEC.md) - consolidated Project Settings page spec and delivery plan; all 4 phases shipped 2026-07-13, retained as a closed delivery record.
+- [UI/UX Improvement Pack](archive/hellodeploy-uiux-improvement-pack/00_MASTER_UI_UX_IMPROVEMENT_PLAN.md) - the 2026-10 UI/UX program, implemented 2026-10-02 through 2026-10-09; see its `IMPLEMENTATION_EVIDENCE.md`.
 - [Worklog Archive — 2026-07](archive/WORKLOG_2026-07.md) - 100 of `WORKLOG.md`'s 117 entries (2026-07-02 through 2026-07-31), split off 2026-08-14 to keep the live file a manageable size.
 
 ## Blueprint and Specification
@@ -85,5 +86,6 @@ Point-in-time reports retained in [`archive/`](archive/) for historical record o
 - Continuous autonomous work follows the [Autonomous Work Loop](WORK_LOOP.md); the batch tracker remains authoritative for status.
 - Release requirements and strategy are defined by the [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md), while detailed completion evidence is preserved in the [Worklog](../WORKLOG.md).
 - UI/UX implementation and accessibility planning is tracked in [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md).
-- Host-level recovery checks and the noncritical pilot deployment remain pending until run on the target host.
+- Host-level recovery checks passed on 2026-09-02 (see the Worklog); production now runs from `/opt/hellodeploy` and receives `main` through the automatic deploy in [Operations Runbooks](OPERATIONS_RUNBOOKS.md#automatic-deploys).
+- Design notes for larger changes live in [`design/`](design/): [Custom Domains via Cloudflare for SaaS](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md). The Docker build-optimization lane is planned in [`to do/hellodeploy-docker-optimization/`](to%20do/hellodeploy-docker-optimization/README.md).
 - P9-P12 implementation commits, the superseded phase tracker, and the completed Project Settings UX delivery record remain available for historical context only — see Historical Snapshots above.

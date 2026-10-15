@@ -127,17 +127,18 @@ The setup wizard and secret generator populate the production `.env`. Required k
 - `GITHUB_APP_ID`
 - `GITHUB_APP_NAME`
 - `GITHUB_APP_PRIVATE_KEY_PATH`
-- `RESEND_API_KEY`
+- `RESEND_API_KEY`, `EMAIL_FROM`, and `RESEND_WEBHOOK_SECRET` (all three when email is enabled)
 - `TURNSTILE_SITE_KEY`
 - `TURNSTILE_SECRET_KEY`
 - `GOOGLE_CLIENT_ID` (optional, paired with `GOOGLE_CLIENT_SECRET`)
 - `GOOGLE_CLIENT_SECRET` (optional, paired with `GOOGLE_CLIENT_ID`)
 - `BUILD_WORKSPACE_ROOT`
-- `RELEASE_METADATA_ROOT`
-- `PROJECT_VOLUME_ROOT`
 - `NGINX_HELLODEPLOY_CONFIG_DIR`
 - `NGINX_ENABLED`
 - `WORKER_CONCURRENCY`
+- `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ZONE_ID`, and `CUSTOM_HOSTNAME_TARGET` (optional; all three enable admin-free custom domains through Cloudflare for SaaS)
+
+See [`ENVIRONMENT.md`](ENVIRONMENT.md) for every variable, its default, and which ones must be set together.
 
 Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, or webhook secrets.
 
@@ -149,6 +150,7 @@ Do not commit `.env`, generated private keys, tunnel credentials, MongoDB URLs, 
 - Backup with a separately verified Atlas/external snapshot: `sudo bash infrastructure/backup.sh --skip-database`
 - Restore: `sudo bash infrastructure/restore.sh <backup-directory>`
 - Upgrade: `sudo bash infrastructure/upgrade.sh --ref vMAJOR.MINOR.PATCH`
+- Automatic upgrades (optional): `sudo bash infrastructure/install-autodeploy.sh` installs a timer that upgrades to new `main` commits after CI passes; see [Operations Runbooks › Automatic deploys](OPERATIONS_RUNBOOKS.md#automatic-deploys)
 - Installed-host verification: `sudo bash infrastructure/verify-installation.sh`
 - Rollback: use the previous release and `docs/OPERATIONS_RUNBOOKS.md`
 - Uninstall: `sudo bash infrastructure/uninstall.sh`
@@ -159,4 +161,4 @@ Backups must include MongoDB data, protected configuration, Nginx route files, C
 
 `--skip-database` is an explicit acknowledgement that a current external database snapshot has already been verified. For non-interactive upgrades backed by external snapshots, set `HELLODEPLOY_DATABASE_BACKUP_MODE=external`; the default `local` mode requires `mongodump` to succeed. Backup directories contain secrets and must be transferred to an encrypted, access-controlled off-host destination.
 
-Production upgrades must target an immutable release tag or full commit SHA according to [`RELEASE_POLICY.md`](RELEASE_POLICY.md); do not deploy an unreviewed moving branch.
+Production upgrades must target an immutable release tag or full commit SHA according to [`RELEASE_POLICY.md`](RELEASE_POLICY.md); do not deploy an unreviewed moving branch. The automatic deploy follows this rule: it resolves `main` to one exact commit and upgrades only when that commit passed CI, and `upgrade.sh` still receives that full SHA.

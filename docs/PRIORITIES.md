@@ -169,7 +169,12 @@ Recently resolved below. One remains open:
   environment-name configuration are done. Five clone-stage deployments failed;
   none reached build or activation. Tarball and retry changes were manually copied
   live during diagnosis, so the next action is release reconciliation and a supported
-  immutable upgrade—not another deployment trigger. Punch list:
+  immutable upgrade—not another deployment trigger.
+  **2026-10-15 update:** the platform now runs real customer apps through the
+  worker (HelloRun and helloeventhub among them; see the 2026-10-12 restart-policy
+  outage and [IMPROVEMENTS.md Round 3](IMPROVEMENTS.md#round-3--helloeventhub-deploy-failures-2026-10-14)).
+  The items below still need an explicit per-runtime evidence pass before they are
+  checked off. Punch list:
   - [ ] Re-verify the production GitHub App env group is complete
         (`GITHUB_APP_NAME` was found missing in a past audit; the group is
         all-or-nothing).
@@ -221,6 +226,12 @@ this track.
 
 ## Also worth a deliberate decision (not urgent, not blocking anything)
 
+- **Resolved 2026-10 — shipping HelloDeploy's own code.** `infrastructure/upgrade.sh`
+  has since been run against the live host, and a pull-based automatic deploy
+  (`scripts/autodeploy.js`, installed by `infrastructure/install-autodeploy.sh`)
+  now deploys `main` at an exact, CI-passed commit; see
+  [Operations Runbooks › Automatic deploys](OPERATIONS_RUNBOOKS.md#automatic-deploys).
+  The original finding is kept below for history.
 - **HelloDeploy's own production dashboard is running older code than this
   repo, discovered 2026-08-14.** Confirmed via two direct live checks:
   neither Track E's landing-page "How it works" section nor Track D's

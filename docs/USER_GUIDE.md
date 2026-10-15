@@ -52,6 +52,7 @@ The project overview presents the most important next step at the top of the pag
 - During setup, it guides the Owner through connecting the source, checking the app, completing initial approval, and publishing the first deployment.
 - While approval or deployment is in progress, it links to the current review or deployment details.
 - After a healthy deployment, it shows the application address, the live release, recent deployment activity, and whether a newer source commit is available.
+- While the app is live, it shows how long the app has been running (for example "Running for 3 days"), or warns "Your app isn't running right now" when the container has stopped.
 - If setup or a deployment needs attention, it shows the blocking item or recommendation and the relevant action. Successful technical checks stay out of the way.
 
 Repository, branch, app type, deployment mode, and notification values are available under **Project details**. Owners make configuration changes from **Project Settings**. Maintainers can deploy and retry releases, while Viewers receive read-only status and deployment links.
@@ -115,7 +116,9 @@ If your app needs secrets or configuration:
 3. Add each variable by name and value.
 4. Save the variable.
 
-Secret values are encrypted before storage. After saving, HelloDeploy should not show the raw value again. Update a value by replacing it.
+Secret values are encrypted immediately and stay hidden. The Owner can select **Show all values** to see them on screen until they select **Hide values**, leave, or reload the page; every reveal is recorded in the project's audit log. Update a value by replacing it.
+
+Do not add `PORT`. HelloDeploy sets it on every app container itself, and a variable with that name is ignored.
 
 Common examples:
 
@@ -242,6 +245,11 @@ Project roles:
 
 Only the Owner can invite members, remove members, change member roles, and transfer ownership.
 
+To add a member, open **Members** and enter their email address with a role:
+
+- If the person already has a HelloDeploy account, they are added right away and receive an email telling them so.
+- If not, they receive an invitation to sign up. The invitation is listed as **Invite pending**, expires after 14 days, and counts toward the project's member limit until it is accepted, revoked, or expires. The Owner can **Revoke** it at any time.
+
 ## Custom Domains
 
 Each project can request one custom domain by default.
@@ -257,6 +265,14 @@ Each project can request one custom domain by default.
 9. Open your domain's DNS records where the domain's DNS is managed (often where you bought it; in Cloudflare: select the domain, then **DNS** → **Records**) and **delete every A, AAAA or CNAME record named exactly your domain**. These usually point at your registrar's parking page or your old host, and while they exist visitors are sent there instead. Keep the `_hellodeploy-verify` TXT record, email (MX) records and other TXT records.
 10. **Add** the CNAME record shown on the page: name `@` (or the part before your domain), the target shown on the page, TTL Auto. If your DNS is on Cloudflare, set proxy status as the page says: **DNS only** (grey cloud) for a `customers.hellodeploy.online` target, **Proxied** (orange cloud) for a `.cfargotunnel.com` target.
 11. Wait 1–5 minutes, then select **Check routing**. The page confirms the domain is live, or explains in plain words what is still wrong: old records still sending visitors elsewhere, the connection not running yet, or another server answering for the address.
+
+Once the domain is live, the page lists what to do next:
+
+- **Make www work too.** `www.` + your domain does not open your app on its own. Redirect it to your main address where your DNS is managed (in Cloudflare: **Rules** → **Redirect Rules** → template **Redirect from WWW to root**; other providers call this domain forwarding or a URL redirect).
+- **Keep your DNS records.** Deleting or changing the CNAME takes the address offline. The `_hellodeploy-verify` and `_cf-custom-hostname` records can stay.
+- Your platform address (`<slug>.hellodeploy.online`) keeps serving the same app as a backup link.
+
+If HelloDeploy has reached its limit of connectable custom domains, the page says it can't connect more right now. The domain stays verified and nothing is lost; contact support to have it connected.
 
 A domain can show as connected inside HelloDeploy while the address still does not open for visitors. That means routing exists here but the CNAME record is missing or points elsewhere; **Check routing** distinguishes the two.
 
@@ -275,12 +291,14 @@ Default limits may be adjusted by an Admin or Super Admin.
 | Project members                     | Owner plus 2 |
 | Memory                              |       256 MB |
 | CPU                                 |    0.25 core |
-| Writable project storage            |       500 MB |
+| Build context (repository size)     |       500 MB |
 | Deployments per month               |           10 |
-| Build timeout                       |    5 minutes |
+| Build timeout                       |   10 minutes |
 | Custom domains                      |            1 |
 | Retained rollback releases          |            3 |
-| Log retention                       |       7 days |
+| Deployment log retention            |      30 days |
+
+Premium accounts get unlimited deployments, and their projects are approved automatically once they pass every readiness check. An anonymized record of each finished deployment is kept indefinitely; see the Privacy Policy and the in-app **Service limits** page.
 
 ## Troubleshooting
 

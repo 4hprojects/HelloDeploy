@@ -70,7 +70,7 @@ The default free limit is one owned project. Admins can grant user-specific or p
 
 ### Can I invite teammates?
 
-Yes. Owners can invite members as Maintainers or Viewers. Maintainers can operate deployments. Viewers can inspect status and logs.
+Yes. Owners can add members as Maintainers or Viewers by email. Maintainers can operate deployments. Viewers can inspect status and logs. Someone who already has an account is added right away and notified by email. Someone without an account gets an email invitation to sign up; it expires after 14 days, counts toward the member limit while pending, and the Owner can revoke it.
 
 ## GitHub
 
@@ -132,7 +132,7 @@ Open the project, go to **Environment**, and add each variable by name and value
 
 ### Can I view a secret after saving it?
 
-No. Secret values should be encrypted before storage and not displayed again. Replace the value if it needs to change.
+Only the Owner, and only on purpose. Values are encrypted immediately and stay hidden; the Owner can select **Show all values** on the Environment page to see them until they hide them or leave the page. Every reveal is recorded in the project's audit log. Replace a value if it needs to change.
 
 ### Do environment variable changes affect the running release immediately?
 
@@ -150,7 +150,7 @@ Approved projects are intended to receive a platform-managed subdomain based on 
 
 ### Can I use a custom domain?
 
-Yes. The default limit is one custom domain per project. Ownership must be verified and an Admin must approve activation.
+Yes. The default limit is one custom domain per project. You prove ownership with a DNS TXT record; once it is verified, HelloDeploy activates routing automatically with the project's next healthy deployment. Where available, the page also gives you the CNAME record to point the domain at HelloDeploy.
 
 ### Can two projects claim the same domain?
 
@@ -160,7 +160,7 @@ No. Domain ownership must be unique.
 
 ### What are the default free limits?
 
-The default limits include one owned project, one running application, 256 MB memory, 0.25 CPU, 500 MB writable storage, 10 deployments per month, a 5-minute build timeout, one custom domain, three retained rollback releases, and 7-day log retention.
+The default limits include one owned project, one running application, 256 MB memory, 0.25 CPU, a 500 MB build context, 10 deployments per month, a 10-minute build timeout, one custom domain, three retained rollback releases, and 30-day deployment log retention.
 
 ### Can limits be increased?
 
@@ -176,7 +176,7 @@ The Acceptable Use Policy prohibits malware, phishing, credential theft, illegal
 
 ### Are logs permanent?
 
-No. Build and deployment logs are retained for 7 days by default.
+No. Build and runtime logs are permanently deleted after 30 days. An anonymized copy of each finished deployment's outcome, timings, and log lines is kept indefinitely to improve build reliability; see the Privacy Policy.
 
 ## Automation and Operations
 

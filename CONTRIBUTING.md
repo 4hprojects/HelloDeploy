@@ -32,4 +32,4 @@ npm audit --omit=dev --audit-level=moderate
 
 ## Where things live
 
-See the Architecture section in [CLAUDE.md](CLAUDE.md) for the app/package layout, [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for configuration, [docs/RELEASE_POLICY.md](docs/RELEASE_POLICY.md) for release and rollback rules, and [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) + [docs/phases/](docs/phases/) for the current backlog and in-flight work.
+See the Architecture section in [CLAUDE.md](CLAUDE.md) for the app/package layout, [docs/ENVIRONMENT.md](docs/ENVIRONMENT.md) for configuration, [docs/RELEASE_POLICY.md](docs/RELEASE_POLICY.md) for release and rollback rules, and [docs/PRIORITIES.md](docs/PRIORITIES.md) + [docs/IMPROVEMENTS.md](docs/IMPROVEMENTS.md) for what is open now. [docs/phases/](docs/phases/) is a historical record of completed phases.
