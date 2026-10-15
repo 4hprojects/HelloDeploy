@@ -133,13 +133,43 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: 'Custom Domains' })).toBeVisible();
   await page.goto('/projects/northstar-notes/members');
   await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+  // Activity is reached from the sidebar and never shows secret names.
+  await page.getByRole('link', { name: 'Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
+  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 
+  // Sign-ins are rate limited to 10 per 15 minutes across this whole spec, so
+  // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: /Users/ })).toBeVisible();
   await page.goto('/admin/ux-metrics');
   await expect(page.getByRole('heading', { name: 'UX Metrics' })).toBeVisible();
+
+  // Audit filters apply on change, and Custom range reveals the dates.
+  await page.goto('/admin/audit-events');
+  await page.getByLabel('Outcome').selectOption('FAILURE');
+  await expect(page).toHaveURL(/outcome=FAILURE/);
+  await expect(page.getByText('No audit events found')).toBeVisible();
+  await page.getByRole('link', { name: 'Clear' }).click();
+  await expect(page.getByLabel('From')).toHaveCount(0);
+  await page.getByLabel('Period').selectOption('custom');
+  await expect(page.getByLabel('From')).toBeVisible();
+  await page.getByLabel('Period').selectOption('');
+  await expect(page.getByLabel('From')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Details' }).first().click();
+  await expect(page.getByText('IP address').first()).toBeVisible();
+  const auditAxe = await new AxeBuilder({ page }).analyze();
+  expect(auditAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  await page.setViewportSize({ width: 320, height: 900 });
+  const auditOverflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(auditOverflow).toBeLessThanOrEqual(1);
 });
 
 const publicNavigationWidths = [320, 360, 390, 480, 481, 768, 769, 1023, 1024, 1280, 1440];
@@ -380,46 +410,6 @@ test('deployment polling preserves canonical status and refreshes terminal actio
   await expect(badge).toHaveClass(/status-badge--failed/);
   await expect(badge).toHaveAttribute('aria-label', 'Failed: This release did not become live.');
   await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
-});
-
-test('project activity lists events without exposing secret names', async ({ page }) => {
-  await signIn(page);
-  await page.getByRole('link', { name: 'Northstar Notes' }).first().click();
-  await page.getByRole('link', { name: 'Activity' }).click();
-  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
-  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
-});
-
-test('admin audit filters apply on change and reveal custom dates', async ({ page }) => {
-  await signIn(page, 'admin@hellodeploy.test');
-  await page.goto('/admin/audit-events');
-
-  await page.getByLabel('Outcome').selectOption('FAILURE');
-  await expect(page).toHaveURL(/outcome=FAILURE/);
-  await expect(page.getByText('No audit events found')).toBeVisible();
-
-  await page.getByRole('link', { name: 'Clear' }).click();
-  await expect(page.getByLabel('From')).toHaveCount(0);
-  await page.getByLabel('Period').selectOption('custom');
-  await expect(page.getByLabel('From')).toBeVisible();
-
-  await page.getByLabel('Period').selectOption('');
-  await expect(page.getByLabel('From')).toHaveCount(0);
-
-  await page.getByRole('button', { name: 'Details' }).first().click();
-  await expect(page.getByText('IP address').first()).toBeVisible();
-
-  const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
-
-  await page.setViewportSize({ width: 320, height: 900 });
-  const overflow = await page.evaluate(
-    () =>
-      globalThis.document.documentElement.scrollWidth -
-      globalThis.document.documentElement.clientWidth,
-  );
-  expect(overflow).toBeLessThanOrEqual(1);
 });
 
 test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
