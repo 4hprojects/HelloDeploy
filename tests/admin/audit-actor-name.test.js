@@ -33,10 +33,10 @@ describe('audit-search.service — actor name resolution', () => {
 
     const { events } = await searchAuditEvents({});
 
-    assert.equal(events[0].actorName, 'Ada Lovelace (ada@example.test)');
+    assert.deepEqual(events[0].actor, { name: 'Ada Lovelace', email: 'ada@example.test' });
   });
 
-  it('leaves actorName unset for a system action (no actorId)', async () => {
+  it('leaves actor unset for a system action (no actorId)', async () => {
     await AuditEvent.create({
       action: 'system.cleanup',
       outcome: AuditOutcome.SUCCESS,
@@ -45,10 +45,10 @@ describe('audit-search.service — actor name resolution', () => {
 
     const { events } = await searchAuditEvents({});
 
-    assert.equal(events[0].actorName, undefined);
+    assert.equal(events[0].actor, undefined);
   });
 
-  it('leaves actorName unset when the actor no longer exists', async () => {
+  it('leaves actor unset when the actor no longer exists', async () => {
     await AuditEvent.create({
       action: 'admin.user_suspended',
       outcome: AuditOutcome.SUCCESS,
@@ -57,7 +57,7 @@ describe('audit-search.service — actor name resolution', () => {
 
     const { events } = await searchAuditEvents({});
 
-    assert.equal(events[0].actorName, undefined);
+    assert.equal(events[0].actor, undefined);
     assert.ok(events[0].actorId, 'raw actorId must still be present as a fallback');
   });
 });

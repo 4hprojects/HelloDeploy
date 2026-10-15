@@ -671,6 +671,20 @@
     });
   }
 
+  function initAuditDetailToggles() {
+    document.addEventListener('click', (e) => {
+      const toggle = e.target.closest('[data-audit-detail-toggle]');
+      const detail = toggle && document.getElementById(toggle.getAttribute('aria-controls'));
+      if (!detail) {
+        return;
+      }
+      const open = toggle.getAttribute('aria-expanded') !== 'true';
+      toggle.setAttribute('aria-expanded', String(open));
+      toggle.textContent = open ? 'Hide' : 'Details';
+      detail.hidden = !open;
+    });
+  }
+
   function initPasswordToggles() {
     document.addEventListener('click', (e) => {
       const btn = e.target.closest('.password-toggle[aria-controls]');
@@ -2026,6 +2040,7 @@
     initPageModal();
     initPendingForms();
     initAutoSubmitControls();
+    initAuditDetailToggles();
     initPasswordToggles();
     initPasswordRequirements();
     initRepositoryBranchLoader();

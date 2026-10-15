@@ -147,6 +147,29 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: /Users/ })).toBeVisible();
   await page.goto('/admin/ux-metrics');
   await expect(page.getByRole('heading', { name: 'UX Metrics' })).toBeVisible();
+
+  // Audit filters apply on change, and Custom range reveals the dates.
+  await page.goto('/admin/audit-events');
+  await page.getByLabel('Outcome').selectOption('FAILURE');
+  await expect(page).toHaveURL(/outcome=FAILURE/);
+  await expect(page.getByText('No audit events found')).toBeVisible();
+  await page.getByRole('link', { name: 'Clear' }).click();
+  await expect(page.getByLabel('From')).toHaveCount(0);
+  await page.getByLabel('Period').selectOption('custom');
+  await expect(page.getByLabel('From')).toBeVisible();
+  await page.getByLabel('Period').selectOption('');
+  await expect(page.getByLabel('From')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Details' }).first().click();
+  await expect(page.getByText('IP address').first()).toBeVisible();
+  const auditAxe = await new AxeBuilder({ page }).analyze();
+  expect(auditAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  await page.setViewportSize({ width: 320, height: 900 });
+  const auditOverflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(auditOverflow).toBeLessThanOrEqual(1);
 });
 
 const publicNavigationWidths = [320, 360, 390, 480, 481, 768, 769, 1023, 1024, 1280, 1440];
