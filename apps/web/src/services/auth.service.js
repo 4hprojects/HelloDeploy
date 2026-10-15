@@ -10,6 +10,7 @@ import {
 } from './notification.service.js';
 import { env } from '../config/env.js';
 import { recordProductEvent } from './product-analytics.service.js';
+import { claimPendingInvitations } from './project.service.js';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -134,6 +135,7 @@ export async function verifyEmail({ rawToken, sourceIp, correlationId }) {
     correlationId,
   });
   await recordProductEvent({ name: 'verification_completed', userId: user._id });
+  await claimPendingInvitations({ user, sourceIp, correlationId });
 
   return { success: true, sessionUser: user.toSessionUser() };
 }

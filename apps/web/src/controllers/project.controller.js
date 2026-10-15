@@ -11,7 +11,9 @@ import {
   enableProjectMaintenance,
   disableProjectMaintenance,
   getProjectMembers,
+  getPendingInvitations,
   inviteMember,
+  revokeInvitation,
   removeMember,
   updateMemberRole,
   transferOwnership,
@@ -355,14 +357,16 @@ export const postSubmitForReview = asyncHandler(async (req, res) => {
 const SENSITIVE_AUTH_MAX_AGE_MS = 10 * 60 * 1000;
 
 async function membersPageData(req, extra = {}) {
-  const [members, owner] = await Promise.all([
+  const [members, invitations, owner] = await Promise.all([
     getProjectMembers(req.project._id),
+    getPendingInvitations(req.project._id),
     User.findById(req.session.user.id).select('+passwordHash'),
   ]);
   return {
     title: `Members – ${req.project.name}`,
     project: req.project,
     members,
+    invitations,
     membership: req.membership,
     googleOnlyOwner: Boolean(owner?.googleSubject && !owner.passwordHash),
     sensitiveAuthRecent:
@@ -395,6 +399,9 @@ export const postInviteMember = asyncHandler(async (req, res) => {
     ownerId: req.project.ownerId,
     inviteeEmail: req.body.email.trim(),
     role: req.body.role,
+    projectName: req.project.name,
+    projectSlug: req.project.slug,
+    inviterName: `${req.session.user.firstName} ${req.session.user.lastName}`.trim(),
     actorId: req.session.user.id,
     sourceIp: req.ip,
     correlationId: req.correlationId,
@@ -410,7 +417,35 @@ export const postInviteMember = asyncHandler(async (req, res) => {
     );
   }
 
-  req.flash('success', 'Member added successfully.');
+  const email = req.body.email.trim().toLowerCase();
+  if (!result.pending) {
+    req.flash('success', 'Member added successfully.');
+  } else if (result.emailStatus === 'accepted') {
+    req.flash('success', `Invitation sent to ${email}. They'll join when they create an account.`);
+  } else {
+    req.flash(
+      'info',
+      `Invitation saved, but the email could not be sent. Ask them to sign up with ${email} to join.`,
+    );
+  }
+  res.redirect(`/projects/${req.project.slug}/members`);
+});
+
+export const postRevokeInvitation = asyncHandler(async (req, res) => {
+  const result = await revokeInvitation({
+    projectId: req.project._id,
+    invitationId: req.params.invitationId,
+    actorId: req.session.user.id,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', 'Invitation revoked.');
+  }
+
   res.redirect(`/projects/${req.project.slug}/members`);
 });
 

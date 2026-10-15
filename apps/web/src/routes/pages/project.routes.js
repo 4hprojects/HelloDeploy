@@ -19,6 +19,7 @@ import {
   getProjectMembersPage,
   postInviteMember,
   postRemoveMember,
+  postRevokeInvitation,
   postUpdateMemberRole,
   postTransferOwnership,
   postUpdateDeploymentMode,
@@ -136,6 +137,13 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postInviteMember,
+);
+router.post(
+  '/:slug/members/invitations/:invitationId/revoke',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postRevokeInvitation,
 );
 router.post(
   '/:slug/members/:userId/remove',
