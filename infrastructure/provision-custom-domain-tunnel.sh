@@ -17,7 +17,13 @@
 #   --dry-run               Print the files that would be written, change nothing
 set -euo pipefail
 
-CRED_DIR="${HELLODEPLOY_TUNNEL_CREDENTIALS_DIR:-/home/henz/.cloudflared}"
+# sudo resets HOME to /root, but `cloudflared tunnel login` wrote the credentials
+# under the invoking user's home.
+INVOKING_HOME="$HOME"
+if [[ -n "${SUDO_USER:-}" ]]; then
+  INVOKING_HOME="$(getent passwd "$SUDO_USER" | cut -d: -f6)"
+fi
+CRED_DIR="${HELLODEPLOY_TUNNEL_CREDENTIALS_DIR:-$INVOKING_HOME/.cloudflared}"
 BACKUP_ROOT="/var/lib/hellodeploy/tunnel-backups"
 
 HOSTNAME_ARG=""

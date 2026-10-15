@@ -2324,3 +2324,31 @@ recovery remain unexecuted until their declared operational preconditions pass.
   unrelated untracked `docs/to do/hellodeploy-docker-optimization/` directory. No
   production, supported-host, DNS, crawler, real-device, field-performance, deployment,
   or five-user usability gate was run or claimed.
+
+## 2026-10-15 — Documentation and Configuration Refresh
+
+- Summarized work merged since the last entry (PRs #76–#109, not individually logged
+  here): container restart policy `unless-stopped` (#76), pull-based automatic deploys
+  (#81, #83, #86), tiered and provisional auto-approval (#90), deploy-failure diagnosis
+  from the helloeventhub incident (#92–#95, #97; see `docs/IMPROVEMENTS.md` Round 3),
+  owner-only audited secret reveal (#95), Cloudflare for SaaS custom domains with a
+  100-hostname cap and post-live guidance (#100–#104), visitor HTTPS scheme
+  forwarding (#105), app uptime (#106), admin list filters (#107), landing changes
+  (#108), and member email invitations (#109).
+- Full documentation drift audit against the code. Corrected user-facing facts that
+  had gone wrong: build timeout is 10 minutes (also on the in-app Service limits
+  page), log retention is 30 days, writable storage is no longer a limit, secrets can
+  be revealed by the Owner, and verified custom domains activate without an Admin.
+  Documented invitations, uptime, post-live domain steps, the hostname cap, and the
+  platform-managed `PORT`.
+- Refreshed status docs (Priorities, Improvements, phases index, batch tracker note,
+  docs index, status-review snapshot banner), replaced the obsolete 2026-07-13 pilot
+  section in the architecture doc, and archived the implemented UI/UX improvement pack.
+- `docs/ENVIRONMENT.md` now covers every variable the code and host scripts read,
+  marks `RELEASE_METADATA_ROOT` and `PROJECT_VOLUME_ROOT` as reserved (parsed, unused),
+  and corrects the web/worker default differences. `provision-custom-domain-tunnel.sh`
+  no longer hardcodes a developer home directory; it uses the `sudo` user's home.
+- Added runbook entries for containers still on `on-failure:3` and for the forwarded
+  HTTPS scheme. Updated CLAUDE.md commands and pipeline notes.
+- Not changed: the GO/NO-GO decision and HelloUniversity pilot status in the batch
+  tracker were not re-assessed; the dev/production Redis sharing item stays open.

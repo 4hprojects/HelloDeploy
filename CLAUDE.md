@@ -7,18 +7,22 @@ Node.js monorepo (npm workspaces) — `apps/web` (Express + EJS) + `apps/worker`
 Self-hosted mini-PaaS: users connect a GitHub repo, HelloDeploy builds it into a Docker image and serves it on a platform subdomain behind nginx.
 
 - **apps/web** — Express 4 + EJS (server-rendered, session auth, CSRF). Controllers → services → mongoose models. Key surfaces: project CRUD/overview, deployments UI with SSE log streaming, environment secrets (encrypted at rest), admin area (users/projects/quotas/approvals), GitHub webhook + deploy-hook API routes.
-- **apps/worker** — BullMQ consumer. Deploy pipeline stages: `build-deployment.job` (clone exact commit → sanitize build context → generate Dockerfile → `docker build`) → `activate-release.job` / `rollback-release.job`, both thin wrappers over `deployment/pipeline.js` (`runReleasePipeline`: port alloc → network → secrets → container start → health check → nginx route → swap → HEALTHY). Retention keeps the last 3 HEALTHY releases.
+- **apps/worker** — BullMQ consumer. Deploy pipeline stages: `build-deployment.job` (clone exact commit → sanitize build context → generate Dockerfile → `docker build`) → `activate-release.job` / `rollback-release.job`, both thin wrappers over `deployment/pipeline.js` (`runReleasePipeline`: port alloc → network → secrets → container start → health check → nginx route → swap → HEALTHY). A release never goes live without an nginx route (unless `ALLOW_UNROUTED_RELEASES`). Node app builds run the owner's build command when set. Containers run `--restart unless-stopped`; restarts during the health window count as a crash loop, and a per-minute uptime sweep records whether live containers are still running. Retention keeps the newest HEALTHY releases up to the `maxRollbackReleases` quota (default 3).
 - **packages/** — `contracts` (shared enums), `database` (mongoose models: User, Project, Deployment, Repository, EnvironmentSecret, Quota, Domain, …), `queue` (Redis/BullMQ setup), `security` (encryption, token hashing, redaction), `auth`, `observability` (logger + audit events), `deployment-core`.
-- **Infra assumptions** — MongoDB + Redis; Docker daemon on the worker host; optional nginx (`NGINX_ENABLED`) for routing; TLS terminates upstream. Env reference: `docs/ENVIRONMENT.md`.
-- **Tests** — `node --test` under `tests/`, in-memory MongoDB via `tests/helpers/worker-db.js`; system boundaries (docker, git, nginx, HTTP) injected through optional `deps` parameters.
+- **Infra assumptions** — MongoDB + Redis; Docker daemon on the worker host; optional nginx (`NGINX_ENABLED`) for routing; TLS terminates upstream at Cloudflare (tunnel). Optional Cloudflare for SaaS API (`CLOUDFLARE_*`) for self-service custom domains. Env reference: `docs/ENVIRONMENT.md`.
+- **Tests** — `node --test` under `tests/` (run through `scripts/run-tests.js`), Playwright + axe browser tests under `tests/browser/`, in-memory MongoDB via `tests/helpers/worker-db.js`; system boundaries (docker, git, nginx, HTTP) injected through optional `deps` parameters.
 
 ## Commands
 
 ```bash
 npm run dev          # Start web + worker in parallel
 npm run start        # Production start
-npm run test         # Run tests (node --test)
+npm run test         # Run tests (scripts/run-tests.js → node --test)
 npm run test:watch   # Watch mode tests
+npm run test:coverage # Tests with coverage (CI)
+npm run test:browser # Playwright browser + accessibility tests
+npm run assets:build # Build CSS/JS assets (assets:verify, assets:budget check them)
+npm run config:check # Validate .env configuration
 npm run lint         # ESLint
 npm run lint:fix     # ESLint with auto-fix
 npm run format       # Prettier format

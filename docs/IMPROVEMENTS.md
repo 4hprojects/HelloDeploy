@@ -73,12 +73,12 @@ Overall the fundamentals are strong: session fixation is handled (`req.session.r
 ### MEDIUM
 
 - [x] **Navigation drift** — the contextual sidebar and overview Quick Links now run from one role-aware registry, with a consolidated Settings shell/section registry composing existing project controls through their authoritative routes. Shipped ahead of the rest of Phase 18 (dashboard alerts, webhook-failure surfacing, list polling, and remaining a11y polish are still open — see `docs/phases/README.md`, Phase 18 status Planned). _Effort: M. Fixed 2026-07-13._
-- [ ] **Thin dashboard** — shows only a 5-row project table duplicating `/projects`. **Fix:** recent deployment activity, failure alerts, "needs attention" items. _Effort: M._ → Phase 18
-- [ ] **Deployments list doesn't auto-refresh** — in-progress rows show "Running…" statically until manual reload (the detail page has live SSE). Also the detail page hard-reloads 1.2 s after terminal status, which is jarring. **Fix:** light polling on the list; replace reload with in-place status swap. _Effort: S–M._ → Phase 18
+- [x] **Thin dashboard** — shows only a 5-row project table duplicating `/projects`. **Fix:** recent deployment activity, failure alerts, "needs attention" items. _Effort: M._ → Phase 18 _Resolved 2026-10-02: the dashboard now has status counts, a Needs attention section, and Recent deployment activity._
+- [x] **Deployments list doesn't auto-refresh** — in-progress rows show "Running…" statically until manual reload (the detail page has live SSE). Also the detail page hard-reloads 1.2 s after terminal status, which is jarring. **Fix:** light polling on the list; replace reload with in-place status swap. _Effort: S–M._ → Phase 18 _Resolved 2026-10-09 (f3ae66d): list rows poll through terminal status and actions refresh without a reload._
 
 ### LOW
 
-- [ ] **Raw enum copy** — `APPROVAL_REQUIRED`, `triggerType`, `deploymentMode` values shown semi-raw in places (`show.ejs:60`). _Effort: S._ → Phase 18
+- [x] **Raw enum copy** — `APPROVAL_REQUIRED`, `triggerType`, `deploymentMode` values shown semi-raw in places (`show.ejs:60`). _Effort: S._ → Phase 18 _Resolved: the overview maps deployment modes and statuses to plain labels._
 - [ ] **"● Live" indicator is color/glyph-only** — minor a11y gap; status badges elsewhere have aria-labels. _Effort: S._ → Phase 18
 - Positives worth keeping: skip link, focus-trapped drawer/modals, `aria-live` flash regions, reduced-motion support, responsive tables, consistent confirm-modal pattern for destructive actions.
 
@@ -200,7 +200,7 @@ Open Round 1 §3 items (navigation drift, thin dashboard, deployments auto-refre
 
 ## Positives confirmed this round
 
-Nonce-based CSP with `scriptSrcAttr 'none'`; timing-safe compares on every token path; Argon2id at OWASP params; session regeneration on sign-in; secrets AES-256-GCM at rest and never rendered; argv-only spawns (no shell) across git/docker/nginx; non-host, memory-capped and time-bounded builds with runtime secrets withheld; cap-dropped, loopback-published, pids-limited containers; zero-downtime nginx swap ordering; Redis-backed rate limits failing closed in prod; comprehensive Mongo indexes; 74 behavioral test files with no skipped tests; exactly one TODO marker in the whole tree.
+Nonce-based CSP with `scriptSrcAttr 'none'`; timing-safe compares on every token path; Argon2id at OWASP params; session regeneration on sign-in; secrets AES-256-GCM at rest and rendered only on an audited, Owner-only reveal; argv-only spawns (no shell) across git/docker/nginx; non-host, memory-capped and time-bounded builds with runtime secrets withheld; cap-dropped, loopback-published, pids-limited containers; zero-downtime nginx swap ordering; Redis-backed rate limits failing closed in prod; comprehensive Mongo indexes; 74 behavioral test files with no skipped tests; exactly one TODO marker in the whole tree.
 
 ---
 

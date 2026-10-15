@@ -2,6 +2,8 @@
 
 Updated: 2026-10-09
 
+> **2026-10-15 note:** the status table below was last refreshed on 2026-10-09. Since then, production has hosted customer apps through the worker, received releases through the automatic deploy, and shipped PRs #92–#109 (deploy-failure diagnosis, Cloudflare for SaaS custom domains, member invitations, app uptime). Confirm the current pilot and GO/NO-GO state before relying on the table.
+
 This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
@@ -46,6 +48,8 @@ tracks the authorized rows already displayed through terminal transitions, prese
 canonical badge semantics, announces dashboard completion, and refreshes terminal
 deployment actions without a page reload. Environment values are permanently
 write-only through the web interface, with a names-only `.env` confirmation preview.
+(Superseded 2026-10-13 by PR #95: the Owner can now reveal values on purpose with
+**Show all values**, and each reveal is audited.)
 Rollback records optionally identify the release being replaced. Generated CSS is
 below the unchanged 110,000-byte budget, and separate mobile/desktop Lighthouse
 profiles enforce the pack's 2.5-second LCP target. Deterministic browser coverage now

@@ -181,6 +181,23 @@ curl -s http://127.0.0.1:<hostPort>/      # app responds
 7. Rotate affected credentials if a secret may have been exposed.
 8. Record the root cause, corrective action, affected projects, and follow-up tests in `WORKLOG.md`.
 
+### Apps down after a reboot or Docker update
+
+The dashboard can still say **Live** while an app container is stopped. Since PR #76, new deployments start containers with `--restart unless-stopped`, so they come back after a Docker restart or host reboot. Containers started by an older release keep `on-failure:3`, which never restarts a clean exit (a Docker package update stops containers with exit code 0). Check and fix them in place:
+
+```sh
+docker ps -a --filter label=hellodeploy.managed=true \
+  --format '{{.Names}}\t{{.Status}}'
+docker inspect --format '{{.Name}} {{.HostConfig.RestartPolicy.Name}}' <container>
+docker update --restart unless-stopped <container> && docker start <container>
+```
+
+A redeploy also replaces the container with the current policy.
+
+### App redirects forever or builds `http://` links
+
+Cloudflare ends TLS and the tunnel reaches Nginx over plain HTTP. Generated routes pass the visitor's original scheme to apps as `X-Forwarded-Proto` (PR #105), so an app that trusts its proxy (for example Express `app.set('trust proxy', 1)`) sees `https`. Routes are rewritten on each activation, so a project still on a route written before that change gets the header after its next deployment.
+
 ### Legacy password accounts missing lifecycle state
 
 Accounts created before the `User.status` field existed cannot sign in or request a
