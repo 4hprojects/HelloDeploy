@@ -2352,3 +2352,20 @@ recovery remain unexecuted until their declared operational preconditions pass.
   HTTPS scheme. Updated CLAUDE.md commands and pipeline notes.
 - Not changed: the GO/NO-GO decision and HelloUniversity pilot status in the batch
   tracker were not re-assessed; the dev/production Redis sharing item stays open.
+
+## 2026-10-15 — Per-Project Audit Log: Data Foundation
+
+- Audit events now name their project in an indexed `AuditEvent.projectId`.
+  `writeAuditEvent` fills it from an explicit `projectId`, a project target, or
+  `metadata.projectId`, so existing call sites are linked without changes.
+  `domain.rejected`, `domain.tunnel_assigned` and `domain.custom_hostname_registered`
+  recorded no project before and now pass one.
+- Audit retention goes from 7 to 90 days, matching the Privacy Policy. This reverses
+  the S2 note above that left the 7-day TTL alone. `scripts/repair-audit-retention.js`
+  changes the TTL on existing databases and links older events to their project
+  (see the runbook).
+- Push and deploy-hook deploys, and the pipeline's `deployment.<status>` events, are no
+  longer attributed to the project owner. They are recorded as `actorRole: 'system'`
+  with the `triggerType`.
+- Next: the project Activity page (Owner and Maintainer), then an anonymized archive of
+  audit events kept indefinitely for study.

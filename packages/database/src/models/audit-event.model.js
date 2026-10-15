@@ -21,6 +21,12 @@ const auditEventSchema = new Schema(
       required: true,
       maxlength: 200,
     },
+    // The project an event belongs to, so each project can read its own log.
+    projectId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Project',
+      default: null,
+    },
     targetType: {
       type: String,
       default: null,
@@ -78,8 +84,11 @@ auditEventSchema.index({ outcome: 1, createdAt: -1 });
 auditEventSchema.index({ targetType: 1, createdAt: -1 });
 auditEventSchema.index({ targetId: 1, createdAt: -1 });
 auditEventSchema.index({ correlationId: 1 });
-// 7-day retention policy enforced by TTL index (per blueprint)
-auditEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 7 * 24 * 60 * 60 });
+auditEventSchema.index({ projectId: 1, createdAt: -1 });
+// 90-day retention, as the privacy policy states. Changing this value needs
+// scripts/repair-audit-retention.js: Mongoose never alters an existing TTL.
+export const AUDIT_EVENT_RETENTION_SECONDS = 90 * 24 * 60 * 60;
+auditEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: AUDIT_EVENT_RETENTION_SECONDS });
 
 export const AuditEvent =
   mongoose.models.AuditEvent ?? mongoose.model('AuditEvent', auditEventSchema);
