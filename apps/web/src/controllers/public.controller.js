@@ -177,7 +177,7 @@ const CORE_TOPIC_CONTENT = Object.freeze({
         title: 'How values are handled',
         items: [
           'Values are encrypted immediately at rest and hidden in normal lists.',
-          'Saved values are write-only in the web interface; Owners replace or delete them instead of retrieving them.',
+          'Only the Owner can reveal saved values, on purpose with Show all values, and every reveal is recorded in the audit log.',
           'Logs and user-facing errors redact known secrets, but applications must still avoid printing credentials.',
           'Replacing or deleting a stored value does not alter the container that is already live.',
         ],
