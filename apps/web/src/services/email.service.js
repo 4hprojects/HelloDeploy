@@ -102,6 +102,15 @@ export async function sendProjectPausedEmail(options) {
   });
 }
 
+export async function sendProjectInviteEmail({ to, correlationId, ...payload }) {
+  return sendEmail({
+    to,
+    kind: 'project-invite',
+    correlationId,
+    ...buildEmailContent('project-invite', { email: to, ...payload }),
+  });
+}
+
 export async function sendPasswordChangedEmail({ to, firstName, correlationId }) {
   const content = buildEmailContent('password-changed', { firstName });
   return sendEmail({

@@ -5,6 +5,7 @@ import { AuditOutcome, PlatformRole, UserStatus } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import { recordProductEvent } from './product-analytics.service.js';
+import { claimPendingInvitations } from './project.service.js';
 
 const GOOGLE_SCOPES = ['openid', 'email', 'profile'];
 const LINK_MAX_ATTEMPTS = 10;
@@ -150,6 +151,7 @@ export async function completeGoogleAccount({
     });
     await recordProductEvent({ name: 'signup_completed', userId: user._id });
     await recordProductEvent({ name: 'verification_completed', userId: user._id });
+    await claimPendingInvitations({ user, sourceIp, correlationId });
     return { success: true, sessionUser: user.toSessionUser() };
   } catch (error) {
     if (error?.code === 11000) {

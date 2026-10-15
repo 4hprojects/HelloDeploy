@@ -2,6 +2,7 @@ import { timingSafeEqual } from 'node:crypto';
 import {
   Project,
   ProjectMembership,
+  ProjectInvitation,
   ApprovalRequest,
   User,
   Deployment,
@@ -35,6 +36,10 @@ import {
 } from './approval-readiness.service.js';
 import { notifyAdminsOfPendingReview } from './provisional-approval.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
+import { sendProjectInviteEmail } from './email.service.js';
+import { queueEmailNotification } from './notification.service.js';
+
+const INVITATION_TTL_DAYS = 14;
 
 export async function checkSlugAvailability(value) {
   const slug = normalizeSubdomainLabel(value);
@@ -742,18 +747,38 @@ export async function getProjectMembers(projectId) {
     .lean();
 }
 
-export async function inviteMember({
-  projectId,
-  ownerId,
-  inviteeEmail,
-  role,
-  actorId,
-  sourceIp,
-  correlationId,
-}) {
-  const invitee = await User.findOne({ email: inviteeEmail.toLowerCase() });
+export async function inviteMember(
+  {
+    projectId,
+    ownerId,
+    inviteeEmail,
+    role,
+    projectName,
+    projectSlug,
+    inviterName,
+    actorId,
+    sourceIp,
+    correlationId,
+  },
+  deps = {},
+) {
+  const email = inviteeEmail.toLowerCase();
+  const invitee = await User.findOne({ email });
   if (!invitee) {
-    return { success: false, error: 'No account found with that email address.' };
+    return invitePendingMember(
+      {
+        projectId,
+        ownerId,
+        email,
+        role,
+        projectName,
+        inviterName,
+        actorId,
+        sourceIp,
+        correlationId,
+      },
+      deps,
+    );
   }
 
   const existing = await ProjectMembership.findOne({ projectId, userId: invitee._id });
@@ -785,7 +810,186 @@ export async function inviteMember({
     metadata: { inviteeId: invitee._id.toString(), role },
   });
 
+  const queueEmail = deps.queueEmailNotification ?? queueEmailNotification;
+  try {
+    await queueEmail({
+      userId: invitee._id,
+      kind: 'project-member-added',
+      payload: {
+        firstName: invitee.firstName,
+        inviterName,
+        projectName,
+        role,
+        projectUrl: `${baseUrl()}/projects/${projectSlug}`,
+      },
+      correlationId,
+      projectId,
+    });
+  } catch (error) {
+    // The membership is already in place; a missed notice must not undo it.
+    logger.warn('[members] Member-added email could not be queued', {
+      projectId: projectId.toString(),
+      correlationId,
+      errorType: error?.name ?? 'error',
+    });
+  }
+
+  return { success: true, pending: false };
+}
+
+/**
+ * Add every unexpired invitation for a newly verified email as a membership.
+ * Never throws: a failed claim must not block sign-up.
+ */
+export async function claimPendingInvitations({ user, sourceIp, correlationId }) {
+  try {
+    const invitations = await ProjectInvitation.find({
+      email: user.email.toLowerCase(),
+      expiresAt: { $gt: new Date() },
+    }).lean();
+    for (const invitation of invitations) {
+      await claimInvitation(invitation, user, { sourceIp, correlationId });
+    }
+    return invitations.length;
+  } catch (error) {
+    logger.error('[members] Pending invitations could not be claimed', {
+      userId: user._id.toString(),
+      correlationId,
+      errorType: error?.name ?? 'error',
+    });
+    return 0;
+  }
+}
+
+export async function getPendingInvitations(projectId) {
+  return ProjectInvitation.find({ projectId, expiresAt: { $gt: new Date() } })
+    .sort({ createdAt: 1 })
+    .lean();
+}
+
+export async function revokeInvitation({
+  projectId,
+  invitationId,
+  actorId,
+  sourceIp,
+  correlationId,
+}) {
+  if (!mongoose.isValidObjectId(invitationId)) {
+    return { success: false, error: 'Invitation not found.' };
+  }
+  const invitation = await ProjectInvitation.findOneAndDelete({ _id: invitationId, projectId });
+  if (!invitation) {
+    return { success: false, error: 'Invitation not found.' };
+  }
+
+  await writeAuditEvent({
+    action: 'project.invitation_revoked',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: projectId.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { invitationId: invitation._id.toString(), role: invitation.role },
+  });
+
   return { success: true };
+}
+
+async function invitePendingMember(
+  { projectId, ownerId, email, role, projectName, inviterName, actorId, sourceIp, correlationId },
+  deps,
+) {
+  const now = new Date();
+  const pending = await ProjectInvitation.findOne({ projectId, email, expiresAt: { $gt: now } });
+  if (pending) {
+    return { success: false, error: 'This email has already been invited.' };
+  }
+
+  const canAdd = await checkCanAddMember(projectId, ownerId);
+  if (!canAdd) {
+    return { success: false, error: 'This project has reached its member limit.' };
+  }
+
+  // Upsert so an expired invite for the same address is refreshed in place.
+  const invitation = await ProjectInvitation.findOneAndUpdate(
+    { projectId, email },
+    {
+      $set: {
+        role,
+        invitedBy: actorId,
+        expiresAt: new Date(now.getTime() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000),
+      },
+    },
+    { upsert: true, new: true, setDefaultsOnInsert: true },
+  );
+
+  await writeAuditEvent({
+    action: 'project.member_invited',
+    outcome: AuditOutcome.SUCCESS,
+    actorId,
+    targetType: 'project',
+    targetId: projectId.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { invitationId: invitation._id.toString(), role },
+  });
+
+  const sendInviteEmail = deps.sendInviteEmail ?? sendProjectInviteEmail;
+  let emailStatus = 'failed';
+  try {
+    const result = await sendInviteEmail({
+      to: email,
+      inviterName,
+      projectName,
+      role,
+      signupUrl: `${baseUrl()}/create-account`,
+      expiresInDays: INVITATION_TTL_DAYS,
+      correlationId,
+    });
+    emailStatus = result.status;
+  } catch (error) {
+    // The invite stays valid; the owner is told to pass the link on themselves.
+    logger.warn('[members] Invitation email could not be sent', {
+      projectId: projectId.toString(),
+      correlationId,
+      errorType: error?.name ?? 'error',
+    });
+  }
+
+  return { success: true, pending: true, emailStatus };
+}
+
+async function claimInvitation(invitation, user, { sourceIp, correlationId }) {
+  try {
+    await ProjectMembership.create({
+      projectId: invitation.projectId,
+      userId: user._id,
+      role: invitation.role,
+      invitedBy: invitation.invitedBy,
+      acceptedAt: new Date(),
+    });
+  } catch (error) {
+    if (error?.code !== 11000) {
+      throw error;
+    }
+  }
+  await ProjectInvitation.deleteOne({ _id: invitation._id });
+
+  await writeAuditEvent({
+    action: 'project.member_added',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: user._id.toString(),
+    targetType: 'project',
+    targetId: invitation.projectId.toString(),
+    sourceIp,
+    correlationId,
+    metadata: { inviteeId: user._id.toString(), role: invitation.role, viaInvitation: true },
+  });
+}
+
+function baseUrl() {
+  return env.isProduction() ? `https://${env.PLATFORM_DOMAIN}` : `http://localhost:${env.PORT}`;
 }
 
 export async function removeMember({ projectId, userId, actorId, sourceIp, correlationId }) {

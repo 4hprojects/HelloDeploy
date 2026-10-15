@@ -3,6 +3,7 @@ export { User } from './models/user.model.js';
 export { AuditEvent } from './models/audit-event.model.js';
 export { Project } from './models/project.model.js';
 export { ProjectMembership } from './models/project-membership.model.js';
+export { ProjectInvitation } from './models/project-invitation.model.js';
 export { Quota } from './models/quota.model.js';
 export { ApprovalRequest } from './models/approval-request.model.js';
 export { Repository } from './models/repository.model.js';

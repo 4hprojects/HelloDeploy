@@ -61,6 +61,32 @@
           </td>
         </tr>
         <% }) %>
+        <% invitations.forEach(inv => { %>
+        <tr>
+          <td data-label="Member">
+            <strong><%= inv.email %></strong>
+            <span class="status-badge status-badge--pending">Invite pending</span>
+            <span class="text-muted text-xs d-block">Joins after signing up · expires <%= new Date(inv.expiresAt).toLocaleDateString('en-GB') %></span>
+          </td>
+          <td data-label="Role">
+            <span class="role-pill"><%= inv.role === 'VIEWER' ? 'Viewer' : 'Maintainer' %></span>
+          </td>
+          <td class="text-sm text-muted" data-label="Added">
+            Invited <%= new Date(inv.createdAt).toLocaleDateString('en-GB') %>
+          </td>
+          <td class="text-right" data-label="Actions">
+            <form method="POST" action="/projects/<%= project.slug %>/members/invitations/<%= inv._id %>/revoke"
+                  data-confirm="Revoke the invitation for <%= inv.email %>?"
+                  data-confirm-title="Revoke invitation"
+                  data-confirm-accept-label="Revoke Invitation"
+                  data-confirm-pending-label="Revoking..."
+                  data-confirm-variant="danger">
+              <%- include('../../partials/csrf-field') %>
+              <button type="submit" class="button button--ghost button--sm">Revoke</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
       </tbody>
     </table>
   </div>
@@ -89,6 +115,8 @@
           />
           <% if (errors.email) { %>
           <span id="email-error" class="form-error" role="alert"><%= errors.email %></span>
+          <% } else { %>
+          <span class="form-hint text-xs text-muted">No account yet? We'll email them an invitation to sign up.</span>
           <% } %>
         </div>
         <div class="form-field form-field--floating">

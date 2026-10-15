@@ -2,6 +2,7 @@ import {
   Deployment,
   Domain,
   Project,
+  ProjectInvitation,
   ProjectMembership,
   User,
   resolveUserQuota,
@@ -28,11 +29,13 @@ export async function checkCanCreateProject(userId) {
 }
 
 export async function checkCanAddMember(projectId, ownerId) {
-  const [memberCount, quota] = await Promise.all([
+  // Pending invitations hold a seat so claiming one can never exceed the limit.
+  const [memberCount, invitationCount, quota] = await Promise.all([
     ProjectMembership.countDocuments({ projectId }),
+    ProjectInvitation.countDocuments({ projectId, expiresAt: { $gt: new Date() } }),
     resolveProjectQuota(projectId, ownerId),
   ]);
-  return memberCount < quota.maxProjectMembers;
+  return memberCount + invitationCount < quota.maxProjectMembers;
 }
 
 export function startOfUtcMonth(now = new Date()) {

@@ -78,5 +78,32 @@ export function buildEmailContent(kind, payload) {
       text: `Deployment #${payload.sequenceNumber} of ${payload.projectName} ${outcome} (commit ${payload.commitSha?.slice(0, 7) ?? '?'}).\n\n${payload.failureMessage ? `${payload.failureMessage} ${payload.failureAction ?? ''}` : ''}\n\nView: ${payload.dashboardUrl}`,
     };
   }
+  if (kind === 'project-invite') {
+    const inviterName = escapeEmailHtml(payload.inviterName);
+    const projectName = escapeEmailHtml(payload.projectName);
+    const roleLabel = escapeEmailHtml(roleLabelFor(payload.role));
+    const signupUrl = escapeEmailHtml(payload.signupUrl);
+    const email = escapeEmailHtml(payload.email);
+    return {
+      subject: `${sanitizeEmailSubject(payload.inviterName)} invited you to ${sanitizeEmailSubject(payload.projectName)} on HelloDeploy`,
+      html: `<p>Hi,</p><p>${inviterName} added you to <strong>${projectName}</strong> on HelloDeploy as a ${roleLabel}.</p><p>Create your account with <strong>${email}</strong> and you'll join the project as soon as your email is verified:</p><p><a href="${signupUrl}">Create your HelloDeploy account</a></p><p>This invitation expires in ${payload.expiresInDays} days. If you weren't expecting it, you can ignore this email.</p>`,
+      text: `Hi,\n\n${payload.inviterName} added you to ${payload.projectName} on HelloDeploy as a ${roleLabelFor(payload.role)}.\n\nCreate your account with ${payload.email} and you'll join the project once your email is verified: ${payload.signupUrl}\n\nThis invitation expires in ${payload.expiresInDays} days.`,
+    };
+  }
+  if (kind === 'project-member-added') {
+    const inviterName = escapeEmailHtml(payload.inviterName);
+    const projectName = escapeEmailHtml(payload.projectName);
+    const roleLabel = escapeEmailHtml(roleLabelFor(payload.role));
+    const projectUrl = escapeEmailHtml(payload.projectUrl);
+    return {
+      subject: `You were added to ${sanitizeEmailSubject(payload.projectName)} on HelloDeploy`,
+      html: `<p>Hi ${firstName},</p><p>${inviterName} added you to <strong>${projectName}</strong> as a ${roleLabel}.</p><p><a href="${projectUrl}">Open the project</a></p>`,
+      text: `Hi ${payload.firstName},\n\n${payload.inviterName} added you to ${payload.projectName} as a ${roleLabelFor(payload.role)}.\n\nOpen the project: ${payload.projectUrl}`,
+    };
+  }
   throw new Error(`Unsupported email kind: ${kind}`);
+}
+
+function roleLabelFor(role) {
+  return role === 'VIEWER' ? 'Viewer (read-only)' : 'Maintainer (can deploy)';
 }
