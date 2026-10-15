@@ -3474,6 +3474,45 @@ a.setup-guide__step-link:hover .setup-guide__label {
   display: inline-flex;
   color: var(--color-info);
 }
+.public-section__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+.public-section__header .button .ui-icon {
+  transition: transform var(--transition-fast);
+}
+.public-section__header .button:hover .ui-icon {
+  transform: translateX(2px);
+}
+.step-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin-bottom: 0;
+  padding: 0;
+  list-style: none;
+}
+.step-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  height: 100%;
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface);
+  transition: border-color var(--transition-fast);
+}
+.step-card:hover {
+  border-color: var(--color-border-strong);
+}
+.step-card h3 {
+  font-size: var(--text-base);
+  font-weight: var(--font-semibold);
+}
 
 .section-heading {
   display: flex;
@@ -3716,9 +3755,14 @@ a.setup-guide__step-link:hover .setup-guide__label {
   .product-preview,
   .compatibility-grid,
   .trust-grid,
+  .step-grid,
   .dashboard-grid,
   .project-card-grid {
     grid-template-columns: 1fr;
+  }
+  .public-section__header .button {
+    width: 100%;
+    min-height: 2.75rem;
   }
   .public-section,
   .product-preview,
