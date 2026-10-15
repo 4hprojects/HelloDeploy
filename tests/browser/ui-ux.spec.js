@@ -133,7 +133,14 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: 'Custom Domains' })).toBeVisible();
   await page.goto('/projects/northstar-notes/members');
   await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+  // Activity is reached from the sidebar and never shows secret names.
+  await page.getByRole('link', { name: 'Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
+  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 
+  // Sign-ins are rate limited to 10 per 15 minutes across this whole spec, so
+  // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin/users');
@@ -390,6 +397,7 @@ test('authenticated dark-mode views meet critical accessibility checks', async (
     '/dashboard',
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
+    '/projects/northstar-notes/activity',
   ]) {
     await page.goto(path);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -409,6 +417,7 @@ test('authenticated workflows do not overflow a narrow mobile viewport', async (
     '/dashboard',
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
+    '/projects/northstar-notes/activity',
   ]) {
     await page.goto(path);
     const overflow = await page.evaluate(

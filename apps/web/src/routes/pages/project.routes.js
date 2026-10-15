@@ -76,6 +76,10 @@ import {
   getDeploymentStatus,
   downloadDeploymentLogs,
 } from '../../controllers/deployment.controller.js';
+import {
+  getProjectActivity,
+  getProjectActivityExport,
+} from '../../controllers/project-activity.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 import { requireEditableProject } from '../../middleware/require-editable-project.js';
 import { attachSetupGuide } from '../../middleware/attach-setup-guide.js';
@@ -258,6 +262,10 @@ router.post(
   requireEditableProject,
   postUpdateBuildFilters,
 );
+
+// Activity (the project's audit log)
+router.get('/:slug/activity', requireAuth, ownerOrMaintainer, getProjectActivity);
+router.get('/:slug/activity/export', requireAuth, ownerOrMaintainer, getProjectActivityExport);
 
 // Deployments
 router.get('/:slug/deployments', requireAuth, anyRole, deploymentsGuide, getDeploymentList);

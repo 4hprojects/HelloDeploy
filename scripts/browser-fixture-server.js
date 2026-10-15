@@ -33,6 +33,7 @@ const {
   ProjectMembership,
   Repository,
   Deployment,
+  AuditEvent,
 } = await import('@hellodeploy/database');
 const {
   PlatformRole,
@@ -44,6 +45,7 @@ const {
   RepositorySourceType,
   DeploymentStatus,
   DeploymentTrigger,
+  AuditOutcome,
 } = await import('@hellodeploy/contracts');
 const { hashPassword } = await import('@hellodeploy/auth');
 
@@ -189,6 +191,24 @@ const deployment = await Deployment.create({
 });
 project.activeDeploymentId = deployment._id;
 await project.save();
+
+// Dated now, unlike the records above: the 90-day audit TTL would remove older ones.
+await AuditEvent.create([
+  {
+    action: 'deployment.created',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: user._id,
+    projectId: project._id,
+    metadata: { sequenceNumber: 7, commitSha: '1111111', triggerType: DeploymentTrigger.MANUAL },
+  },
+  {
+    action: 'project.secret_set',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: user._id,
+    projectId: project._id,
+    metadata: { name: 'DATABASE_URL' },
+  },
+]);
 
 await Deployment.create({
   projectId: project._id,
