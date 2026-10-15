@@ -1,69 +1,125 @@
+<%
+const activeFilters = Object.fromEntries(Object.entries(filters).filter(([, value]) => value));
+const hasFilters = Object.keys(activeFilters).length > 0;
+const OUTCOMES = {
+  SUCCESS: { tone: 'success', label: 'Success' },
+  FAILURE: { tone: 'failed', label: 'Failed' },
+  DENIED: { tone: 'suspended', label: 'Denied' },
+};
+// Old links carry from/to without a period; treat those as a custom range.
+const selectedPeriod = filters.period || (filters.from || filters.to ? 'custom' : '');
+const showCustomDates = selectedPeriod === 'custom';
+const formatTime = (date, options) => new Date(date).toLocaleString('en-GB', options);
+const withoutFilter = (name) => new URLSearchParams(Object.entries(activeFilters).filter(([key]) => key !== name));
+%>
 <div class="page-header page-header--actions">
-  <h1 class="page-header__title">Audit Events</h1>
-  <a href="/admin/audit-events/export?<%= new URLSearchParams(filters) %>"
+  <div>
+    <h1 class="page-header__title">Audit Events</h1>
+    <p class="page-header__subtitle">Events are kept for <%= retentionDays %> days.</p>
+  </div>
+  <a href="/admin/audit-events/export?<%= new URLSearchParams(activeFilters) %>"
      class="button button--secondary button--sm"
      data-tooltip="Download the currently filtered audit events as a CSV file."
      data-confirm="Export the filtered audit events as CSV?">Export CSV</a>
 </div>
 
-<!-- Filter form -->
-<div class="card mb-4">
-  <div class="card__body">
-    <form method="GET" action="/admin/audit-events" class="filter-form">
-      <div class="filter-row">
-        <div class="form-group">
-          <label class="form-label text-sm">Action prefix</label>
-          <input type="text" name="action" class="form-input form-input--sm"
-                 placeholder="e.g. admin." value="<%= filters.action %>">
-        </div>
-        <div class="form-group">
-          <label class="form-label text-sm">Actor ID</label>
-          <input type="text" name="actorId" class="form-input form-input--sm"
-                 placeholder="User ObjectId" value="<%= filters.actorId %>">
-        </div>
-        <div class="form-group">
-          <label class="form-label text-sm">Target type</label>
-          <input type="text" name="targetType" class="form-input form-input--sm"
-                 placeholder="e.g. project" value="<%= filters.targetType %>">
-        </div>
-        <div class="form-group">
-          <label class="form-label text-sm">Outcome</label>
-          <select name="outcome" class="form-select form-select--sm">
-            <option value="">Any</option>
-            <option value="SUCCESS" <%= filters.outcome === 'SUCCESS' ? 'selected' : '' %>>Success</option>
-            <option value="FAILURE" <%= filters.outcome === 'FAILURE' ? 'selected' : '' %>>Failure</option>
-            <option value="DENIED" <%= filters.outcome === 'DENIED' ? 'selected' : '' %>>Denied</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label class="form-label text-sm">From</label>
-          <input type="date" name="from" class="form-input form-input--sm" value="<%= filters.from %>">
-        </div>
-        <div class="form-group">
-          <label class="form-label text-sm">To</label>
-          <input type="date" name="to" class="form-input form-input--sm" value="<%= filters.to %>">
-        </div>
-        <button type="submit" class="button button--primary button--sm">Search</button>
-        <a href="/admin/audit-events" class="button button--ghost button--sm">Clear</a>
+<form method="GET" action="/admin/audit-events" class="filter-bar list-filters list-filters--many mb-4" role="search" aria-label="Filter audit events">
+  <% if (filters.actorId) { %><input type="hidden" name="actorId" value="<%= filters.actorId %>"><% } %>
+  <% if (filters.correlationId) { %><input type="hidden" name="correlationId" value="<%= filters.correlationId %>"><% } %>
+  <div class="list-filters__grid">
+    <div class="form-group list-filters__search">
+      <label class="form-label" for="audit-actor">Actor</label>
+      <div class="search-field">
+        <input class="form-input search-field__input" type="search" id="audit-actor" name="actor" value="<%= filters.actor %>" placeholder="Name or email" autocomplete="off">
+        <button class="button button--secondary search-field__button" type="submit">Search</button>
       </div>
-    </form>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="audit-action">Action</label>
+      <select class="form-select" id="audit-action" name="action" data-auto-submit>
+        <option value="">All actions</option>
+        <% filterOptions.actionCategories.forEach(({ value, label }) => { %>
+        <option value="<%= value %>" <%= filters.action === value ? 'selected' : '' %>><%= label %></option>
+        <% }) %>
+        <% if (filters.action && !filterOptions.actionCategories.some(({ value }) => value === filters.action)) { %>
+        <option value="<%= filters.action %>" selected><%= filters.action %></option>
+        <% } %>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="audit-target-type">Target</label>
+      <select class="form-select" id="audit-target-type" name="targetType" data-auto-submit>
+        <option value="">All targets</option>
+        <% filterOptions.targetTypes.forEach(({ value, label }) => { %>
+        <option value="<%= value %>" <%= filters.targetType === value ? 'selected' : '' %>><%= label %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="audit-outcome">Outcome</label>
+      <select class="form-select" id="audit-outcome" name="outcome" data-auto-submit>
+        <option value="">Any outcome</option>
+        <% Object.entries(OUTCOMES).forEach(([value, { label }]) => { %>
+        <option value="<%= value %>" <%= filters.outcome === value ? 'selected' : '' %>><%= label %></option>
+        <% }) %>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="audit-period">Period</label>
+      <select class="form-select" id="audit-period" name="period" data-auto-submit>
+        <option value="">Any time</option>
+        <% Object.entries(periods).forEach(([value, { label }]) => { %>
+        <option value="<%= value %>" <%= selectedPeriod === value ? 'selected' : '' %>><%= label %></option>
+        <% }) %>
+      </select>
+    </div>
+    <% if (hasFilters) { %>
+    <a href="/admin/audit-events" class="button button--ghost list-filters__clear">Clear</a>
+    <% } %>
+    <% if (showCustomDates) { %>
+    <div class="list-filters__dates">
+      <div class="form-group">
+        <label class="form-label" for="audit-from">From</label>
+        <input class="form-input" type="date" id="audit-from" name="from" value="<%= filters.from %>">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="audit-to">To</label>
+        <input class="form-input" type="date" id="audit-to" name="to" value="<%= filters.to %>">
+      </div>
+      <button type="submit" class="button button--secondary">Apply dates</button>
+    </div>
+    <% } %>
   </div>
-</div>
+</form>
+
+<% if (filters.actorId || filters.correlationId) { %>
+<p class="audit-scope text-sm">
+  <% if (filters.actorId) { %>
+  Showing activity by <strong><%= filteredActor ? filteredActor.name : 'an account that no longer exists' %></strong>.
+  <a href="?<%= withoutFilter('actorId') %>">Show everyone</a>
+  <% } %>
+  <% if (filters.correlationId) { %>
+  Showing events from one request.
+  <a href="?<%= withoutFilter('correlationId') %>">Show all requests</a>
+  <% } %>
+</p>
+<% } %>
 
 <div class="card">
   <div class="card__body">
     <p class="text-muted text-sm mb-4">
       Showing <%= events.length %> of <%= total %> events
-      (page <%= page %> of <%= totalPages %>)
+      (page <%= page %> of <%= Math.max(totalPages, 1) %>)
     </p>
 
     <% if (events.length === 0) { %>
     <div class="empty-state">
       <p class="empty-state__title">No audit events found</p>
+      <% if (hasFilters) { %><p class="empty-state__description">Try clearing a filter or widening the dates.</p><% } %>
     </div>
     <% } else { %>
     <div class="table-wrapper table-responsive table-responsive--flush">
-    <table class="table table--sm table--responsive">
+    <table class="table table--sm table--responsive audit-table">
       <thead>
         <tr>
           <th scope="col">Time</th>
@@ -71,33 +127,62 @@
           <th scope="col">Outcome</th>
           <th scope="col">Actor</th>
           <th scope="col">Target</th>
+          <th scope="col"><span class="sr-only">Details</span></th>
         </tr>
       </thead>
       <tbody>
-        <% events.forEach(ev => { %>
+        <% events.forEach(ev => { const outcome = OUTCOMES[ev.outcome] ?? { tone: 'stopped', label: ev.outcome }; const detailId = `audit-detail-${ev._id}`; %>
         <tr>
           <td class="text-muted text-xs text-nowrap" data-label="Time">
-            <%= new Date(ev.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) %>
+            <time datetime="<%= new Date(ev.createdAt).toISOString() %>"><%= formatTime(ev.createdAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', second: '2-digit' }) %></time>
           </td>
-          <td data-label="Action"><code class="code-inline text-xs"><%= ev.action %></code></td>
-          <td data-label="Outcome">
-            <span class="badge badge--<%= ev.outcome === 'SUCCESS' ? 'success' : ev.outcome === 'DENIED' ? 'warning' : 'danger' %> badge--sm">
-              <%= ev.outcome %>
-            </span>
+          <td class="audit-table__action" data-label="Action">
+            <%# One wrapper per cell: on phones each td is a label/value grid. %>
+            <div>
+              <code class="code-inline text-xs"><% ev.action.split('.').forEach((part, i) => { %><% if (i > 0) { %>.<wbr><% } %><%= part %><% }) %></code>
+              <span class="audit-table__hint"><%= toActionLabel(ev.action) %></span>
+            </div>
           </td>
-          <td class="text-muted text-xs" data-label="Actor">
-            <% if (ev.actorName) { %>
-              <%= ev.actorName %>
+          <td data-label="Outcome"><span class="status-badge status-badge--<%= outcome.tone %>"><%= outcome.label %></span></td>
+          <td class="text-xs" data-label="Actor">
+            <div>
+            <% if (ev.actor) { %>
+              <span class="audit-table__primary"><%= ev.actor.name %></span>
+              <span class="audit-table__hint"><%= ev.actor.email %></span>
             <% } else if (ev.actorId) { %>
+              <span class="audit-table__primary">Deleted account</span>
               <code class="code-inline"><%= ev.actorId.toString().slice(-8) %></code>
             <% } else { %>
-              system
+              <span class="audit-table__primary">System</span>
             <% } %>
+            </div>
           </td>
-          <td class="text-muted text-xs" data-label="Target">
-            <% if (ev.targetType) { %>
-              <%= ev.targetType %> / <code class="code-inline"><%= ev.targetId?.toString().slice(-8) ?? '—' %></code>
-            <% } else { %> — <% } %>
+          <td class="text-xs" data-label="Target">
+            <div>
+            <% if (ev.target) { %>
+              <% if (ev.target.href) { %><a class="audit-table__primary" href="<%= ev.target.href %>"><%= ev.target.label %></a><% } else { %><span class="audit-table__primary"><%= ev.target.label %></span><% } %>
+              <% if (ev.target.shortId) { %><code class="code-inline"><%= ev.target.shortId %></code><% } %>
+            <% } else { %><span class="text-muted">—</span><% } %>
+            </div>
+          </td>
+          <td class="text-right" data-label="">
+            <button type="button" class="button button--ghost button--sm" data-audit-detail-toggle aria-expanded="false" aria-controls="<%= detailId %>">Details</button>
+          </td>
+        </tr>
+        <tr class="audit-detail" id="<%= detailId %>" hidden>
+          <td colspan="6" data-label="">
+            <dl class="audit-detail__list">
+              <div><dt>Time</dt><dd><%= formatTime(ev.createdAt, { dateStyle: 'medium', timeStyle: 'medium' }) %></dd></div>
+              <div><dt>Role</dt><dd><%= ev.actorRole ?? '—' %></dd></div>
+              <div><dt>IP address</dt><dd><%= ev.sourceIp ?? '—' %></dd></div>
+              <div><dt>Browser</dt><dd class="audit-detail__wrap"><%= ev.userAgent ?? '—' %></dd></div>
+              <div><dt>Target ID</dt><dd><% if (ev.targetId) { %><code class="code-inline"><%= ev.targetId %></code><% } else { %>—<% } %></dd></div>
+              <div><dt>Request</dt><dd><% if (ev.correlationId) { %><a href="?<%= new URLSearchParams({ correlationId: ev.correlationId }) %>">All events from this request</a><% } else { %>—<% } %></dd></div>
+            </dl>
+            <% if (ev.metadata) { %>
+            <p class="audit-detail__heading">Recorded details</p>
+            <pre class="audit-detail__metadata"><%= JSON.stringify(ev.metadata, null, 2) %></pre>
+            <% } %>
           </td>
         </tr>
         <% }) %>
@@ -105,15 +190,14 @@
     </table>
     </div>
 
-    <!-- Pagination -->
     <% if (totalPages > 1) { %>
     <div class="pagination mt-4">
       <% if (page > 1) { %>
-        <a href="?<%= new URLSearchParams({...filters, page: page - 1}) %>" class="button button--ghost button--sm">&larr; Previous</a>
+        <a href="?<%= new URLSearchParams({ ...activeFilters, page: page - 1 }) %>" class="button button--ghost button--sm">&larr; Previous</a>
       <% } %>
       <span class="text-muted text-sm">Page <%= page %> / <%= totalPages %></span>
       <% if (page < totalPages) { %>
-        <a href="?<%= new URLSearchParams({...filters, page: page + 1}) %>" class="button button--ghost button--sm">Next &rarr;</a>
+        <a href="?<%= new URLSearchParams({ ...activeFilters, page: page + 1 }) %>" class="button button--ghost button--sm">Next &rarr;</a>
       <% } %>
     </div>
     <% } %>

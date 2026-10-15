@@ -91,13 +91,23 @@ describe('searchProjectActivity', () => {
     );
   });
 
+  // Local times: the page shows server-local times and its date inputs mean local days.
   it('includes the whole of the "to" day', async () => {
     const projectId = objectId();
-    await recordEvent(projectId, { createdAt: new Date('2026-10-15T23:30:00Z') });
+    await recordEvent(projectId, { createdAt: new Date(2026, 9, 14, 23, 30) });
 
-    const { total } = await searchProjectActivity(projectId, { to: '2026-10-15' });
+    const { total } = await searchProjectActivity(projectId, { to: '2026-10-14' });
 
     assert.equal(total, 1);
+  });
+
+  it('excludes the day after "to"', async () => {
+    const projectId = objectId();
+    await recordEvent(projectId, { createdAt: new Date(2026, 9, 15, 0, 30) });
+
+    const { total } = await searchProjectActivity(projectId, { to: '2026-10-14' });
+
+    assert.equal(total, 0);
   });
 
   it('matches nothing for a malformed actor id', async () => {

@@ -391,6 +391,37 @@ test('project activity lists events without exposing secret names', async ({ pag
   await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 });
 
+test('admin audit filters apply on change and reveal custom dates', async ({ page }) => {
+  await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin/audit-events');
+
+  await page.getByLabel('Outcome').selectOption('FAILURE');
+  await expect(page).toHaveURL(/outcome=FAILURE/);
+  await expect(page.getByText('No audit events found')).toBeVisible();
+
+  await page.getByRole('link', { name: 'Clear' }).click();
+  await expect(page.getByLabel('From')).toHaveCount(0);
+  await page.getByLabel('Period').selectOption('custom');
+  await expect(page.getByLabel('From')).toBeVisible();
+
+  await page.getByLabel('Period').selectOption('');
+  await expect(page.getByLabel('From')).toHaveCount(0);
+
+  await page.getByRole('button', { name: 'Details' }).first().click();
+  await expect(page.getByText('IP address').first()).toBeVisible();
+
+  const results = await new AxeBuilder({ page }).analyze();
+  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+
+  await page.setViewportSize({ width: 320, height: 900 });
+  const overflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
 test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
   await signIn(page);
   await page.getByRole('button', { name: /dark theme/i }).click();

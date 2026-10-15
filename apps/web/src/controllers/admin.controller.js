@@ -29,7 +29,14 @@ import {
   getQuotaPageData,
 } from '../services/admin.service.js';
 import { collectServerStats } from '../services/server-stats.service.js';
-import { exportAuditEvents, searchAuditEvents } from '../services/audit-search.service.js';
+import {
+  AUDIT_PERIODS,
+  AUDIT_RETENTION_DAYS,
+  exportAuditEvents,
+  getAuditFilterOptions,
+  searchAuditEvents,
+  toActionLabel,
+} from '../services/audit-search.service.js';
 import { getMaintenanceMode, setMaintenanceMode } from '../services/platform-settings.service.js';
 import { env } from '../config/env.js';
 import { PROVISIONAL_APPROVAL_DELAY_MS } from '../services/provisional-approval.service.js';
@@ -129,31 +136,55 @@ export const postDisableMaintenance = asyncHandler(async (req, res) => {
 
 // ─── Audit events ──────────────────────────────────────────────────────────────
 
-export const getAdminAuditEvents = asyncHandler(async (req, res) => {
-  const { action, actorId, targetType, outcome, from, to, page } = req.query;
+const AUDIT_FILTER_NAMES = [
+  'action',
+  'actor',
+  'actorId',
+  'targetType',
+  'correlationId',
+  'outcome',
+  'period',
+  'from',
+  'to',
+];
 
-  const result = await searchAuditEvents({
-    action,
-    actorId,
-    targetType,
-    outcome,
-    from,
-    to,
-    page: Math.max(1, parseInt(page) || 1),
-    limit: 50,
-  });
+// Only plain strings survive; bracketed query params arrive as objects.
+export function readAuditFilters(query) {
+  const filters = Object.fromEntries(
+    AUDIT_FILTER_NAMES.map((name) => [
+      name,
+      typeof query[name] === 'string' ? query[name].trim() : '',
+    ]),
+  );
+  // Leaving "Custom range" still submits the date inputs; a chosen period
+  // drops them. Links without a period (older ones) keep their dates.
+  if (typeof query.period === 'string' && filters.period !== 'custom') {
+    filters.from = '';
+    filters.to = '';
+  }
+  return filters;
+}
+
+export const getAdminAuditEvents = asyncHandler(async (req, res) => {
+  const filters = readAuditFilters(req.query);
+
+  const [result, filterOptions] = await Promise.all([
+    searchAuditEvents({
+      ...filters,
+      page: Math.max(1, parseInt(req.query.page) || 1),
+      limit: 50,
+    }),
+    getAuditFilterOptions(),
+  ]);
 
   res.render('pages/admin/audit-events', {
     title: 'Audit Events',
     ...result,
-    filters: {
-      action: action ?? '',
-      actorId: actorId ?? '',
-      targetType: targetType ?? '',
-      outcome: outcome ?? '',
-      from: from ?? '',
-      to: to ?? '',
-    },
+    filters,
+    filterOptions,
+    retentionDays: AUDIT_RETENTION_DAYS,
+    periods: AUDIT_PERIODS,
+    toActionLabel,
   });
 });
 
@@ -163,8 +194,8 @@ function csvCell(value) {
 }
 
 export const getAdminAuditExport = asyncHandler(async (req, res) => {
-  const { action, actorId, targetType, outcome, from, to } = req.query;
-  const events = await exportAuditEvents({ action, actorId, targetType, outcome, from, to });
+  const filters = readAuditFilters(req.query);
+  const events = await exportAuditEvents(filters);
 
   await writeAuditEvent({
     action: 'admin.audit_events_exported',
@@ -174,7 +205,7 @@ export const getAdminAuditExport = asyncHandler(async (req, res) => {
     targetType: 'audit_events',
     sourceIp: req.ip,
     correlationId: req.correlationId,
-    metadata: { count: events.length, filters: { action, actorId, targetType, outcome, from, to } },
+    metadata: { count: events.length, filters },
   });
 
   const header = [
