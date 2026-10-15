@@ -382,6 +382,15 @@ test('deployment polling preserves canonical status and refreshes terminal actio
   await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
 
+test('project activity lists events without exposing secret names', async ({ page }) => {
+  await signIn(page);
+  await page.getByRole('link', { name: 'Northstar Notes' }).first().click();
+  await page.getByRole('link', { name: 'Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
+  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
+});
+
 test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
   await signIn(page);
   await page.getByRole('button', { name: /dark theme/i }).click();
@@ -390,6 +399,7 @@ test('authenticated dark-mode views meet critical accessibility checks', async (
     '/dashboard',
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
+    '/projects/northstar-notes/activity',
   ]) {
     await page.goto(path);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -409,6 +419,7 @@ test('authenticated workflows do not overflow a narrow mobile viewport', async (
     '/dashboard',
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
+    '/projects/northstar-notes/activity',
   ]) {
     await page.goto(path);
     const overflow = await page.evaluate(

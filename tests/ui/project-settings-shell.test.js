@@ -66,6 +66,7 @@ describe('project settings shell', () => {
         'deploy-hook',
         'environment',
         'members',
+        'activity',
         'settings',
       ],
     );

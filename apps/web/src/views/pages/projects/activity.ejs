@@ -1,0 +1,107 @@
+<% const outcomeLabels = { SUCCESS: 'Success', FAILURE: 'Failed', DENIED: 'Denied' }; %>
+<% const outcomeBadges = { SUCCESS: 'success', FAILURE: 'danger', DENIED: 'warning' }; %>
+<div class="page-header page-header--actions">
+  <div>
+    <h1 class="page-header__title">Activity</h1>
+    <p class="page-header__subtitle text-muted text-sm">
+      Who changed what in <%= project.name %>. Events are kept for 90 days.
+    </p>
+  </div>
+  <a href="/projects/<%= project.slug %>/activity/export?<%= new URLSearchParams(filters) %>"
+     class="button button--secondary button--sm"
+     data-confirm="Download the filtered activity as a CSV file? The export is recorded in this log."
+     data-confirm-title="Export activity"
+     data-confirm-accept-label="Export CSV">Export CSV</a>
+</div>
+
+<form method="GET" class="filter-bar mb-6" aria-label="Filter project activity">
+  <div class="form-group">
+    <label class="form-label" for="activity-category">Type</label>
+    <select class="form-select" id="activity-category" name="category">
+      <option value="">All types</option>
+      <% categories.forEach(({ key, label }) => { %>
+      <option value="<%= key %>" <%= filters.category === key ? 'selected' : '' %>><%= label %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="activity-actor">Actor</label>
+    <select class="form-select" id="activity-actor" name="actorId">
+      <option value="">Anyone</option>
+      <% actors.forEach(({ id, label }) => { %>
+      <option value="<%= id %>" <%= filters.actorId === id ? 'selected' : '' %>><%= label %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="activity-outcome">Outcome</label>
+    <select class="form-select" id="activity-outcome" name="outcome">
+      <option value="">Any outcome</option>
+      <% Object.entries(outcomeLabels).forEach(([value, label]) => { %>
+      <option value="<%= value %>" <%= filters.outcome === value ? 'selected' : '' %>><%= label %></option>
+      <% }) %>
+    </select>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="activity-from">From</label>
+    <input class="form-input" type="date" id="activity-from" name="from" value="<%= filters.from %>">
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="activity-to">To</label>
+    <input class="form-input" type="date" id="activity-to" name="to" value="<%= filters.to %>">
+  </div>
+  <button type="submit" class="button button--secondary">Apply</button>
+  <% if (hasFilters) { %><a href="/projects/<%= project.slug %>/activity" class="button button--ghost">Clear</a><% } %>
+</form>
+
+<div class="card">
+  <div class="card__body">
+    <% if (events.length === 0) { %>
+    <div class="empty-state">
+      <p class="empty-state__title"><%= hasFilters ? 'No activity matches these filters' : 'No activity yet' %></p>
+    </div>
+    <% } else { %>
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--sm table--responsive">
+      <caption class="sr-only">Project activity, newest first</caption>
+      <thead>
+        <tr>
+          <th scope="col">Time</th>
+          <th scope="col">Event</th>
+          <th scope="col">Actor</th>
+          <th scope="col">Outcome</th>
+          <th scope="col">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% events.forEach(ev => { %>
+        <tr>
+          <td class="text-muted text-xs text-nowrap" data-label="Time">
+            <time datetime="<%= new Date(ev.createdAt).toISOString() %>"><%= new Date(ev.createdAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %></time>
+          </td>
+          <td data-label="Event"><%= ev.label %></td>
+          <td class="text-muted text-sm" data-label="Actor"><%= ev.actorLabel %></td>
+          <td data-label="Outcome">
+            <span class="status-badge status-badge--<%= outcomeBadges[ev.outcome] ?? 'neutral' %>"><%= outcomeLabels[ev.outcome] ?? ev.outcome %></span>
+          </td>
+          <td class="text-muted text-xs" data-label="Details"><%= ev.details || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (totalPages > 1) { %>
+<nav class="pagination mt-4" aria-label="Activity pages">
+  <% if (page > 1) { %>
+  <a href="?<%= new URLSearchParams({ ...filters, page: page - 1 }) %>" class="button button--ghost button--sm">Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %> (<%= total %> events)</span>
+  <% if (page < totalPages) { %>
+  <a href="?<%= new URLSearchParams({ ...filters, page: page + 1 }) %>" class="button button--ghost button--sm">Next</a>
+  <% } %>
+</nav>
+<% } %>
