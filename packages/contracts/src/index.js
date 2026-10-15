@@ -7,4 +7,5 @@ export * from './repository-source.js';
 export * from './failure-codes.js';
 export * from './status-presentation.js';
 export * from './subdomains.js';
+export * from './build-strategies.js';
 export * from './email-content.js';

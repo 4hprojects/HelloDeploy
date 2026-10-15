@@ -290,6 +290,49 @@ describe('production worker routing validation', () => {
     assert.equal(result.status, 0, result.stdout || result.stderr);
   });
 
+  it('rejects enabling Next.js strategies without the complete isolated build path', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_PROJECT_IDS: '507f1f77bcf86cd799439011',
+      BUILD_EXECUTOR: 'local',
+      BUILD_BUILDER_NAME: '',
+      USER_IMAGE_REGISTRY: '',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'false',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /requires remote-buildkit/);
+  });
+
+  it('accepts a complete default-off-to-allowlisted Next.js pilot configuration', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_PROJECT_IDS: '507f1f77bcf86cd799439011',
+      BUILD_EXECUTOR: 'remote-buildkit',
+      BUILD_BUILDER_NAME: 'hellodeploy-nonprod',
+      USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+      WORKER_CONCURRENCY: '1',
+    });
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+  });
+
+  it('enforces one-build concurrency during the initial pilot', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_PROJECT_IDS: '507f1f77bcf86cd799439011',
+      BUILD_EXECUTOR: 'remote-buildkit',
+      BUILD_BUILDER_NAME: 'hellodeploy-nonprod',
+      USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+      WORKER_CONCURRENCY: '2',
+    });
+    assert.equal(result.status, 1);
+    assert.match(result.stdout, /WORKER_CONCURRENCY=1/);
+  });
+
   it('requires the complete Resend group when production email is enabled', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

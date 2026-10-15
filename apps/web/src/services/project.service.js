@@ -23,6 +23,8 @@ import {
   normalizeSubdomainLabel,
   isReservedSubdomain,
   isValidSubdomainLabel,
+  BuildStrategy,
+  normalizeApplicationRoot,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -174,6 +176,8 @@ export async function updateBuildConfiguration({
   outputDirectory,
   applicationPort,
   healthCheckPath,
+  applicationRoot,
+  buildStrategy,
   actorId,
   sourceIp,
   correlationId,
@@ -187,13 +191,22 @@ export async function updateBuildConfiguration({
     return { success: false, error: 'Archived projects cannot be edited.' };
   }
 
+  const selectedStrategy = buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
+  if (selectedStrategy !== BuildStrategy.LEGACY_GENERATED) {
+    if (project.runtimeType !== 'NEXTJS' || !env.isNextStrategyEnabledFor(project._id)) {
+      return { success: false, error: 'That build strategy is not enabled for this project.' };
+    }
+  }
+
   project.buildConfiguration = {
     buildCommand: buildCommand?.trim() || null,
     startCommand: startCommand?.trim() || null,
     outputDirectory: outputDirectory?.trim() || null,
     applicationPort: applicationPort?.trim() ? Number(applicationPort.trim()) : null,
     healthCheckPath: healthCheckPath?.trim() || '/',
+    applicationRoot: normalizeApplicationRoot(applicationRoot),
   };
+  project.buildStrategy = selectedStrategy;
   project.configurationVersion += 1;
   await project.save();
 
@@ -205,7 +218,10 @@ export async function updateBuildConfiguration({
     targetId: project._id.toString(),
     sourceIp,
     correlationId,
-    metadata: { buildConfiguration: project.buildConfiguration },
+    metadata: {
+      buildConfiguration: project.buildConfiguration,
+      buildStrategy: project.buildStrategy,
+    },
   });
 
   return { success: true, project: project.toObject() };
@@ -230,6 +246,13 @@ export async function resetBuildConfigurationToDetected({
   }
 
   project.buildConfiguration = detected.toObject?.() ?? { ...detected };
+  const recommendedStrategy =
+    project.detection?.recommendedBuildStrategy ?? BuildStrategy.LEGACY_GENERATED;
+  project.buildStrategy =
+    recommendedStrategy !== BuildStrategy.LEGACY_GENERATED &&
+    !env.isNextStrategyEnabledFor(project._id)
+      ? BuildStrategy.LEGACY_GENERATED
+      : recommendedStrategy;
   project.configurationVersion += 1;
   await project.save();
   await writeAuditEvent({
@@ -483,13 +506,23 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
 
   // Capture the complete infrastructure inventory before deleting deployment
   // records. The worker cannot reconstruct retained containers/images later.
-  const deployments = await Deployment.find({ projectId }, '_id activeContainerId imageTag').lean();
+  const deployments = await Deployment.find(
+    { projectId },
+    '_id activeContainerId imageTag imageRef imageDigest',
+  ).lean();
   const deploymentIds = deployments.map((deployment) => deployment._id);
   const containerIds = [
     ...new Set(deployments.map((deployment) => deployment.activeContainerId).filter(Boolean)),
   ];
   const imageTags = [
     ...new Set(deployments.map((deployment) => deployment.imageTag).filter(Boolean)),
+  ];
+  const registryImageRefs = [
+    ...new Map(
+      deployments
+        .filter((deployment) => deployment.imageRef && deployment.imageDigest)
+        .map((deployment) => [deployment.imageDigest, deployment.imageRef]),
+    ).values(),
   ];
 
   const queue = getQueue();
@@ -514,6 +547,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
         subdomain: project.platformSubdomain ?? project.slug,
         containerIds,
         imageTags,
+        registryImageRefs,
         projectSlug: project.slug,
       },
       { jobId: `delete-${projectId}` },

@@ -8,6 +8,7 @@ import {
   inspectContainer,
   getContainerLogs,
   stopAndRemoveContainer,
+  pullAndVerifyImage,
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
@@ -20,6 +21,8 @@ import {
   toResourceLimits,
   STARTUP_DELAY_MS,
 } from '../deployment/pipeline.js';
+import { resolveBuildStrategy } from '../deployment/build-strategy.js';
+import { ImageTemplateVersion } from '../deployment/template-policy.js';
 
 const defaultDeps = {
   allocatePort,
@@ -28,6 +31,7 @@ const defaultDeps = {
   inspectContainer,
   getContainerLogs,
   stopAndRemoveContainer,
+  pullAndVerifyImage,
   httpHealthCheck,
   getProjectEnvVars,
   activateRoute,
@@ -69,7 +73,7 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
   if (
     !sourceDeployment ||
     sourceDeployment.status !== DeploymentStatus.HEALTHY ||
-    !sourceDeployment.imageTag
+    (!sourceDeployment.imageRef && !sourceDeployment.imageTag)
   ) {
     await updateStatus(
       deploymentId,
@@ -99,6 +103,50 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     return;
   }
 
+  const sourceSnapshot = sourceDeployment.configurationSnapshot ?? null;
+  const rollbackSnapshot = deployment.configurationSnapshot ?? sourceSnapshot;
+  if (
+    rollbackSnapshot &&
+    (project.environmentVersion ?? 1) !== (rollbackSnapshot.environmentVersion ?? 1)
+  ) {
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'CONFIGURATION_CHANGED',
+        failureSummary: 'Environment variables changed before rollback activation.',
+        completedAt: new Date(),
+      },
+      { project, deps },
+    );
+    return;
+  }
+  let runtimeSpec;
+  if (rollbackSnapshot) {
+    runtimeSpec = resolveBuildStrategy({
+      snapshot: rollbackSnapshot,
+      templateVersion: ImageTemplateVersion.LEGACY,
+    }).runtime;
+  }
+  const sourceImage = sourceDeployment.imageRef ?? sourceDeployment.imageTag;
+  if (sourceDeployment.imageDigest && sourceImage.includes('@sha256:')) {
+    try {
+      await deps.pullAndVerifyImage(sourceImage);
+    } catch (error) {
+      await updateStatus(
+        deploymentId,
+        DeploymentStatus.FAILED,
+        {
+          failureCode: 'IMAGE_PULL_FAILED',
+          failureSummary: error.message,
+          completedAt: new Date(),
+        },
+        { project, deps },
+      );
+      return;
+    }
+  }
+
   await logEvent(
     deploymentId,
     'DEPLOY',
@@ -111,10 +159,12 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
   const result = await runReleasePipeline({
     project,
     deploymentId,
-    imageTag: sourceDeployment.imageTag,
+    imageTag: sourceImage,
     correlationId,
     deps,
     resourceLimits: toResourceLimits(quota),
+    runtimeSpec,
+    configurationSnapshot: rollbackSnapshot,
     opts: {
       removeImageOnFailure: false,
       failOnInvalidSubdomain: false,

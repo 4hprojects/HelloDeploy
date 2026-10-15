@@ -56,6 +56,14 @@ function requireCommitSha(data, field, jobType) {
   }
 }
 
+const IMAGE_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
+function requireImageDigest(data, field, jobType) {
+  if (typeof data[field] !== 'string' || !IMAGE_DIGEST_PATTERN.test(data[field])) {
+    throw new JobPayloadValidationError(jobType, `"${field}" must be a sha256 image digest.`);
+  }
+}
+
 function requireStringArray(data, field, jobType) {
   if (!Array.isArray(data[field]) || data[field].some((value) => !isNonEmptyString(value))) {
     throw new JobPayloadValidationError(jobType, `"${field}" must be an array of strings.`);
@@ -64,10 +72,16 @@ function requireStringArray(data, field, jobType) {
 
 const VALIDATORS = {
   [JobType.BUILD_DEPLOYMENT](data) {
-    for (const field of ['projectId', 'deploymentId', 'repositoryId', 'runtimeType', 'imageTag']) {
+    const fields =
+      data.version >= 2
+        ? ['projectId', 'deploymentId']
+        : ['projectId', 'deploymentId', 'repositoryId', 'runtimeType', 'imageTag'];
+    for (const field of fields) {
       requireString(data, field, JobType.BUILD_DEPLOYMENT);
     }
-    requireCommitSha(data, 'commitSha', JobType.BUILD_DEPLOYMENT);
+    if (data.version < 2 || data.commitSha !== undefined) {
+      requireCommitSha(data, 'commitSha', JobType.BUILD_DEPLOYMENT);
+    }
   },
   [JobType.ACTIVATE_RELEASE](data) {
     for (const field of ['projectId', 'deploymentId']) {
@@ -75,6 +89,12 @@ const VALIDATORS = {
     }
     if (data.resourceLimits !== undefined) {
       requireObject(data, 'resourceLimits', JobType.ACTIVATE_RELEASE);
+    }
+    if (data.version >= 2) {
+      requireString(data, 'imageId', JobType.ACTIVATE_RELEASE);
+      requireImageDigest(data, 'imageDigest', JobType.ACTIVATE_RELEASE);
+      requireNumber(data, 'environmentVersion', JobType.ACTIVATE_RELEASE);
+      requireObject(data, 'runtimeSpec', JobType.ACTIVATE_RELEASE);
     }
   },
   [JobType.ROLLBACK_RELEASE](data) {
@@ -118,6 +138,9 @@ const VALIDATORS = {
       requireString(data, 'projectSlug', JobType.DELETE_PROJECT);
       requireStringArray(data, 'containerIds', JobType.DELETE_PROJECT);
       requireStringArray(data, 'imageTags', JobType.DELETE_PROJECT);
+      if (data.registryImageRefs !== undefined) {
+        requireStringArray(data, 'registryImageRefs', JobType.DELETE_PROJECT);
+      }
     }
   },
   [JobType.SET_PROJECT_MAINTENANCE](data) {

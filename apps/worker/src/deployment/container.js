@@ -24,6 +24,20 @@ function runDocker(args) {
   });
 }
 
+export async function pullAndVerifyImage(imageRef) {
+  if (!/^[^\s@]+@sha256:[a-f0-9]{64}$/.test(imageRef ?? '')) {
+    throw new Error('Remote image reference must be pinned to a sha256 digest.');
+  }
+  await runDocker(['pull', imageRef]);
+  const details = JSON.parse(
+    await runDocker(['image', 'inspect', '--format', '{{json .}}', imageRef]),
+  );
+  if (details.Os !== 'linux') {
+    throw new Error(`Unsupported image operating system: ${details.Os ?? 'unknown'}`);
+  }
+  return { imageId: details.Id, architecture: details.Architecture };
+}
+
 // ─── Container name / network name helpers ─────────────────────────────────────
 
 export function containerName(projectSlug, deploymentId) {
@@ -100,10 +114,10 @@ export async function startContainer({
   pidsLimit = 100,
   projectId,
   deploymentId,
+  staticRuntime,
 }) {
-  const isStaticRuntime = [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(
-    runtimeType,
-  );
+  const isStaticRuntime =
+    staticRuntime ?? [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(runtimeType);
 
   // Build --env flags for each secret (NEVER log this list)
   const envArgs = [];

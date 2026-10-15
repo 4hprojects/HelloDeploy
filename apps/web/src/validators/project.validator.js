@@ -1,8 +1,11 @@
 import {
   ProjectRole,
+  BuildStrategy,
+  NEXT_BUILD_STRATEGIES,
   isReservedSubdomain,
   isValidSubdomainLabel,
   normalizeSubdomainLabel,
+  validateApplicationRoot,
 } from '@hellodeploy/contracts';
 
 const INVITE_ROLES = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
@@ -94,6 +97,17 @@ export function validateUpdateBuildConfiguration(body) {
     } else if (healthCheckPath.length > 255) {
       errors.healthCheckPath = 'Health check path must be 255 characters or fewer.';
     }
+  }
+
+  const applicationRoot = body.applicationRoot?.trim() || '.';
+  const applicationRootError = validateApplicationRoot(applicationRoot);
+  if (applicationRootError) {
+    errors.applicationRoot = applicationRootError;
+  }
+
+  const buildStrategy = body.buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
+  if (![BuildStrategy.LEGACY_GENERATED, ...NEXT_BUILD_STRATEGIES].includes(buildStrategy)) {
+    errors.buildStrategy = 'Select a supported build strategy.';
   }
 
   return { errors, hasErrors: Object.keys(errors).length > 0 };

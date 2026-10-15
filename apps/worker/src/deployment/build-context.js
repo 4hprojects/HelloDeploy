@@ -1,6 +1,7 @@
 import { readdir, stat, unlink, realpath, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
+import { normalizeApplicationRoot } from '@hellodeploy/contracts';
 
 const MAX_CONTEXT_BYTES = 500 * 1024 * 1024; // 500 MB
 
@@ -50,6 +51,22 @@ function assertInsideRoot(rootDir, targetPath) {
   if (rel.startsWith('..') || rel.startsWith(sep + '..')) {
     throw new Error(`Path traversal detected: ${targetPath}`);
   }
+}
+
+export async function resolveApplicationRoot(contextDir, requestedRoot = '.') {
+  const applicationRoot = normalizeApplicationRoot(requestedRoot);
+  const repositoryRoot = await realpath(resolve(contextDir));
+  const candidate = resolve(repositoryRoot, applicationRoot);
+  const resolvedCandidate = await realpath(candidate);
+  const rel = relative(repositoryRoot, resolvedCandidate);
+  if (rel.startsWith('..') || rel.startsWith(sep + '..')) {
+    throw new Error('Application root resolves outside the checked-out repository.');
+  }
+  const candidateStat = await stat(resolvedCandidate);
+  if (!candidateStat.isDirectory()) {
+    throw new Error('Application root must identify a directory.');
+  }
+  return resolvedCandidate;
 }
 
 // ─── Recursive symlink scrub ───────────────────────────────────────────────────

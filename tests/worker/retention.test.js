@@ -11,12 +11,15 @@ const { cleanupOldReleases } = await import('../../apps/worker/src/deployment/re
 function makeDockerStub() {
   const removedContainers = [];
   const removedImages = [];
+  const removedManifests = [];
   return {
     removedContainers,
     removedImages,
+    removedManifests,
     deps: {
       stopAndRemoveContainer: async (id) => removedContainers.push(id),
       removeDockerImage: async (tag) => removedImages.push(tag),
+      deleteRegistryManifest: async (ref) => removedManifests.push(ref),
     },
   };
 }
@@ -146,6 +149,25 @@ describe('retention — cleanupOldReleases', () => {
     await cleanupOldReleases(project._id, stub.deps);
     // seq 1 and 2 are excess; img-shared survives because seq 5 still uses it
     assert.deepEqual(stub.removedImages, ['img-2']);
+  });
+
+  it('deletes a GHCR manifest only when no retained release references its digest', async () => {
+    const project = await createProject();
+    const sharedDigest = `sha256:${'a'.repeat(64)}`;
+    for (let seq = 1; seq <= 4; seq++) {
+      await createDeployment(project._id, {
+        sequenceNumber: seq,
+        status: DeploymentStatus.HEALTHY,
+        imageTag: `img-${seq}`,
+        imageRef: `ghcr.io/example/apps:release-${seq}@${
+          seq === 1 || seq === 4 ? sharedDigest : `sha256:${String(seq).repeat(64)}`
+        }`,
+        imageDigest: seq === 1 || seq === 4 ? sharedDigest : `sha256:${String(seq).repeat(64)}`,
+      });
+    }
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    assert.deepEqual(stub.removedManifests, []);
   });
 
   it("never cleans the project's active deployment even beyond the limit", async () => {

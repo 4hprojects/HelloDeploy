@@ -1,9 +1,10 @@
-import { RuntimeType } from '@hellodeploy/contracts';
+import { RuntimeType, BuildStrategy } from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 import { ImageTemplateVersion } from './template-policy.js';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
+const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
@@ -48,6 +49,7 @@ export function generateDockerfile(config) {
     applicationPort,
     buildArgNames = [],
     templateVersion = ImageTemplateVersion.LEGACY,
+    buildStrategy = BuildStrategy.LEGACY_GENERATED,
   } = config;
 
   if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
@@ -91,6 +93,26 @@ export function generateDockerfile(config) {
       });
 
     case RuntimeType.NEXTJS:
+      if (buildStrategy === BuildStrategy.NEXT_STANDARD_V1) {
+        return generateNextStandard({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+          applicationPort: applicationPort ?? 3000,
+        });
+      }
+      if (buildStrategy === BuildStrategy.NEXT_STANDALONE_V1) {
+        return generateNextStandaloneV1({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+          applicationPort: applicationPort ?? 3000,
+        });
+      }
+      if (buildStrategy === BuildStrategy.NEXT_EXPORT_V1) {
+        return generateNextExport({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+        });
+      }
       return generateNextjs({
         buildCommand: buildCommand ?? 'npm run build',
         buildArgNames,
@@ -109,6 +131,70 @@ export function generateDockerfile(config) {
     default:
       throw new Error(`Cannot generate Dockerfile for unsupported runtime: ${runtimeType}`);
   }
+}
+
+function generateNextStandard({ buildCommand, buildArgNames, applicationPort }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+RUN npm prune --omit=dev
+
+FROM ${NEXT_NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=node:node /app ./
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ["npm", "start"]
+`;
+}
+
+function generateNextStandaloneV1({ buildCommand, buildArgNames, applicationPort }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+
+FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+RUN mkdir -p /app/public
+
+FROM ${NEXT_NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ["node", "server.js"]
+`;
+}
+
+function generateNextExport({ buildCommand, buildArgNames }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+
+FROM ${NGINX_IMAGE}
+COPY --from=builder /app/out /usr/share/nginx/html
+EXPOSE ${STATIC_PORT}
+CMD ["nginx", "-g", "daemon off;"]
+`;
 }
 
 // ─── Per-runtime templates ─────────────────────────────────────────────────────

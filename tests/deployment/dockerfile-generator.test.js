@@ -232,6 +232,36 @@ describe('generateDockerfile — NEXTJS', () => {
   });
 });
 
+describe('generateDockerfile — versioned Next.js strategies', () => {
+  const base = {
+    runtimeType: 'NEXTJS',
+    buildCommand: 'npm run build',
+    applicationPort: 3000,
+  };
+
+  it('uses Debian Node 22, prunes dependencies, and starts standard mode with npm', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standard_v1' });
+    assert.match(dockerfile, /^FROM node:22-bookworm-slim AS builder/m);
+    assert.match(dockerfile, /RUN npm prune --omit=dev/);
+    assert.match(dockerfile, /CMD \["npm", "start"\]/);
+  });
+
+  it('copies the standalone server, static assets, and optional public directory', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standalone_v1' });
+    assert.match(dockerfile, /RUN mkdir -p \/app\/public/);
+    assert.match(dockerfile, /\/app\/\.next\/standalone/);
+    assert.match(dockerfile, /\/app\/\.next\/static/);
+    assert.match(dockerfile, /CMD \["node", "server\.js"\]/);
+  });
+
+  it('serves export output with the unprivileged static image', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_export_v1' });
+    assert.match(dockerfile, /FROM nginxinc\/nginx-unprivileged:1\.27-alpine/);
+    assert.match(dockerfile, /COPY --from=builder \/app\/out \/usr\/share\/nginx\/html/);
+    assert.match(dockerfile, /EXPOSE 8080/);
+  });
+});
+
 describe('generateDockerfile — EXPRESS', () => {
   it('uses node:22-alpine base with port exposure', () => {
     const df = generateDockerfile({

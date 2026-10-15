@@ -167,9 +167,9 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
     toStatus === DeploymentStatus.FAILED &&
     removeImageOnFailure &&
     deps?.removeDockerImage &&
-    freshDeployment?.imageTag
+    (freshDeployment?.imageRef || freshDeployment?.imageTag)
   ) {
-    deps.removeDockerImage(freshDeployment.imageTag);
+    deps.removeDockerImage(freshDeployment.imageRef ?? freshDeployment.imageTag);
   }
 
   writeAuditEvent({
@@ -241,6 +241,8 @@ export async function runReleasePipeline({
   correlationId,
   deps,
   resourceLimits,
+  runtimeSpec,
+  configurationSnapshot,
   opts,
 }) {
   const projectId = project._id;
@@ -259,8 +261,12 @@ export async function runReleasePipeline({
     return { ok: false };
   };
 
-  const runtimeType = project.runtimeType ?? RuntimeType.NODEJS;
-  const appPort = resolveAppPort(project);
+  const runtimeType =
+    configurationSnapshot?.runtimeType ?? project.runtimeType ?? RuntimeType.NODEJS;
+  const snapshotProject = configurationSnapshot
+    ? { runtimeType, buildConfiguration: configurationSnapshot.buildConfiguration }
+    : project;
+  const appPort = runtimeSpec?.appPort ?? resolveAppPort(snapshotProject);
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
@@ -354,6 +360,7 @@ export async function runReleasePipeline({
       pidsLimit: resourceLimits?.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       projectId: projectId.toString(),
       deploymentId: deploymentId.toString(),
+      staticRuntime: runtimeSpec?.static,
     });
 
     await Deployment.updateOne(
@@ -416,7 +423,10 @@ export async function runReleasePipeline({
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
-  const rawHealthCheckPath = project.buildConfiguration?.healthCheckPath || '/';
+  const rawHealthCheckPath =
+    configurationSnapshot?.buildConfiguration?.healthCheckPath ||
+    project.buildConfiguration?.healthCheckPath ||
+    '/';
   const healthCheckPath = rawHealthCheckPath.startsWith('/')
     ? rawHealthCheckPath
     : `/${rawHealthCheckPath}`;
@@ -533,6 +543,7 @@ export async function runReleasePipeline({
                 domain: env.DEPLOYMENT_DOMAIN,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
+                streaming: runtimeSpec?.streaming === true,
               }),
             },
             ...customDomains.map((domain) => ({
@@ -541,6 +552,7 @@ export async function runReleasePipeline({
                 hostname: domain.hostnameNormalized,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
+                streaming: runtimeSpec?.streaming === true,
               }),
             })),
           ];

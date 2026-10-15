@@ -9,12 +9,74 @@
   const _gbValue = (field, fallback) =>
     _gbValues ? (_gbValues[field] ?? '') : (fallback ?? '');
   const _gbId = (field) => `${_gbPrefix}${field}`;
-  const _gbStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime);
-  const _gbBuiltStaticRuntime = ['REACT', 'VUE'].includes(_gbRuntime);
-  const _gbServerRuntime = ['EXPRESS', 'NODEJS'].includes(_gbRuntime);
+  const _gbNextStrategiesEnabled =
+    typeof nextStrategiesEnabledFor === 'function' &&
+    typeof project !== 'undefined' &&
+    nextStrategiesEnabledFor(project._id);
+  const _gbStoredStrategy =
+    (typeof buildStrategy !== 'undefined' && buildStrategy) ||
+    (typeof project !== 'undefined' && project.buildStrategy) ||
+    'legacy_generated';
+  const _gbStrategy = _gbValues
+    ? (_gbValues.buildStrategy || _gbStoredStrategy)
+    : (_gbNextStrategiesEnabled && _gbStoredStrategy === 'legacy_generated'
+        ? (project.detection?.recommendedBuildStrategy || _gbStoredStrategy)
+        : _gbStoredStrategy);
+  const _gbStaticRuntime =
+    ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
+  const _gbBuiltStaticRuntime =
+    ['REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
+  const _gbServerRuntime =
+    ['EXPRESS', 'NODEJS'].includes(_gbRuntime) ||
+    (_gbRuntime === 'NEXTJS' && _gbStrategy !== 'next_export_v1');
 %>
 
 <div class="<%= _gbGridClass %>">
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('application-root') %>">Application root</label>
+    <input
+      class="form-input<%= _gbErrors.applicationRoot ? ' form-input--error' : '' %>"
+      id="<%= _gbId('application-root') %>"
+      name="applicationRoot"
+      value="<%= _gbValue('applicationRoot', _gbConfig.applicationRoot || '.') %>"
+      maxlength="255"
+      placeholder="."
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('application-root-hint') %><%= _gbErrors.applicationRoot ? ` ${_gbId('application-root-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('application-root-hint') %>">
+      Use <code class="code-inline">.</code> for the repository root, or a folder such as
+      <code class="code-inline">apps/web</code> for a monorepo.
+    </p>
+    <% if (_gbErrors.applicationRoot) { %>
+    <span id="<%= _gbId('application-root-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationRoot %></span>
+    <% } %>
+  </div>
+
+  <% if (_gbRuntime === 'NEXTJS' && _gbNextStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Next.js deployment mode</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="next_standard_v1" <%= _gbStrategy === 'next_standard_v1' ? 'selected' : '' %>>Standard server (next start)</option>
+      <option value="next_standalone_v1" <%= _gbStrategy === 'next_standalone_v1' ? 'selected' : '' %>>Standalone server</option>
+      <option value="next_export_v1" <%= _gbStrategy === 'next_export_v1' ? 'selected' : '' %>>Static export</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected mode. Static export cannot run server routes, Server Actions, ISR, or image optimization.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+  <% } else { %>
+  <input type="hidden" name="buildStrategy" value="<%= _gbStrategy %>" />
+  <% } %>
   <div class="form-group">
     <label class="form-label" for="<%= _gbId('build-command') %>">Build command</label>
     <input

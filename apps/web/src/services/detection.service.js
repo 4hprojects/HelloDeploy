@@ -5,10 +5,58 @@ import {
   RepositorySourceType,
   DetectionStatus,
   PLATFORM_MANAGED_ENV_NAMES,
+  BuildStrategy,
+  normalizeApplicationRoot,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
+
+const NEXT_OUTPUT_PATTERNS = Object.freeze({
+  [BuildStrategy.NEXT_EXPORT_V1]: /\boutput\s*:\s*['"]export['"]/,
+  [BuildStrategy.NEXT_STANDALONE_V1]: /\boutput\s*:\s*['"]standalone['"]/,
+});
+
+function detectNextStrategy(files) {
+  const configs = [
+    'next.config.js',
+    'next.config.cjs',
+    'next.config.mjs',
+    'next.config.ts',
+    'next.config.mts',
+  ]
+    .map((path) => files[path])
+    .filter((content) => typeof content === 'string');
+  // This is deliberately a static, conservative read. Removing comments avoids
+  // confirming examples that are not active configuration; anything more
+  // dynamic falls back to an explicit standard-mode recommendation.
+  const content = configs
+    .join('\n')
+    .replace(/\/\*[\s\S]*?\*\//g, '')
+    .replace(/^\s*\/\/.*$/gm, '');
+  const matches = Object.entries(NEXT_OUTPUT_PATTERNS).filter(([, pattern]) =>
+    pattern.test(content),
+  );
+  if (matches.length === 1) {
+    const [strategy] = matches[0];
+    return {
+      strategy,
+      ambiguous: false,
+      rationale:
+        strategy === BuildStrategy.NEXT_EXPORT_V1
+          ? 'Next.js output: export was found; the generated files can be served statically.'
+          : 'Next.js output: standalone was found; the minimal standalone server can be used.',
+    };
+  }
+  const ambiguous = matches.length > 1 || /\boutput\s*:/.test(content);
+  return {
+    strategy: BuildStrategy.NEXT_STANDARD_V1,
+    ambiguous,
+    rationale: ambiguous
+      ? 'The Next.js output setting is dynamic or unsupported, so standard next start is recommended.'
+      : 'No static export or standalone output setting was found, so standard next start is recommended.',
+  };
+}
 
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
@@ -93,8 +141,27 @@ export function detectRuntime(files) {
   if ('next' in deps) {
     runtimeType = RuntimeType.NEXTJS;
     buildCommand = buildCommand ?? 'npm run build';
-    startCommand = startCommand ?? 'npm start';
-    outputDirectory = '.next';
+    const nextStrategy = detectNextStrategy(files);
+    if (nextStrategy.strategy === BuildStrategy.NEXT_EXPORT_V1) {
+      startCommand = null;
+      outputDirectory = 'out';
+      applicationPort = null;
+    } else if (nextStrategy.strategy === BuildStrategy.NEXT_STANDALONE_V1) {
+      startCommand = 'node server.js';
+      outputDirectory = '.next';
+      applicationPort = 3000;
+    } else {
+      startCommand = startCommand ?? 'npm start';
+      outputDirectory = '.next';
+      applicationPort = 3000;
+    }
+    if (nextStrategy.ambiguous) {
+      issues.push({
+        level: 'WARNING',
+        message:
+          'HelloDeploy could not statically confirm the Next.js output mode. Review the recommended standard-server mode before deploying.',
+      });
+    }
   } else if ('react-scripts' in deps) {
     runtimeType = RuntimeType.REACT;
     buildCommand = buildCommand ?? 'npm run build';
@@ -199,6 +266,7 @@ export function detectRuntime(files) {
   }
 
   const hasErrors = issues.some((i) => i.level === 'ERROR');
+  const nextStrategy = runtimeType === RuntimeType.NEXTJS ? detectNextStrategy(files) : null;
   return {
     runtimeType,
     buildCommand: buildCommand ?? null,
@@ -207,6 +275,8 @@ export function detectRuntime(files) {
     applicationPort,
     issues,
     isValid: !hasErrors,
+    recommendedBuildStrategy: nextStrategy?.strategy ?? BuildStrategy.LEGACY_GENERATED,
+    strategyRationale: nextStrategy?.rationale ?? 'Existing generated-image behavior is preserved.',
   };
 }
 
@@ -222,8 +292,10 @@ const FILES_TO_FETCH = [
   'vite.config.js',
   'vite.config.ts',
   'next.config.js',
+  'next.config.cjs',
   'next.config.mjs',
   'next.config.ts',
+  'next.config.mts',
   '.env.example',
   '.env.sample',
   '.env.template',
@@ -258,7 +330,8 @@ async function readBoundedDetectionResponse(res, path) {
 }
 
 async function fetchGithubFile(token, owner, repo, path, ref) {
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(ref)}`;
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
     redirect: 'error',
     signal: AbortSignal.timeout(DETECTION_REQUEST_TIMEOUT_MS),
@@ -296,12 +369,18 @@ async function fetchGithubFile(token, owner, repo, path, ref) {
  * @param {string} ref - branch name or commit SHA
  * @returns {Promise<{ [filename: string]: string | null }>}
  */
-export async function fetchProjectFiles(installationId, fullName, ref) {
+function fileAtApplicationRoot(applicationRoot, path) {
+  return applicationRoot === '.' ? path : `${applicationRoot}/${path}`;
+}
+
+export async function fetchProjectFiles(installationId, fullName, ref, applicationRoot = '.') {
   const token = await getInstallationToken(installationId);
   const [owner, repo] = fullName.split('/');
 
   const results = await Promise.allSettled(
-    FILES_TO_FETCH.map((path) => fetchGithubFile(token, owner, repo, path, ref)),
+    FILES_TO_FETCH.map((path) =>
+      fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
+    ),
   );
 
   const files = {};
@@ -317,14 +396,16 @@ export async function fetchProjectFiles(installationId, fullName, ref) {
   return files;
 }
 
-export async function fetchProjectFilesForRepository(repository, ref) {
+export async function fetchProjectFilesForRepository(repository, ref, applicationRoot = '.') {
   const token =
     repository.sourceType === RepositorySourceType.PUBLIC_GIT
       ? null
       : await getInstallationToken(repository.installationId);
   const [owner, repo] = repository.fullName.split('/');
   const results = await Promise.allSettled(
-    FILES_TO_FETCH.map((path) => fetchGithubFile(token, owner, repo, path, ref)),
+    FILES_TO_FETCH.map((path) =>
+      fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
+    ),
   );
   const files = {};
   FILES_TO_FETCH.forEach((path, index) => {
@@ -447,6 +528,7 @@ function detectedConfiguration(result) {
     outputDirectory: result.outputDirectory ?? null,
     applicationPort: result.applicationPort ?? null,
     healthCheckPath: '/',
+    applicationRoot: result.applicationRoot ?? '.',
   };
 }
 
@@ -508,7 +590,10 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
 
   let files;
   try {
-    files = await fetchProjectFilesForRepository(repo, ref);
+    const applicationRoot = normalizeApplicationRoot(
+      project.buildConfiguration?.applicationRoot ?? '.',
+    );
+    files = await fetchProjectFilesForRepository(repo, ref, applicationRoot);
   } catch (err) {
     logger.warn('Detection: GitHub fetch failed', { projectId, error: err.message });
     const result = {
@@ -526,6 +611,11 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
   }
 
   const result = detectRuntime(files);
+  result.recommendedBuildStrategy ??= BuildStrategy.LEGACY_GENERATED;
+  result.strategyRationale ??= 'Existing generated-image behavior is preserved.';
+  result.applicationRoot = normalizeApplicationRoot(
+    project.buildConfiguration?.applicationRoot ?? '.',
+  );
   result.requiredEnvironmentVariables = detectRequiredEnvironmentVariables(files);
   const detected = detectedConfiguration(result);
 
@@ -542,6 +632,8 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
           checkedCommitSha: repo.lastCommitSha,
           checkedAt: new Date(),
           detectedConfiguration: detected,
+          recommendedBuildStrategy: result.recommendedBuildStrategy,
+          strategyRationale: result.strategyRationale,
           requiredEnvironmentVariables: result.requiredEnvironmentVariables,
         },
         configurationVersion: project.configurationVersion + 1,

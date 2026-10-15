@@ -23,8 +23,10 @@ function files(overrides = {}) {
     'vite.config.js': null,
     'vite.config.ts': null,
     'next.config.js': null,
+    'next.config.cjs': null,
     'next.config.mjs': null,
     'next.config.ts': null,
+    'next.config.mts': null,
   };
   return { ...base, ...overrides };
 }
@@ -68,6 +70,70 @@ describe('detectRuntime — NEXTJS', () => {
     assert.equal(result.runtimeType, 'NEXTJS');
     assert.equal(result.isValid, true);
     assert.equal(result.outputDirectory, '.next');
+  });
+
+  it('recommends static export from a CJS config without executing it', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^16.0.0', react: '*', 'react-dom': '*' },
+          scripts: { build: 'next build' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.cjs': `module.exports = { output: 'export' };`,
+      }),
+    );
+    assert.equal(result.recommendedBuildStrategy, 'next_export_v1');
+    assert.equal(result.outputDirectory, 'out');
+    assert.equal(result.applicationPort, null);
+  });
+
+  it('recommends standalone from an MTS config', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^15.0.0' },
+          scripts: { build: 'next build' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.mts': `export default { output: "standalone" };`,
+      }),
+    );
+    assert.equal(result.recommendedBuildStrategy, 'next_standalone_v1');
+    assert.equal(result.startCommand, 'node server.js');
+  });
+
+  it('marks a dynamic output setting as ambiguous and recommends standard mode', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^16.0.0' },
+          scripts: { build: 'next build', start: 'next start' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.ts': 'export default { output: process.env.NEXT_OUTPUT }',
+      }),
+    );
+    assert.equal(result.recommendedBuildStrategy, 'next_standard_v1');
+    assert.ok(result.issues.some((issue) => issue.message.includes('statically confirm')));
+  });
+
+  it('does not treat a commented output example as confirmed configuration', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^16.0.0' },
+          scripts: { build: 'next build', start: 'next start' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.js': '// output: "export"\nmodule.exports = {}',
+      }),
+    );
+    assert.equal(result.recommendedBuildStrategy, 'next_standard_v1');
+    assert.equal(
+      result.issues.some((issue) => issue.level === 'WARNING'),
+      false,
+    );
   });
 
   it('warns when build script is missing for NEXTJS', () => {

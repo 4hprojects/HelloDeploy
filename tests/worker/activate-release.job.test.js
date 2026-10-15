@@ -20,6 +20,7 @@ function makeDeps(overrides = {}) {
     removedImages: [],
     activatedRoutes: [],
     retentionRuns: [],
+    pulledImages: [],
   };
   const deps = {
     allocatePort: async () => 10001,
@@ -40,6 +41,7 @@ function makeDeps(overrides = {}) {
       calls.removedImages.push(tag);
       return Promise.resolve();
     },
+    pullAndVerifyImage: async (ref) => calls.pulledImages.push(ref),
     getProjectEnvVars: async () => ({ APP_SECRET: 'shhh' }),
     activateRoute: async (opts) => calls.activatedRoutes.push(opts),
     notifyDeploymentResult: async () => {},
@@ -60,11 +62,12 @@ function makeJob(project, deployment) {
   };
 }
 
-async function seed(projectOverrides = {}) {
+async function seed(projectOverrides = {}, deploymentOverrides = {}) {
   const project = await createProject(projectOverrides);
   const deployment = await createDeployment(project._id, {
     status: DeploymentStatus.DEPLOYING,
     imageTag: 'img-new',
+    ...deploymentOverrides,
   });
   return { project, deployment };
 }
@@ -87,6 +90,94 @@ describe('activate-release job', () => {
     const fresh = await Deployment.findById(deployment._id).lean();
     assert.equal(fresh.status, DeploymentStatus.HEALTHY);
     assert.equal(fresh.activeContainerId, 'container-id-new');
+  });
+
+  it('pulls and starts the exact digest for a version-2 activation', async () => {
+    const digest = `sha256:${'c'.repeat(64)}`;
+    const imageRef = `ghcr.io/example/apps:release-1@${digest}`;
+    const { project, deployment } = await seed(
+      { environmentVersion: 2 },
+      {
+        imageRef,
+        imageDigest: digest,
+        configurationSnapshot: {
+          schemaVersion: 1,
+          buildStrategy: 'next_standard_v1',
+          runtimeType: 'NEXTJS',
+          buildConfiguration: {
+            applicationRoot: '.',
+            buildCommand: 'npm run build',
+            startCommand: 'npm start',
+            outputDirectory: '.next',
+            applicationPort: 3000,
+            healthCheckPath: '/',
+          },
+          projectConfigurationVersion: 1,
+          environmentVersion: 2,
+          sourceCommit: 'a'.repeat(40),
+        },
+      },
+    );
+    const { deps, calls } = makeDeps();
+    await handleActivateRelease(
+      {
+        data: {
+          ...makeJob(project, deployment).data,
+          version: 2,
+          imageId: imageRef,
+          imageDigest: digest,
+          environmentVersion: 2,
+          runtimeSpec: { appPort: 3000, static: false, streaming: true },
+        },
+      },
+      deps,
+    );
+    assert.deepEqual(calls.pulledImages, [imageRef]);
+    assert.equal(calls.startedContainers[0].imageTag, imageRef);
+  });
+
+  it('fails before pulling when the environment revision is stale', async () => {
+    const digest = `sha256:${'d'.repeat(64)}`;
+    const imageRef = `ghcr.io/example/apps:release-2@${digest}`;
+    const { project, deployment } = await seed(
+      { environmentVersion: 3 },
+      {
+        imageRef,
+        imageDigest: digest,
+        configurationSnapshot: {
+          schemaVersion: 1,
+          buildStrategy: 'legacy_generated',
+          runtimeType: 'NODEJS',
+          buildConfiguration: {
+            applicationRoot: '.',
+            startCommand: 'node server.js',
+            applicationPort: 3000,
+            healthCheckPath: '/',
+          },
+          projectConfigurationVersion: 1,
+          environmentVersion: 2,
+          sourceCommit: 'a'.repeat(40),
+        },
+      },
+    );
+    const { deps, calls } = makeDeps();
+    await handleActivateRelease(
+      {
+        data: {
+          ...makeJob(project, deployment).data,
+          version: 2,
+          imageId: imageRef,
+          imageDigest: digest,
+          environmentVersion: 2,
+          runtimeSpec: { appPort: 3000, static: false, streaming: false },
+        },
+      },
+      deps,
+    );
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'CONFIGURATION_CHANGED');
+    assert.deepEqual(calls.pulledImages, []);
+    assert.deepEqual(calls.startedContainers, []);
   });
 
   it('records when the live container started so uptime shows right away', async () => {

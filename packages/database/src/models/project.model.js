@@ -4,6 +4,7 @@ import {
   DeploymentMode,
   RuntimeType,
   DetectionStatus,
+  BuildStrategy,
 } from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
@@ -15,6 +16,7 @@ const buildConfigurationSchema = new Schema(
     outputDirectory: { type: String, default: null },
     applicationPort: { type: Number, default: null, min: 1, max: 65535 },
     healthCheckPath: { type: String, default: '/' },
+    applicationRoot: { type: String, default: '.', maxlength: 255 },
   },
   { _id: false },
 );
@@ -64,6 +66,12 @@ const detectionSchema = new Schema(
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
     detectedConfiguration: { type: buildConfigurationSchema, default: null },
+    recommendedBuildStrategy: {
+      type: String,
+      enum: Object.values(BuildStrategy),
+      default: null,
+    },
+    strategyRationale: { type: String, default: null, maxlength: 500 },
     requiredEnvironmentVariables: {
       type: [String],
       default: [],
@@ -99,6 +107,12 @@ const projectSchema = new Schema(
       enum: Object.values(RuntimeType),
       default: null,
     },
+    // Missing/null preserves the pre-strategy generated-image behavior.
+    buildStrategy: {
+      type: String,
+      enum: Object.values(BuildStrategy),
+      default: null,
+    },
     productionBranch: { type: String, default: null, trim: true, maxlength: 255 },
     deploymentMode: {
       type: String,
@@ -117,6 +131,7 @@ const projectSchema = new Schema(
     activeDeploymentId: { type: Schema.Types.ObjectId, ref: 'Deployment', default: null },
     deployHookTokenHash: { type: String, default: null },
     configurationVersion: { type: Number, default: 1 },
+    environmentVersion: { type: Number, default: 1, min: 1 },
     detection: { type: detectionSchema, default: () => ({}) },
     // Random key that groups this project's anonymized study rows; deleted with the project.
     studyKey: { type: String, default: null },
