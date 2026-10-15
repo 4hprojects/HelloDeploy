@@ -12,7 +12,13 @@ import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
 import { containerName, networkName } from './container.js';
 import { toRuntimeState } from './container-uptime-sweep.js';
-import { diagnoseAppOutput } from './failure-diagnosis.js';
+import { APP_REPORT_PREFIX } from '@hellodeploy/contracts';
+import {
+  classifyAppLine,
+  collapseRepeatedLines,
+  diagnoseAppOutput,
+  summarizeAppError,
+} from './failure-diagnosis.js';
 import {
   generateServerBlock,
   generateCustomDomainServerBlock,
@@ -394,12 +400,7 @@ export async function runReleasePipeline({
     state = await deps.inspectContainer(cName);
   }
   if (hasCrashed(state)) {
-    // NOTE: Docker resets ExitCode while it restarts a container, so once a
-    // restart has happened the code no longer describes the crash.
-    const crashDetail =
-      state.running || state.restartCount > 0
-        ? `kept crashing (restarted ${state.restartCount} time${state.restartCount === 1 ? '' : 's'})`
-        : `exited immediately (code ${state.exitCode})`;
+    const crashDetail = describeCrash(state, 'exited immediately');
     await logEvent(
       deploymentId,
       'DEPLOY',
@@ -407,11 +408,20 @@ export async function runReleasePipeline({
       `${opts.logLabel} ${crashDetail}. Possible crash or missing start command.`,
       correlationId,
     );
-    const diagnosis = await reportAppOutput(deps, cName, deploymentId, correlationId, appPort);
+    const { diagnosis, appReport } = await reportAppOutput(
+      deps,
+      cName,
+      deploymentId,
+      correlationId,
+      {
+        appPort,
+        envVars,
+      },
+    );
     await deps.stopAndRemoveContainer(cName);
     return fail(
       diagnosis?.failureCode ?? 'CONTAINER_CRASHED_ON_STARTUP',
-      diagnosis?.detail ?? `Container ${crashDetail} right after start.`,
+      diagnosis?.detail ?? appReport ?? `Container ${crashDetail} right after start.`,
     );
   }
 
@@ -439,12 +449,37 @@ export async function runReleasePipeline({
       `Health check failed: ${health.error ?? 'timeout'}`,
       correlationId,
     );
-    const diagnosis = await reportAppOutput(deps, cName, deploymentId, correlationId, appPort);
+    // An app that crashes after the startup window (say, once its database
+    // answers) shows up here as "no response"; the restart count tells them apart.
+    const stateAfterCheck = await deps.inspectContainer(cName);
+    const crashed = hasCrashed(stateAfterCheck);
+    if (crashed) {
+      await logEvent(
+        deploymentId,
+        'DEPLOY',
+        'ERROR',
+        `${opts.logLabel} ${describeCrash(stateAfterCheck, 'stopped')} during the health check.`,
+        correlationId,
+      );
+    }
+    const { diagnosis, appReport } = await reportAppOutput(
+      deps,
+      cName,
+      deploymentId,
+      correlationId,
+      {
+        appPort,
+        envVars,
+      },
+    );
     await deps.stopAndRemoveContainer(cName);
     return fail(
-      diagnosis?.failureCode ?? 'HEALTH_CHECK_FAILED',
+      diagnosis?.failureCode ?? (crashed ? 'CONTAINER_CRASHED_ON_STARTUP' : 'HEALTH_CHECK_FAILED'),
       diagnosis?.detail ??
-        `Health check did not pass: ${health.error ?? 'no response within timeout'}`,
+        appReport ??
+        (crashed
+          ? `Container ${describeCrash(stateAfterCheck, 'stopped')} during the health check.`
+          : `Health check did not pass: ${health.error ?? 'no response within timeout'}`),
     );
   }
 
@@ -722,21 +757,42 @@ function hasCrashed(state) {
   return !state.running || state.restarting || state.restartCount > 0;
 }
 
+// NOTE: Docker resets ExitCode while it restarts a container, so once a
+// restart has happened the code no longer describes the crash.
+function describeCrash(state, exitedVerb) {
+  return state.running || state.restartCount > 0
+    ? `kept crashing (restarted ${state.restartCount} time${state.restartCount === 1 ? '' : 's'})`
+    : `${exitedVerb} (code ${state.exitCode})`;
+}
+
 // The container is removed right after a failed start, taking the app's own
 // error output with it; copy the tail into the deployment log first so the
 // owner can see why it failed, and name the cause when it is a known one.
 // Optional dep: test doubles may omit it.
-async function reportAppOutput(deps, cName, deploymentId, correlationId, appPort) {
+async function reportAppOutput(deps, cName, deploymentId, correlationId, { appPort, envVars }) {
   if (!deps.getContainerLogs) {
-    return null;
+    return { diagnosis: null, appReport: null };
   }
   const lines = await deps.getContainerLogs(cName);
-  for (const line of lines) {
-    await logEvent(deploymentId, 'DEPLOY', 'ERROR', `[app] ${line}`, correlationId);
+  const { lines: distinctLines, repeats } = collapseRepeatedLines(lines);
+  for (const line of distinctLines) {
+    await logEvent(deploymentId, 'DEPLOY', classifyAppLine(line), `[app] ${line}`, correlationId);
+  }
+  if (repeats > 1) {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `[app] (The output above repeated ${repeats} times as your app was restarted.)`,
+      correlationId,
+    );
   }
   const diagnosis = diagnoseAppOutput(lines, { appPort });
   if (diagnosis) {
     await logEvent(deploymentId, 'DEPLOY', 'ERROR', diagnosis.detail, correlationId);
   }
-  return diagnosis;
+  // The summary is shown on the deployment page, so it gets the log redaction too.
+  const appError = summarizeAppError(lines, envVars);
+  const appReport = appError ? redactLogLine(`${APP_REPORT_PREFIX}${appError}`) : null;
+  return { diagnosis, appReport };
 }
