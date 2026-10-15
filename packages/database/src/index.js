@@ -16,6 +16,7 @@ export { ProductEvent, PRODUCT_EVENT_NAMES } from './models/product-event.model.
 export { Notification } from './models/notification.model.js';
 export { NotificationWebhookEvent } from './models/notification-webhook-event.model.js';
 export { StudyDeployment } from './models/study-deployment.model.js';
+export { StudyAuditEvent } from './models/study-audit-event.model.js';
 export {
   QUOTA_FIELDS,
   configurePlanDefaults,

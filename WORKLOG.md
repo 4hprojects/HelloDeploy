@@ -2369,3 +2369,18 @@ recovery remain unexecuted until their declared operational preconditions pass.
   with the `triggerType`.
 - Next: the project Activity page (Owner and Maintainer), then an anonymized archive of
   audit events kept indefinitely for study.
+
+## 2026-10-15 — Project Activity Page and Anonymized Audit Archive
+
+- `/projects/:slug/activity` (Owner and Maintainer) shows the project's audit
+  events with filters, pagination and an audited CSV export (#115). It is written
+  for Maintainers, who cannot open the Members or Environment pages: actors are
+  named only while still on the project, there are no emails, and details come
+  from a metadata allowlist, so secret names never appear.
+- The worker's hourly study sweep now also copies project audit events into
+  `study_audit_events`, kept indefinitely like `study_deployments` and unlinkable
+  once the project is deleted. Raw audit events stay immutable: progress is a
+  cursor in `platform_settings`, and rows are upserted by a deterministic hash
+  `studyId`. The Privacy Policy now names this data.
+- Not changed: the Privacy Policy "Effective" date (30 June 2026) was not moved for
+  either study archive. Whether it needs to move is the operator's call.
