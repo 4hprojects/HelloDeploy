@@ -1,6 +1,6 @@
 export { connectDatabase, disconnectDatabase, mongoose } from './connection.js';
 export { User } from './models/user.model.js';
-export { AuditEvent } from './models/audit-event.model.js';
+export { AuditEvent, AUDIT_EVENT_RETENTION_SECONDS } from './models/audit-event.model.js';
 export { Project } from './models/project.model.js';
 export { ProjectMembership } from './models/project-membership.model.js';
 export { ProjectInvitation } from './models/project-invitation.model.js';

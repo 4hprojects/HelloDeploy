@@ -70,5 +70,6 @@ describe('database indexes for high-traffic admin and project paths', () => {
     assert.match(auditEventModel, /auditEventSchema\.index\(\{ outcome: 1, createdAt: -1 \}\)/);
     assert.match(auditEventModel, /auditEventSchema\.index\(\{ targetType: 1, createdAt: -1 \}\)/);
     assert.match(auditEventModel, /auditEventSchema\.index\(\{ targetId: 1, createdAt: -1 \}\)/);
+    assert.match(auditEventModel, /auditEventSchema\.index\(\{ projectId: 1, createdAt: -1 \}\)/);
   });
 });

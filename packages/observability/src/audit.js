@@ -22,6 +22,7 @@ export function configureAuditService(model) {
  * @param {string} params.outcome        - AuditOutcome constant
  * @param {string|null} [params.actorId] - User ObjectId string, or null for system
  * @param {string|null} [params.actorRole]
+ * @param {string|null} [params.projectId] - Defaults to the project the target or metadata names
  * @param {string|null} [params.targetType]
  * @param {string|null} [params.targetId]
  * @param {string|null} [params.sourceIp]
@@ -34,6 +35,7 @@ export async function writeAuditEvent({
   outcome,
   actorId = null,
   actorRole = null,
+  projectId = null,
   targetType = null,
   targetId = null,
   sourceIp = null,
@@ -51,6 +53,7 @@ export async function writeAuditEvent({
       actorId: actorId ?? undefined,
       actorRole,
       action,
+      projectId: resolveProjectId({ projectId, targetType, targetId, metadata }),
       targetType,
       targetId,
       outcome,
@@ -62,6 +65,21 @@ export async function writeAuditEvent({
   } catch (err) {
     logger.error('[audit] Failed to write audit event', { action, error: err.message });
   }
+}
+
+const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
+
+/**
+ * The project an event belongs to: an explicit projectId, else a project
+ * target, else metadata.projectId. Call sites already record the project in
+ * one of those places, so this links them without touching each one. A value
+ * that isn't an ObjectId resolves to null rather than failing the write.
+ */
+export function resolveProjectId({ projectId, targetType, targetId, metadata }) {
+  const candidate =
+    projectId ?? (targetType === 'project' ? targetId : null) ?? metadata?.projectId ?? null;
+  const value = candidate?.toString() ?? null;
+  return value && OBJECT_ID_PATTERN.test(value) ? value : null;
 }
 
 export { AuditOutcome };

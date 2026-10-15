@@ -175,11 +175,13 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   writeAuditEvent({
     action: `deployment.${toStatus.toLowerCase()}`,
     outcome: toStatus === DeploymentStatus.HEALTHY ? AuditOutcome.SUCCESS : AuditOutcome.FAILURE,
-    actorId: project?.ownerId ? project.ownerId.toString() : null,
+    // The pipeline reached this status on its own; whoever started it is on deployment.created.
+    actorRole: 'system',
     targetType: 'deployment',
     targetId: deploymentId.toString(),
     metadata: {
       projectId: project?._id?.toString(),
+      triggerType: freshDeployment?.triggerType,
       sequenceNumber: freshDeployment?.sequenceNumber,
       commitSha: freshDeployment?.commitSha?.slice(0, 7),
       failureCode: freshDeployment?.failureCode,

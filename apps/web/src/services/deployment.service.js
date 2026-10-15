@@ -309,10 +309,15 @@ export async function createDeployment({
     { jobId: `deploy-${deployment._id.toString()}` }, // deduplication key
   );
 
+  // A push or deploy hook runs on the owner's behalf, but nobody clicked deploy:
+  // the audit log names the trigger, not the owner.
+  const isUnattended =
+    triggerType === DeploymentTrigger.AUTOMATIC || triggerType === DeploymentTrigger.SYSTEM;
   await writeAuditEvent({
     action: 'deployment.created',
     outcome: AuditOutcome.SUCCESS,
-    actorId,
+    actorId: isUnattended ? null : actorId,
+    actorRole: isUnattended ? 'system' : null,
     targetType: 'deployment',
     targetId: deployment._id.toString(),
     sourceIp,
