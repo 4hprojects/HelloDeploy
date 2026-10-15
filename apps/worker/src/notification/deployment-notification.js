@@ -30,18 +30,22 @@ export function buildDeploymentNotificationEmail(opts, owner) {
   const failureCopy = failureCode ? getFailureCopy(failureCode) : null;
   return {
     to: owner.email,
-    ...buildEmailContent('deployment-result', {
-      firstName: owner.firstName || owner.name || 'there',
-      projectName,
-      sequenceNumber,
-      status,
-      commitSha,
-      failureCode,
-      failureSummary,
-      failureMessage: failureCopy?.message,
-      failureAction: failureCopy?.action,
-      dashboardUrl: `https://${platformDomain}/projects/${projectSlug}/deployments`,
-    }),
+    ...buildEmailContent(
+      'deployment-result',
+      {
+        firstName: owner.firstName || owner.name || 'there',
+        projectName,
+        sequenceNumber,
+        status,
+        commitSha,
+        failureCode,
+        failureSummary,
+        failureMessage: failureCopy?.message,
+        failureAction: failureCopy?.action,
+        dashboardUrl: `https://${platformDomain}/projects/${projectSlug}/deployments`,
+      },
+      { platformUrl: `https://${platformDomain}` },
+    ),
   };
 }
 

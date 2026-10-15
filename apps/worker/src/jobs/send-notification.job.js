@@ -97,10 +97,11 @@ export async function handleSendNotification(job, deps = {}) {
       throw Object.assign(new Error('recipient unavailable'), { name: 'recipient_unavailable' });
     }
     const payload = readPayload(notification);
-    const content = buildEmailContent(notification.kind, {
-      ...payload,
-      firstName: payload.firstName ?? user.firstName,
-    });
+    const content = buildEmailContent(
+      notification.kind,
+      { ...payload, firstName: payload.firstName ?? user.firstName },
+      { platformUrl: `https://${env.PLATFORM_DOMAIN}` },
+    );
     const { data, error } = await provider.emails.send(
       { from: env.EMAIL_FROM, to: user.email, ...content },
       { idempotencyKey: notification._id.toString() },

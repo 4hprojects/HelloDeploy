@@ -52,7 +52,11 @@ async function sendEmail(
 }
 
 export async function sendVerificationEmail({ to, firstName, verificationUrl, correlationId }) {
-  const content = buildEmailContent('email-verification', { firstName, verificationUrl });
+  const content = buildEmailContent(
+    'email-verification',
+    { firstName, verificationUrl },
+    { platformUrl: platformUrl() },
+  );
   return sendEmail({
     to,
     kind: 'email-verification',
@@ -65,7 +69,11 @@ export async function sendPasswordResetEmail(
   { to, firstName, resetCode, correlationId },
   dependencies,
 ) {
-  const content = buildEmailContent('password-reset', { firstName, resetCode });
+  const content = buildEmailContent(
+    'password-reset',
+    { firstName, resetCode },
+    { platformUrl: platformUrl() },
+  );
   return sendEmail(
     {
       to,
@@ -78,7 +86,14 @@ export async function sendPasswordResetEmail(
 }
 
 export function buildProjectPausedEmail({ to, firstName, projectName, projectUrl }) {
-  return { to, ...buildEmailContent('project-paused', { firstName, projectName, projectUrl }) };
+  return {
+    to,
+    ...buildEmailContent(
+      'project-paused',
+      { firstName, projectName, projectUrl },
+      { platformUrl: platformUrl() },
+    ),
+  };
 }
 
 export async function sendProjectPausedEmail(options) {
@@ -107,16 +122,28 @@ export async function sendProjectInviteEmail({ to, correlationId, ...payload }) 
     to,
     kind: 'project-invite',
     correlationId,
-    ...buildEmailContent('project-invite', { email: to, ...payload }),
+    ...buildEmailContent(
+      'project-invite',
+      { email: to, ...payload },
+      { platformUrl: platformUrl() },
+    ),
   });
 }
 
 export async function sendPasswordChangedEmail({ to, firstName, correlationId }) {
-  const content = buildEmailContent('password-changed', { firstName });
+  const content = buildEmailContent(
+    'password-changed',
+    { firstName },
+    { platformUrl: platformUrl() },
+  );
   return sendEmail({
     to,
     kind: 'password-changed',
     correlationId,
     ...content,
   });
+}
+
+function platformUrl() {
+  return env.isProduction() ? `https://${env.PLATFORM_DOMAIN}` : `http://localhost:${env.PORT}`;
 }
