@@ -10,6 +10,8 @@ import {
   validateJobPayload,
   JobPayloadValidationError,
   getFailureCopy,
+  getAppReport,
+  APP_REPORT_PREFIX,
   DEPLOYMENT_FAILURE_COPY,
 } from '@hellodeploy/contracts';
 
@@ -162,6 +164,19 @@ describe('contracts — validateJobPayload', () => {
         }),
       JobPayloadValidationError,
     );
+  });
+});
+
+describe('contracts — getAppReport', () => {
+  it("returns the app's own message from a summary the worker wrote for it", () => {
+    assert.equal(
+      getAppReport(`${APP_REPORT_PREFIX}database refused the password`),
+      'database refused the password',
+    );
+  });
+
+  it("returns null for HelloDeploy's own wording", () => {
+    assert.equal(getAppReport('Health check did not pass: fetch failed'), null);
   });
 });
 
