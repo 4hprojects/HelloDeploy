@@ -2384,3 +2384,22 @@ recovery remain unexecuted until their declared operational preconditions pass.
   `studyId`. The Privacy Policy now names this data.
 - Not changed: the Privacy Policy "Effective" date (30 June 2026) was not moved for
   either study archive. Whether it needs to move is the operator's call.
+
+## 2026-10-16 — P0-P1 Multi-Runtime Foundation and Next.js Completion
+
+- Preserved the crash-diagnosis branch and untracked planning package, refreshed
+  `main`, and created `feat/multi-runtime-deployments` at `0234139`.
+- Recorded the baseline and corrected the readiness test's inherited-email state.
+- Added versioned strategies, safe application roots, immutable deployment snapshots,
+  environment revision fencing, v1/v2 queue compatibility, digest identity, remote
+  Buildx execution, GHCR retention, and readiness probes.
+- Added default-off, project-allowlisted Next.js standard, standalone, and export
+  detection, generated templates, UI confirmation, and streaming route behavior.
+- Added the threat model, operations runbook, environment/user/supported-app guidance,
+  and local/external evidence boundary under `docs/multi-runtime/`.
+- Verified 178/178 changed-area tests, 740/740 focused security/worker/Nginx/
+  operations/installer tests, and 1,805/1,805 full-suite tests with dotenv disabled;
+  lint, formatting, and configuration validation also pass.
+- Live remote fixture, route, rollback, isolation, and registry evidence was not run:
+  the separate nonproduction builder and private GHCR credentials are external
+  prerequisites and remain explicit blockers.

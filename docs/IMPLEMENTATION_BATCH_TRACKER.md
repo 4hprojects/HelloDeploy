@@ -16,6 +16,20 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
 | Release state    | NO-GO for customer application hosting                                                                                               |
 
+### P0-P1 multi-runtime foundation — repository lane
+
+On 2026-10-16, implementation began on `feat/multi-runtime-deployments` from
+`0234139a7a173edd9ecfbff8f50b60ca8027f5ba`. The repository now contains the
+default-off versioned build contracts, deployment snapshots/environment fencing,
+remote Buildx/GHCR digest flow, digest-aware retention, configurable application
+roots, and allowlisted Next.js standard/standalone/export behavior. The dedicated
+status, threat model, runbook, and evidence are under [`docs/multi-runtime`](multi-runtime/STATUS.md).
+
+This does not alter the table's production NO-GO state. Live migration and P1
+acceptance remain blocked on a separate rootless BuildKit host, private GHCR
+credentials, and nonproduction fixture projects. No production flag, deployment,
+merge, or rollout is authorized by the repository-local work.
+
 ### UI/UX improvement program — repository-local lane
 
 The nine-phase UI/UX pack was implemented locally as six ordered batches on

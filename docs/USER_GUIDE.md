@@ -17,7 +17,8 @@ Version 1 is intended for:
 - Express applications
 - React static builds
 - Vue static builds
-- Constrained Next.js applications
+- Legacy Next.js applications, plus allowlisted Next.js standard server, standalone,
+  and static-export projects during the new-mode pilot
 
 Version 1 does not support Python, PHP, Java, Docker Compose submitted by users, arbitrary container images, privileged containers, game servers, cryptocurrency mining, public proxies, VPNs, or large media workloads.
 
@@ -85,6 +86,10 @@ After connecting a repository:
 3. Select **Check my app**.
 4. Review the detected runtime, commands, output directory, port, and warnings.
 
+For an allowlisted Next.js project, detection also recommends Standard server,
+Standalone server, or Static export. Review and save that selection before deploying;
+dynamic configuration is called out rather than executed by HelloDeploy.
+
 Detection checks whether the project appears deployable. Unsupported runtimes, missing scripts, invalid package metadata, risky files, or unclear configuration can block deployment until corrected.
 
 ## Override Build Configuration
@@ -95,6 +100,16 @@ Detection fills in recommended values, which usually do not need changes. Owners
 - **Output directory**: For static builds, where the built files are produced.
 - **Application port**: The port your app listens on inside the container.
 - **Health check path**: The HTTP path HelloDeploy polls after each deploy to confirm the app is healthy. Defaults to `/`. If your app has a dedicated endpoint such as `/healthz`, set it here — a deployment is only marked healthy after this path responds successfully.
+- **Application root**: Use `.` for the repository root or a repository-relative POSIX
+  folder such as `apps/web` for a monorepo. Absolute paths, traversal, and escaping
+  symlinks are rejected.
+
+The Next.js pilot is npm-only and requires both `package.json` and
+`package-lock.json`. Only `NEXT_PUBLIC_*` environment values are available during
+`next build`; private values remain runtime-only. P1 is single-instance hosting, so
+ISR and cache data remain container-local and are not preserved across replacement or
+rollback. Static export cannot use server routes, Server Actions, ISR, middleware, or
+server-side image optimization.
 
 Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 
