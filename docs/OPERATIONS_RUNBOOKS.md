@@ -345,10 +345,13 @@ Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. 
 Audit events are kept for 90 days, as the Privacy Policy states, and each event names its project in `projectId`. Mongoose never changes an existing TTL index, so a host that ran a release from before 2026-10-15 still deletes audit events after 7 days until this one-off repair runs. The same script links older events to their project. Auto-deploy does not run it. Run it once by hand after that release is live, dry run first:
 
 ```bash
-cd /opt/hellodeploy
-sudo node scripts/repair-audit-retention.js            # dry run: prints the TTL and counts
-sudo node scripts/repair-audit-retention.js --confirm
+# /opt/hellodeploy is not readable by the login user, so cd inside sudo; a bare
+# `cd` fails and the script would run from the current directory and its .env.
+sudo bash -c 'cd /opt/hellodeploy && node scripts/repair-audit-retention.js'            # dry run
+sudo bash -c 'cd /opt/hellodeploy && node scripts/repair-audit-retention.js --confirm'
 ```
+
+It needs only the app's normal `readWrite` database role.
 
 It is safe to re-run: a second run finds nothing to change.
 
