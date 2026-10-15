@@ -133,7 +133,14 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: 'Custom Domains' })).toBeVisible();
   await page.goto('/projects/northstar-notes/members');
   await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible();
+  // Activity is reached from the sidebar and never shows secret names.
+  await page.getByRole('link', { name: 'Activity' }).click();
+  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
+  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
+  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 
+  // Sign-ins are rate limited to 10 per 15 minutes across this whole spec, so
+  // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin/users');
@@ -380,15 +387,6 @@ test('deployment polling preserves canonical status and refreshes terminal actio
   await expect(badge).toHaveClass(/status-badge--failed/);
   await expect(badge).toHaveAttribute('aria-label', 'Failed: This release did not become live.');
   await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
-});
-
-test('project activity lists events without exposing secret names', async ({ page }) => {
-  await signIn(page);
-  await page.getByRole('link', { name: 'Northstar Notes' }).first().click();
-  await page.getByRole('link', { name: 'Activity' }).click();
-  await expect(page.getByRole('heading', { name: 'Activity' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
-  await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 });
 
 test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
