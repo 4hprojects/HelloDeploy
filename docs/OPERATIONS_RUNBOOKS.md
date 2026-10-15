@@ -356,12 +356,16 @@ It is safe to re-run: a second run finds nothing to change.
 
 Raw deployment logs expire after 30 days. Every hour, and when it starts, the worker copies finished deployments (settled for 10 minutes) into the `study_deployments` collection. Each copy holds the outcome, failure code, timings per stage, and up to 2,000 log lines, after `apps/worker/src/deployment/study-anonymizer.js` has redacted secrets and replaced names, emails, repository and project names, domains, commit hashes, IP addresses, and private URL hosts with placeholders. Rows hold no user, project, repository, commit, or deployment ids. `studyProjectKey` and `studyId` are random values kept only on the live `Project` and `Deployment`, so a deleted project's rows can no longer be linked back. This is the retention the Privacy Policy describes.
 
+The same sweep copies project audit events into `study_audit_events` before their 90-day expiry. A row keeps the action, outcome, UTC day and hour, the actor's kind (`system`, `member`, `admin` or `other`) and project role, plus allowlisted metadata: counts, deployment numbers, trigger types, failure codes and roles. It never stores the actor id, IP, user agent, names, emails, hostnames, commit hashes or secret names. `studyId` is a SHA-256 of the project's `studyKey` and the event id. Progress is a cursor in `platform_settings` (`study.audit_cursor`), so the raw audit events are never modified.
+
 Export for analysis (NDJSON, one deployment per line, file mode 0600):
 
 ```bash
 cd /opt/hellodeploy
 sudo node scripts/export-study-dataset.js --out ~/study.ndjson --since 2026-10-01
 ```
+
+Add `--dataset audit` to export the anonymized audit events instead.
 
 ## Rollback
 

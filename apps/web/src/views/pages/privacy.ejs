@@ -32,6 +32,7 @@
       <li><strong>Environment variable values</strong> — encrypted at rest using AES-256-GCM before storage. The encryption key is never stored in the database.</li>
       <li><strong>Build and deployment logs</strong> — retained for 30 days, then permanently deleted.</li>
       <li><strong>Anonymized deployment records</strong> — after a deployment finishes, HelloDeploy keeps an anonymized copy of its outcome, timings, and log lines to study and improve build reliability. Names, email addresses, repository and project names, domains, commit hashes, IP addresses, and secrets are removed or replaced with placeholders first. The copy is linked to your project only by a random key that is deleted with the project, after which it can no longer be connected to you.</li>
+      <li><strong>Anonymized project activity</strong> — HelloDeploy also keeps an anonymized copy of each project audit event to study how projects are run: the kind of action, its outcome, the day and hour it happened, and whether it was done by a project member (with their project role), an administrator, or HelloDeploy itself. It never includes who acted, IP addresses, browser details, names, email addresses, domains, commit hashes, or secret names. It is linked to your project by the same random key, so it can no longer be connected to you once the project is deleted.</li>
       <li><strong>Container and image metadata</strong> — image tags, port assignments, and health-check results. Docker images for old releases are deleted automatically (your project's rollback-release limit is kept, 3 by default).</li>
     </ul>
 
@@ -50,7 +51,7 @@
       </thead>
       <tbody>
         <tr><td>Build and deployment logs</td><td>30 days</td></tr>
-        <tr><td>Anonymized deployment records and log lines</td><td>Kept indefinitely for service improvement; unlinkable once the project is deleted</td></tr>
+        <tr><td>Anonymized deployment records, log lines, and project activity</td><td>Kept indefinitely for service improvement; unlinkable once the project is deleted</td></tr>
         <tr><td>Docker images (old releases)</td><td>Deleted once a project exceeds its rollback-release limit (3 by default)</td></tr>
         <tr><td>Server backups</td><td>The 10 most recent, plus one per month for 12 months. A deletion request reaches backups as they age out.</td></tr>
         <tr><td>Audit events</td><td>90 days</td></tr>

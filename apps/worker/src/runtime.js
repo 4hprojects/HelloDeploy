@@ -34,6 +34,7 @@ import { handleCleanupReleases } from './jobs/cleanup-releases.job.js';
 import { createGracefulWorkerShutdown } from './lifecycle.js';
 import { handleSendNotification, sweepNotifications } from './jobs/send-notification.job.js';
 import { archiveDeploymentsForStudy } from './jobs/archive-study.job.js';
+import { archiveAuditEventsForStudy } from './jobs/archive-audit-study.job.js';
 import {
   sweepContainerUptime,
   CONTAINER_UPTIME_SWEEP_MS,
@@ -176,16 +177,27 @@ const notificationSweepInterval = setInterval(
 );
 notificationSweepInterval.unref();
 
-// Raw deployment logs expire after 30 days; copy finished deployments into
-// the anonymized study archive well before that.
+// Raw deployment logs expire after 30 days and audit events after 90; copy
+// both into the anonymized study archive well before that.
 const runStudyArchive = () =>
-  archiveDeploymentsForStudy()
-    .then((archived) => {
-      if (archived > 0) {
-        logger.info('Worker: archived deployments for study', { archived });
-      }
-    })
-    .catch((err) => logger.error('Worker: study archive sweep failed', { error: err.message }));
+  Promise.all([
+    archiveDeploymentsForStudy()
+      .then((archived) => {
+        if (archived > 0) {
+          logger.info('Worker: archived deployments for study', { archived });
+        }
+      })
+      .catch((err) => logger.error('Worker: study archive sweep failed', { error: err.message })),
+    archiveAuditEventsForStudy()
+      .then((archived) => {
+        if (archived > 0) {
+          logger.info('Worker: archived audit events for study', { archived });
+        }
+      })
+      .catch((err) =>
+        logger.error('Worker: audit study archive sweep failed', { error: err.message }),
+      ),
+  ]);
 runStudyArchive();
 const studyArchiveInterval = setInterval(runStudyArchive, 60 * 60 * 1000);
 studyArchiveInterval.unref();
