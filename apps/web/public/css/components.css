@@ -3513,6 +3513,14 @@ a.setup-guide__step-link:hover .setup-guide__label {
   font-size: var(--text-base);
   font-weight: var(--font-semibold);
 }
+.step-card__header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+.step-card__header .workflow-step__number {
+  flex-shrink: 0;
+}
 
 .section-heading {
   display: flex;
