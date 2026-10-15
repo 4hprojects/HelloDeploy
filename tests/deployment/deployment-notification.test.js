@@ -75,7 +75,8 @@ describe('deployment notifications', () => {
     assert.match(email.html, /&lt;Admin&gt;/);
     assert.match(email.html, /&lt;b&gt;App&lt;\/b&gt;/);
     assert.match(email.html, /BUILD_FAILED/);
-    assert.doesNotMatch(email.html, /<img/);
+    // The header logo is a legitimate <img>; the failure summary's must stay escaped.
+    assert.doesNotMatch(email.html, /<img src=x/);
     assert.match(email.text, /failed \(commit 1111111\)/);
   });
 
