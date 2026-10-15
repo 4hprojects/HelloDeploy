@@ -19,9 +19,12 @@
   <a href="/supported-apps" class="button button--secondary mt-4">View full support matrix</a>
 </section>
 
-<section class="public-section" id="how-it-works" aria-labelledby="how-title"><p class="section-eyebrow">How it works</p><h2 id="how-title">From repository to live URL</h2><div class="feature-grid mt-4">
-  <% [['1','Connect repository','Choose a public repository or authorize the GitHub App.'],['2','Confirm app setup','Review the detected application type and settings.'],['3','Deploy','Publish an approved commit while HelloDeploy reports progress.'],['4','Open the live app','Use the project address after health checks pass.']].forEach(step => { %><div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%= step[0] %></span> <%= step[1] %></h3><p class="text-sm text-muted"><%= step[2] %></p></div></div><% }) %>
-</div><a href="/how-it-works" class="button button--secondary mt-4">Explore the full workflow</a></section>
+<section class="public-section" id="how-it-works" aria-labelledby="how-title">
+  <div class="public-section__header"><div><p class="section-eyebrow">How it works</p><h2 id="how-title">From repository to live URL</h2></div><a href="/how-it-works" class="button button--secondary">Explore the full workflow <%- include('../partials/icon', { name: 'arrow-right' }) %></a></div>
+  <ol class="step-grid mt-6">
+  <% [['1','Connect repository','Choose a public repository or authorize the GitHub App.'],['2','Confirm app setup','Review the detected application type and settings.'],['3','Deploy','Publish an approved commit while HelloDeploy reports progress.'],['4','Open the live app','Use the project address after health checks pass.']].forEach(step => { %><li class="step-card"><span class="workflow-step__number" aria-hidden="true"><%= step[0] %></span><h3><%= step[1] %></h3><p class="text-sm text-muted"><%= step[2] %></p></li><% }) %>
+  </ol>
+</section>
 
 <section class="public-section" aria-labelledby="handles-title"><p class="section-eyebrow">What HelloDeploy handles</p><h2 id="handles-title">The common deployment work, in one place</h2><div class="feature-grid mt-4">
   <div class="card"><div class="card__body"><h3 class="feature-title"><span class="feature-icon"><%- include('../partials/icon', { name: 'repository' }) %></span> Connect</h3><p class="text-sm text-muted">Repository access and app detection.</p></div></div>
