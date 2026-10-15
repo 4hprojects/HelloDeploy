@@ -40,9 +40,10 @@ export function validateCliArguments(args) {
 }
 
 /**
- * Bring audit_events up to the per-project audit log: move the createdAt TTL
- * from 7 to 90 days (Mongoose never alters an existing TTL index) and link
- * events written before AuditEvent.projectId existed to their project.
+ * Bring audit_events up to the per-project audit log: link events written
+ * before AuditEvent.projectId existed to their project, then move the
+ * createdAt TTL from 7 to 90 days (Mongoose never alters an existing TTL
+ * index). The backfill runs first so it still lands if the index change fails.
  */
 export async function repairAuditRetention(db, { confirm = false, output = process.stdout } = {}) {
   const collection = db.collection(AuditEvent.collection.collectionName);
@@ -64,15 +65,6 @@ export async function repairAuditRetention(db, { confirm = false, output = proce
     return { previousTtl: currentTtl, linkedCount: 0 };
   }
 
-  // No TTL index yet means Mongoose will create it at the new value on startup.
-  if (ttlIndex && currentTtl !== AUDIT_EVENT_RETENTION_SECONDS) {
-    await db.command({
-      collMod: collection.collectionName,
-      index: { keyPattern: { createdAt: 1 }, expireAfterSeconds: AUDIT_EVENT_RETENTION_SECONDS },
-    });
-    output.write('updated audit TTL\n');
-  }
-
   let linkedCount = 0;
   for (const { label, filter, source } of BACKFILL_SOURCES) {
     const result = await collection.updateMany(filter, [
@@ -86,6 +78,19 @@ export async function repairAuditRetention(db, { confirm = false, output = proce
     if ((await collection.countDocuments(filter)) !== 0) {
       throw new Error(`Audit projectId backfill did not converge for ${label}.`);
     }
+  }
+
+  // No TTL index yet means Mongoose will create it at the new value on startup.
+  // Drop and recreate rather than collMod: Atlas's readWrite role, which the
+  // app's database user has, allows index changes but not collMod. Until the
+  // new index exists nothing expires, which only delays deletion.
+  if (ttlIndex && currentTtl !== AUDIT_EVENT_RETENTION_SECONDS) {
+    await collection.dropIndex(ttlIndex.name);
+    await collection.createIndex(
+      { createdAt: 1 },
+      { name: ttlIndex.name, expireAfterSeconds: AUDIT_EVENT_RETENTION_SECONDS },
+    );
+    output.write('updated audit TTL\n');
   }
 
   return { previousTtl: currentTtl, linkedCount };
