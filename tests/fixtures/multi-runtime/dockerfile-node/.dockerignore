@@ -1,0 +1,3 @@
+# Owner exclusions are appended to the platform rules; negations are dropped.
+*.md
+!.env

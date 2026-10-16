@@ -113,6 +113,26 @@ with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
 Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 181 files plus API and
 contract suites, 1,727/1,727; lint, format, and config checks clean.
 
+## 2026-10-17 P4 owner images (stacked branch)
+
+| Requirement (`06_PHASE_4_DOCKERFILE_REGISTRY.md`)                            | State                       | Evidence                                                           |
+| ---------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------ |
+| Build context and Dockerfile path restricted to the repository subtree       | Repository-complete         | contained reader; traversal, symlinked file, and link-escape tests |
+| Safe `.dockerignore`, no host volumes, entitlements, host network, or socket | Repository-complete         | negation-free owner rules; static policy; remote builder only      |
+| Dedicated isolated builder                                                   | Repository-complete in code | job refuses local builds; host itself is blocked externally        |
+| No build-arg secrets                                                         | Repository-complete         | only public-prefixed values reach any build                        |
+| Digest, user, volumes, size, platform checks; scan                           | Repository-complete         | activation policy tests; Trivy wrapper fails closed                |
+| Runtime profile enforced regardless of the Dockerfile                        | Repository-complete         | unchanged container profile for every strategy                     |
+| Approved registries, encrypted per-project credentials                       | Repository-complete         | docker.io and ghcr.io only; AES-GCM bound to project and registry  |
+| Immutable digests; tags locked at deploy                                     | Repository-complete         | digest resolution; rollback reuses the recorded digest             |
+| Reject redirects and credential leakage                                      | Repository-complete         | token host allowlist; `redirect: 'error'`; leak test               |
+| Cleanup never removes an owner's image                                       | Repository-complete         | platform-repository deletion guard; ownership on failure           |
+| Security review, isolated test host, adversarial live run                    | Blocked (external)          | runbook lists each fail-closed case                                |
+
+Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 186 files plus API and
+contract suites, 1,820/1,820; lint, format, and config checks clean. The digest resolver completed Docker Hub's anonymous token flow during fixture creation and
+resolved `nginxinc/nginx-unprivileged:1.27-alpine` to the pinned `oci-nginx` digest.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current
