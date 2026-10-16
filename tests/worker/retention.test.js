@@ -6,6 +6,8 @@ import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
+// Retention deletes registry manifests only in the platform's own repository.
+process.env.USER_IMAGE_REGISTRY = 'ghcr.io/example/apps';
 const { cleanupOldReleases } = await import('../../apps/worker/src/deployment/retention.js');
 
 function makeDockerStub() {

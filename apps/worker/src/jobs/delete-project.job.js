@@ -2,7 +2,7 @@ import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { networkName, removeNetwork, stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
-import { deleteRegistryManifest } from '../deployment/registry.js';
+import { deleteRegistryManifest, isPlatformImageRef } from '../deployment/registry.js';
 import { removeRoute } from '../nginx/helper-client.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
@@ -71,7 +71,8 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
     }
   }
 
-  for (const imageRef of [...new Set(registryImageRefs)]) {
+  // Owner-supplied images live in the owner's registry and are not ours to delete.
+  for (const imageRef of [...new Set(registryImageRefs)].filter((ref) => isPlatformImageRef(ref))) {
     try {
       await deps.deleteRegistryManifest(imageRef);
       logger.info('DeleteProject: removed registry manifest', { projectId, imageRef });

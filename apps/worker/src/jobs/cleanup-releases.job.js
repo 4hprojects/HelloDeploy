@@ -8,7 +8,7 @@ import {
   isImageDigestInUse,
   isImageTagInUse,
 } from '../deployment/retention.js';
-import { deleteRegistryManifest } from '../deployment/registry.js';
+import { deleteRegistryManifest, isPlatformImageRef } from '../deployment/registry.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { env } from '../config/env.js';
 
@@ -114,6 +114,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
       if (
         dep.imageDigest &&
         dep.imageRef?.includes('@sha256:') &&
+        isPlatformImageRef(dep.imageRef) &&
         !(await isImageDigestInUse(dep.imageDigest, excess))
       ) {
         try {
@@ -159,6 +160,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     if (
       dep.imageDigest &&
       dep.imageRef?.includes('@sha256:') &&
+      isPlatformImageRef(dep.imageRef) &&
       !(await isImageDigestInUse(dep.imageDigest, abandonedIds))
     ) {
       try {
