@@ -1,9 +1,12 @@
 import {
+  APPROVED_JAVA_VERSIONS,
   APPROVED_PHP_VERSIONS,
   APPROVED_PYTHON_VERSIONS,
   BuildStrategy,
+  JAVA_PORT,
   PHP_PORT,
   RuntimeType,
+  isJavaBuildStrategy,
   isPhpBuildStrategy,
   isPythonBuildStrategy,
   validateApplicationModule,
@@ -21,8 +24,9 @@ const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
 
-// Fixed unprivileged uid for Python images, which ship no non-root user.
-const PYTHON_APP_UID = 10001;
+// Fixed unprivileged uid for the Python and Java images, which ship no
+// suitable non-root user.
+const APP_UID = 10001;
 const COMPOSER_IMAGE = 'composer:2.8';
 
 /** Container-internal port nginx-unprivileged listens on for static runtimes. */
@@ -69,6 +73,7 @@ export function generateDockerfile(config) {
     applicationModule = null,
     pythonVersion = null,
     phpVersion = null,
+    javaVersion = null,
   } = config;
 
   if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
@@ -140,6 +145,17 @@ export function generateDockerfile(config) {
       throw new Error('Laravel serves its public folder; set the document root to public.');
     }
     return generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion });
+  }
+
+  if (isJavaBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.JAVA) {
+      throw new Error(`The ${buildStrategy} build strategy requires the JAVA runtime.`);
+    }
+    // Templated into both FROM lines, so re-checked against the allowlist.
+    if (!APPROVED_JAVA_VERSIONS.includes(javaVersion)) {
+      throw new Error(`Unsupported Java version: ${javaVersion}`);
+    }
+    return generateJava({ buildStrategy, javaVersion });
   }
 
   switch (runtimeType) {
@@ -310,14 +326,50 @@ RUN pip install -r requirements.txt
 ${buildArgDeclarations(buildArgNames)}${buildCommand ? `RUN ${buildCommand}\n` : ''}
 FROM ${image}
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH
-RUN useradd --system --uid ${PYTHON_APP_UID} --no-create-home --shell /usr/sbin/nologin app
+RUN useradd --system --uid ${APP_UID} --no-create-home --shell /usr/sbin/nologin app
 WORKDIR /app
 COPY --from=builder /opt/venv /opt/venv
 COPY --from=builder /app ./
-USER ${PYTHON_APP_UID}
+USER ${APP_UID}
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}
 CMD ${JSON.stringify(command)}
+`;
+}
+
+function generateJava({ buildStrategy, javaVersion }) {
+  const isMaven = buildStrategy === BuildStrategy.JAVA_MAVEN_V1;
+  const build = isMaven
+    ? 'sh ./mvnw -B -ntp -DskipTests clean package'
+    : 'sh ./gradlew --no-daemon clean bootJar -x test';
+  const outputDir = isMaven ? 'target' : 'build/libs';
+  // Spring Boot also leaves plain, sources, javadoc, and original jars beside
+  // the executable one; exactly one candidate must remain, and it must carry
+  // the BOOT-INF layout that `java -jar` needs.
+  return `FROM eclipse-temurin:${javaVersion}-jdk AS builder
+WORKDIR /app
+COPY . .
+ENV MAVEN_OPTS="-Xmx512m" GRADLE_OPTS="-Xmx512m -Dorg.gradle.daemon=false"
+RUN ${build}
+RUN set -e; \\
+    jars=$(find ${outputDir} -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name 'original-*.jar'); \\
+    count=$(printf '%s\\n' "$jars" | grep -c . || true); \\
+    if [ "$count" -ne 1 ]; then echo "Expected one executable jar in ${outputDir}, found $count: $jars" >&2; exit 1; fi; \\
+    jar tf "$jars" | grep -q '^BOOT-INF/' || { echo "$jars is not a Spring Boot executable jar." >&2; exit 1; }; \\
+    cp "$jars" /app/application.jar
+
+FROM eclipse-temurin:${javaVersion}-jre
+RUN useradd --system --uid ${APP_UID} --no-create-home --shell /usr/sbin/nologin app
+WORKDIR /app
+COPY --from=builder /app/application.jar ./application.jar
+USER ${APP_UID}
+# The environment overrides application.properties, so the app listens where
+# the platform routes; the heap cap leaves room for metaspace and threads.
+ENV SERVER_PORT=${JAVA_PORT} SERVER_FORWARD_HEADERS_STRATEGY=native \\
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Xss512k"
+EXPOSE ${JAVA_PORT}
+ENV PORT=${JAVA_PORT}
+CMD ["java","-jar","/app/application.jar"]
 `;
 }
 

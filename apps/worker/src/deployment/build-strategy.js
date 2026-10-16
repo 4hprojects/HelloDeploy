@@ -1,8 +1,10 @@
 import {
   BuildStrategy,
   RuntimeType,
+  JAVA_PORT,
   PHP_PORT,
   getBuildStrategyRuntime,
+  isJavaBuildStrategy,
   isPhpBuildStrategy,
   isPythonBuildStrategy,
 } from '@hellodeploy/contracts';
@@ -14,6 +16,7 @@ export function resolveBuildStrategy({
   buildArgNames = [],
   pythonVersion = null,
   phpVersion = null,
+  javaVersion = null,
 }) {
   if (!snapshot?.runtimeType || !snapshot?.buildConfiguration) {
     throw new Error('Deployment configuration snapshot is incomplete.');
@@ -28,12 +31,14 @@ export function resolveBuildStrategy({
     [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(snapshot.runtimeType) ||
     buildStrategy === BuildStrategy.NEXT_EXPORT_V1;
   const defaultPort = isPythonBuildStrategy(buildStrategy) ? 8000 : 3000;
-  // The PHP image's web server port is fixed by the template, like static sites.
+  // PHP and Java templates fix their server port, like static sites.
   const appPort = isStatic
     ? STATIC_PORT
     : isPhpBuildStrategy(buildStrategy)
       ? PHP_PORT
-      : (config.applicationPort ?? defaultPort);
+      : isJavaBuildStrategy(buildStrategy)
+        ? JAVA_PORT
+        : (config.applicationPort ?? defaultPort);
   return {
     strategyId: buildStrategy,
     applicationRoot: config.applicationRoot ?? '.',
@@ -47,6 +52,7 @@ export function resolveBuildStrategy({
       applicationModule: config.applicationModule ?? null,
       pythonVersion,
       phpVersion,
+      javaVersion,
       buildArgNames,
       templateVersion,
     }),

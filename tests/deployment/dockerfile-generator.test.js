@@ -459,6 +459,62 @@ describe('generateDockerfile — versioned PHP strategies', () => {
   });
 });
 
+describe('generateDockerfile — versioned Java strategies', () => {
+  const maven = (overrides = {}) =>
+    generateDockerfile({
+      runtimeType: 'JAVA',
+      buildStrategy: 'java_maven_v1',
+      javaVersion: '21',
+      ...overrides,
+    });
+  const gradle = () => maven({ buildStrategy: 'java_gradle_v1', javaVersion: '17' });
+
+  it('builds with the matching Temurin JDK and runs on its JRE', () => {
+    assert.match(
+      maven(),
+      /^FROM eclipse-temurin:21-jdk AS builder[\s\S]*^FROM eclipse-temurin:21-jre$/m,
+    );
+  });
+
+  it('builds Maven projects with their wrapper and skips tests', () => {
+    assert.match(maven(), /RUN sh \.\/mvnw -B -ntp -DskipTests clean package/);
+  });
+
+  it('builds Gradle projects with their wrapper and skips tests', () => {
+    assert.match(gradle(), /RUN sh \.\/gradlew --no-daemon clean bootJar -x test/);
+  });
+
+  it('requires exactly one Spring Boot executable jar from the build output', () => {
+    assert.match(
+      maven(),
+      /find target -maxdepth 1[\s\S]*Expected one executable jar[\s\S]*BOOT-INF/,
+    );
+  });
+
+  it('looks for the Gradle jar in build/libs', () => {
+    assert.match(gradle(), /find build\/libs -maxdepth 1/);
+  });
+
+  it('runs the jar as an unprivileged user on the fixed port', () => {
+    assert.match(
+      maven(),
+      /USER 10001\n[\s\S]*SERVER_PORT=8080[\s\S]*CMD \["java","-jar","\/app\/application\.jar"\]/,
+    );
+  });
+
+  it('caps the heap below the container memory limit', () => {
+    assert.match(maven(), /-XX:MaxRAMPercentage=60/);
+  });
+
+  it('rejects an unapproved Java version', () => {
+    assert.throws(() => maven({ javaVersion: '11' }), /Unsupported Java version/);
+  });
+
+  it('rejects a Java strategy on another runtime', () => {
+    assert.throws(() => maven({ runtimeType: 'NODEJS' }), /JAVA runtime/);
+  });
+});
+
 describe('generateDockerfile — EXPRESS', () => {
   it('uses node:22-alpine base with port exposure', () => {
     const df = generateDockerfile({

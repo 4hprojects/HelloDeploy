@@ -16,6 +16,8 @@ Object.assign(process.env, {
   MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
   MULTIRUNTIME_PHP_V1_ENABLED: 'true',
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
+  MULTIRUNTIME_JAVA_V1_ENABLED: 'true',
+  MULTIRUNTIME_JAVA_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
 });
 
 const { Deployment } = await import('@hellodeploy/database');
@@ -29,6 +31,11 @@ const PYTHON_SNAPSHOT = {
   buildStrategy: 'python_flask_v1',
   runtimeType: 'PYTHON',
   buildConfiguration: { applicationPort: 8000, applicationModule: 'app:app' },
+};
+const GRADLE_SNAPSHOT = {
+  buildStrategy: 'java_gradle_v1',
+  runtimeType: 'JAVA',
+  buildConfiguration: {},
 };
 const LARAVEL_SNAPSHOT = {
   buildStrategy: 'php_laravel_v1',
@@ -160,5 +167,21 @@ describe('build-deployment job — versioned runtime strategies', () => {
       contextFiles: { 'composer.json': JSON.stringify({ require: { php: '^7.4' } }) },
     });
     assert.equal(deployment.failureCode, 'DOCKERFILE_GENERATION_FAILED');
+  });
+
+  it('builds Java with the toolchain version from build.gradle.kts', async () => {
+    const { dockerfiles } = await runVersionedJob(GRADLE_SNAPSHOT, {
+      contextFiles: {
+        'build.gradle.kts': 'java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }',
+      },
+    });
+    assert.match(dockerfiles[0], /^FROM eclipse-temurin:17-jdk AS builder/m);
+  });
+
+  it('activates a Java release on the fixed Spring Boot port', async () => {
+    const { activations } = await runVersionedJob(GRADLE_SNAPSHOT, {
+      contextFiles: { 'build.gradle': "plugins { id 'org.springframework.boot' }" },
+    });
+    assert.equal(activations[0].targetPort, 8080);
   });
 });

@@ -7,8 +7,10 @@ import {
   RuntimeType,
   BuildStrategy,
   isNextBuildStrategy,
+  isJavaBuildStrategy,
   isPhpBuildStrategy,
   isPythonBuildStrategy,
+  resolveJavaVersion,
   resolvePhpVersion,
   resolvePythonVersion,
 } from '@hellodeploy/contracts';
@@ -469,9 +471,26 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       }
       phpVersion = resolved.version;
     }
+    let javaVersion = null;
+    if (isJavaBuildStrategy(buildStrategy)) {
+      const buildFile =
+        buildStrategy === BuildStrategy.JAVA_MAVEN_V1
+          ? { pom: await deps.readOptionalContextFile(contextDir, 'pom.xml', 512 * 1024) }
+          : {
+              gradle:
+                (await deps.readOptionalContextFile(contextDir, 'build.gradle', 512 * 1024)) ??
+                (await deps.readOptionalContextFile(contextDir, 'build.gradle.kts', 512 * 1024)),
+            };
+      const resolved = resolveJavaVersion(buildFile);
+      if (resolved.error) {
+        throw new Error(resolved.error);
+      }
+      javaVersion = resolved.version;
+    }
     buildSpec = resolveBuildStrategy({
       pythonVersion,
       phpVersion,
+      javaVersion,
       snapshot: {
         buildStrategy,
         runtimeType,
@@ -573,7 +592,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
           ? `Python build failed: ${err.message}. Check that requirements.txt installs on Linux with the selected Python version; packages without prebuilt wheels cannot be compiled in this image.`
           : isPhpBuildStrategy(buildStrategy)
             ? `PHP build failed: ${err.message}. Check that composer.lock is committed and installs with the selected PHP version; only the pdo_mysql extension is added to the official image.`
-            : err.message
+            : isJavaBuildStrategy(buildStrategy)
+              ? `Java build failed: ${err.message}. Check that the wrapper builds one Spring Boot executable jar with the selected Java version; tests are skipped and multi-module builds are not supported.`
+              : err.message
       ).slice(0, 1000),
       completedAt: new Date(),
     });
