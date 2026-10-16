@@ -7,6 +7,8 @@ import {
   RuntimeType,
   BuildStrategy,
   isNextBuildStrategy,
+  isPythonBuildStrategy,
+  resolvePythonVersion,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -18,6 +20,7 @@ import {
   resolveApplicationRoot,
   writePlatformDockerignore,
   listRootEnvFiles,
+  readPythonVersionFile,
 } from '../deployment/build-context.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
@@ -95,6 +98,7 @@ const defaultDeps = {
   resolveApplicationRoot,
   writePlatformDockerignore,
   listRootEnvFiles,
+  readPythonVersionFile,
   resolveBuildProfile,
   writeDockerfile,
   buildDockerImage,
@@ -441,7 +445,18 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   let buildSpec;
   try {
+    // The version comes from the cloned commit so a rebuild of the same commit
+    // always selects the same interpreter.
+    let pythonVersion = null;
+    if (isPythonBuildStrategy(buildStrategy)) {
+      const resolved = resolvePythonVersion(await deps.readPythonVersionFile(contextDir));
+      if (resolved.error) {
+        throw new Error(resolved.error);
+      }
+      pythonVersion = resolved.version;
+    }
     buildSpec = resolveBuildStrategy({
+      pythonVersion,
       snapshot: {
         buildStrategy,
         runtimeType,
@@ -537,12 +552,12 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     await logEvent(deploymentId, 'BUILD', 'ERROR', `Build failed: ${err.message}`, correlationId);
     await failBuild({
       failureCode: 'BUILD_FAILED',
-      failureSummary: isNextBuildStrategy(buildStrategy)
-        ? `Next.js build failed: ${err.message}. Private server secrets during next build are not supported; only NEXT_PUBLIC_* values are available at build time.`.slice(
-            0,
-            1000,
-          )
-        : err.message.slice(0, 1000),
+      failureSummary: (isNextBuildStrategy(buildStrategy)
+        ? `Next.js build failed: ${err.message}. Private server secrets during next build are not supported; only NEXT_PUBLIC_* values are available at build time.`
+        : isPythonBuildStrategy(buildStrategy)
+          ? `Python build failed: ${err.message}. Check that requirements.txt installs on Linux with the selected Python version; packages without prebuilt wheels cannot be compiled in this image.`
+          : err.message
+      ).slice(0, 1000),
       completedAt: new Date(),
     });
     await removeBuiltArtifact(builtImage, imageTag, deps);

@@ -295,6 +295,93 @@ describe('generateDockerfile — versioned Next.js strategies', () => {
   });
 });
 
+describe('generateDockerfile — versioned Python strategies', () => {
+  const base = {
+    runtimeType: 'PYTHON',
+    buildCommand: null,
+    applicationPort: 8000,
+    applicationModule: 'mysite.wsgi:application',
+    pythonVersion: '3.12',
+  };
+
+  it('builds on the requested slim Debian Python image', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_django_v1' });
+    assert.match(dockerfile, /^FROM python:3\.12-slim-bookworm AS builder/m);
+  });
+
+  it('installs requirements into a virtual environment copied to the runtime stage', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_flask_v1' });
+    assert.match(
+      dockerfile,
+      /RUN pip install -r requirements\.txt[\s\S]*COPY --from=builder \/opt\/venv \/opt\/venv/,
+    );
+  });
+
+  it('runs as an unprivileged user', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_flask_v1' });
+    assert.match(dockerfile, /USER 10001\n/);
+  });
+
+  it('serves WSGI apps with gunicorn on every interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_django_v1' });
+    assert.match(
+      dockerfile,
+      /CMD \["gunicorn","--bind","0\.0\.0\.0:8000",.*"mysite\.wsgi:application"\]/,
+    );
+  });
+
+  it('serves ASGI apps with uvicorn on every interface', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      applicationModule: 'app.main:api',
+      buildStrategy: 'python_fastapi_v1',
+    });
+    assert.match(
+      dockerfile,
+      /CMD \["uvicorn","app\.main:api","--host","0\.0\.0\.0","--port","8000"/,
+    );
+  });
+
+  it('runs the owner build command after installing dependencies', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      buildCommand: 'python manage.py collectstatic --noinput',
+      buildStrategy: 'python_django_v1',
+    });
+    assert.match(
+      dockerfile,
+      /RUN pip install -r requirements\.txt\n(?:.*\n)*RUN python manage\.py collectstatic --noinput\n/,
+    );
+  });
+
+  it('rejects an application module that is not module:attribute', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          ...base,
+          applicationModule: 'main:app --reload',
+          buildStrategy: 'python_fastapi_v1',
+        }),
+      /module:attribute/,
+    );
+  });
+
+  it('rejects an unapproved Python version', () => {
+    assert.throws(
+      () => generateDockerfile({ ...base, pythonVersion: '3.9', buildStrategy: 'python_flask_v1' }),
+      /Unsupported Python version/,
+    );
+  });
+
+  it('rejects a Python strategy on another runtime', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({ ...base, runtimeType: 'EXPRESS', buildStrategy: 'python_flask_v1' }),
+      /PYTHON runtime/,
+    );
+  });
+});
+
 describe('generateDockerfile — EXPRESS', () => {
   it('uses node:22-alpine base with port exposure', () => {
     const df = generateDockerfile({

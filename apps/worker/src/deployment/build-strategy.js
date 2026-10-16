@@ -1,7 +1,17 @@
-import { BuildStrategy, RuntimeType, getBuildStrategyRuntime } from '@hellodeploy/contracts';
+import {
+  BuildStrategy,
+  RuntimeType,
+  getBuildStrategyRuntime,
+  isPythonBuildStrategy,
+} from '@hellodeploy/contracts';
 import { generateDockerfile, STATIC_PORT } from './dockerfile-generator.js';
 
-export function resolveBuildStrategy({ snapshot, templateVersion, buildArgNames = [] }) {
+export function resolveBuildStrategy({
+  snapshot,
+  templateVersion,
+  buildArgNames = [],
+  pythonVersion = null,
+}) {
   if (!snapshot?.runtimeType || !snapshot?.buildConfiguration) {
     throw new Error('Deployment configuration snapshot is incomplete.');
   }
@@ -14,7 +24,8 @@ export function resolveBuildStrategy({ snapshot, templateVersion, buildArgNames 
   const isStatic =
     [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(snapshot.runtimeType) ||
     buildStrategy === BuildStrategy.NEXT_EXPORT_V1;
-  const appPort = isStatic ? STATIC_PORT : (config.applicationPort ?? 3000);
+  const defaultPort = isPythonBuildStrategy(buildStrategy) ? 8000 : 3000;
+  const appPort = isStatic ? STATIC_PORT : (config.applicationPort ?? defaultPort);
   return {
     strategyId: buildStrategy,
     applicationRoot: config.applicationRoot ?? '.',
@@ -25,6 +36,8 @@ export function resolveBuildStrategy({ snapshot, templateVersion, buildArgNames 
       startCommand: config.startCommand ?? null,
       outputDirectory: config.outputDirectory ?? null,
       applicationPort: config.applicationPort ?? null,
+      applicationModule: config.applicationModule ?? null,
+      pythonVersion,
       buildArgNames,
       templateVersion,
     }),

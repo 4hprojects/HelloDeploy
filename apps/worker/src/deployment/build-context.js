@@ -1,4 +1,4 @@
-import { readdir, stat, unlink, realpath, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, unlink, realpath, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 import { normalizeApplicationRoot } from '@hellodeploy/contracts';
@@ -36,6 +36,10 @@ docker-compose*.yml
 docker-compose*.yaml
 Dockerfile
 .dockerignore
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
 `;
 
 // ─── Path traversal guard ──────────────────────────────────────────────────────
@@ -172,6 +176,27 @@ export async function writePlatformDockerignore(contextDir) {
   const path = join(resolve(contextDir), '.dockerignore');
   await writeFile(path, PLATFORM_DOCKERIGNORE, { encoding: 'utf8', mode: 0o600 });
   return path;
+}
+
+/**
+ * Read the context's `.python-version` file, or null when there is none. Escaping
+ * symlinks were already removed by prepareBuildContext.
+ */
+export async function readPythonVersionFile(contextDir) {
+  const path = join(resolve(contextDir), '.python-version');
+  let size;
+  try {
+    ({ size } = await stat(path));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+  if (size > 1024) {
+    throw new Error('.python-version is larger than 1 KB.');
+  }
+  return readFile(path, 'utf8');
 }
 
 /**

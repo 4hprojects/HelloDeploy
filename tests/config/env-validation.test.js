@@ -290,6 +290,34 @@ describe('production worker routing validation', () => {
     assert.equal(result.status, 0, result.stdout || result.stderr);
   });
 
+  it('rejects enabling the Next.js pilot with an empty allowlist', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      BUILD_EXECUTOR: 'remote-buildkit',
+      BUILD_BUILDER_NAME: 'hellodeploy-test',
+      USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+      WORKER_CONCURRENCY: '1',
+      MULTIRUNTIME_NEXT_V1_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_PROJECT_IDS: '',
+    });
+    assert.match(result.stdout, /requires a non-empty MULTIRUNTIME_NEXT_V1_PROJECT_IDS allowlist/);
+  });
+
+  it('names the pilot allowlist variable when one of its ids is malformed', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      BUILD_EXECUTOR: 'remote-buildkit',
+      BUILD_BUILDER_NAME: 'hellodeploy-test',
+      USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+      WORKER_CONCURRENCY: '1',
+      MULTIRUNTIME_NEXT_V1_ENABLED: 'true',
+      MULTIRUNTIME_NEXT_V1_PROJECT_IDS: 'not-an-object-id',
+    });
+    assert.match(result.stdout, /MULTIRUNTIME_NEXT_V1_PROJECT_IDS must contain/);
+  });
+
   it('rejects enabling Python strategies without the isolated build path', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

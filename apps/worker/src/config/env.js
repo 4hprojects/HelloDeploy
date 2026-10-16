@@ -97,7 +97,7 @@ function parsePilotFlag(prefix) {
   const flagName = `${prefix}_ENABLED`;
   const allowlistName = `${prefix}_PROJECT_IDS`;
   const enabled = optional(flagName, 'false') === 'true';
-  const projectIds = parseOptimizedProjectIds(optional(allowlistName, ''));
+  const projectIds = new Set(parseOptimizedProjectIds(optional(allowlistName, ''), allowlistName));
   if (!enabled) {
     return { enabled, projectIds };
   }

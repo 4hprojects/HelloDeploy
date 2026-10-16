@@ -1,4 +1,10 @@
-import { RuntimeType, BuildStrategy } from '@hellodeploy/contracts';
+import {
+  APPROVED_PYTHON_VERSIONS,
+  BuildStrategy,
+  RuntimeType,
+  isPythonBuildStrategy,
+  validateApplicationModule,
+} from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 import { ImageTemplateVersion } from './template-policy.js';
 
@@ -10,6 +16,9 @@ const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
+
+// Fixed unprivileged uid for Python images, which ship no non-root user.
+const PYTHON_APP_UID = 10001;
 
 /** Container-internal port nginx-unprivileged listens on for static runtimes. */
 export const STATIC_PORT = 8080;
@@ -52,6 +61,8 @@ export function generateDockerfile(config) {
     buildArgNames = [],
     templateVersion = ImageTemplateVersion.LEGACY,
     buildStrategy = BuildStrategy.LEGACY_GENERATED,
+    applicationModule = null,
+    pythonVersion = null,
   } = config;
 
   if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
@@ -80,6 +91,29 @@ export function generateDockerfile(config) {
   }
   if (outputDirectory) {
     assertNoControlChars(outputDirectory, 'Output directory');
+  }
+
+  if (isPythonBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.PYTHON) {
+      throw new Error(`The ${buildStrategy} build strategy requires the PYTHON runtime.`);
+    }
+    // Re-checked here because the module is templated into CMD and the version
+    // into FROM; the web validator and the job are not the only write paths.
+    const moduleError = validateApplicationModule(applicationModule);
+    if (moduleError) {
+      throw new Error(moduleError);
+    }
+    if (!APPROVED_PYTHON_VERSIONS.includes(pythonVersion)) {
+      throw new Error(`Unsupported Python version: ${pythonVersion}`);
+    }
+    return generatePython({
+      buildStrategy,
+      buildCommand,
+      buildArgNames,
+      applicationModule,
+      applicationPort: applicationPort ?? 8000,
+      pythonVersion,
+    });
   }
 
   switch (runtimeType) {
@@ -201,6 +235,63 @@ FROM ${NGINX_IMAGE}
 COPY --from=builder /app/out /usr/share/nginx/html
 EXPOSE ${STATIC_PORT}
 CMD ["nginx", "-g", "daemon off;"]
+`;
+}
+
+function generatePython({
+  buildStrategy,
+  buildCommand,
+  buildArgNames,
+  applicationModule,
+  applicationPort,
+  pythonVersion,
+}) {
+  const image = `python:${pythonVersion}-slim-bookworm`;
+  // The proxy is the only client that can reach the loopback-published port, so
+  // trusting its forwarded headers lets apps see the public https scheme.
+  const command =
+    buildStrategy === BuildStrategy.PYTHON_FASTAPI_V1
+      ? [
+          'uvicorn',
+          applicationModule,
+          '--host',
+          '0.0.0.0',
+          '--port',
+          String(applicationPort),
+          '--proxy-headers',
+          '--forwarded-allow-ips',
+          '*',
+        ]
+      : [
+          'gunicorn',
+          '--bind',
+          `0.0.0.0:${applicationPort}`,
+          '--workers',
+          '2',
+          '--forwarded-allow-ips',
+          '*',
+          '--access-logfile',
+          '-',
+          applicationModule,
+        ];
+  return `FROM ${image} AS builder
+ENV PYTHONDONTWRITEBYTECODE=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+${buildArgDeclarations(buildArgNames)}${buildCommand ? `RUN ${buildCommand}\n` : ''}
+FROM ${image}
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH
+RUN useradd --system --uid ${PYTHON_APP_UID} --no-create-home --shell /usr/sbin/nologin app
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app ./
+USER ${PYTHON_APP_UID}
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ${JSON.stringify(command)}
 `;
 }
 
