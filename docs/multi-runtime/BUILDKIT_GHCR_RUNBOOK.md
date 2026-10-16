@@ -155,3 +155,43 @@ The egress probe creates and removes a temporary platform-owned context and supp
 raw BuildKit output. Execution writes mode-`0600` JSON and Markdown reports. Review
 those reports against `acceptance-evidence.schema.json` before copying a sanitized
 summary into `docs/multi-runtime/evidence/`.
+
+## Owner images pilot (P4)
+
+Enable only after the P0–P3 acceptance record is complete and a security reviewer has
+signed off on [the owner-image threat model](THREAT_MODEL.md#owner-images-p4-pilot-only).
+
+1. Install Trivy for the worker account and pre-download its vulnerability database. The
+   worker runs `trivy image` against GHCR digests with its own Docker credentials, and
+   against prebuilt images with a temporary per-pull config.
+2. Set, in addition to the pilot environment above:
+
+   ```text
+   IMAGE_SCANNER=trivy
+   CUSTOM_IMAGE_MAX_MB=2048
+   MULTIRUNTIME_DOCKERFILE_V1_ENABLED=true
+   MULTIRUNTIME_DOCKERFILE_V1_PROJECT_IDS=OBJECT_ID
+   MULTIRUNTIME_OCI_V1_ENABLED=true
+   MULTIRUNTIME_OCI_V1_PROJECT_IDS=OBJECT_ID
+   ```
+
+   Allowlist only projects whose owners an administrator has reviewed; the allowlist is the
+   approval.
+
+3. Run the `dockerfile-node` and `oci-nginx` fixtures, then confirm each failure case fails
+   closed: a Dockerfile with `VOLUME`, `USER root`, `RUN --network=host`, a custom
+   `# syntax`, a `quay.io` base image, a symlinked Dockerfile, an image running as root, an
+   image declaring a volume, a tag whose digest changes between deploys (rollback must keep
+   the old digest), and a private image without a saved credential.
+
+### Abuse controls and incident response
+
+- Watch per-container CPU, outbound connection counts, and build durations for pilot
+  projects; one job at a time and the builder cgroup limits bound the blast radius.
+- On suspected abuse (mining, scanning, or resource exhaustion): remove the project from
+  the pilot allowlist and restart web and worker, then stop the release from the admin
+  area. Retained digests stay in place for investigation; prebuilt images are never
+  deleted by the platform.
+- Record the incident, the image digest, and the owner in the audit log review before
+  re-enabling the project.
+- Rotate the platform GHCR token if a build log or image suggests credential exposure.

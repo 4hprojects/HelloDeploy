@@ -37,6 +37,28 @@ Every new runtime keeps the existing container profile: `--cap-drop ALL`,
 `no-new-privileges`, memory, CPU, and PID limits, loopback-only publishing, and
 platform-generated Dockerfiles only.
 
+## Owner images (P4, pilot only)
+
+Owner Dockerfiles run owner code during the build, and prebuilt images run code the
+platform never built. Both are untrusted end to end.
+
+| Threat                                                 | Control                                                                                                                                                                                                                                  |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Build escapes to the host or reaches the control plane | Dockerfile builds run only on the remote rootless BuildKit host; the job refuses a local executor even if flags were misconfigured. BuildKit grants no `security.insecure` or `network.host` entitlements.                               |
+| Dockerfile requests privileged features                | Static policy rejects custom `# syntax` frontends, `RUN --security=insecure`, `RUN --network=host`, SSH and secret mounts, `VOLUME`, and base images outside docker.io and ghcr.io (including through global `ARG` defaults).            |
+| Owner build files escape the repository                | The Dockerfile and `.dockerignore` are read before sanitizing through a contained reader: no symlinked file, no path through a link outside the application root, 64 KB limit.                                                           |
+| Owner ignore rules re-include secrets                  | Owner `.dockerignore` lines are appended after the platform rules with negations removed.                                                                                                                                                |
+| Image runs as root or creates host storage             | At every activation and rollback pull: non-root `User` required, declared volumes rejected, size capped by `CUSTOM_IMAGE_MAX_MB`. The container profile (`--cap-drop ALL`, `no-new-privileges`, limits, loopback publish) still applies. |
+| Known-vulnerable images                                | The container pilots require `IMAGE_SCANNER=trivy`; fixable critical findings fail the deploy, and a scanner that cannot run fails closed.                                                                                               |
+| Mutable tags or substituted images                     | Tags are resolved to a manifest digest at deploy time; activation and rollback use only `name@sha256:digest`.                                                                                                                            |
+| Credential leakage to a registry or redirect           | Pull tokens are encrypted per project and registry, sent only to the approved token host for that registry, never on redirects, and written only to a per-pull `DOCKER_CONFIG` directory that is removed afterwards.                     |
+| Platform deletes an owner's image                      | Registry deletion is limited to `USER_IMAGE_REGISTRY`; prebuilt images are never removed locally on activation failure.                                                                                                                  |
+
+Residual P4 risks: an owner image may still mine cryptocurrency or scan outward within
+its CPU, memory, and network limits, and Trivy only reports known, fixable CVEs. Runtime
+egress filtering for app containers is not part of this pilot. Abuse handling is in the
+runbook.
+
 ## Residual risks and non-goals
 
 Package installation requires restricted outbound HTTPS to approved package endpoints:
@@ -49,5 +71,5 @@ consume resources inside the builder limit and can print data intentionally made
 available to the build. Therefore only public-prefixed values (`NEXT_PUBLIC_*`, `VITE_*`,
 `REACT_APP_*`, `VUE_APP_*`) enter a build; private build-time secrets are not supported.
 Server modes are single-instance, and container-local caches, sessions, and uploads are not
-durable. Custom Dockerfiles, arbitrary OCI sources, persistent volumes, background
-workers, databases, and Compose remain outside this release.
+durable. Owner Dockerfiles and prebuilt images exist only behind the P4 pilot described
+above. Persistent volumes, background workers, databases, and Compose remain out of scope.

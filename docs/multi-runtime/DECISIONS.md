@@ -93,6 +93,25 @@
   Maven script-only wrapper 3.3.4 matches Maven Central's SHA-1. The Gradle wrapper jar
   matches the official checksum for Gradle 8.14 to 8.14.5, so the fixture pins Gradle
   8.14.5. Distribution SHA-256 sums are set so the wrappers verify their own downloads.
+- 2026-10-17: P4 ships on a separate draft PR stacked on the P0–P3 branch and stays
+  unmergeable until its security review and live gates pass (brief file 09).
+- 2026-10-17: Owner images use a `CONTAINER` runtime with `dockerfile_v1` and
+  `oci_image_v1`. Detection never selects them; an allowlisted owner chooses "Deploy from".
+  Detection keeps recording its findings, and `detectedRuntimeType` lets a project switch
+  back. The pilot allowlist is the administrator approval; there is no separate admin
+  screen in the pilot.
+- 2026-10-17: Policy is enforced twice: statically on the Dockerfile for clear errors, and
+  authoritatively on the pulled image (non-root user, no volumes, size). Alternative
+  rejected: forcing `--user` at runtime, which silently breaks images that expect their
+  own user.
+- 2026-10-17: Digest resolution speaks the registry API directly instead of parsing Docker
+  CLI output, so credentials go only to allowlisted token hosts and redirects are refused.
+  Per-pull `DOCKER_CONFIG` directories keep each project's credential apart from the
+  worker's GHCR login.
+- 2026-10-17: Scanning uses Trivy for fixable critical vulnerabilities and fails closed.
+  Lower severities are reported by the operator's own process, not by the pilot.
+- 2026-10-17: Prebuilt images still require a connected repository in the pilot; it anchors
+  ownership, webhooks, and deploy hooks. Image-only projects are a follow-up.
 - 2026-10-20: Registry cleanup gains a `github-packages` deletion mode. GHCR has been
   reported to answer the OCI manifest DELETE with `405`, and the OCI spec lets registries
   disable deletion, so cleanup could otherwise fail on every sweep. The mode deletes

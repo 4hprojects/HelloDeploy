@@ -129,6 +129,18 @@ with regression tests (eight here, two on the P4 branch).
 - Browser and accessibility suite: 31/33; the two failing visual baselines fail identically
   on `main`, so they reflect local rendering, not this branch.
 
+### P4 owner images (2026-10-17, stacked PR)
+
+- Registry deletion is limited to `USER_IMAGE_REGISTRY`, and cleanup skips images the
+  platform does not own.
+- Added the `CONTAINER` runtime, `dockerfile_v1` and `oci_image_v1` pilots, the static
+  Dockerfile policy, contained owner build-file reads, and negation-free owner ignore
+  rules.
+- Added digest resolution over the registry API, encrypted per-project registry
+  credentials with a Settings screen, Trivy scanning, and the activation-time image policy.
+- Added the `dockerfile-node` and digest-pinned `oci-nginx` fixtures, threat model,
+  runbook, and user guide sections.
+
 ### Rollback fix (2026-10-17)
 
 - Rollback now resolves only the runtime spec from the source snapshot. It used to

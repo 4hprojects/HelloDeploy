@@ -4,6 +4,8 @@ import path from 'node:path';
 import { describe, it } from 'node:test';
 import {
   BuildStrategy,
+  findDockerfilePolicyViolations,
+  parseImageReference,
   resolveJavaVersion,
   resolvePhpVersion,
   resolvePythonVersion,
@@ -77,6 +79,18 @@ describe('tracked multi-runtime fixtures', () => {
         (await realpath(directory)).startsWith(`${await realpath(fixtureRoot)}${path.sep}`),
       );
       assert.ok((await stat(directory)).isDirectory());
+      // Owner-image fixtures are not detected or generated; they must pass the
+      // owner-image policy instead.
+      if (fixture.runtimeType === 'CONTAINER') {
+        if (fixture.buildStrategy === 'dockerfile_v1') {
+          const dockerfile = await readFile(path.join(directory, fixture.dockerfilePath), 'utf8');
+          assert.deepEqual(findDockerfilePolicyViolations(dockerfile), []);
+        } else {
+          const reference = parseImageReference(fixture.imageReference);
+          assert.deepEqual([reference.error, /^sha256:/.test(reference.digest)], [null, true]);
+        }
+        return;
+      }
       const files = await readDetectionFiles(directory);
       const detection = detectRuntime(files);
       assert.equal(detection.isValid, true);
