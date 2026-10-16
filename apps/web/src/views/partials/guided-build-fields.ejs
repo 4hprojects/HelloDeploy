@@ -34,6 +34,11 @@
   const _gbJavaRuntime = _gbRuntime === 'JAVA';
   const _gbJavaStrategiesEnabled = _gbStrategyEnabled('java_maven_v1');
   const _gbPilotLabel = { PYTHON: 'Python', PHP: 'PHP', JAVA: 'Java' }[_gbRuntime] ?? null;
+  const _gbDockerfileEnabled = _gbStrategyEnabled('dockerfile_v1');
+  const _gbOciEnabled = _gbStrategyEnabled('oci_image_v1');
+  const _gbOwnerImageChoices = _gbDockerfileEnabled || _gbOciEnabled;
+  const _gbSource = _gbValues?.deploymentSource ||
+    (['dockerfile_v1', 'oci_image_v1'].includes(_gbStrategy) ? _gbStrategy : 'platform');
   const _gbStaticRuntime =
     ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
   const _gbBuiltStaticRuntime =
@@ -67,6 +72,75 @@
     <span id="<%= _gbId('application-root-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationRoot %></span>
     <% } %>
   </div>
+
+  <% if (_gbOwnerImageChoices) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('deployment-source') %>">Deploy from</label>
+    <select
+      class="form-select"
+      id="<%= _gbId('deployment-source') %>"
+      name="deploymentSource"
+      aria-describedby="<%= _gbId('deployment-source-hint') %>"
+    >
+      <option value="platform" <%= _gbSource === 'platform' ? 'selected' : '' %>>HelloDeploy build (recommended)</option>
+      <% if (_gbDockerfileEnabled) { %>
+      <option value="dockerfile_v1" <%= _gbSource === 'dockerfile_v1' ? 'selected' : '' %>>My Dockerfile</option>
+      <% } %>
+      <% if (_gbOciEnabled) { %>
+      <option value="oci_image_v1" <%= _gbSource === 'oci_image_v1' ? 'selected' : '' %>>A prebuilt image</option>
+      <% } %>
+    </select>
+    <p class="form-hint" id="<%= _gbId('deployment-source-hint') %>">
+      Your own Dockerfile or image must run as a non-root user, declare no volumes, and pass a
+      vulnerability scan. Images come from Docker Hub or GitHub Container Registry.
+    </p>
+  </div>
+  <% if (_gbDockerfileEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('dockerfile-path') %>">Dockerfile path</label>
+    <input
+      class="form-input<%= _gbErrors.dockerfilePath ? ' form-input--error' : '' %>"
+      id="<%= _gbId('dockerfile-path') %>"
+      name="dockerfilePath"
+      value="<%= _gbValue('dockerfilePath', _gbConfig.dockerfilePath) %>"
+      maxlength="255"
+      placeholder="Dockerfile"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('dockerfile-path-hint') %><%= _gbErrors.dockerfilePath ? ` ${_gbId('dockerfile-path-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('dockerfile-path-hint') %>">
+      Used with “My Dockerfile”, relative to the application root.
+    </p>
+    <% if (_gbErrors.dockerfilePath) { %>
+    <span id="<%= _gbId('dockerfile-path-error') %>" class="form-error" role="alert"><%= _gbErrors.dockerfilePath %></span>
+    <% } %>
+  </div>
+  <% } %>
+  <% if (_gbOciEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('image-reference') %>">Image</label>
+    <input
+      class="form-input<%= _gbErrors.imageReference ? ' form-input--error' : '' %>"
+      id="<%= _gbId('image-reference') %>"
+      name="imageReference"
+      value="<%= _gbValue('imageReference', _gbConfig.imageReference) %>"
+      maxlength="512"
+      placeholder="ghcr.io/owner/app:1.0"
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('image-reference-hint') %><%= _gbErrors.imageReference ? ` ${_gbId('image-reference-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('image-reference-hint') %>">
+      Used with “A prebuilt image”. A tag is locked to its digest at each deploy, so rollbacks
+      return to the exact image. Private images need a registry credential in Settings.
+    </p>
+    <% if (_gbErrors.imageReference) { %>
+    <span id="<%= _gbId('image-reference-error') %>" class="form-error" role="alert"><%= _gbErrors.imageReference %></span>
+    <% } %>
+  </div>
+  <% } %>
+  <% } %>
 
   <% if (_gbRuntime === 'NEXTJS' && _gbNextStrategiesEnabled) { %>
   <div class="form-group">

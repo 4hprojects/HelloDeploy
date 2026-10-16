@@ -5,12 +5,15 @@ import {
   PYTHON_BUILD_STRATEGIES,
   PHP_BUILD_STRATEGIES,
   JAVA_BUILD_STRATEGIES,
+  CONTAINER_BUILD_STRATEGIES,
   isReservedSubdomain,
   isValidSubdomainLabel,
   normalizeSubdomainLabel,
   validateApplicationRoot,
   validateApplicationModule,
   validatePhpDocumentRoot,
+  validateDockerfilePath,
+  parseImageReference,
 } from '@hellodeploy/contracts';
 
 const INVITE_ROLES = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
@@ -61,6 +64,23 @@ export function validateUpdateProject(body) {
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS = /[\u0000-\u001f\u007f]/;
 
+/**
+ * The strategy a build settings form selects. The deployment source choice
+ * (HelloDeploy build, owner Dockerfile, or prebuilt image) takes precedence
+ * over the runtime's own strategy field.
+ */
+export function resolveSelectedStrategy(body) {
+  const source = body.deploymentSource?.trim();
+  const strategy = body.buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
+  if (CONTAINER_BUILD_STRATEGIES.includes(source)) {
+    return source;
+  }
+  if (source === 'platform' && CONTAINER_BUILD_STRATEGIES.includes(strategy)) {
+    return BuildStrategy.LEGACY_GENERATED;
+  }
+  return strategy;
+}
+
 export function validateUpdateBuildConfiguration(body) {
   const errors = {};
 
@@ -110,7 +130,7 @@ export function validateUpdateBuildConfiguration(body) {
     errors.applicationRoot = applicationRootError;
   }
 
-  const buildStrategy = body.buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
+  const buildStrategy = resolveSelectedStrategy(body);
   if (
     ![
       BuildStrategy.LEGACY_GENERATED,
@@ -118,9 +138,26 @@ export function validateUpdateBuildConfiguration(body) {
       ...PYTHON_BUILD_STRATEGIES,
       ...PHP_BUILD_STRATEGIES,
       ...JAVA_BUILD_STRATEGIES,
+      ...CONTAINER_BUILD_STRATEGIES,
     ].includes(buildStrategy)
   ) {
     errors.buildStrategy = 'Select a supported build strategy.';
+  }
+
+  if (buildStrategy === BuildStrategy.DOCKERFILE_V1) {
+    const dockerfilePathError = validateDockerfilePath(body.dockerfilePath?.trim() || 'Dockerfile');
+    if (dockerfilePathError) {
+      errors.dockerfilePath = dockerfilePathError;
+    }
+  }
+  if (buildStrategy === BuildStrategy.OCI_IMAGE_V1) {
+    const { error } = parseImageReference(body.imageReference ?? '');
+    if (error) {
+      errors.imageReference = error;
+    }
+  }
+  if (CONTAINER_BUILD_STRATEGIES.includes(buildStrategy) && !applicationPortRaw) {
+    errors.applicationPort = 'Enter the port your container listens on.';
   }
 
   if (PHP_BUILD_STRATEGIES.includes(buildStrategy)) {

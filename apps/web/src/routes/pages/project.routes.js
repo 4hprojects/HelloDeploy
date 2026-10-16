@@ -55,6 +55,10 @@ import {
   postRevealSecrets,
 } from '../../controllers/env-secret.controller.js';
 import {
+  postDeleteRegistryCredential,
+  postSaveRegistryCredential,
+} from '../../controllers/registry-credential.controller.js';
+import {
   getDomains,
   postAddDomain,
   postVerifyDomain,
@@ -247,6 +251,20 @@ router.post(
   ownerOnly,
   requireEditableProject,
   postUpdateBuildConfiguration,
+);
+router.post(
+  '/:slug/registry-credentials',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postSaveRegistryCredential,
+);
+router.post(
+  '/:slug/registry-credentials/:registry/delete',
+  requireAuth,
+  ownerOnly,
+  requireEditableProject,
+  postDeleteRegistryCredential,
 );
 router.post(
   '/:slug/build-configuration/reset',

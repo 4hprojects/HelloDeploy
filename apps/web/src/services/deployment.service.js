@@ -14,6 +14,7 @@ import {
   getBuildStrategyRuntime,
   isPythonBuildStrategy,
   validateApplicationModule,
+  parseImageReference,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -117,6 +118,12 @@ export function validateBuildStrategyReadiness(project, isStrategyEnabledFor) {
     validateApplicationModule(project.buildConfiguration?.applicationModule)
   ) {
     return 'Confirm the application module in the build settings before deploying.';
+  }
+  if (
+    project.buildStrategy === BuildStrategy.OCI_IMAGE_V1 &&
+    parseImageReference(project.buildConfiguration?.imageReference ?? '').error
+  ) {
+    return 'Enter a valid image reference in the build settings before deploying.';
   }
   return null;
 }
