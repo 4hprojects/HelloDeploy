@@ -152,6 +152,7 @@ describe('findDockerfilePolicyViolations', () => {
 
   it('checks a base image named through a global ARG default', () => {
     assert.match(
+      // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
       messages('ARG BASE=quay.io/owner/base:1\nFROM ${BASE}\nUSER app\n')[0],
       /docker\.io, ghcr\.io/,
     );
@@ -159,6 +160,7 @@ describe('findDockerfilePolicyViolations', () => {
 
   it('accepts an approved base image named through a global ARG default', () => {
     assert.deepEqual(
+      // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
       findDockerfilePolicyViolations('ARG NODE=22\nFROM node:${NODE}-slim\nUSER node\n'),
       [],
     );
