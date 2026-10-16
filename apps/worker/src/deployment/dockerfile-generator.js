@@ -1,24 +1,29 @@
 import {
+  APPROVED_PHP_VERSIONS,
   APPROVED_PYTHON_VERSIONS,
   BuildStrategy,
+  PHP_PORT,
   RuntimeType,
+  isPhpBuildStrategy,
   isPythonBuildStrategy,
   validateApplicationModule,
+  validatePhpDocumentRoot,
 } from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 import { ImageTemplateVersion } from './template-policy.js';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
-const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // Versioned Next.js images set HOSTNAME because Docker defaults it to the
 // container id, and Next servers bind to it instead of every interface.
+const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
 
 // Fixed unprivileged uid for Python images, which ship no non-root user.
 const PYTHON_APP_UID = 10001;
+const COMPOSER_IMAGE = 'composer:2.8';
 
 /** Container-internal port nginx-unprivileged listens on for static runtimes. */
 export const STATIC_PORT = 8080;
@@ -63,6 +68,7 @@ export function generateDockerfile(config) {
     buildStrategy = BuildStrategy.LEGACY_GENERATED,
     applicationModule = null,
     pythonVersion = null,
+    phpVersion = null,
   } = config;
 
   if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
@@ -114,6 +120,26 @@ export function generateDockerfile(config) {
       applicationPort: applicationPort ?? 8000,
       pythonVersion,
     });
+  }
+
+  if (isPhpBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.PHP) {
+      throw new Error(`The ${buildStrategy} build strategy requires the PHP runtime.`);
+    }
+    // The version is templated into FROM and the document root into the web
+    // server configuration, so both are re-checked against their allowlists.
+    if (!APPROVED_PHP_VERSIONS.includes(phpVersion)) {
+      throw new Error(`Unsupported PHP version: ${phpVersion}`);
+    }
+    const documentRoot = outputDirectory ?? '.';
+    const documentRootError = validatePhpDocumentRoot(documentRoot);
+    if (documentRootError) {
+      throw new Error(documentRootError);
+    }
+    if (buildStrategy === BuildStrategy.PHP_LARAVEL_V1 && documentRoot !== 'public') {
+      throw new Error('Laravel serves its public folder; set the document root to public.');
+    }
+    return generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion });
   }
 
   switch (runtimeType) {
@@ -292,6 +318,92 @@ USER ${PYTHON_APP_UID}
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}
 CMD ${JSON.stringify(command)}
+`;
+}
+
+function generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion }) {
+  const image = `php:${phpVersion}-apache-bookworm`;
+  const isLaravel = buildStrategy === BuildStrategy.PHP_LARAVEL_V1;
+  const buildsAssets = isLaravel && Boolean(buildCommand);
+  const webRoot = documentRoot === 'public' ? '/var/www/html/public' : '/var/www/html';
+  const site = [
+    `<VirtualHost *:${PHP_PORT}>`,
+    `DocumentRoot ${webRoot}`,
+    '<Directory /var/www/html>',
+    'Options -Indexes +FollowSymLinks',
+    'AllowOverride All',
+    'Require all granted',
+    '</Directory>',
+    '<FilesMatch "^\\.">',
+    'Require all denied',
+    '</FilesMatch>',
+    '<FilesMatch "^(composer\\.(json|lock)|auth\\.json)$">',
+    'Require all denied',
+    '</FilesMatch>',
+    'RedirectMatch 404 "^/(vendor|\\.git)(/|$)"',
+    // eslint-disable-next-line no-template-curly-in-string -- Apache expands this, not JavaScript.
+    'CustomLog ${APACHE_LOG_DIR}/access.log combined',
+    '</VirtualHost>',
+  ];
+  // Apache's defaults allow 150 workers, far past the container's PID limit and
+  // memory; each mod_php worker holds a full interpreter.
+  const prefork = [
+    '<IfModule mpm_prefork_module>',
+    'StartServers 2',
+    'MinSpareServers 1',
+    'MaxSpareServers 3',
+    'MaxRequestWorkers 8',
+    'MaxConnectionsPerChild 1000',
+    '</IfModule>',
+  ];
+  const quoted = (lines) => lines.map((line) => `'${line}'`).join(' ');
+  const assetsStage = buildsAssets
+    ? `
+FROM ${NEXT_NODE_IMAGE} AS assets
+WORKDIR /app
+COPY --from=vendor /app ./
+RUN npm ci --prefer-offline
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+`
+    : '';
+  const laravelRuntime = isLaravel
+    ? `RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \\
+ && chown -R www-data:www-data storage bootstrap/cache
+ENV LOG_CHANNEL=stderr
+`
+    : '';
+  return `FROM ${image} AS vendor
+RUN apt-get update \\
+ && apt-get install -y --no-install-recommends git unzip \\
+ && apt-get clean
+RUN docker-php-ext-install pdo_mysql
+COPY --from=${COMPOSER_IMAGE} /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_NO_INTERACTION=1
+WORKDIR /app
+COPY . .
+RUN if [ -f composer.json ]; then \\
+      if [ ! -f composer.lock ]; then echo "composer.lock is required. Commit it and deploy again." >&2; exit 1; fi; \\
+      composer install --no-dev --prefer-dist --no-progress --optimize-autoloader; \\
+    fi
+${assetsStage}
+FROM ${image}
+RUN docker-php-ext-install pdo_mysql \\
+ && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \\
+ && printf 'expose_php = Off\\n' > "$PHP_INI_DIR/conf.d/hellodeploy.ini" \\
+ && a2enmod rewrite \\
+ && printf '%s\\n' 'Listen ${PHP_PORT}' > /etc/apache2/ports.conf \\
+ && printf '%s\\n' ${quoted(site)} > /etc/apache2/sites-available/000-default.conf \\
+ && printf '%s\\n' ${quoted(prefork)} > /etc/apache2/mods-available/mpm_prefork.conf \\
+ && printf '%s\\n' 'ServerTokens Prod' 'ServerSignature Off' 'ServerName localhost' > /etc/apache2/conf-available/hellodeploy.conf \\
+ && a2enconf hellodeploy \\
+ && chown -R www-data:www-data /var/run/apache2 /var/lock/apache2
+WORKDIR /var/www/html
+COPY --from=vendor /app ./
+${buildsAssets ? 'COPY --from=assets /app/public/build ./public/build\n' : ''}${laravelRuntime}USER www-data
+EXPOSE ${PHP_PORT}
+ENV PORT=${PHP_PORT}
+CMD ["apache2-foreground"]
 `;
 }
 

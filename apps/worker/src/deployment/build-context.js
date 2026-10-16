@@ -179,11 +179,11 @@ export async function writePlatformDockerignore(contextDir) {
 }
 
 /**
- * Read the context's `.python-version` file, or null when there is none. Escaping
+ * Read a small file from the context root, or null when there is none. Escaping
  * symlinks were already removed by prepareBuildContext.
  */
-export async function readPythonVersionFile(contextDir) {
-  const path = join(resolve(contextDir), '.python-version');
+export async function readOptionalContextFile(contextDir, name, maxBytes) {
+  const path = join(resolve(contextDir), name);
   let size;
   try {
     ({ size } = await stat(path));
@@ -193,8 +193,8 @@ export async function readPythonVersionFile(contextDir) {
     }
     throw error;
   }
-  if (size > 1024) {
-    throw new Error('.python-version is larger than 1 KB.');
+  if (size > maxBytes) {
+    throw new Error(`${name} is larger than ${Math.round(maxBytes / 1024)} KB.`);
   }
   return readFile(path, 'utf8');
 }

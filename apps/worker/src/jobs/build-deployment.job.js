@@ -7,7 +7,9 @@ import {
   RuntimeType,
   BuildStrategy,
   isNextBuildStrategy,
+  isPhpBuildStrategy,
   isPythonBuildStrategy,
+  resolvePhpVersion,
   resolvePythonVersion,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -20,7 +22,7 @@ import {
   resolveApplicationRoot,
   writePlatformDockerignore,
   listRootEnvFiles,
-  readPythonVersionFile,
+  readOptionalContextFile,
 } from '../deployment/build-context.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
@@ -98,7 +100,7 @@ const defaultDeps = {
   resolveApplicationRoot,
   writePlatformDockerignore,
   listRootEnvFiles,
-  readPythonVersionFile,
+  readOptionalContextFile,
   resolveBuildProfile,
   writeDockerfile,
   buildDockerImage,
@@ -445,18 +447,31 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   let buildSpec;
   try {
-    // The version comes from the cloned commit so a rebuild of the same commit
+    // Versions come from the cloned commit so a rebuild of the same commit
     // always selects the same interpreter.
     let pythonVersion = null;
+    let phpVersion = null;
     if (isPythonBuildStrategy(buildStrategy)) {
-      const resolved = resolvePythonVersion(await deps.readPythonVersionFile(contextDir));
+      const resolved = resolvePythonVersion(
+        await deps.readOptionalContextFile(contextDir, '.python-version', 1024),
+      );
       if (resolved.error) {
         throw new Error(resolved.error);
       }
       pythonVersion = resolved.version;
     }
+    if (isPhpBuildStrategy(buildStrategy)) {
+      const resolved = resolvePhpVersion(
+        await deps.readOptionalContextFile(contextDir, 'composer.json', 256 * 1024),
+      );
+      if (resolved.error) {
+        throw new Error(resolved.error);
+      }
+      phpVersion = resolved.version;
+    }
     buildSpec = resolveBuildStrategy({
       pythonVersion,
+      phpVersion,
       snapshot: {
         buildStrategy,
         runtimeType,
@@ -556,7 +571,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         ? `Next.js build failed: ${err.message}. Private server secrets during next build are not supported; only NEXT_PUBLIC_* values are available at build time.`
         : isPythonBuildStrategy(buildStrategy)
           ? `Python build failed: ${err.message}. Check that requirements.txt installs on Linux with the selected Python version; packages without prebuilt wheels cannot be compiled in this image.`
-          : err.message
+          : isPhpBuildStrategy(buildStrategy)
+            ? `PHP build failed: ${err.message}. Check that composer.lock is committed and installs with the selected PHP version; only the pdo_mysql extension is added to the official image.`
+            : err.message
       ).slice(0, 1000),
       completedAt: new Date(),
     });

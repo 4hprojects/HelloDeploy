@@ -382,6 +382,83 @@ describe('generateDockerfile — versioned Python strategies', () => {
   });
 });
 
+describe('generateDockerfile — versioned PHP strategies', () => {
+  const base = {
+    runtimeType: 'PHP',
+    buildCommand: null,
+    outputDirectory: '.',
+    phpVersion: '8.4',
+  };
+  const plain = (overrides = {}) =>
+    generateDockerfile({ ...base, buildStrategy: 'php_plain_v1', ...overrides });
+  const laravel = (overrides = {}) =>
+    generateDockerfile({
+      ...base,
+      outputDirectory: 'public',
+      buildStrategy: 'php_laravel_v1',
+      ...overrides,
+    });
+
+  it('runs the requested official Apache PHP image', () => {
+    assert.match(plain(), /^FROM php:8\.4-apache-bookworm$/m);
+  });
+
+  it('installs composer packages only from a committed lockfile', () => {
+    assert.match(plain(), /composer\.lock is required[\s\S]*composer install --no-dev/);
+  });
+
+  it('listens on the unprivileged port as www-data', () => {
+    assert.match(plain(), /Listen 8080[\s\S]*USER www-data\nEXPOSE 8080/);
+  });
+
+  it('caps Apache workers below the container process limit', () => {
+    assert.match(plain(), /MaxRequestWorkers 8/);
+  });
+
+  it('serves the repository root for a plain site', () => {
+    assert.match(plain(), /DocumentRoot \/var\/www\/html'/);
+  });
+
+  it('serves the public folder for Laravel', () => {
+    assert.match(laravel(), /DocumentRoot \/var\/www\/html\/public'/);
+  });
+
+  it('hides dotfiles, composer metadata, and vendor from the web', () => {
+    assert.match(plain(), /FilesMatch "\^\\\.".*composer\\\.\(json\|lock\).*RedirectMatch 404/s);
+  });
+
+  it('makes only Laravel storage and cache writable', () => {
+    assert.match(
+      laravel(),
+      /chown -R www-data:www-data storage bootstrap\/cache\nENV LOG_CHANNEL=stderr/,
+    );
+  });
+
+  it('builds Laravel assets in a Node stage and copies only the output', () => {
+    const dockerfile = laravel({ buildCommand: 'npm run build' });
+    assert.match(
+      dockerfile,
+      /FROM node:22-bookworm-slim AS assets[\s\S]*RUN npm run build[\s\S]*COPY --from=assets \/app\/public\/build \.\/public\/build/,
+    );
+  });
+
+  it('skips the asset stage without a build command', () => {
+    assert.doesNotMatch(laravel(), /AS assets/);
+  });
+
+  it('rejects an unapproved PHP version', () => {
+    assert.throws(() => plain({ phpVersion: '7.4' }), /Unsupported PHP version/);
+  });
+
+  it('rejects a document root outside the two layouts', () => {
+    assert.throws(() => plain({ outputDirectory: '../etc' }), /document root/);
+  });
+
+  it('rejects a Laravel image that does not serve public', () => {
+    assert.throws(() => laravel({ outputDirectory: '.' }), /Laravel serves its public folder/);
+  });
+});
+
 describe('generateDockerfile — EXPRESS', () => {
   it('uses node:22-alpine base with port exposure', () => {
     const df = generateDockerfile({
