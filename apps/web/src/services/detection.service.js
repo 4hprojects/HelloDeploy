@@ -7,6 +7,7 @@ import {
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
   getBuildStrategyRuntime,
+  isContainerBuildStrategy,
   JAVA_PORT,
   PHP_PORT,
   normalizeApplicationRoot,
@@ -1141,20 +1142,27 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
   result.requiredEnvironmentVariables = detectRequiredEnvironmentVariables(files);
   const detected = detectedConfiguration(result);
 
-  // Persist detected config to project
+  // A project deployed from its own image keeps its runtime and settings;
+  // detection still records what the repository looks like.
+  const keepsOwnerImage = isContainerBuildStrategy(project.buildStrategy);
   await Project.updateOne(
     { _id: project._id },
     {
       $set: {
-        runtimeType: result.runtimeType,
-        buildConfiguration: detected,
-        buildStrategy: strategyAfterDetection(project.buildStrategy, result.runtimeType),
+        ...(keepsOwnerImage
+          ? {}
+          : {
+              runtimeType: result.runtimeType,
+              buildConfiguration: detected,
+              buildStrategy: strategyAfterDetection(project.buildStrategy, result.runtimeType),
+            }),
         detection: {
           status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
           issues: safeDetectionIssues(result.issues),
           checkedCommitSha: repo.lastCommitSha,
           checkedAt: new Date(),
           detectedConfiguration: detected,
+          detectedRuntimeType: result.runtimeType,
           recommendedBuildStrategy: result.recommendedBuildStrategy,
           strategyRationale: result.strategyRationale,
           requiredEnvironmentVariables: result.requiredEnvironmentVariables,

@@ -72,6 +72,9 @@ const detectionSchema = new Schema(
     checkedCommitSha: { type: String, default: null, maxlength: 40 },
     checkedAt: { type: Date, default: null },
     detectedConfiguration: { type: buildConfigurationSchema, default: null },
+    // What detection found, kept apart from runtimeType so a project deployed
+    // from its own container image can switch back to a HelloDeploy build.
+    detectedRuntimeType: { type: String, enum: Object.values(RuntimeType), default: null },
     recommendedBuildStrategy: {
       type: String,
       enum: Object.values(BuildStrategy),
