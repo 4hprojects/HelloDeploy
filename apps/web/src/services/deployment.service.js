@@ -135,6 +135,8 @@ export function createConfigurationSnapshot(project, commitSha) {
       healthCheckPath: config.healthCheckPath ?? '/',
       applicationRoot: config.applicationRoot ?? '.',
       applicationModule: config.applicationModule ?? null,
+      dockerfilePath: config.dockerfilePath ?? null,
+      imageReference: config.imageReference ?? null,
     },
     projectConfigurationVersion: project.configurationVersion,
     environmentVersion: project.environmentVersion ?? 1,
