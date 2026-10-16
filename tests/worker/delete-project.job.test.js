@@ -2,6 +2,8 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 process.env.NGINX_ENABLED = 'true';
+// Project deletion removes registry manifests only in the platform's own repository.
+process.env.USER_IMAGE_REGISTRY = 'ghcr.io/example/apps';
 
 const { handleDeleteProject } = await import('../../apps/worker/src/jobs/delete-project.job.js');
 
@@ -73,5 +75,13 @@ describe('delete-project job', () => {
     assert.deepEqual(calls.containers, ['container-a', 'container-b']);
     assert.deepEqual(calls.images, ['image-a', 'image-b']);
     assert.deepEqual(calls.networks, ['hellodeploy-my-project']);
+  });
+
+  it('leaves an owner-supplied registry image in place', async () => {
+    const { calls, deps, job } = setup({
+      registryImageRefs: [`ghcr.io/owner/their-app@sha256:${'b'.repeat(64)}`],
+    });
+    await handleDeleteProject(job, deps);
+    assert.deepEqual(calls.registryImages, []);
   });
 });

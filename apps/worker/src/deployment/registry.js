@@ -57,6 +57,15 @@ export async function verifyRegistryAccess(repository, deps = {}) {
   return { ready: true };
 }
 
+/** True when a reference names the platform's own image repository. */
+export function isPlatformImageRef(imageRef, platformRepository = env.USER_IMAGE_REGISTRY) {
+  if (!platformRepository || typeof imageRef !== 'string') {
+    return false;
+  }
+  const repository = imageRef.split('@')[0].replace(/:[a-z0-9_.-]+$/, '');
+  return repository === platformRepository;
+}
+
 /**
  * Delete one immutable GHCR image, by digest, with everything it pushed: the
  * index, its child manifests (platform image, provenance and SBOM
@@ -79,8 +88,7 @@ export async function deleteRegistryManifest(imageRef, deps = {}) {
   if (!PINNED_GHCR_REFERENCE.test(imageRef ?? '')) {
     throw new Error('Registry cleanup requires a digest-pinned GHCR image reference.');
   }
-  const repository = imageRef.split('@')[0].replace(/:[a-z0-9_.-]+$/, '');
-  if (!platformRepository || repository !== platformRepository) {
+  if (!isPlatformImageRef(imageRef, platformRepository)) {
     throw new Error('Registry cleanup only deletes manifests in the platform registry.');
   }
   // Operators who keep registry history leave deletion off; nothing to do then.
