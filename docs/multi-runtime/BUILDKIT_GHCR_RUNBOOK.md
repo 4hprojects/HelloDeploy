@@ -12,7 +12,8 @@ production host while the acceptance record remains incomplete.
    a client certificate solely to the deployment worker.
 4. Deny access from the builder to production MongoDB, Redis, Nginx/helper, runtime
    Docker, host-management networks, and cloud metadata. Allow only DNS and the
-   registry/package endpoints needed by approved templates.
+   registry/package endpoints needed by approved templates, as listed in
+   [the threat model](THREAT_MODEL.md#residual-risks-and-non-goals).
 5. On the worker, create a remote Buildx context with the `remote` driver and TLS CA,
    certificate, key, and server name. Files must be readable only by the worker account.
 6. Install ORAS for the worker account. Log in to private GHCR through the worker's
