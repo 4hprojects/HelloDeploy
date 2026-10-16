@@ -110,6 +110,9 @@ with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
 | Fixtures: Maven and Gradle Spring Boot                                | Repository-complete | wrapper checksums verified against Maven Central and services.gradle.org |
 | Live routing, logs, secrets, rollback, quotas, version errors         | Blocked (external)  | needs the BuildKit/GHCR acceptance run                                   |
 
+Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 181 files plus API and
+contract suites, 1,727/1,727; lint, format, and config checks clean.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

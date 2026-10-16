@@ -7,6 +7,7 @@ const RUNTIME_LABELS = Object.freeze({
   NEXTJS: 'Next.js app',
   PYTHON: 'Python app',
   PHP: 'PHP app',
+  JAVA: 'Java app',
   EXPRESS: 'Express app',
   NODEJS: 'Node.js app',
   UNKNOWN: 'App type not recognized',
