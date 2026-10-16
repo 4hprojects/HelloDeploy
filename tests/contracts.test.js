@@ -197,6 +197,9 @@ describe('contracts — getFailureCopy', () => {
       'ACTIVATION_ENQUEUE_FAILED',
       'ROLLBACK_SOURCE_INVALID',
       'QUEUE_UNAVAILABLE',
+      'DOCKERFILE_POLICY_VIOLATION',
+      'IMAGE_RESOLUTION_FAILED',
+      'IMAGE_POLICY_FAILED',
     ];
     const missing = codes.filter((code) => !DEPLOYMENT_FAILURE_COPY[code]);
     assert.deepEqual(missing, []);

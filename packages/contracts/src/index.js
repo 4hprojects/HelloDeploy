@@ -13,3 +13,4 @@ export * from './deployment-environment.js';
 export * from './python-runtime.js';
 export * from './php-runtime.js';
 export * from './java-runtime.js';
+export * from './container-runtime.js';
