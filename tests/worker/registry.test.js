@@ -29,12 +29,16 @@ describe('registry operations', () => {
     ]);
   });
 
+  const platformRepository = 'ghcr.io/example/hellodeploy-apps';
+  const digest = `sha256:${'a'.repeat(64)}`;
+
   // ORAS writes a referrers fallback tag for each attestation when the registry
   // has no Referrers API; it must go with the image, or every build leaks one.
   it('deletes the fallback tags, then the child manifests, then the index', async () => {
     const commands = [];
     await deleteRegistryManifest(IMAGE_REF, {
       isDeletionEnabled: true,
+      platformRepository,
       findSharedChildDigests: async () => new Set(),
       run: orasWithIndex({ commands }),
     });
@@ -53,8 +57,38 @@ describe('registry operations', () => {
 
   it('refuses to delete an image that is not pinned to a digest', async () => {
     await assert.rejects(
-      deleteRegistryManifest('ghcr.io/example/hellodeploy-apps:latest'),
+      deleteRegistryManifest(`${platformRepository}:latest`, { platformRepository }),
       /digest-pinned/,
+    );
+  });
+
+  // An owner-supplied GHCR image must never be deleted with the platform credential.
+  it('refuses a digest-pinned manifest outside the platform repository', async () => {
+    const commands = [];
+    await assert.rejects(
+      deleteRegistryManifest(`ghcr.io/owner/their-app@${digest}`, {
+        platformRepository,
+        run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
+      }),
+      /platform registry/,
+    );
+  });
+
+  it('refuses a repository that only shares the platform prefix', async () => {
+    await assert.rejects(
+      deleteRegistryManifest(`${platformRepository}-evil:release-1@${digest}`, {
+        platformRepository,
+      }),
+      /platform registry/,
+    );
+  });
+
+  it('refuses every deletion when no platform repository is configured', async () => {
+    await assert.rejects(
+      deleteRegistryManifest(`${platformRepository}:release-1@${digest}`, {
+        platformRepository: '',
+      }),
+      /platform registry/,
     );
   });
 
@@ -64,6 +98,7 @@ describe('registry operations', () => {
       `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`,
       {
         isDeletionEnabled: false,
+        platformRepository,
         run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
       },
     );
