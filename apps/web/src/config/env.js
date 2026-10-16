@@ -65,6 +65,7 @@ function parsePilotFlag(prefix) {
 const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
 const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
 const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
+const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
 
 assertPairedEnvironment(
   'GOOGLE_CLIENT_ID',
@@ -207,6 +208,8 @@ export const env = {
   MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: pythonPilot.projectIds,
   MULTIRUNTIME_PHP_V1_ENABLED: phpPilot.enabled,
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
+  MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
+  MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
   QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
   QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
@@ -230,5 +233,6 @@ export const env = {
       next: nextPilot,
       python: pythonPilot,
       php: phpPilot,
+      java: javaPilot,
     }),
 };

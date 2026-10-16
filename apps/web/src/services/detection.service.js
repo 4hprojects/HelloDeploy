@@ -6,9 +6,11 @@ import {
   DetectionStatus,
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
+  JAVA_PORT,
   PHP_PORT,
   normalizeApplicationRoot,
   normalizePythonPackageName,
+  resolveJavaVersion,
   resolvePhpVersion,
   parsePythonRequirementNames,
   resolvePythonVersion,
@@ -371,6 +373,124 @@ function detectPhpRuntime(files) {
   };
 }
 
+// ─── Java detection ───────────────────────────────────────────────────────────
+
+const JAVA_ENTRY_PATHS = Object.freeze([
+  'mvnw',
+  'gradlew',
+  'settings.gradle',
+  'settings.gradle.kts',
+]);
+
+function hasJavaMarkers(files) {
+  return (
+    hasFile(files, 'pom.xml') ||
+    hasFile(files, 'build.gradle') ||
+    hasFile(files, 'build.gradle.kts')
+  );
+}
+
+/**
+ * Recognize a Spring Boot app built with the Maven or Gradle wrapper. Returns
+ * null when the repository has no Maven or Gradle build file.
+ */
+function detectJavaRuntime(files) {
+  if (!hasJavaMarkers(files)) {
+    return null;
+  }
+  const isMaven = hasFile(files, 'pom.xml');
+  const buildFile = isMaven
+    ? files['pom.xml']
+    : (files['build.gradle'] ?? files['build.gradle.kts']);
+  const isSpringBoot = isMaven
+    ? /spring-boot-starter-parent|spring-boot-maven-plugin|<groupId>\s*org\.springframework\.boot\s*<\/groupId>/.test(
+        buildFile,
+      )
+    : /org\.springframework\.boot/.test(buildFile);
+  if (!isSpringBoot) {
+    return {
+      runtimeType: RuntimeType.UNKNOWN,
+      buildCommand: null,
+      startCommand: null,
+      outputDirectory: null,
+      applicationPort: null,
+      issues: [
+        {
+          level: 'ERROR',
+          message:
+            'A Java build was found, but HelloDeploy supports only Spring Boot web apps built into an executable jar.',
+        },
+      ],
+      isValid: false,
+    };
+  }
+
+  const issues = [];
+  if (isMaven && !hasFile(files, 'mvnw')) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'HelloDeploy builds with the Maven wrapper so every build uses the same Maven version. Run mvn wrapper:wrapper and commit mvnw and the .mvn folder.',
+    });
+  }
+  if (!isMaven && !hasFile(files, 'gradlew')) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'HelloDeploy builds with the Gradle wrapper so every build uses the same Gradle version. Run gradle wrapper and commit gradlew and the gradle/wrapper folder.',
+    });
+  }
+  const settings = files['settings.gradle'] ?? files['settings.gradle.kts'] ?? '';
+  if (
+    (isMaven && /<modules>/.test(buildFile)) ||
+    (!isMaven && /\binclude\s*[(\s'"]/.test(settings))
+  ) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'Multi-module builds are not supported yet. Deploy a single-module Spring Boot app, or move the app into its own repository.',
+    });
+  }
+  if (isMaven && hasFile(files, 'build.gradle')) {
+    issues.push({
+      level: 'WARNING',
+      message: 'Both pom.xml and build.gradle were found; HelloDeploy will build with Maven.',
+    });
+  }
+
+  const javaVersion = resolveJavaVersion(isMaven ? { pom: buildFile } : { gradle: buildFile });
+  if (javaVersion.error) {
+    issues.push({ level: 'ERROR', message: javaVersion.error });
+  }
+
+  const hasActuator = /spring-boot-starter-actuator/.test(buildFile);
+  if (!hasActuator) {
+    issues.push({
+      level: 'WARNING',
+      message:
+        'After each deploy the health check requests /. Make sure your app answers it, add Spring Boot Actuator, or set a different health check path.',
+    });
+  }
+  issues.push({
+    level: 'INFO',
+    message:
+      'Spring Boot apps usually need at least 512 MB of memory; ask an administrator to raise the project quota if the default is lower. Tests are skipped during the build, and databases must be external.',
+  });
+
+  return {
+    runtimeType: RuntimeType.JAVA,
+    buildCommand: null,
+    startCommand: null,
+    outputDirectory: null,
+    applicationPort: JAVA_PORT,
+    healthCheckPath: hasActuator ? '/actuator/health' : '/',
+    issues,
+    isValid: !issues.some((issue) => issue.level === 'ERROR'),
+    recommendedBuildStrategy: isMaven ? BuildStrategy.JAVA_MAVEN_V1 : BuildStrategy.JAVA_GRADLE_V1,
+    strategyRationale: `A Spring Boot ${isMaven ? 'Maven' : 'Gradle'} build was found, so HelloDeploy will build it with the project wrapper.`,
+  };
+}
+
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
 
@@ -399,7 +519,11 @@ export function detectRuntime(files) {
   // A backend framework owns the repository when Node found only a frontend
   // build or nothing: React or Vue there is the backend's asset pipeline, and
   // serving the repository as static files would publish its source.
-  const backend = detectPhpRuntime(files) ?? detectPythonRuntime(files);
+  const backends = [detectPhpRuntime, detectPythonRuntime, detectJavaRuntime]
+    .map((detect) => detect(files))
+    .filter(Boolean);
+  const backend =
+    backends.find((result) => result.runtimeType !== RuntimeType.UNKNOWN) ?? backends[0];
   if (
     !backend ||
     (backend.runtimeType === RuntimeType.UNKNOWN && nodeResult.runtimeType !== RuntimeType.UNKNOWN)
@@ -665,6 +789,9 @@ const FILES_TO_FETCH = [
   '.python-version',
   'composer.json',
   'index.php',
+  'pom.xml',
+  'build.gradle',
+  'build.gradle.kts',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -790,6 +917,7 @@ async function addBackendEntryFiles(files, fetchFile) {
   const paths = [
     ...(hasPythonMarkers(files) ? PYTHON_ENTRY_PATHS : []),
     ...(hasPhpMarkers(files) ? PHP_ENTRY_PATHS : []),
+    ...(hasJavaMarkers(files) ? JAVA_ENTRY_PATHS : []),
   ];
   const results = await Promise.allSettled(paths.map(fetchFile));
   paths.forEach((path, index) => {
@@ -911,7 +1039,7 @@ function detectedConfiguration(result) {
     startCommand: result.startCommand ?? null,
     outputDirectory: result.outputDirectory ?? null,
     applicationPort: result.applicationPort ?? null,
-    healthCheckPath: '/',
+    healthCheckPath: result.healthCheckPath ?? '/',
     applicationRoot: result.applicationRoot ?? '.',
     applicationModule: result.applicationModule ?? null,
   };

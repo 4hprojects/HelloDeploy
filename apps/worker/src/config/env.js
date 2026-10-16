@@ -122,6 +122,7 @@ function parsePilotFlag(prefix) {
 const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
 const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
 const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
+const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
 const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
   min: 128,
   max: 32768,
@@ -225,6 +226,8 @@ export const env = {
   MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: pythonPilot.projectIds,
   MULTIRUNTIME_PHP_V1_ENABLED: phpPilot.enabled,
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
+  MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
+  MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
   USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
   USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
@@ -271,5 +274,6 @@ export const env = {
       next: nextPilot,
       python: pythonPilot,
       php: phpPilot,
+      java: javaPilot,
     }),
 };

@@ -526,6 +526,107 @@ describe('detectRuntime — PHP', () => {
   });
 });
 
+// ── JAVA ──────────────────────────────────────────────────────────────────────
+
+describe('detectRuntime — JAVA', () => {
+  const springPom = `<project>
+  <parent><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-parent</artifactId></parent>
+  <properties><java.version>21</java.version></properties>
+  <dependencies><dependency><artifactId>spring-boot-starter-web</artifactId></dependency></dependencies>
+</project>`;
+  const springGradle = "plugins { id 'org.springframework.boot' version '3.5.6' }\n";
+
+  it('detects a Maven Spring Boot app with its wrapper', () => {
+    const result = detectRuntime(files({ 'pom.xml': springPom, mvnw: '#!/bin/sh' }));
+    assert.deepEqual(
+      [result.runtimeType, result.recommendedBuildStrategy, result.applicationPort, result.isValid],
+      ['JAVA', 'java_maven_v1', 8080, true],
+    );
+  });
+
+  it('detects a Gradle Kotlin DSL Spring Boot app with its wrapper', () => {
+    const result = detectRuntime(
+      files({
+        'build.gradle.kts': 'plugins { id("org.springframework.boot") version "3.5.6" }',
+        gradlew: '#!/bin/sh',
+      }),
+    );
+    assert.equal(result.recommendedBuildStrategy, 'java_gradle_v1');
+  });
+
+  it('requires the Maven wrapper', () => {
+    const result = detectRuntime(files({ 'pom.xml': springPom }));
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('mvnw')),
+    );
+  });
+
+  it('requires the Gradle wrapper', () => {
+    const result = detectRuntime(files({ 'build.gradle': springGradle }));
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('gradlew')),
+    );
+  });
+
+  it('suggests the Actuator health endpoint when Actuator is a dependency', () => {
+    const result = detectRuntime(
+      files({
+        'pom.xml': springPom.replace(
+          '</dependencies>',
+          '<dependency><artifactId>spring-boot-starter-actuator</artifactId></dependency></dependencies>',
+        ),
+        mvnw: '#!/bin/sh',
+      }),
+    );
+    assert.equal(result.healthCheckPath, '/actuator/health');
+  });
+
+  it('warns that the root path must respond without Actuator', () => {
+    const result = detectRuntime(files({ 'pom.xml': springPom, mvnw: '#!/bin/sh' }));
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'WARNING' && issue.message.includes('health check'),
+      ),
+    );
+  });
+
+  it('rejects a multi-module Maven build', () => {
+    const result = detectRuntime(
+      files({
+        'pom.xml': springPom.replace(
+          '</project>',
+          '<modules><module>api</module></modules></project>',
+        ),
+        mvnw: '#!/bin/sh',
+      }),
+    );
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('module')),
+    );
+  });
+
+  it('rejects an unsupported Java version', () => {
+    const result = detectRuntime(
+      files({ 'pom.xml': springPom.replace('>21<', '>11<'), mvnw: '#!/bin/sh' }),
+    );
+    assert.equal(result.isValid, false);
+  });
+
+  it('reports a Java build that is not Spring Boot', () => {
+    const result = detectRuntime(files({ 'pom.xml': '<project/>', mvnw: '#!/bin/sh' }));
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'ERROR' && issue.message.includes('Spring Boot'),
+      ),
+    );
+  });
+
+  it('recommends at least 512 MB of memory', () => {
+    const result = detectRuntime(files({ 'pom.xml': springPom, mvnw: '#!/bin/sh' }));
+    assert.ok(result.issues.some((issue) => issue.message.includes('512 MB')));
+  });
+});
+
 // ── REACT (CRA) ───────────────────────────────────────────────────────────────
 
 describe('detectRuntime — REACT (CRA)', () => {
