@@ -129,6 +129,11 @@ with regression tests (eight here, two on the P4 branch).
 - Browser and accessibility suite: 31/33; the two failing visual baselines fail identically
   on `main`, so they reflect local rendering, not this branch.
 
+### P5 design (2026-10-17)
+
+- Recorded the restricted Compose and entitlements ADR. Implementation is blocked at the
+  brief's P5 entry gate until P4 is proven live and host headroom is measured.
+
 ### P4 owner images (2026-10-17, stacked PR)
 
 - Registry deletion is limited to `USER_IMAGE_REGISTRY`, and cleanup skips images the
