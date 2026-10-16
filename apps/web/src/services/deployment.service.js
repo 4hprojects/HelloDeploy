@@ -77,6 +77,33 @@ export function buildDeploymentJobPayload({
   };
 }
 
+/**
+ * Check that a project's saved build strategy can be built. Returns an
+ * owner-facing message, or null when the strategy is ready.
+ *
+ * @param {{ _id: unknown, runtimeType: string, buildStrategy?: string|null,
+ *   buildConfiguration?: { applicationModule?: string|null } }} project
+ * @param {(strategy: string|null|undefined, projectId: unknown) => boolean} isStrategyEnabledFor
+ */
+export function validateBuildStrategyReadiness(project, isStrategyEnabledFor) {
+  if (!isStrategyEnabledFor(project.buildStrategy, project._id)) {
+    return 'The selected deployment mode is not enabled for this project.';
+  }
+  // The generated legacy images cover only the original Node-family runtimes.
+  if (project.runtimeType === RuntimeType.PYTHON && !isPythonBuildStrategy(project.buildStrategy)) {
+    return isStrategyEnabledFor(BuildStrategy.PYTHON_FLASK_V1, project._id)
+      ? 'Choose the Python framework in the build settings and save them before deploying.'
+      : 'Python apps are in a limited pilot that is not enabled for this project yet.';
+  }
+  if (
+    isPythonBuildStrategy(project.buildStrategy) &&
+    validateApplicationModule(project.buildConfiguration?.applicationModule)
+  ) {
+    return 'Confirm the application module in the build settings before deploying.';
+  }
+  return null;
+}
+
 export function createConfigurationSnapshot(project, commitSha) {
   const config = project.buildConfiguration ?? {};
   return {
@@ -200,28 +227,9 @@ export async function createDeployment({
     return { success: false, error: 'Run project detection before deploying.' };
   }
 
-  if (!env.isStrategyEnabledFor(project.buildStrategy, project._id)) {
-    return {
-      success: false,
-      error: 'The selected deployment mode is not enabled for this project.',
-    };
-  }
-  // The generated legacy images cover only the original Node-family runtimes.
-  if (project.runtimeType === RuntimeType.PYTHON && !isPythonBuildStrategy(project.buildStrategy)) {
-    return {
-      success: false,
-      error:
-        'Python apps need a Python deployment mode, which is not enabled for this project yet.',
-    };
-  }
-  if (
-    isPythonBuildStrategy(project.buildStrategy) &&
-    validateApplicationModule(project.buildConfiguration?.applicationModule)
-  ) {
-    return {
-      success: false,
-      error: 'Confirm the application module in the build settings before deploying.',
-    };
+  const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
+  if (strategyError) {
+    return { success: false, error: strategyError };
   }
 
   const quotaRefusal = await checkDeploymentQuota(project);

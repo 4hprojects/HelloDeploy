@@ -51,6 +51,7 @@ function renderDetection(overrides = {}) {
     bfErrors: overrides.bfErrors || {},
     bfValues: overrides.bfValues || null,
     csrfToken: 'test-token',
+    isStrategyEnabledFor: overrides.isStrategyEnabledFor,
   });
 }
 
@@ -166,6 +167,53 @@ describe('guided detection inputs', () => {
     const html = await renderDetection({ role: 'VIEWER' });
 
     assert.match(html, /Only the project owner can run the app check/);
+  });
+
+  it('offers the detected Python framework and module when the pilot is enabled', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p1',
+        runtimeType: 'PYTHON',
+        detection: { status: 'READY', recommendedBuildStrategy: 'python_django_v1' },
+        buildConfiguration: { applicationPort: 8000, applicationModule: 'mysite.wsgi:application' },
+      },
+      isStrategyEnabledFor: () => true,
+    });
+    assert.match(
+      html,
+      /<option value="python_django_v1" selected>[\s\S]*name="applicationModule"\s+value="mysite\.wsgi:application"/,
+    );
+  });
+
+  it('explains the Python pilot when it is not enabled for the project', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p1',
+        runtimeType: 'PYTHON',
+        detection: { status: 'READY', recommendedBuildStrategy: 'python_django_v1' },
+        buildConfiguration: { applicationPort: 8000, applicationModule: 'mysite.wsgi:application' },
+      },
+      isStrategyEnabledFor: (strategy) => strategy === 'legacy_generated',
+    });
+    assert.match(
+      html,
+      /Python apps are in a limited pilot and are not enabled for this project yet/,
+    );
+  });
+
+  it('shows an application module error beside its field', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p1',
+        runtimeType: 'PYTHON',
+        detection: { status: 'READY', recommendedBuildStrategy: 'python_django_v1' },
+        buildConfiguration: { applicationPort: 8000, applicationModule: 'mysite.wsgi:application' },
+      },
+      isStrategyEnabledFor: () => true,
+      bcErrors: { applicationModule: 'Application module must use the module:attribute form.' },
+      bcValues: { buildStrategy: 'python_flask_v1', applicationModule: 'main' },
+    });
+    assert.match(html, /id="detection-application-module-error"[^>]*>Application module must use/);
   });
 
   it('shares runtime-aware fields across detection and project settings', () => {

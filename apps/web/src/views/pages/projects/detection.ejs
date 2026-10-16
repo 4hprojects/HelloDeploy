@@ -186,7 +186,7 @@
   <div class="guided-disclosure__body">
     <% if (membership.role === 'OWNER') { %>
     <%- include('../../partials/form-errors', { errors: bcErrors }) %>
-      <% if (project.runtimeType === 'NEXTJS' && project.detection?.strategyRationale) { %>
+      <% if (['NEXTJS', 'PYTHON'].includes(project.runtimeType) && project.detection?.strategyRationale) { %>
       <p class="form-hint mb-4"><strong>Detected mode:</strong> <%= project.detection.strategyRationale %></p>
       <% } %>
     <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
@@ -212,6 +212,7 @@
       <% if (bc.startCommand) { %><dt>Start command</dt><dd><code class="code-inline"><%= bc.startCommand %></code></dd><% } %>
       <% if (bc.outputDirectory) { %><dt>Published folder</dt><dd><code class="code-inline"><%= bc.outputDirectory %></code></dd><% } %>
       <dt>Application root</dt><dd><code class="code-inline"><%= bc.applicationRoot || '.' %></code></dd>
+      <% if (bc.applicationModule) { %><dt>Application module</dt><dd><code class="code-inline"><%= bc.applicationModule %></code></dd><% } %>
       <% if (bc.applicationPort) { %><dt>App port</dt><dd><code class="code-inline"><%= bc.applicationPort %></code></dd><% } %>
       <dt>Working-page check</dt><dd><code class="code-inline"><%= bc.healthCheckPath || '/' %></code></dd>
     </dl>

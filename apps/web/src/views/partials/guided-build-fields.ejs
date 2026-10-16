@@ -19,11 +19,16 @@
     (typeof buildStrategy !== 'undefined' && buildStrategy) ||
     (typeof project !== 'undefined' && project.buildStrategy) ||
     'legacy_generated';
+  const _gbRecommendedStrategy =
+    typeof project !== 'undefined' ? project.detection?.recommendedBuildStrategy : null;
   const _gbStrategy = _gbValues
     ? (_gbValues.buildStrategy || _gbStoredStrategy)
-    : (_gbNextStrategiesEnabled && _gbStoredStrategy === 'legacy_generated'
-        ? (project.detection?.recommendedBuildStrategy || _gbStoredStrategy)
+    : (_gbStoredStrategy === 'legacy_generated' &&
+        _gbRecommendedStrategy &&
+        _gbStrategyEnabled(_gbRecommendedStrategy)
+        ? _gbRecommendedStrategy
         : _gbStoredStrategy);
+  const _gbPythonRuntime = _gbRuntime === 'PYTHON';
   const _gbStaticRuntime =
     ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
   const _gbBuiltStaticRuntime =
@@ -31,6 +36,8 @@
   const _gbServerRuntime =
     ['EXPRESS', 'NODEJS'].includes(_gbRuntime) ||
     (_gbRuntime === 'NEXTJS' && _gbStrategy !== 'next_export_v1');
+  const _gbModulePlaceholder =
+    _gbStrategy === 'python_django_v1' ? 'mysite.wsgi:application' : 'main:app';
 %>
 
 <div class="<%= _gbGridClass %>">
@@ -76,8 +83,61 @@
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
     <% } %>
   </div>
+  <% } else if (_gbPythonRuntime && _gbPythonStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Python framework</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="python_flask_v1" <%= _gbStrategy === 'python_flask_v1' ? 'selected' : '' %>>Flask (served by gunicorn)</option>
+      <option value="python_fastapi_v1" <%= _gbStrategy === 'python_fastapi_v1' ? 'selected' : '' %>>FastAPI (served by uvicorn)</option>
+      <option value="python_django_v1" <%= _gbStrategy === 'python_django_v1' ? 'selected' : '' %>>Django (served by gunicorn)</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected framework. HelloDeploy installs <code class="code-inline">requirements.txt</code> and starts the matching server.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('application-module') %>">Application module</label>
+    <input
+      class="form-input<%= _gbErrors.applicationModule ? ' form-input--error' : '' %>"
+      id="<%= _gbId('application-module') %>"
+      name="applicationModule"
+      value="<%= _gbValue('applicationModule', _gbConfig.applicationModule) %>"
+      maxlength="200"
+      placeholder="<%= _gbModulePlaceholder %>"
+      autocomplete="off"
+      spellcheck="false"
+      required
+      aria-describedby="<%= _gbId('application-module-hint') %><%= _gbErrors.applicationModule ? ` ${_gbId('application-module-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('application-module-hint') %>">
+      The file and object the server loads, written as <code class="code-inline">module:object</code>.
+      Check the detected value before saving; for example <code class="code-inline">main:app</code> means
+      the <code class="code-inline">app</code> object in <code class="code-inline">main.py</code>.
+    </p>
+    <% if (_gbErrors.applicationModule) { %>
+    <span id="<%= _gbId('application-module-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationModule %></span>
+    <% } %>
+  </div>
   <% } else { %>
   <input type="hidden" name="buildStrategy" value="<%= _gbStrategy %>" />
+  <% if (_gbPythonRuntime) { %>
+  <div class="form-group guided-build-field--informational">
+    <span class="form-label">Python deployment</span>
+    <p class="form-hint">
+      Python apps are in a limited pilot and are not enabled for this project yet. Your settings are
+      saved, and you can deploy once the pilot is enabled.
+    </p>
+  </div>
+  <% } %>
   <% } %>
   <div class="form-group">
     <label class="form-label" for="<%= _gbId('build-command') %>">Build command</label>
@@ -95,6 +155,9 @@
     <p class="form-hint" id="<%= _gbId('build-command-hint') %>">
       <% if (_gbRuntime === 'STATIC') { %>
         A plain HTML site does not need a build command. Leave this blank.
+      <% } else if (_gbPythonRuntime) { %>
+        Optional. Runs after dependencies are installed. Django apps that serve static files with
+        WhiteNoise usually use <code class="code-inline">python manage.py collectstatic --noinput</code>.
       <% } else if (_gbBuiltStaticRuntime || _gbRuntime === 'NEXTJS') { %>
         HelloDeploy found the command that prepares your app. Keep it unless the person who built
         the app gave you a different one. A common value is <code class="code-inline">npm run build</code>.
@@ -182,13 +245,18 @@
       value="<%= _gbValue('applicationPort', _gbConfig.applicationPort) %>"
       min="1"
       max="65535"
-      placeholder="3000"
+      placeholder="<%= _gbPythonRuntime ? '8000' : '3000' %>"
       inputmode="numeric"
       aria-describedby="<%= _gbId('application-port-hint') %><%= _gbErrors.applicationPort ? ` ${_gbId('application-port-error')}` : '' %>"
     />
     <p class="form-hint" id="<%= _gbId('application-port-hint') %>">
-      The internal port your app listens on. Keep the detected value; most Node.js apps use
-      <code class="code-inline">3000</code>.
+      <% if (_gbPythonRuntime) { %>
+        The internal port the Python server listens on. Keep the detected value,
+        <code class="code-inline">8000</code>, unless you have a reason to change it.
+      <% } else { %>
+        The internal port your app listens on. Keep the detected value; most Node.js apps use
+        <code class="code-inline">3000</code>.
+      <% } %>
     </p>
     <% if (_gbErrors.applicationPort) { %>
     <span id="<%= _gbId('application-port-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationPort %></span>
