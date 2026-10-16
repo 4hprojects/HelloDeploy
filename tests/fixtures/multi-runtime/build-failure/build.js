@@ -1,1 +1,2 @@
-process.stdout.write('baseline-build-ok\n');
+process.stderr.write('intentional acceptance build failure\n');
+process.exitCode = 42;
