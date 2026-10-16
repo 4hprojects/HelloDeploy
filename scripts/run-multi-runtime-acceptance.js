@@ -83,7 +83,9 @@ async function inspectPlatformState(config, manifest, database, queueClient) {
       (project.buildStrategy ?? 'legacy_generated') !== fixture.buildStrategy ||
       (project.buildConfiguration?.applicationRoot ?? '.') !== fixture.applicationRoot ||
       (project.buildConfiguration?.applicationModule ?? null) !==
-        (fixture.applicationModule ?? null)
+        (fixture.applicationModule ?? null) ||
+      (project.buildConfiguration?.dockerfilePath ?? null) !== (fixture.dockerfilePath ?? null) ||
+      (project.buildConfiguration?.imageReference ?? null) !== (fixture.imageReference ?? null)
     ) {
       throw new Error(`Stored project settings do not match fixture ${fixture.id}.`);
     }

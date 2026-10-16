@@ -1,5 +1,11 @@
 import { asyncHandler } from '../utils/async-handler.js';
-import { DeploymentMode, ProjectRole, ProjectStatus, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  BuildStrategy,
+  DeploymentMode,
+  ProjectRole,
+  ProjectStatus,
+  AuditOutcome,
+} from '@hellodeploy/contracts';
 import { Project, Repository, User, resolveProjectQuota } from '@hellodeploy/database';
 import { verifyPassword } from '@hellodeploy/auth';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -34,6 +40,7 @@ import { buildProjectSettingsView } from '../services/project-settings-view.serv
 import { env } from '../config/env.js';
 import { getProjectDiscovery } from '../services/project-discovery.service.js';
 import { countDeploymentsThisMonth } from '../services/quota.service.js';
+import { listRegistryCredentials } from '../services/registry-credential.service.js';
 
 // ─── Project list ──────────────────────────────────────────────────────────────
 
@@ -149,12 +156,18 @@ export function getEditProject(req, res) {
 
 export async function renderProjectSettings(req, res, extras = {}) {
   const { deployHookTokenHash, ...projectForView } = req.project;
-  const [repository, domains, quota, deploymentsThisMonth] = await Promise.all([
-    req.project.repositoryId ? Repository.findById(req.project.repositoryId).lean() : null,
-    getProjectDomains(req.project._id),
-    resolveProjectQuota(req.project._id, req.project.ownerId),
-    countDeploymentsThisMonth(req.project._id),
-  ]);
+  const [repository, domains, quota, deploymentsThisMonth, registryCredentials] = await Promise.all(
+    [
+      req.project.repositoryId ? Repository.findById(req.project.repositoryId).lean() : null,
+      getProjectDomains(req.project._id),
+      resolveProjectQuota(req.project._id, req.project.ownerId),
+      countDeploymentsThisMonth(req.project._id),
+      // Only projects that may deploy prebuilt images see their registry credentials.
+      env.isStrategyEnabledFor(BuildStrategy.OCI_IMAGE_V1, req.project._id)
+        ? listRegistryCredentials(req.project._id)
+        : null,
+    ],
+  );
 
   res.render('pages/projects/settings', {
     title: `Settings – ${req.project.name}`,
@@ -165,6 +178,7 @@ export async function renderProjectSettings(req, res, extras = {}) {
     domains,
     quota,
     deploymentsThisMonth,
+    registryCredentials,
     hasDeployHook: Boolean(deployHookTokenHash),
     settingsState: buildProjectSettingsView({
       project: projectForView,

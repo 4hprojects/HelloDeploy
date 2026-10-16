@@ -216,6 +216,30 @@ Allowlisted projects can deploy Spring Boot web apps built with Maven or Gradle.
 Databases must be external. Application servers, WAR/EAR deployments, and background job
 runners are not supported in the pilot.
 
+### Your own Dockerfile or a prebuilt image (pilot)
+
+Projects an administrator has added to the pilot see **Deploy from** under **Advanced
+build settings**:
+
+- **My Dockerfile** builds the Dockerfile at the given path, relative to the application
+  root, on HelloDeploy's isolated builder.
+- **A prebuilt image** deploys an image from Docker Hub or GitHub Container Registry. A tag
+  is locked to its digest at each deploy, so a rollback returns to the exact image even if
+  the tag moves. For a private image, save a read-only token under **Settings → Registry
+  credentials**.
+
+Both need the **App port** the container listens on, and both must:
+
+- run as a non-root user (`USER 10001` or a named user in the final stage);
+- declare no `VOLUME` and use base images from docker.io or ghcr.io only;
+- avoid custom `# syntax` frontends, `RUN --network=host`, `RUN --security=insecure`, and
+  SSH or secret mounts;
+- pass a scan for fixable critical vulnerabilities and stay under the size limit.
+
+Your `.dockerignore` can exclude more files, but it cannot re-include files HelloDeploy
+always excludes, such as `.env` files. Private build-time secrets are not passed to the
+build.
+
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real
 BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
 does not make a mode generally available.

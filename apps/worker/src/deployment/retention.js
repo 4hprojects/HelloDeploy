@@ -3,7 +3,7 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from './container.js';
 import { removeDockerImage } from './build.js';
-import { deleteRegistryManifest } from './registry.js';
+import { deleteRegistryManifest, isPlatformImageRef } from './registry.js';
 
 // Statuses whose records may still need their image (running, about to run,
 // or eligible as a rollback source).
@@ -141,6 +141,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
     if (
       dep.imageDigest &&
       dep.imageRef?.includes('@sha256:') &&
+      isPlatformImageRef(dep.imageRef) &&
       !removedDigests.has(dep.imageDigest)
     ) {
       if (await isImageDigestInUse(dep.imageDigest, toCleanIds)) {

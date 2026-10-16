@@ -186,6 +186,8 @@ export const RuntimeType = Object.freeze({
   PYTHON: 'PYTHON',
   PHP: 'PHP',
   JAVA: 'JAVA',
+  // Deployed from an owner-supplied Dockerfile or prebuilt image.
+  CONTAINER: 'CONTAINER',
   UNKNOWN: 'UNKNOWN',
 });
 

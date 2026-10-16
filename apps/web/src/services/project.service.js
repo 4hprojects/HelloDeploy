@@ -8,6 +8,7 @@ import {
   Deployment,
   DeploymentEvent,
   EnvironmentSecret,
+  RegistryCredential,
   Domain,
   Repository,
   Quota,
@@ -24,7 +25,9 @@ import {
   isReservedSubdomain,
   isValidSubdomainLabel,
   BuildStrategy,
+  RuntimeType,
   getBuildStrategyRuntime,
+  isContainerBuildStrategy,
   isPythonBuildStrategy,
   normalizeApplicationRoot,
 } from '@hellodeploy/contracts';
@@ -180,6 +183,8 @@ export async function updateBuildConfiguration({
   healthCheckPath,
   applicationRoot,
   applicationModule,
+  dockerfilePath,
+  imageReference,
   buildStrategy,
   actorId,
   sourceIp,
@@ -195,9 +200,22 @@ export async function updateBuildConfiguration({
   }
 
   const selectedStrategy = buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
+  const usesOwnerImage = isContainerBuildStrategy(selectedStrategy);
+  // Leaving an owner image restores the runtime detection last found.
+  const runtimeType = usesOwnerImage
+    ? RuntimeType.CONTAINER
+    : project.runtimeType === RuntimeType.CONTAINER
+      ? project.detection?.detectedRuntimeType
+      : project.runtimeType;
+  if (!usesOwnerImage && project.runtimeType === RuntimeType.CONTAINER && !runtimeType) {
+    return {
+      success: false,
+      error: 'Run the app check again before switching back to a HelloDeploy build.',
+    };
+  }
   if (selectedStrategy !== BuildStrategy.LEGACY_GENERATED) {
     if (
-      project.runtimeType !== getBuildStrategyRuntime(selectedStrategy) ||
+      runtimeType !== getBuildStrategyRuntime(selectedStrategy) ||
       !env.isStrategyEnabledFor(selectedStrategy, project._id)
     ) {
       return { success: false, error: 'That build strategy is not enabled for this project.' };
@@ -214,7 +232,14 @@ export async function updateBuildConfiguration({
     applicationModule: isPythonBuildStrategy(selectedStrategy)
       ? applicationModule?.trim() || null
       : null,
+    dockerfilePath:
+      selectedStrategy === BuildStrategy.DOCKERFILE_V1
+        ? dockerfilePath?.trim() || 'Dockerfile'
+        : null,
+    imageReference:
+      selectedStrategy === BuildStrategy.OCI_IMAGE_V1 ? imageReference?.trim() || null : null,
   };
+  project.runtimeType = runtimeType;
   project.buildStrategy = selectedStrategy;
   project.configurationVersion += 1;
   await project.save();
@@ -255,6 +280,9 @@ export async function resetBuildConfigurationToDetected({
   }
 
   project.buildConfiguration = detected.toObject?.() ?? { ...detected };
+  if (project.detection?.detectedRuntimeType) {
+    project.runtimeType = project.detection.detectedRuntimeType;
+  }
   const recommendedStrategy =
     project.detection?.recommendedBuildStrategy ?? BuildStrategy.LEGACY_GENERATED;
   project.buildStrategy = env.isStrategyEnabledFor(recommendedStrategy, project._id)
@@ -570,6 +598,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     ProjectMembership.deleteMany({ projectId }),
     ApprovalRequest.deleteMany({ projectId }),
     EnvironmentSecret.deleteMany({ projectId }),
+    RegistryCredential.deleteMany({ projectId }),
     Domain.deleteMany({ projectId }),
     DeploymentEvent.deleteMany({ deploymentId: { $in: deploymentIds } }),
     Deployment.deleteMany({ projectId }),

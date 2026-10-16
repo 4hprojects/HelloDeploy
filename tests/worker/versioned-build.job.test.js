@@ -18,6 +18,11 @@ Object.assign(process.env, {
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
   MULTIRUNTIME_JAVA_V1_ENABLED: 'true',
   MULTIRUNTIME_JAVA_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
+  MULTIRUNTIME_DOCKERFILE_V1_ENABLED: 'true',
+  MULTIRUNTIME_DOCKERFILE_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
+  MULTIRUNTIME_OCI_V1_ENABLED: 'true',
+  MULTIRUNTIME_OCI_V1_PROJECT_IDS: ALLOWED_PROJECT_ID.toString(),
+  IMAGE_SCANNER: 'trivy',
 });
 
 const { Deployment } = await import('@hellodeploy/database');
@@ -43,7 +48,19 @@ const LARAVEL_SNAPSHOT = {
   buildConfiguration: { outputDirectory: 'public' },
 };
 
-function makeDeps(contextFiles) {
+const OWNER_DIGEST = `sha256:${'e'.repeat(64)}`;
+const DOCKERFILE_SNAPSHOT = {
+  buildStrategy: 'dockerfile_v1',
+  runtimeType: 'CONTAINER',
+  buildConfiguration: { applicationPort: 8080, dockerfilePath: 'Dockerfile' },
+};
+const OCI_SNAPSHOT = {
+  buildStrategy: 'oci_image_v1',
+  runtimeType: 'CONTAINER',
+  buildConfiguration: { applicationPort: 8080, imageReference: 'nginx:1.27' },
+};
+
+function makeDeps(contextFiles, overrides = {}) {
   const dockerfiles = [];
   const activations = [];
   const digest = `sha256:${'c'.repeat(64)}`;
@@ -57,6 +74,11 @@ function makeDeps(contextFiles) {
     writePlatformDockerignore: async () => {},
     listRootEnvFiles: async () => [],
     readOptionalContextFile: async (_dir, name) => contextFiles[name] ?? null,
+    readContainedFile: async (_dir, name) => contextFiles[name] ?? null,
+    scanImage: async () => ({ criticalCount: 0, ids: [] }),
+    resolveImageDigest: async () => OWNER_DIGEST,
+    loadRegistryCredential: async () => null,
+    withDockerConfig: async (_registry, _credential, fn) => fn(undefined),
     getProjectEnvVars: async () => ({}),
     writeDockerfile: async (dir, content) => dockerfiles.push(content),
     buildExecutor: { build: async () => ({ imageRef: digest, imageDigest: digest }) },
@@ -66,13 +88,14 @@ function makeDeps(contextFiles) {
     enqueueActivateRelease: async (payload) => activations.push(payload),
     notifyDeploymentResult: async () => {},
     sleep: async () => {},
+    ...overrides,
   };
   return { deps, dockerfiles, activations };
 }
 
 async function runVersionedJob(
   snapshot,
-  { projectId = ALLOWED_PROJECT_ID, contextFiles = {} } = {},
+  { projectId = ALLOWED_PROJECT_ID, contextFiles = {}, depsOverrides = {} } = {},
 ) {
   const project = await createProject({ _id: projectId, runtimeType: snapshot.runtimeType });
   const repo = await createRepository(project._id);
@@ -97,7 +120,7 @@ async function runVersionedJob(
       sourceCommit: 'a'.repeat(40),
     },
   });
-  const { deps, dockerfiles, activations } = makeDeps(contextFiles);
+  const { deps, dockerfiles, activations } = makeDeps(contextFiles, depsOverrides);
   await handleBuildDeployment(
     {
       data: {
@@ -183,5 +206,50 @@ describe('build-deployment job — versioned runtime strategies', () => {
       contextFiles: { 'build.gradle': "plugins { id 'org.springframework.boot' }" },
     });
     assert.equal(activations[0].targetPort, 8080);
+  });
+
+  it('builds the owner Dockerfile unchanged', async () => {
+    const dockerfile = 'FROM node:22-slim\nUSER node\nCMD ["node", "server.js"]\n';
+    const { dockerfiles } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
+      contextFiles: { Dockerfile: dockerfile },
+    });
+    assert.equal(dockerfiles[0], dockerfile);
+  });
+
+  it('fails an owner Dockerfile that breaks the build policy before building', async () => {
+    const { deployment, dockerfiles } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
+      contextFiles: { Dockerfile: 'FROM node:22-slim\nVOLUME /data\nUSER node\n' },
+    });
+    assert.deepEqual(
+      [deployment.failureCode, dockerfiles.length],
+      ['DOCKERFILE_POLICY_VIOLATION', 0],
+    );
+  });
+
+  it('fails an owner image with fixable critical vulnerabilities', async () => {
+    const { deployment } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
+      contextFiles: { Dockerfile: 'FROM node:22-slim\nUSER node\n' },
+      depsOverrides: { scanImage: async () => ({ criticalCount: 1, ids: ['CVE-2026-0001'] }) },
+    });
+    assert.deepEqual(
+      [deployment.failureCode, /CVE-2026-0001/.test(deployment.failureSummary)],
+      ['IMAGE_POLICY_FAILED', true],
+    );
+  });
+
+  it('locks a prebuilt image tag to its digest and activates it', async () => {
+    const { activations } = await runVersionedJob(OCI_SNAPSHOT);
+    assert.equal(activations[0].imageId, `docker.io/library/nginx@${OWNER_DIGEST}`);
+  });
+
+  it('reports a prebuilt image the registry cannot resolve', async () => {
+    const { deployment } = await runVersionedJob(OCI_SNAPSHOT, {
+      depsOverrides: {
+        resolveImageDigest: async () => {
+          throw new Error('The image docker.io/library/nginx:1.27 was not found.');
+        },
+      },
+    });
+    assert.equal(deployment.failureCode, 'IMAGE_RESOLUTION_FAILED');
   });
 });

@@ -11,6 +11,7 @@ import {
 import {
   validateUpdateBuildConfiguration,
   validateUpdateBuildFilters,
+  resolveSelectedStrategy,
 } from '../validators/project.validator.js';
 
 async function renderDetection(req, res, extras = {}) {
@@ -84,7 +85,9 @@ export const postUpdateBuildConfiguration = asyncHandler(async (req, res) => {
     healthCheckPath: req.body.healthCheckPath,
     applicationRoot: req.body.applicationRoot,
     applicationModule: req.body.applicationModule,
-    buildStrategy: req.body.buildStrategy,
+    dockerfilePath: req.body.dockerfilePath,
+    imageReference: req.body.imageReference,
+    buildStrategy: resolveSelectedStrategy(req.body),
     actorId: req.session.user.id,
     sourceIp: req.ip,
     correlationId: req.correlationId,

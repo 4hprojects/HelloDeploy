@@ -8,6 +8,7 @@ const RUNTIME_LABELS = Object.freeze({
   PYTHON: 'Python app',
   PHP: 'PHP app',
   JAVA: 'Java app',
+  CONTAINER: 'Your container image',
   EXPRESS: 'Express app',
   NODEJS: 'Node.js app',
   UNKNOWN: 'App type not recognized',

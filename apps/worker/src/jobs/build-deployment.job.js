@@ -6,6 +6,7 @@ import {
   RepositorySourceType,
   RuntimeType,
   BuildStrategy,
+  isContainerBuildStrategy,
   isNextBuildStrategy,
   isJavaBuildStrategy,
   isPhpBuildStrategy,
@@ -13,6 +14,8 @@ import {
   resolveJavaVersion,
   resolvePhpVersion,
   resolvePythonVersion,
+  findDockerfilePolicyViolations,
+  parseImageReference,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -25,6 +28,8 @@ import {
   writePlatformDockerignore,
   listRootEnvFiles,
   readOptionalContextFile,
+  readContainedFile,
+  ownerIgnorePatterns,
 } from '../deployment/build-context.js';
 import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
@@ -38,7 +43,10 @@ import {
 import { resolveBuildProfile } from '../deployment/build-profile.js';
 import { logEvent, updateStatus, toResourceLimits } from '../deployment/pipeline.js';
 import { buildImageTag } from '@hellodeploy/deployment-core';
-import { resolveBuildStrategy } from '../deployment/build-strategy.js';
+import { resolveBuildStrategy, resolveRuntimeSpec } from '../deployment/build-strategy.js';
+import { resolveImageDigest } from '../deployment/oci-image.js';
+import { loadRegistryCredential, withDockerConfig } from '../deployment/registry-auth.js';
+import { scanImage } from '../deployment/image-scan.js';
 import { createBuildExecutor } from '../deployment/build-executor.js';
 import { deleteRegistryManifest } from '../deployment/registry.js';
 
@@ -103,6 +111,7 @@ const defaultDeps = {
   writePlatformDockerignore,
   listRootEnvFiles,
   readOptionalContextFile,
+  readContainedFile,
   resolveBuildProfile,
   writeDockerfile,
   buildDockerImage,
@@ -112,8 +121,15 @@ const defaultDeps = {
   enqueueActivateRelease,
   notifyDeploymentResult,
   deleteRegistryManifest,
+  resolveImageDigest,
+  loadRegistryCredential,
+  withDockerConfig,
+  scanImage,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
+
+// Owner Dockerfiles and ignore files are small; anything larger is refused.
+const OWNER_BUILD_FILE_MAX_BYTES = 64 * 1024;
 
 async function removeBuiltArtifact(builtImage, imageTag, deps) {
   if (builtImage?.imageRef?.includes('@sha256:') && deps.deleteRegistryManifest) {
@@ -230,6 +246,31 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     });
     return;
   }
+  // Owner Dockerfiles run their own code during the build, so they never reach
+  // the shared local daemon, whatever the flag validation allowed.
+  if (buildStrategy === BuildStrategy.DOCKERFILE_V1 && env.BUILD_EXECUTOR !== 'remote-buildkit') {
+    await failBuild({
+      failureCode: 'BUILD_STRATEGY_DISABLED',
+      failureSummary: 'Dockerfile builds run only on the isolated remote builder.',
+      completedAt: new Date(),
+    });
+    return;
+  }
+  if (buildStrategy === BuildStrategy.OCI_IMAGE_V1) {
+    return deployOwnerImage({
+      job,
+      deps,
+      snapshot,
+      project,
+      projectId,
+      deploymentId,
+      correlationId,
+      imageTag,
+      buildConfiguration,
+      workDir,
+      failBuild,
+    });
+  }
 
   if (repo.accessStatus !== 'ACTIVE') {
     await failBuild({
@@ -321,7 +362,25 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
 
   // ── Prepare build context ───────────────────────────────────────────────────
   let contextDir = workDir;
+  let ownerDockerfile = null;
+  let ownerIgnore = [];
   try {
+    if (buildStrategy === BuildStrategy.DOCKERFILE_V1) {
+      const ownerRoot = await deps.resolveApplicationRoot(
+        workDir,
+        buildConfiguration.applicationRoot ?? '.',
+      );
+      ownerDockerfile = await deps.readContainedFile(
+        ownerRoot,
+        buildConfiguration.dockerfilePath || 'Dockerfile',
+        OWNER_BUILD_FILE_MAX_BYTES,
+      );
+      ownerIgnore = ownerIgnorePatterns(
+        await deps.readContainedFile(ownerRoot, '.dockerignore', OWNER_BUILD_FILE_MAX_BYTES, {
+          optional: true,
+        }),
+      );
+    }
     await deps.prepareBuildContext(workDir);
     // V1 jobs predate application roots and must retain their exact repository-
     // root behavior during the rolling upgrade. V2 jobs consume the immutable
@@ -353,6 +412,31 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     return;
   }
 
+  if (ownerDockerfile !== null) {
+    const violations = findDockerfilePolicyViolations(ownerDockerfile);
+    if (violations.length > 0) {
+      for (const violation of violations) {
+        await logEvent(
+          deploymentId,
+          'VALIDATE',
+          'ERROR',
+          `Dockerfile line ${violation.line}: ${violation.message}`,
+          correlationId,
+        );
+      }
+      await failBuild({
+        failureCode: 'DOCKERFILE_POLICY_VIOLATION',
+        failureSummary: violations
+          .map((violation) => `Line ${violation.line}: ${violation.message}`)
+          .join(' ')
+          .slice(0, 1000),
+        completedAt: new Date(),
+      });
+      await deps.cleanupBuildWorkspace(workDir);
+      return;
+    }
+  }
+
   let buildProfile;
   try {
     buildProfile = await deps.resolveBuildProfile({
@@ -372,7 +456,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       buildStrategy !== BuildStrategy.LEGACY_GENERATED;
     const rootEnvFiles = await deps.listRootEnvFiles(contextDir);
     if (shouldExcludeContextFiles) {
-      await deps.writePlatformDockerignore(contextDir);
+      await deps.writePlatformDockerignore(contextDir, ownerIgnore);
       if (rootEnvFiles.length > 0) {
         await logEvent(
           deploymentId,
@@ -487,18 +571,25 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       }
       javaVersion = resolved.version;
     }
-    buildSpec = resolveBuildStrategy({
-      pythonVersion,
-      phpVersion,
-      javaVersion,
-      snapshot: {
-        buildStrategy,
-        runtimeType,
-        buildConfiguration,
-      },
-      buildArgNames: Object.keys(publicBuildEnv),
-      templateVersion: buildProfile.templateVersion,
-    });
+    buildSpec =
+      ownerDockerfile !== null
+        ? {
+            strategyId: buildStrategy,
+            dockerfileContent: ownerDockerfile,
+            runtime: resolveRuntimeSpec({ buildStrategy, runtimeType, buildConfiguration }),
+          }
+        : resolveBuildStrategy({
+            pythonVersion,
+            phpVersion,
+            javaVersion,
+            snapshot: {
+              buildStrategy,
+              runtimeType,
+              buildConfiguration,
+            },
+            buildArgNames: Object.keys(publicBuildEnv),
+            templateVersion: buildProfile.templateVersion,
+          });
     await deps.writeDockerfile(contextDir, buildSpec.dockerfileContent);
     await logEvent(
       deploymentId,
@@ -604,6 +695,56 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   if (
+    isContainerBuildStrategy(buildStrategy) &&
+    !(await enforceImageScan({
+      imageRef: builtImage.imageRef,
+      deps,
+      deploymentId,
+      correlationId,
+      failBuild,
+    }))
+  ) {
+    await removeBuiltArtifact(builtImage, imageTag, deps);
+    await deps.cleanupBuildWorkspace(workDir);
+    return;
+  }
+
+  return finishBuild({
+    job,
+    deps,
+    snapshot,
+    projectId,
+    deploymentId,
+    correlationId,
+    imageTag,
+    builtImage,
+    runtime: buildSpec.runtime,
+    quota,
+    workDir,
+    failBuild,
+  });
+}
+
+/**
+ * Record a ready image and queue its activation. Shared by builds and by
+ * prebuilt owner images, which skip cloning and building.
+ */
+async function finishBuild({
+  job,
+  deps,
+  snapshot,
+  projectId,
+  deploymentId,
+  correlationId,
+  imageTag,
+  builtImage,
+  runtime,
+  quota,
+  workDir,
+  failBuild,
+  ownsImage = true,
+}) {
+  if (
     snapshot &&
     !(await Project.exists({
       _id: projectId,
@@ -615,7 +756,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       failureSummary: 'Environment variables changed while this deployment was building.',
       completedAt: new Date(),
     });
-    await removeBuiltArtifact(builtImage, imageTag, deps);
+    if (ownsImage) {
+      await removeBuiltArtifact(builtImage, imageTag, deps);
+    }
     await deps.cleanupBuildWorkspace(workDir);
     return;
   }
@@ -649,8 +792,8 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         deploymentId,
         imageId: builtImage.imageRef,
         imageDigest: builtImage.imageDigest,
-        targetPort: buildSpec.runtime.appPort,
-        runtimeSpec: buildSpec.runtime,
+        targetPort: runtime.appPort,
+        runtimeSpec: runtime,
         environmentVersion: snapshot?.environmentVersion,
         resourceLimits: toResourceLimits(quota),
       },
@@ -669,7 +812,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       failureSummary: `Could not enqueue release activation: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
-    await removeBuiltArtifact(builtImage, imageTag, deps);
+    if (ownsImage) {
+      await removeBuiltArtifact(builtImage, imageTag, deps);
+    }
     return;
   }
 
@@ -677,5 +822,148 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     deploymentId,
     imageTag,
     projectId,
+  });
+}
+
+/**
+ * Scan an owner image when a scanner is configured. Returns false after
+ * failing the deployment, so the caller only cleans up.
+ */
+async function enforceImageScan({
+  imageRef,
+  dockerConfigDir,
+  deps,
+  deploymentId,
+  correlationId,
+  failBuild,
+}) {
+  if (env.IMAGE_SCANNER !== 'trivy') {
+    return true;
+  }
+  let result;
+  try {
+    result = await deps.scanImage(imageRef, { dockerConfigDir });
+  } catch (error) {
+    await failBuild({
+      failureCode: 'IMAGE_POLICY_FAILED',
+      failureSummary: error.message.slice(0, 1000),
+      completedAt: new Date(),
+    });
+    return false;
+  }
+  if (result.criticalCount > 0) {
+    await failBuild({
+      failureCode: 'IMAGE_POLICY_FAILED',
+      failureSummary:
+        `The image has ${result.criticalCount} fixable critical vulnerabilities (${result.ids.join(', ')}). Update the affected packages and deploy again.`.slice(
+          0,
+          1000,
+        ),
+      completedAt: new Date(),
+    });
+    return false;
+  }
+  await logEvent(
+    deploymentId,
+    'BUILD',
+    'INFO',
+    'Image scan found no fixable critical vulnerabilities.',
+    correlationId,
+  );
+  return true;
+}
+
+/**
+ * Deploy a prebuilt owner image: lock its reference to a digest, scan it, and
+ * queue activation. Nothing is cloned or built.
+ */
+async function deployOwnerImage({
+  job,
+  deps,
+  snapshot,
+  project,
+  projectId,
+  deploymentId,
+  correlationId,
+  imageTag,
+  buildConfiguration,
+  workDir,
+  failBuild,
+}) {
+  const reference = parseImageReference(buildConfiguration.imageReference);
+  if (reference.error) {
+    await failBuild({
+      failureCode: 'IMAGE_RESOLUTION_FAILED',
+      failureSummary: reference.error,
+      completedAt: new Date(),
+    });
+    return;
+  }
+  await updateStatus(deploymentId, DeploymentStatus.BUILDING);
+  await logEvent(
+    deploymentId,
+    'BUILD',
+    'INFO',
+    `Resolving prebuilt image ${reference.name}${reference.digest ? `@${reference.digest}` : `:${reference.tag}`}.`,
+    correlationId,
+  );
+
+  let credential;
+  try {
+    credential = await deps.loadRegistryCredential(projectId, reference.registry);
+  } catch {
+    await failBuild({
+      failureCode: 'SECRET_DECRYPTION_FAILED',
+      failureSummary: 'The saved registry credential could not be decrypted.',
+      completedAt: new Date(),
+    });
+    return;
+  }
+
+  let digest = reference.digest;
+  if (!digest) {
+    try {
+      digest = await deps.resolveImageDigest(reference, { credential });
+    } catch (error) {
+      await failBuild({
+        failureCode: 'IMAGE_RESOLUTION_FAILED',
+        failureSummary: error.message.slice(0, 1000),
+        completedAt: new Date(),
+      });
+      return;
+    }
+  }
+  const imageRef = `${reference.name}@${digest}`;
+  await logEvent(deploymentId, 'BUILD', 'INFO', `Locked image to ${imageRef}.`, correlationId);
+
+  const passedScan = await deps.withDockerConfig(
+    reference.registry,
+    credential,
+    (dockerConfigDir) =>
+      enforceImageScan({ imageRef, dockerConfigDir, deps, deploymentId, correlationId, failBuild }),
+  );
+  if (!passedScan) {
+    return;
+  }
+
+  const quota = await resolveProjectQuota(project._id, project.ownerId);
+  return finishBuild({
+    job,
+    deps,
+    snapshot,
+    projectId,
+    deploymentId,
+    correlationId,
+    imageTag,
+    builtImage: { imageRef, imageDigest: digest },
+    runtime: resolveRuntimeSpec({
+      buildStrategy: BuildStrategy.OCI_IMAGE_V1,
+      runtimeType: RuntimeType.CONTAINER,
+      buildConfiguration,
+    }),
+    quota,
+    workDir,
+    failBuild,
+    ownsImage: false,
   });
 }
