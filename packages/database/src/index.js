@@ -8,6 +8,10 @@ export { Quota } from './models/quota.model.js';
 export { ApprovalRequest } from './models/approval-request.model.js';
 export { Repository } from './models/repository.model.js';
 export { EnvironmentSecret } from './models/environment-secret.model.js';
+export {
+  RegistryCredential,
+  registryCredentialAadName,
+} from './models/registry-credential.model.js';
 export { Deployment } from './models/deployment.model.js';
 export { DeploymentEvent } from './models/deployment-event.model.js';
 export { Domain } from './models/domain.model.js';
