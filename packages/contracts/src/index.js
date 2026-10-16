@@ -11,3 +11,4 @@ export * from './build-strategies.js';
 export * from './email-content.js';
 export * from './deployment-environment.js';
 export * from './python-runtime.js';
+export * from './php-runtime.js';

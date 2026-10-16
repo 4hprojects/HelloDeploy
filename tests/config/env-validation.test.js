@@ -328,6 +328,16 @@ describe('production worker routing validation', () => {
     assert.match(result.stdout, /MULTIRUNTIME_PYTHON_V1_ENABLED requires remote-buildkit/);
   });
 
+  it('rejects enabling PHP strategies without the isolated build path', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      MULTIRUNTIME_PHP_V1_ENABLED: 'true',
+      MULTIRUNTIME_PHP_V1_PROJECT_IDS: '507f1f77bcf86cd799439011',
+      BUILD_EXECUTOR: 'local',
+    });
+    assert.match(result.stdout, /MULTIRUNTIME_PHP_V1_ENABLED requires remote-buildkit/);
+  });
+
   it('rejects a nonproduction environment id on a production worker', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

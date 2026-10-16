@@ -6,8 +6,10 @@ import {
   DetectionStatus,
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
+  PHP_PORT,
   normalizeApplicationRoot,
   normalizePythonPackageName,
+  resolvePhpVersion,
   parsePythonRequirementNames,
   resolvePythonVersion,
 } from '@hellodeploy/contracts';
@@ -243,8 +245,130 @@ function detectPythonRuntime(files) {
   };
 }
 
-function detectPhpRuntime() {
-  return null;
+// ─── PHP detection ────────────────────────────────────────────────────────────
+
+const PHP_ENTRY_PATHS = Object.freeze([
+  'composer.lock',
+  'artisan',
+  'public/index.php',
+  'wp-settings.php',
+]);
+
+// Fetched files are strings when present; an empty index.php still counts.
+const hasFile = (files, path) => typeof files[path] === 'string';
+
+function hasPhpMarkers(files) {
+  return hasFile(files, 'composer.json') || hasFile(files, 'index.php');
+}
+
+/**
+ * Recognize a plain PHP site or a Laravel app. Returns null when the repository
+ * has neither composer.json nor index.php.
+ */
+function detectPhpRuntime(files) {
+  if (!hasPhpMarkers(files)) {
+    return null;
+  }
+  const unknown = (message) => ({
+    runtimeType: RuntimeType.UNKNOWN,
+    buildCommand: null,
+    startCommand: null,
+    outputDirectory: null,
+    applicationPort: null,
+    issues: [{ level: 'ERROR', message }],
+    isValid: false,
+  });
+  if (hasFile(files, 'wp-settings.php')) {
+    return unknown(
+      'WordPress is not supported yet. It needs persistent uploads and plugin storage, which HelloDeploy does not provide.',
+    );
+  }
+
+  const issues = [];
+  let composer = null;
+  if (hasFile(files, 'composer.json')) {
+    try {
+      composer = JSON.parse(files['composer.json']);
+    } catch {
+      return unknown('composer.json is not valid JSON.');
+    }
+  }
+  const isLaravel = Boolean(composer?.require?.['laravel/framework']) && hasFile(files, 'artisan');
+  let documentRoot = null;
+  if (isLaravel || (!hasFile(files, 'index.php') && hasFile(files, 'public/index.php'))) {
+    documentRoot = 'public';
+  } else if (hasFile(files, 'index.php')) {
+    documentRoot = '.';
+  }
+  if (!documentRoot) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'No index.php was found in the repository root or the public folder. Add one so the web server has a page to run.',
+    });
+  }
+
+  if (composer && !hasFile(files, 'composer.lock')) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'composer.lock was not found. Run composer install locally and commit composer.lock so every build installs the same packages.',
+    });
+  }
+  const phpVersion = resolvePhpVersion(files['composer.json'] ?? null);
+  if (phpVersion.error) {
+    issues.push({ level: 'ERROR', message: phpVersion.error });
+  }
+
+  let buildCommand = null;
+  if (isLaravel && files['package.json']) {
+    try {
+      if (JSON.parse(files['package.json']).scripts?.build) {
+        buildCommand = 'npm run build';
+        if (files['package-lock.json'] === null) {
+          issues.push({
+            level: 'ERROR',
+            message:
+              'Laravel frontend assets are built with npm ci, which needs package-lock.json. Commit it, or clear the build command if the app has no frontend build.',
+          });
+        }
+      }
+    } catch {
+      issues.push({
+        level: 'WARNING',
+        message: 'package.json is not valid JSON, so frontend assets will not be built.',
+      });
+    }
+  }
+
+  if (documentRoot === '.') {
+    issues.push({
+      level: 'WARNING',
+      message:
+        'Every file in the repository is publicly served except dotfiles, composer files, and vendor/. Keep private files out of the repository, or move the site into a public folder.',
+    });
+  }
+  if (isLaravel) {
+    issues.push({
+      level: 'INFO',
+      message:
+        'Laravel checklist: set APP_KEY (php artisan key:generate --show) as a HelloDeploy environment variable, use an external MySQL or MariaDB database, and run migrations yourself; HelloDeploy never runs them during a deploy. Logs go to the deployment log. Queues, the scheduler, and uploaded files that must persist are not supported.',
+    });
+  }
+
+  return {
+    runtimeType: RuntimeType.PHP,
+    buildCommand,
+    startCommand: null,
+    outputDirectory: documentRoot,
+    applicationPort: PHP_PORT,
+    issues,
+    isValid: !issues.some((issue) => issue.level === 'ERROR'),
+    recommendedBuildStrategy: isLaravel ? BuildStrategy.PHP_LARAVEL_V1 : BuildStrategy.PHP_PLAIN_V1,
+    strategyRationale: isLaravel
+      ? 'laravel/framework and artisan were found, so the Laravel image serving public/ is recommended.'
+      : `index.php was found${documentRoot === 'public' ? ' in public/' : ''}, so the plain PHP image is recommended.`,
+  };
 }
 
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
@@ -539,6 +663,8 @@ const FILES_TO_FETCH = [
   'requirements.txt',
   'pyproject.toml',
   '.python-version',
+  'composer.json',
+  'index.php',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -633,7 +759,7 @@ export async function fetchProjectFiles(installationId, fullName, ref, applicati
       files[path] = null;
     }
   });
-  return addPythonEntryFiles(files, (path) =>
+  return addBackendEntryFiles(files, (path) =>
     fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
   );
 }
@@ -653,19 +779,20 @@ export async function fetchProjectFilesForRepository(repository, ref, applicatio
   FILES_TO_FETCH.forEach((path, index) => {
     files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
   });
-  return addPythonEntryFiles(files, (path) =>
+  return addBackendEntryFiles(files, (path) =>
     fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
   );
 }
 
-// Entry-point candidates are fetched only for Python repositories, keeping the
-// per-detection GitHub request count unchanged for everything else.
-async function addPythonEntryFiles(files, fetchFile) {
-  if (!hasPythonMarkers(files)) {
-    return files;
-  }
-  const results = await Promise.allSettled(PYTHON_ENTRY_PATHS.map(fetchFile));
-  PYTHON_ENTRY_PATHS.forEach((path, index) => {
+// Entry-point candidates are fetched only for repositories with backend
+// markers, keeping the per-detection GitHub request count down for the rest.
+async function addBackendEntryFiles(files, fetchFile) {
+  const paths = [
+    ...(hasPythonMarkers(files) ? PYTHON_ENTRY_PATHS : []),
+    ...(hasPhpMarkers(files) ? PHP_ENTRY_PATHS : []),
+  ];
+  const results = await Promise.allSettled(paths.map(fetchFile));
+  paths.forEach((path, index) => {
     files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
   });
   return files;

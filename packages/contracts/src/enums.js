@@ -184,6 +184,7 @@ export const RuntimeType = Object.freeze({
   VUE: 'VUE',
   NEXTJS: 'NEXTJS',
   PYTHON: 'PYTHON',
+  PHP: 'PHP',
   UNKNOWN: 'UNKNOWN',
 });
 

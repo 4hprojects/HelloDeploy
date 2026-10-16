@@ -407,6 +407,125 @@ describe('detectRuntime — PYTHON', () => {
   });
 });
 
+// ── PHP ───────────────────────────────────────────────────────────────────────
+
+describe('detectRuntime — PHP', () => {
+  const laravelComposer = JSON.stringify({
+    require: { php: '^8.2', 'laravel/framework': '^11.0' },
+  });
+
+  it('detects a plain PHP site served from the repository root', () => {
+    const result = detectRuntime(files({ 'index.php': '<?php echo "hi";' }));
+    assert.deepEqual(
+      [result.runtimeType, result.recommendedBuildStrategy, result.outputDirectory, result.isValid],
+      ['PHP', 'php_plain_v1', '.', true],
+    );
+  });
+
+  it('warns that a root document root publishes every repository file', () => {
+    const result = detectRuntime(files({ 'index.php': '<?php echo "hi";' }));
+    assert.ok(result.issues.some((issue) => issue.message.includes('publicly served')));
+  });
+
+  it('serves a composer project with public/index.php from public', () => {
+    const result = detectRuntime(
+      files({
+        'composer.json': JSON.stringify({ require: { 'slim/slim': '^4.0' } }),
+        'composer.lock': '{}',
+        'public/index.php': '<?php',
+      }),
+    );
+    assert.equal(result.outputDirectory, 'public');
+  });
+
+  it('detects Laravel and serves its public folder', () => {
+    const result = detectRuntime(
+      files({
+        'composer.json': laravelComposer,
+        'composer.lock': '{}',
+        artisan: '#!/usr/bin/env php',
+      }),
+    );
+    assert.deepEqual(
+      [result.recommendedBuildStrategy, result.outputDirectory, result.applicationPort],
+      ['php_laravel_v1', 'public', 8080],
+    );
+  });
+
+  it('builds Laravel frontend assets when package.json has a build script', () => {
+    const result = detectRuntime(
+      files({
+        'composer.json': laravelComposer,
+        'composer.lock': '{}',
+        artisan: '#!/usr/bin/env php',
+        'package.json': pkg({
+          devDependencies: { vite: '6.0.0' },
+          scripts: { build: 'vite build' },
+        }),
+        'package-lock.json': '{}',
+      }),
+    );
+    assert.equal(result.buildCommand, 'npm run build');
+  });
+
+  it('detects Laravel over the Vue frontend in the same repository', () => {
+    const result = detectRuntime(
+      files({
+        'composer.json': laravelComposer,
+        'composer.lock': '{}',
+        artisan: '#!/usr/bin/env php',
+        'package.json': pkg({ dependencies: { vue: '3.5.0' }, scripts: { build: 'vite build' } }),
+        'package-lock.json': '{}',
+        'vite.config.js': 'export default {}',
+      }),
+    );
+    assert.equal(result.runtimeType, 'PHP');
+  });
+
+  it('requires composer.lock for a composer project', () => {
+    const result = detectRuntime(
+      files({ 'composer.json': laravelComposer, artisan: '#!/usr/bin/env php' }),
+    );
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'ERROR' && issue.message.includes('composer.lock'),
+      ),
+    );
+  });
+
+  it('rejects a PHP constraint no supported version satisfies', () => {
+    const result = detectRuntime(
+      files({
+        'composer.json': JSON.stringify({ require: { php: '^7.4' } }),
+        'composer.lock': '{}',
+        'index.php': '<?php',
+      }),
+    );
+    assert.equal(result.isValid, false);
+  });
+
+  it('reports WordPress as not supported yet', () => {
+    const result = detectRuntime(files({ 'index.php': '<?php', 'wp-settings.php': '<?php' }));
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('WordPress')),
+    );
+  });
+
+  it('asks for an index.php when a composer project has no entry point', () => {
+    const result = detectRuntime(
+      files({ 'composer.json': JSON.stringify({ require: {} }), 'composer.lock': '{}' }),
+    );
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('index.php')),
+    );
+  });
+
+  it('serves a site with index.php and index.html as PHP, not static files', () => {
+    const result = detectRuntime(files({ 'index.php': '<?php', 'index.html': '<html/>' }));
+    assert.equal(result.runtimeType, 'PHP');
+  });
+});
+
 // ── REACT (CRA) ───────────────────────────────────────────────────────────────
 
 describe('detectRuntime — REACT (CRA)', () => {

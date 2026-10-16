@@ -8,6 +8,8 @@ export const BuildStrategy = Object.freeze({
   PYTHON_FLASK_V1: 'python_flask_v1',
   PYTHON_FASTAPI_V1: 'python_fastapi_v1',
   PYTHON_DJANGO_V1: 'python_django_v1',
+  PHP_PLAIN_V1: 'php_plain_v1',
+  PHP_LARAVEL_V1: 'php_laravel_v1',
 });
 
 export const NEXT_BUILD_STRATEGIES = Object.freeze([
@@ -30,6 +32,15 @@ export function isPythonBuildStrategy(value) {
   return PYTHON_BUILD_STRATEGIES.includes(value);
 }
 
+export const PHP_BUILD_STRATEGIES = Object.freeze([
+  BuildStrategy.PHP_PLAIN_V1,
+  BuildStrategy.PHP_LARAVEL_V1,
+]);
+
+export function isPhpBuildStrategy(value) {
+  return PHP_BUILD_STRATEGIES.includes(value);
+}
+
 /** The runtime a versioned strategy requires; the legacy strategy is not bound to one. */
 export function getBuildStrategyRuntime(strategy) {
   if (isNextBuildStrategy(strategy)) {
@@ -37,6 +48,9 @@ export function getBuildStrategyRuntime(strategy) {
   }
   if (isPythonBuildStrategy(strategy)) {
     return RuntimeType.PYTHON;
+  }
+  if (isPhpBuildStrategy(strategy)) {
+    return RuntimeType.PHP;
   }
   return null;
 }
@@ -84,7 +98,7 @@ export function normalizeApplicationRoot(value) {
  *
  * @param {string|null|undefined} strategy
  * @param {unknown} projectId
- * @param {{ next: Pilot, python: Pilot }} pilots
+ * @param {{ next: Pilot, python: Pilot, php: Pilot }} pilots
  * @typedef {{ enabled: boolean, projectIds: Set<string> }} Pilot
  */
 export function isPilotStrategyEnabledFor(strategy, projectId, pilots) {
@@ -95,6 +109,8 @@ export function isPilotStrategyEnabledFor(strategy, projectId, pilots) {
     ? pilots.next
     : isPythonBuildStrategy(strategy)
       ? pilots.python
-      : null;
+      : isPhpBuildStrategy(strategy)
+        ? pilots.php
+        : null;
   return Boolean(pilot?.enabled && pilot.projectIds.has(String(projectId ?? '').toLowerCase()));
 }
