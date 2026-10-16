@@ -1,0 +1,14 @@
+{
+  "name": "hellodeploy-fixture-next16-standalone-app",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "next start"
+  },
+  "dependencies": {
+    "next": "16.4.2",
+    "react": "19.2.0",
+    "react-dom": "19.2.0"
+  }
+}
