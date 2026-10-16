@@ -8,6 +8,7 @@ import {
   required,
   optional,
   ConfigurationError,
+  isValidNonproductionEnvironmentId,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 import {
@@ -67,6 +68,20 @@ const userImageOptimizedProjectIds = parseOptimizedProjectIds(
 const buildExecutor = optional('BUILD_EXECUTOR', 'local');
 if (!['local', 'remote-buildkit'].includes(buildExecutor)) {
   throw new ConfigurationError('BUILD_EXECUTOR must be local or remote-buildkit.');
+}
+const nonproductionEnvironmentId =
+  optional('HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID', '').trim() || null;
+if (nonproductionEnvironmentId && !isValidNonproductionEnvironmentId(nonproductionEnvironmentId)) {
+  throw new ConfigurationError(
+    'HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID must be 8-128 letters, digits, hyphens, or underscores and start with a letter or digit.',
+  );
+}
+// A production worker carrying a pilot id would register a fresh production
+// database as nonproduction and then refuse the real marker on later starts.
+if (nonproductionEnvironmentId && production) {
+  throw new ConfigurationError(
+    'HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID must not be set when NODE_ENV=production.',
+  );
 }
 const userImageRegistry = optional('USER_IMAGE_REGISTRY', '').replace(/\/$/, '').toLowerCase();
 if (userImageRegistry && !/^ghcr\.io\/[a-z0-9_.-]+\/[a-z0-9_./-]+$/.test(userImageRegistry)) {
@@ -194,6 +209,7 @@ export const env = {
   BUILD_MEMORY_MB: buildMemoryMb,
   BUILD_BUILDER_NAME: buildBuilderName,
   BUILD_EXECUTOR: buildExecutor,
+  HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: nonproductionEnvironmentId,
   USER_IMAGE_REGISTRY: userImageRegistry,
   REGISTRY_MANIFEST_DELETE_ENABLED: registryManifestDeleteEnabled,
   MULTIRUNTIME_NEXT_V1_ENABLED: multiRuntimeNextV1Enabled,

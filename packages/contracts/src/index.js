@@ -9,3 +9,4 @@ export * from './status-presentation.js';
 export * from './subdomains.js';
 export * from './build-strategies.js';
 export * from './email-content.js';
+export * from './deployment-environment.js';

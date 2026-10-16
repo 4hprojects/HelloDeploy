@@ -290,6 +290,14 @@ describe('production worker routing validation', () => {
     assert.equal(result.status, 0, result.stdout || result.stderr);
   });
 
+  it('rejects a nonproduction environment id on a production worker', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: 'pilot-environment-01',
+    });
+    assert.match(result.stdout, /must not be set when NODE_ENV=production/);
+  });
+
   it('rejects enabling Next.js strategies without the complete isolated build path', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

@@ -94,7 +94,7 @@ await connectDatabase(env.MONGODB_URI);
 logger.info('Worker: database connected');
 await guardWorkerDatabase({
   isProduction: env.NODE_ENV === 'production',
-  nginxEnabled: env.NGINX_ENABLED,
+  nonproductionEnvironmentId: env.HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID,
 });
 
 configureAuditService(AuditEvent);

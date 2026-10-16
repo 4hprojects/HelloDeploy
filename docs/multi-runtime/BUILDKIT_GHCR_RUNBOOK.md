@@ -29,9 +29,12 @@ REGISTRY_MANIFEST_DELETE_ENABLED=true
 WORKER_CONCURRENCY=1
 MULTIRUNTIME_NEXT_V1_ENABLED=true
 MULTIRUNTIME_NEXT_V1_PROJECT_IDS=OBJECT_ID
+HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID=UNIQUE_NONPRODUCTION_ID
 ```
 
-The GHCR prefix must be lowercase. The web and worker must receive the same flag and
+The first worker start registers the database under that id. Later workers and the
+acceptance harness refuse a database registered to another id or to production, so
+use the same value as the acceptance `confirmationId`. The GHCR prefix must be lowercase. The web and worker must receive the same flag and
 allowlist. Restarting the worker runs `docker buildx inspect ... --bootstrap` and a
 read-only ORAS tag probe. Remote mode never creates a local fallback builder.
 

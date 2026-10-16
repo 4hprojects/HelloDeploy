@@ -9,7 +9,9 @@ import { promisify } from 'node:util';
 import {
   IN_FLIGHT_STATUSES,
   TERMINAL_STATUSES,
+  assertAcceptanceEnvironment,
   assertImmutableDeployment,
+  assertPrivateCanary,
   assertProtectedConfigMode,
   checkRoute,
   evaluateDockerInspect,
@@ -94,14 +96,12 @@ async function inspectPlatformState(config, manifest, database, queueClient) {
     if (inFlight) {
       throw new Error(`Fixture project ${fixture.id} has an in-flight deployment.`);
     }
-    if (
-      fixture.id === 'private-secret-probe' &&
-      !(await EnvironmentSecret.exists({
+    if (fixture.id === 'private-secret-probe') {
+      const canary = await EnvironmentSecret.findOne({
         projectId: project._id,
         name: 'ACCEPTANCE_PRIVATE_CANARY',
-      }))
-    ) {
-      throw new Error('Private-secret fixture is missing ACCEPTANCE_PRIVATE_CANARY.');
+      }).lean();
+      assertPrivateCanary(canary, config.privateCanary);
     }
     projects.push({ fixture, protectedProject, project });
   }
@@ -559,6 +559,10 @@ async function main() {
 
   const database = await import('@hellodeploy/database');
   await database.connectDatabase(process.env.MONGODB_URI);
+  const environmentSetting = await database.PlatformSetting.findOne({
+    key: 'deployment-environment',
+  }).lean();
+  assertAcceptanceEnvironment(environmentSetting?.value, config.confirmationId);
   const queueClient = await import('../apps/web/src/queue/client.js');
   try {
     const entries = await runPreflight(config, manifest, database, queueClient);

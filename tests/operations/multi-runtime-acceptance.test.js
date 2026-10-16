@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
@@ -6,6 +7,8 @@ import { ReadableStream } from 'node:stream/web';
 import { describe, it } from 'node:test';
 import {
   assertProtectedConfigMode,
+  assertAcceptanceEnvironment,
+  assertPrivateCanary,
   checkRoute,
   evaluateDockerInspect,
   measureStreaming,
@@ -137,6 +140,72 @@ describe('multi-runtime acceptance CLI gates', () => {
       () => assertProtectedConfigMode({ mode: 0o100644, isFile: () => true }),
       /group or others/,
     );
+  });
+
+  it('requires an exact nonproduction database identity', () => {
+    const marker = {
+      schemaVersion: 1,
+      environmentClass: 'nonproduction',
+      environmentId: 'acceptance-lab-01',
+    };
+    assert.equal(assertAcceptanceEnvironment(marker, 'acceptance-lab-01'), marker);
+    for (const invalid of [
+      undefined,
+      'production',
+      { ...marker, schemaVersion: 2 },
+      { ...marker, environmentId: 'different-lab-01' },
+    ]) {
+      assert.throws(() => assertAcceptanceEnvironment(invalid, 'acceptance-lab-01'));
+    }
+  });
+
+  it('requires the decrypted private canary to match without exposing it', () => {
+    const record = {
+      projectId: '0123456789abcdef01234567',
+      name: 'ACCEPTANCE_PRIVATE_CANARY',
+      ciphertext: 'opaque',
+      iv: 'opaque',
+      authTag: 'opaque',
+      encryptionVersion: 1,
+      aadBound: true,
+    };
+    assert.equal(
+      assertPrivateCanary(record, 'expected-value-1234', () => 'expected-value-1234'),
+      true,
+    );
+    assert.throws(
+      () => assertPrivateCanary(record, 'expected-value-1234', () => 'different-value-123'),
+      /missing or does not match/,
+    );
+    assert.throws(
+      () =>
+        assertPrivateCanary(record, 'expected-value-1234', () => {
+          throw new Error('ciphertext details');
+        }),
+      /missing or does not match/,
+    );
+  });
+
+  it('fails the fixture build if the runtime-only canary is present', () => {
+    const probe = new URL(
+      '../fixtures/multi-runtime/private-secret-probe/check-build-env.js',
+      import.meta.url,
+    ).pathname;
+    const environmentWithoutCanary = { ...process.env };
+    delete environmentWithoutCanary.ACCEPTANCE_PRIVATE_CANARY;
+    const absent = spawnSync(process.execPath, [probe], {
+      encoding: 'utf8',
+      env: environmentWithoutCanary,
+    });
+    assert.equal(absent.status, 0);
+    assert.equal(absent.stdout, 'private-build-secret-absent\n');
+
+    const present = spawnSync(process.execPath, [probe], {
+      encoding: 'utf8',
+      env: { ...process.env, ACCEPTANCE_PRIVATE_CANARY: 'must-not-appear' },
+    });
+    assert.equal(present.status, 1);
+    assert.doesNotMatch(`${present.stdout}${present.stderr}`, /must-not-appear/);
   });
 });
 

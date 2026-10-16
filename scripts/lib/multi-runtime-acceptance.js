@@ -1,4 +1,10 @@
 import path from 'node:path';
+import { timingSafeEqual } from 'node:crypto';
+import {
+  LEGACY_PRODUCTION_ENVIRONMENT,
+  isNonproductionEnvironmentMarker,
+} from '@hellodeploy/contracts';
+import { buildSecretAad, decrypt } from '@hellodeploy/security';
 
 export const ACCEPTANCE_SCHEMA_VERSION = 1;
 export const FULL_SHA_PATTERN = /^[0-9a-f]{40}$/;
@@ -196,6 +202,45 @@ export function validateAcceptanceConfig(config, manifest, options = {}) {
     }
   }
   return config;
+}
+
+export function assertAcceptanceEnvironment(marker, confirmationId) {
+  if (marker === LEGACY_PRODUCTION_ENVIRONMENT) {
+    throw new Error('Acceptance refuses a production database.');
+  }
+  if (!isNonproductionEnvironmentMarker(marker)) {
+    throw new Error('Acceptance requires a registered nonproduction database.');
+  }
+  if (marker.environmentId !== confirmationId) {
+    throw new Error('Acceptance environment identity does not match the protected configuration.');
+  }
+  return marker;
+}
+
+export function assertPrivateCanary(record, expectedValue, decryptImpl = decrypt) {
+  const failure = () => new Error('Private-secret fixture canary is missing or does not match.');
+  if (!record || typeof expectedValue !== 'string') {
+    throw failure();
+  }
+  try {
+    const actualValue = decryptImpl({
+      ciphertext: record.ciphertext,
+      iv: record.iv,
+      authTag: record.authTag,
+      version: record.encryptionVersion,
+      aad: record.aadBound
+        ? buildSecretAad({ projectId: record.projectId, name: record.name })
+        : undefined,
+    });
+    const actual = Buffer.from(actualValue, 'utf8');
+    const expected = Buffer.from(expectedValue, 'utf8');
+    if (actual.length !== expected.length || !timingSafeEqual(actual, expected)) {
+      throw failure();
+    }
+  } catch {
+    throw failure();
+  }
+  return true;
 }
 
 export function assertProtectedConfigMode(stat) {
