@@ -96,6 +96,20 @@
       "probePath": "/acceptance"
     },
     {
+      "id": "php-plain",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-plain",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_plain_v1",
+      "probePath": "/acceptance.php"
+    },
+    {
+      "id": "php-composer",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-composer",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_plain_v1",
+      "probePath": "/acceptance.php"
+    },
+    {
       "id": "rollback-marker",
       "applicationRoot": "tests/fixtures/multi-runtime/rollback-marker",
       "runtimeType": "NODEJS",

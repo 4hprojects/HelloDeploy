@@ -20,6 +20,22 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### P3A PHP (2026-10-17)
+
+- Detection lets a recognized backend framework own repositories where Node found only a
+  frontend build, a static site, or nothing.
+- Added the `PHP` runtime, `php_plain_v1` and `php_laravel_v1` strategies, PHP 8.3/8.4
+  selection from `require.php`, and the `MULTIRUNTIME_PHP_V1_*` pilot flag.
+- Detection recognizes plain PHP (root or `public/`), Laravel, and WordPress (rejected),
+  requires `composer.lock`, and builds Laravel assets when `package.json` has a build
+  script.
+- PHP images run Apache with mod_php as `www-data` on port 8080, deny dotfiles, Composer
+  metadata, and `vendor/`, cap workers at eight, and make only Laravel storage writable.
+- The build form offers the app type and document root; deploys ask an enabled PHP project
+  to save its app type first.
+- Added plain PHP and Composer-autoload fixtures. A Laravel fixture is still pending (see
+  STATUS).
+
 ### P2 Python (2026-10-17)
 
 - Added the `PYTHON` runtime, Flask/FastAPI/Django strategies, the `applicationModule`

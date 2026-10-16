@@ -78,6 +78,25 @@ detection 46/46; Dockerfile generator 57/57; Python build job 3/3; config valida
 detection, API) 1,130/1,130; worker, deployment, security, config, contract, and detection
 suites 796/796. Phase gate: 179 files plus API and contract suites, 1,636/1,636. Playwright browser tests were not run.
 
+## 2026-10-17 P3A PHP
+
+| Requirement (`05_PHASE_3_PHP_JAVA.md`, part A)                              | State               | Evidence                                                                                               |
+| --------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------ |
+| Detect `composer.json` and Laravel signatures                               | Repository-complete | `laravel/framework` plus `artisan`; WordPress rejected                                                 |
+| Approved PHP versions and extensions                                        | Repository-complete | 8.3/8.4 from `require.php`; official extensions plus `pdo_mysql`                                       |
+| Reproducible Composer install                                               | Repository-complete | lockfile required by detection and enforced in the build                                               |
+| Deterministic document root and server config                               | Repository-complete | `.` or `public`; generated Apache site, no FastCGI port                                                |
+| Laravel `public/`, env, APP_KEY, storage and cache permissions, asset build | Repository-complete | `public` enforced; APP_KEY documented as a secret; storage/cache owned by `www-data`; Node asset stage |
+| Queues, scheduler, persistent storage tracked separately                    | Documented          | unsupported in the pilot                                                                               |
+| External MySQL/MariaDB only                                                 | Documented          | no database is provisioned                                                                             |
+| Laravel fixture                                                             | Pending             | needs a generated `composer.lock` (one Composer run)                                                   |
+| Live routing, logs, secrets, rollback, quotas, version errors               | Blocked (external)  | needs the BuildKit/GHCR acceptance run                                                                 |
+
+Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 180 files plus API and
+contract suites, 1,692/1,692; lint and format clean. The Composer fixture's
+`composer.lock` has no packages; its `content-hash` was computed
+with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

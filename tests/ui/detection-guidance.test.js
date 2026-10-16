@@ -216,6 +216,30 @@ describe('guided detection inputs', () => {
     assert.match(html, /id="detection-application-module-error"[^>]*>Application module must use/);
   });
 
+  it('offers the PHP app type and document root when the pilot is enabled', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p2',
+        runtimeType: 'PHP',
+        detection: { status: 'READY', recommendedBuildStrategy: 'php_laravel_v1' },
+        buildConfiguration: { outputDirectory: 'public' },
+      },
+      isStrategyEnabledFor: () => true,
+    });
+    assert.match(
+      html,
+      /<option value="php_laravel_v1" selected>[\s\S]*<option value="public" selected>public folder/,
+    );
+  });
+
+  it('explains the PHP pilot when it is not enabled for the project', async () => {
+    const html = await renderDetection({
+      project: { _id: 'p2', runtimeType: 'PHP', buildConfiguration: {} },
+      isStrategyEnabledFor: (strategy) => strategy === 'legacy_generated',
+    });
+    assert.match(html, /PHP apps are in a limited pilot/);
+  });
+
   it('shares runtime-aware fields across detection and project settings', () => {
     assert.match(detection, /partials\/guided-build-fields/);
     assert.match(settings, /partials\/guided-build-fields/);

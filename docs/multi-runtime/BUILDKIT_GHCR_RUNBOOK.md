@@ -31,6 +31,8 @@ MULTIRUNTIME_NEXT_V1_ENABLED=true
 MULTIRUNTIME_NEXT_V1_PROJECT_IDS=OBJECT_ID
 MULTIRUNTIME_PYTHON_V1_ENABLED=true
 MULTIRUNTIME_PYTHON_V1_PROJECT_IDS=OBJECT_ID
+MULTIRUNTIME_PHP_V1_ENABLED=true
+MULTIRUNTIME_PHP_V1_PROJECT_IDS=OBJECT_ID
 HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID=UNIQUE_NONPRODUCTION_ID
 ```
 
@@ -48,6 +50,9 @@ read-only ORAS tag probe. Remote mode never creates a local fallback builder.
 - Then test the Flask, FastAPI, and Django fixtures: healthy route, uid 10001 runtime,
   restart behavior, secret redaction, quota limits, and digest rollback. Record build
   duration and peak memory per framework.
+- Then test the plain PHP and Composer fixtures: `.php` execution, Composer autoloading,
+  `www-data` runtime, denied `composer.json` and `vendor/` paths, the eight-worker cap
+  under load, and digest rollback.
 - Verify build cleanup, cache/disk limits, log redaction, unauthorized registry denial,
   and network denial to each production control-plane endpoint.
 - Confirm a retained digest cannot be deleted and an unreferenced digest is removed.

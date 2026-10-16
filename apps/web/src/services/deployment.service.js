@@ -11,6 +11,7 @@ import {
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
   RuntimeType,
+  getBuildStrategyRuntime,
   isPythonBuildStrategy,
   validateApplicationModule,
 } from '@hellodeploy/contracts';
@@ -85,15 +86,26 @@ export function buildDeploymentJobPayload({
  *   buildConfiguration?: { applicationModule?: string|null } }} project
  * @param {(strategy: string|null|undefined, projectId: unknown) => boolean} isStrategyEnabledFor
  */
+const PILOT_RUNTIMES = Object.freeze({
+  [RuntimeType.PYTHON]: {
+    label: 'Python',
+    choice: 'Python framework',
+    strategy: BuildStrategy.PYTHON_FLASK_V1,
+  },
+  [RuntimeType.PHP]: { label: 'PHP', choice: 'PHP app type', strategy: BuildStrategy.PHP_PLAIN_V1 },
+});
+
 export function validateBuildStrategyReadiness(project, isStrategyEnabledFor) {
   if (!isStrategyEnabledFor(project.buildStrategy, project._id)) {
     return 'The selected deployment mode is not enabled for this project.';
   }
-  // The generated legacy images cover only the original Node-family runtimes.
-  if (project.runtimeType === RuntimeType.PYTHON && !isPythonBuildStrategy(project.buildStrategy)) {
-    return isStrategyEnabledFor(BuildStrategy.PYTHON_FLASK_V1, project._id)
-      ? 'Choose the Python framework in the build settings and save them before deploying.'
-      : 'Python apps are in a limited pilot that is not enabled for this project yet.';
+  // The generated legacy images cover only the original Node-family runtimes,
+  // so these runtimes need a saved strategy of their own.
+  const pilotRuntime = PILOT_RUNTIMES[project.runtimeType];
+  if (pilotRuntime && getBuildStrategyRuntime(project.buildStrategy) !== project.runtimeType) {
+    return isStrategyEnabledFor(pilotRuntime.strategy, project._id)
+      ? `Choose the ${pilotRuntime.choice} in the build settings and save them before deploying.`
+      : `${pilotRuntime.label} apps are in a limited pilot that is not enabled for this project yet.`;
   }
   if (
     isPythonBuildStrategy(project.buildStrategy) &&

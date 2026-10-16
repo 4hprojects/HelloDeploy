@@ -29,6 +29,9 @@
         ? _gbRecommendedStrategy
         : _gbStoredStrategy);
   const _gbPythonRuntime = _gbRuntime === 'PYTHON';
+  const _gbPhpRuntime = _gbRuntime === 'PHP';
+  const _gbPhpStrategiesEnabled = _gbStrategyEnabled('php_plain_v1');
+  const _gbPilotLabel = { PYTHON: 'Python', PHP: 'PHP' }[_gbRuntime] ?? null;
   const _gbStaticRuntime =
     ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
   const _gbBuiltStaticRuntime =
@@ -127,14 +130,34 @@
     <span id="<%= _gbId('application-module-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationModule %></span>
     <% } %>
   </div>
+  <% } else if (_gbPhpRuntime && _gbPhpStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">PHP app type</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="php_plain_v1" <%= _gbStrategy === 'php_plain_v1' ? 'selected' : '' %>>PHP site</option>
+      <option value="php_laravel_v1" <%= _gbStrategy === 'php_laravel_v1' ? 'selected' : '' %>>Laravel</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected type. HelloDeploy installs Composer packages from
+      <code class="code-inline">composer.lock</code> and serves the app with Apache.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
   <% } else { %>
   <input type="hidden" name="buildStrategy" value="<%= _gbStrategy %>" />
-  <% if (_gbPythonRuntime) { %>
+  <% if (_gbPilotLabel) { %>
   <div class="form-group guided-build-field--informational">
-    <span class="form-label">Python deployment</span>
+    <span class="form-label"><%= _gbPilotLabel %> deployment</span>
     <p class="form-hint">
-      Python apps are in a limited pilot and are not enabled for this project yet. Your settings are
-      saved, and you can deploy once the pilot is enabled.
+      <%= _gbPilotLabel %> apps are in a limited pilot and are not enabled for this project yet. Your
+      settings are saved, and you can deploy once the pilot is enabled.
     </p>
   </div>
   <% } %>
@@ -158,6 +181,10 @@
       <% } else if (_gbPythonRuntime) { %>
         Optional. Runs after dependencies are installed. Django apps that serve static files with
         WhiteNoise usually use <code class="code-inline">python manage.py collectstatic --noinput</code>.
+      <% } else if (_gbPhpRuntime) { %>
+        Laravel only: builds the frontend assets with npm, usually
+        <code class="code-inline">npm run build</code>. Leave it blank for a plain PHP site or a
+        Laravel app without a frontend build.
       <% } else if (_gbBuiltStaticRuntime || _gbRuntime === 'NEXTJS') { %>
         HelloDeploy found the command that prepares your app. Keep it unless the person who built
         the app gave you a different one. A common value is <code class="code-inline">npm run build</code>.
@@ -198,6 +225,28 @@
     <% } %>
   </div>
 
+  <% if (_gbPhpRuntime) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('output-directory') %>">Document root</label>
+    <select
+      class="form-select<%= _gbErrors.outputDirectory ? ' form-input--error' : '' %>"
+      id="<%= _gbId('output-directory') %>"
+      name="outputDirectory"
+      aria-describedby="<%= _gbId('output-directory-hint') %><%= _gbErrors.outputDirectory ? ` ${_gbId('output-directory-error')}` : '' %>"
+    >
+      <% const _gbDocumentRoot = _gbValue('outputDirectory', _gbConfig.outputDirectory) || '.'; %>
+      <option value="." <%= _gbDocumentRoot === '.' ? 'selected' : '' %>>Repository root</option>
+      <option value="public" <%= _gbDocumentRoot === 'public' ? 'selected' : '' %>>public folder</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('output-directory-hint') %>">
+      The folder visitors can reach. Laravel always uses <code class="code-inline">public</code>; with the
+      repository root, every file except dotfiles, Composer files, and <code class="code-inline">vendor</code> is public.
+    </p>
+    <% if (_gbErrors.outputDirectory) { %>
+    <span id="<%= _gbId('output-directory-error') %>" class="form-error" role="alert"><%= _gbErrors.outputDirectory %></span>
+    <% } %>
+  </div>
+  <% } else { %>
   <div class="form-group">
     <label class="form-label" for="<%= _gbId('output-directory') %>">Published folder</label>
     <input
@@ -226,8 +275,9 @@
     <span id="<%= _gbId('output-directory-error') %>" class="form-error" role="alert"><%= _gbErrors.outputDirectory %></span>
     <% } %>
   </div>
+  <% } %>
 
-  <% if (_gbStaticRuntime) { %>
+  <% if (_gbStaticRuntime || _gbPhpRuntime) { %>
   <div class="form-group guided-build-field--informational">
     <span class="form-label">App port</span>
     <p class="form-hint">

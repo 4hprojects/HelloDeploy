@@ -158,6 +158,39 @@ serve static files, add WhiteNoise and set the build command to
 Background workers, schedulers, persistent disks, and Python versions other than 3.12 and
 3.13 are not supported in the pilot.
 
+### PHP and Laravel apps (pilot)
+
+Allowlisted projects can deploy plain PHP sites and Laravel apps. HelloDeploy serves them
+with the official PHP Apache image, so `.php` files run directly and FastCGI is never
+exposed.
+
+- **App type and document root.** Detection picks **Laravel** when `composer.json` requires
+  `laravel/framework` and `artisan` exists; Laravel always serves `public/`. Other sites are
+  **PHP site**, served from the repository root when `index.php` is there or from `public/`
+  when only `public/index.php` exists.
+- **PHP version.** HelloDeploy uses the newest supported version (8.3 or 8.4) that
+  `require.php` in `composer.json` allows, or 8.3 without a constraint.
+- **Composer.** A project with `composer.json` must commit `composer.lock`; packages
+  install with `composer install --no-dev`. The `pdo_mysql` extension is added to the
+  official image's built-in extensions.
+- **Public files.** With the repository root as the document root, every file is reachable
+  except dotfiles, `composer.json`, `composer.lock`, `auth.json`, and `vendor/`. Keep
+  private files out of the repository or use a `public/` folder. Directory listings are
+  off and `.htaccess` files are honored.
+- **Laravel assets.** When `package.json` has a build script, the build command
+  `npm run build` compiles them in a separate Node stage (it needs `package-lock.json`),
+  and only `public/build` is copied into the image.
+
+For Laravel, set `APP_KEY` (from `php artisan key:generate --show`) as a HelloDeploy
+environment variable and use an external MySQL or MariaDB database. HelloDeploy never runs
+migrations during a deploy, so run them yourself before deploying code that needs them.
+Logs go to the deployment log (`LOG_CHANNEL=stderr`); `storage/` and `bootstrap/cache` are
+writable but are reset on every deploy.
+
+WordPress, queues, the scheduler, persistent uploads, and extensions other than the
+official image's defaults plus `pdo_mysql` are not supported in the pilot. Apache runs at
+most eight PHP workers per container to stay inside the memory and process limits.
+
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real
 BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
 does not make a mode generally available.

@@ -102,3 +102,29 @@ describe('validateUpdateBuildConfiguration — Python strategies', () => {
     assert.equal(errors.applicationModule, undefined);
   });
 });
+
+describe('validateUpdateBuildConfiguration — PHP strategies', () => {
+  it('accepts a plain PHP site served from the repository root', () => {
+    const { hasErrors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_plain_v1',
+      outputDirectory: '.',
+    });
+    assert.equal(hasErrors, false);
+  });
+
+  it('rejects a document root outside the two layouts', () => {
+    const { errors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_plain_v1',
+      outputDirectory: 'web',
+    });
+    assert.match(errors.outputDirectory, /\. or public/);
+  });
+
+  it('requires Laravel to serve the public folder', () => {
+    const { errors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_laravel_v1',
+      outputDirectory: '.',
+    });
+    assert.match(errors.outputDirectory, /public folder/);
+  });
+});

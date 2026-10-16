@@ -113,6 +113,26 @@ describe('build strategy readiness guard', () => {
     );
   });
 
+  it('asks an enabled PHP project to save its app type first', () => {
+    assert.match(
+      validateBuildStrategyReadiness(
+        { _id: 'p3', runtimeType: 'PHP', buildStrategy: null },
+        pythonEnabled,
+      ),
+      /Choose the PHP app type/,
+    );
+  });
+
+  it('allows a saved PHP strategy', () => {
+    assert.equal(
+      validateBuildStrategyReadiness(
+        { _id: 'p3', runtimeType: 'PHP', buildStrategy: 'php_laravel_v1' },
+        pythonEnabled,
+      ),
+      null,
+    );
+  });
+
   it('leaves legacy Node projects unaffected', () => {
     assert.equal(
       validateBuildStrategyReadiness(

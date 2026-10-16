@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { BuildStrategy, resolvePythonVersion } from '@hellodeploy/contracts';
+import { BuildStrategy, resolvePhpVersion, resolvePythonVersion } from '@hellodeploy/contracts';
 import { detectRuntime } from '../../apps/web/src/services/detection.service.js';
 import { generateDockerfile } from '../../apps/worker/src/deployment/dockerfile-generator.js';
 
@@ -32,6 +32,12 @@ const detectionPaths = [
   'asgi.py',
   'app/main.py',
   'app/__init__.py',
+  'composer.json',
+  'composer.lock',
+  'index.php',
+  'artisan',
+  'public/index.php',
+  'wp-settings.php',
 ];
 
 async function readDetectionFiles(directory) {
@@ -106,10 +112,14 @@ describe('tracked multi-runtime fixtures', () => {
         applicationPort: detection.applicationPort,
         applicationModule: detection.applicationModule,
         pythonVersion: resolvePythonVersion(files['.python-version']).version,
+        phpVersion: resolvePhpVersion(files['composer.json']).version,
       });
       assert.match(dockerfile, /^FROM /);
       if (fixture.buildStrategy.startsWith('next_')) {
         assert.match(dockerfile, /node:22-bookworm-slim/);
+      }
+      if (fixture.buildStrategy.startsWith('php_')) {
+        assert.match(dockerfile, /php:8\.[34]-apache-bookworm/);
       }
       if (fixture.buildStrategy.startsWith('python_')) {
         assert.match(dockerfile, /python:3\.1[23]-slim-bookworm/);

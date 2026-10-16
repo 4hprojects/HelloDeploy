@@ -56,3 +56,24 @@
   database.
 - 2026-10-17: Strategy enablement is one shared rule in contracts
   (`isPilotStrategyEnabledFor`), so web and worker cannot disagree.
+- 2026-10-17: Detection precedence: the Node analyzer runs first and its server results
+  (Next.js, Express, Node start scripts) always win. When Node finds only a static site,
+  a React/Vue build, or nothing, a recognized backend framework (Laravel, plain PHP,
+  Django, Flask, FastAPI) takes the repository, because the frontend is that backend's
+  asset pipeline and a static deploy would publish its source.
+- 2026-10-17: PHP runs on the official `php:<v>-apache-bookworm` image with mod_php, as
+  `www-data` on port 8080. Alternatives rejected: nginx with PHP-FPM, which needs a process
+  supervisor in one container, and FrankenPHP, which is less established. Apache is capped
+  at eight prefork workers to fit the PID and memory limits.
+- 2026-10-17: Two PHP strategies, `php_plain_v1` (document root `.` or `public`) and
+  `php_laravel_v1` (always `public`). The document root reuses `outputDirectory` and is
+  limited to those two values because it is templated into the Apache configuration.
+- 2026-10-17: The PHP version is the newest of 8.3/8.4 that `require.php` allows, using a
+  small Composer-constraint evaluator in contracts. Composer projects must commit
+  `composer.lock`, and the build enforces it. Composer runs in a builder stage on the same
+  PHP image so platform checks match the runtime.
+- 2026-10-17: Laravel assets build in a separate Node stage only when a build command is
+  set, and only `public/build` reaches the runtime image. Migrations, queues, and the
+  scheduler are never run.
+- 2026-10-17: WordPress is detected and rejected with an explanation until persistent
+  storage exists (default from file 11 confirmed).

@@ -3,11 +3,13 @@ import {
   BuildStrategy,
   NEXT_BUILD_STRATEGIES,
   PYTHON_BUILD_STRATEGIES,
+  PHP_BUILD_STRATEGIES,
   isReservedSubdomain,
   isValidSubdomainLabel,
   normalizeSubdomainLabel,
   validateApplicationRoot,
   validateApplicationModule,
+  validatePhpDocumentRoot,
 } from '@hellodeploy/contracts';
 
 const INVITE_ROLES = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
@@ -113,9 +115,19 @@ export function validateUpdateBuildConfiguration(body) {
       BuildStrategy.LEGACY_GENERATED,
       ...NEXT_BUILD_STRATEGIES,
       ...PYTHON_BUILD_STRATEGIES,
+      ...PHP_BUILD_STRATEGIES,
     ].includes(buildStrategy)
   ) {
     errors.buildStrategy = 'Select a supported build strategy.';
+  }
+
+  if (PHP_BUILD_STRATEGIES.includes(buildStrategy)) {
+    const documentRoot = outputDirectory || '.';
+    if (buildStrategy === BuildStrategy.PHP_LARAVEL_V1 && documentRoot !== 'public') {
+      errors.outputDirectory = 'Laravel apps are served from the public folder.';
+    } else if (validatePhpDocumentRoot(documentRoot)) {
+      errors.outputDirectory = validatePhpDocumentRoot(documentRoot);
+    }
   }
 
   if (PYTHON_BUILD_STRATEGIES.includes(buildStrategy)) {
