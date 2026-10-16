@@ -1,5 +1,20 @@
 # Multi-Runtime Changelog
 
+## 2026-10-17
+
+- Registered nonproduction pilot databases with a structured
+  `deployment-environment` marker (`HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID`).
+  Production now registers only an unmarked database and refuses any other marker.
+  A development worker refuses every marked database, with or without Nginx routing.
+- Rejected a nonproduction environment id on a `NODE_ENV=production` worker.
+- The acceptance coordinator refuses production databases and mismatched environment
+  ids, and decrypts the private canary to compare it in constant time.
+- Build context inspection is one iterative walk with no depth cutoff, so deeply
+  nested symlinks and files can no longer bypass containment or the 500 MB ceiling;
+  names such as `..cache` are no longer mistaken for escapes.
+- Pulled digest images must match the runtime Docker daemon's OS and architecture.
+- Fixed the canary-probe test spawning a `file://` URL instead of a path.
+
 ## 2026-10-16
 
 - Added versioned build strategies and normalized application roots.

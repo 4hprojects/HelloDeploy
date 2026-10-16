@@ -24,18 +24,46 @@ function runDocker(args) {
   });
 }
 
-export async function pullAndVerifyImage(imageRef) {
+const ARCHITECTURE_ALIASES = new Map([
+  ['x86_64', 'amd64'],
+  ['aarch64', 'arm64'],
+]);
+
+export function normalizeDockerArchitecture(value) {
+  const architecture = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return ARCHITECTURE_ALIASES.get(architecture) ?? architecture;
+}
+
+export function assertCompatibleImagePlatform(imageDetails, runtimeArchitecture) {
+  if (imageDetails?.Os !== 'linux') {
+    throw new Error(`Unsupported image operating system: ${imageDetails?.Os ?? 'unknown'}`);
+  }
+  const imageArchitecture = normalizeDockerArchitecture(imageDetails.Architecture);
+  const hostArchitecture = normalizeDockerArchitecture(runtimeArchitecture);
+  if (!imageArchitecture || !hostArchitecture || imageArchitecture !== hostArchitecture) {
+    throw new Error(
+      `Unsupported image architecture: ${imageArchitecture || 'unknown'}; runtime Docker requires ${hostArchitecture || 'unknown'}.`,
+    );
+  }
+  return imageArchitecture;
+}
+
+export async function pullAndVerifyImage(imageRef, deps = {}) {
   if (!/^[^\s@]+@sha256:[a-f0-9]{64}$/.test(imageRef ?? '')) {
     throw new Error('Remote image reference must be pinned to a sha256 digest.');
   }
-  await runDocker(['pull', imageRef]);
+  const docker = deps.runDocker ?? runDocker;
+  await docker(['pull', imageRef]);
   const details = JSON.parse(
-    await runDocker(['image', 'inspect', '--format', '{{json .}}', imageRef]),
+    await docker(['image', 'inspect', '--format', '{{json .}}', imageRef]),
   );
-  if (details.Os !== 'linux') {
-    throw new Error(`Unsupported image operating system: ${details.Os ?? 'unknown'}`);
-  }
-  return { imageId: details.Id, architecture: details.Architecture };
+  const runtimeArchitecture = JSON.parse(
+    await docker(['info', '--format', '{{json .Architecture}}']),
+  );
+  const architecture = assertCompatibleImagePlatform(details, runtimeArchitecture);
+  return { imageId: details.Id, architecture };
 }
 
 // ─── Container name / network name helpers ─────────────────────────────────────

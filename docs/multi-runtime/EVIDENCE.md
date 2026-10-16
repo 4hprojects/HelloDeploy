@@ -30,6 +30,14 @@ The full suite initially exposed one stale retry-payload assertion that still ex
 the version-1 commit field. The test was updated to assert the version-2 identity-only
 payload, its focused rerun passed 5/5, and the complete suite then passed 1,805/1,805.
 
+## 2026-10-17 P0B hardening
+
+- Focused guard, env-validation, build-context, image-platform, and acceptance files:
+  79/79 passed with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`.
+- Changed-area suites (`tests/worker`, `security`, `deployment`, `operations`,
+  `config`, `nginx`; 105 files): 895/895 passed with the same environment.
+- `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

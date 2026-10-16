@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdtemp, writeFile, symlink, readdir, rm, mkdir, readFile } from 'node:fs/promises';
+import { mkdtemp, writeFile, symlink, readdir, rm, mkdir, readFile, open } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -9,6 +9,15 @@ const { prepareBuildContext, writePlatformDockerignore, listRootEnvFiles } =
 
 async function makeContext() {
   return mkdtemp(join(tmpdir(), 'hellodeploy-bc-'));
+}
+
+async function makeDeepDirectory(root, depth) {
+  let directory = root;
+  for (let index = 0; index < depth; index += 1) {
+    directory = join(directory, `d${index}`);
+  }
+  await mkdir(directory, { recursive: true });
+  return directory;
 }
 
 // ─── Forbidden file removal ───────────────────────────────────────────────────
@@ -133,6 +142,15 @@ describe('prepareBuildContext — symlink containment', () => {
     );
     await rm(dir, { recursive: true, force: true });
   });
+
+  it('removes an escaping symlink nested beyond the former depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 45);
+    await symlink('/etc', join(deep, 'escape'));
+    await prepareBuildContext(dir);
+    assert.ok(!(await readdir(deep)).includes('escape'));
+    await rm(dir, { recursive: true, force: true });
+  });
 });
 
 // ─── Return value ─────────────────────────────────────────────────────────────
@@ -144,6 +162,33 @@ describe('prepareBuildContext — return value', () => {
     const result = await prepareBuildContext(dir);
     assert.ok(typeof result.sizeBytes === 'number', 'sizeBytes must be a number');
     assert.ok(result.sizeBytes >= 1024, 'sizeBytes must reflect written content');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('counts a valid file nested beyond the former size depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 25);
+    await writeFile(join(deep, 'payload.bin'), 'deep-content');
+    const result = await prepareBuildContext(dir);
+    assert.equal(result.sizeBytes, Buffer.byteLength('deep-content'));
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('rejects an oversized sparse file nested beyond the former size depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 25);
+    const handle = await open(join(deep, 'oversized.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await assert.rejects(() => prepareBuildContext(dir), /Build context is too large/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('handles a valid context nested beyond the former symlink depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 60);
+    await writeFile(join(deep, 'app.js'), 'export default true;');
+    await assert.doesNotReject(() => prepareBuildContext(dir));
     await rm(dir, { recursive: true, force: true });
   });
 });
