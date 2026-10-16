@@ -90,6 +90,7 @@ describe('deployment option payloads', () => {
         applicationPort: 3000,
         healthCheckPath: '/health',
         applicationRoot: 'apps/web',
+        applicationModule: null,
       },
       projectConfigurationVersion: 7,
       environmentVersion: 4,

@@ -7,6 +7,9 @@ import {
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
   normalizeApplicationRoot,
+  normalizePythonPackageName,
+  parsePythonRequirementNames,
+  resolvePythonVersion,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
@@ -61,6 +64,185 @@ function detectNextStrategy(files) {
   };
 }
 
+// ─── Python detection ─────────────────────────────────────────────────────────
+
+const PYTHON_FRAMEWORKS = Object.freeze([
+  {
+    name: 'Django',
+    packageName: 'django',
+    strategy: BuildStrategy.PYTHON_DJANGO_V1,
+    server: 'gunicorn',
+  },
+  {
+    name: 'FastAPI',
+    packageName: 'fastapi',
+    strategy: BuildStrategy.PYTHON_FASTAPI_V1,
+    server: 'uvicorn',
+  },
+  {
+    name: 'Flask',
+    packageName: 'flask',
+    strategy: BuildStrategy.PYTHON_FLASK_V1,
+    server: 'gunicorn',
+  },
+]);
+
+// Candidate entry files, in the order their module is suggested.
+const PYTHON_ENTRY_FILES = Object.freeze([
+  ['app.py', 'app'],
+  ['main.py', 'main'],
+  ['wsgi.py', 'wsgi'],
+  ['asgi.py', 'asgi'],
+  ['app/main.py', 'app.main'],
+  ['app/__init__.py', 'app'],
+]);
+const PYTHON_ENTRY_PATHS = Object.freeze([
+  'manage.py',
+  ...PYTHON_ENTRY_FILES.map(([path]) => path),
+]);
+
+function hasPythonMarkers(files) {
+  return Boolean(files['requirements.txt'] || files['pyproject.toml']);
+}
+
+/** Names a pyproject.toml lists, read statically; used only to recognize frameworks. */
+function parsePyprojectNames(content) {
+  const names = new Set();
+  for (const match of String(content ?? '').matchAll(
+    /["']([A-Za-z0-9][A-Za-z0-9._-]*)|^\s*([A-Za-z0-9][A-Za-z0-9._-]*)\s*=/gm,
+  )) {
+    names.add(normalizePythonPackageName(match[1] ?? match[2]));
+  }
+  return names;
+}
+
+function suggestApplicationModule(framework, files) {
+  if (framework.packageName === 'django') {
+    const settings = files['manage.py']?.match(
+      /DJANGO_SETTINGS_MODULE['"]\s*,\s*['"]([A-Za-z_][A-Za-z0-9_]*)\.settings['"]/,
+    );
+    return settings ? `${settings[1]}.wsgi:application` : null;
+  }
+  const constructor = framework.packageName === 'fastapi' ? 'FastAPI' : 'Flask';
+  const assignment = new RegExp(`^([A-Za-z_][A-Za-z0-9_]*)\\s*=\\s*${constructor}\\(`, 'm');
+  for (const [path, moduleName] of PYTHON_ENTRY_FILES) {
+    const variable = files[path]?.match(assignment)?.[1];
+    if (variable) {
+      return `${moduleName}:${variable}`;
+    }
+  }
+  return null;
+}
+
+/**
+ * Recognize a Flask, FastAPI, or Django app. Returns null when the repository has
+ * no Python markers, so callers fall through to their existing behavior.
+ */
+function detectPythonRuntime(files) {
+  if (!hasPythonMarkers(files)) {
+    return null;
+  }
+  const issues = [];
+  const requirementNames = parsePythonRequirementNames(files['requirements.txt']);
+  const declaredNames = new Set([
+    ...requirementNames,
+    ...parsePyprojectNames(files['pyproject.toml']),
+  ]);
+  const frameworks = PYTHON_FRAMEWORKS.filter(({ packageName }) => declaredNames.has(packageName));
+  const unknown = {
+    runtimeType: RuntimeType.UNKNOWN,
+    buildCommand: null,
+    startCommand: null,
+    outputDirectory: null,
+    applicationPort: null,
+    isValid: false,
+  };
+  if (frameworks.length === 0) {
+    return {
+      ...unknown,
+      issues: [
+        {
+          level: 'ERROR',
+          message:
+            'A Python project was found, but no supported web framework is listed. HelloDeploy supports Flask, FastAPI, and Django.',
+        },
+      ],
+    };
+  }
+
+  const [framework] = frameworks;
+  if (frameworks.length > 1) {
+    issues.push({
+      level: 'WARNING',
+      message: `Several Python web frameworks are listed (${frameworks.map(({ name }) => name).join(', ')}). ${framework.name} was selected; choose another Python mode if that is wrong.`,
+    });
+  }
+
+  if (!files['requirements.txt']) {
+    issues.push({
+      level: 'ERROR',
+      message:
+        'HelloDeploy installs Python dependencies from requirements.txt. Export one from your tool, for example uv export --format requirements-txt > requirements.txt or poetry export -f requirements.txt > requirements.txt, and commit it.',
+    });
+  } else {
+    if (!requirementNames.has(framework.server)) {
+      issues.push({
+        level: 'ERROR',
+        message: `${framework.name} apps are served with ${framework.server}. Add ${framework.server} to requirements.txt with a pinned version.`,
+      });
+    }
+    const unpinned = String(files['requirements.txt'])
+      .split('\n')
+      .map((line) => line.replace(/\s+#.*$/, '').trim())
+      .filter((line) => line && !line.startsWith('#') && !line.startsWith('-'))
+      .filter((line) => !/==|===|\s@\s/.test(line))
+      .map((line) => line.match(/^[A-Za-z0-9][A-Za-z0-9._-]*/)?.[0])
+      .filter(Boolean);
+    if (unpinned.length > 0) {
+      issues.push({
+        level: 'WARNING',
+        message: `Some requirements are not pinned with == (${unpinned.slice(0, 5).join(', ')}${unpinned.length > 5 ? ', …' : ''}), so later builds may install different versions.`,
+      });
+    }
+  }
+
+  const pythonVersion = resolvePythonVersion(files['.python-version'] ?? null);
+  if (pythonVersion.error) {
+    issues.push({ level: 'ERROR', message: pythonVersion.error });
+  }
+
+  const applicationModule = suggestApplicationModule(framework, files);
+  if (!applicationModule) {
+    issues.push({
+      level: 'WARNING',
+      message:
+        framework.packageName === 'django'
+          ? 'HelloDeploy could not find the Django settings module in manage.py. Enter the application module, such as mysite.wsgi:application.'
+          : `HelloDeploy could not find the ${framework.name} app object. Enter the application module, such as main:app. App factories need a module-level object, for example app = create_app().`,
+    });
+  }
+  if (framework.packageName === 'django') {
+    issues.push({
+      level: 'INFO',
+      message:
+        'Django checklist: add your HelloDeploy address to ALLOWED_HOSTS, use an external database, and run migrations yourself; HelloDeploy never runs them during a deploy. To serve static files, add WhiteNoise and set the build command to python manage.py collectstatic --noinput.',
+    });
+  }
+
+  return {
+    runtimeType: RuntimeType.PYTHON,
+    buildCommand: null,
+    startCommand: null,
+    outputDirectory: null,
+    applicationPort: 8000,
+    applicationModule,
+    issues,
+    isValid: !issues.some((issue) => issue.level === 'ERROR'),
+    recommendedBuildStrategy: framework.strategy,
+    strategyRationale: `${framework.name} was found in the Python dependencies, so the ${framework.name} server image is recommended.`,
+  };
+}
+
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
 
@@ -86,6 +268,10 @@ export function detectRuntime(files) {
 
   // ── No package.json — static or unknown ────────────────────────────────────
   if (!files['package.json']) {
+    const python = detectPythonRuntime(files);
+    if (python) {
+      return python;
+    }
     if (files['index.html'] !== null) {
       return {
         runtimeType: RuntimeType.STATIC,
@@ -220,6 +406,9 @@ export function detectRuntime(files) {
   } else if (scripts.start) {
     runtimeType = RuntimeType.NODEJS;
     applicationPort = findSamplePort(files) ?? 3000;
+  } else if (hasPythonMarkers(files)) {
+    // A package.json with no Node runtime is asset tooling beside a Python app.
+    return detectPythonRuntime(files);
   } else {
     runtimeType = RuntimeType.UNKNOWN;
     issues.push({
@@ -325,6 +514,9 @@ const FILES_TO_FETCH = [
   '.env.example',
   '.env.sample',
   '.env.template',
+  'requirements.txt',
+  'pyproject.toml',
+  '.python-version',
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
@@ -419,7 +611,9 @@ export async function fetchProjectFiles(installationId, fullName, ref, applicati
       files[path] = null;
     }
   });
-  return files;
+  return addPythonEntryFiles(files, (path) =>
+    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
+  );
 }
 
 export async function fetchProjectFilesForRepository(repository, ref, applicationRoot = '.') {
@@ -435,6 +629,21 @@ export async function fetchProjectFilesForRepository(repository, ref, applicatio
   );
   const files = {};
   FILES_TO_FETCH.forEach((path, index) => {
+    files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
+  });
+  return addPythonEntryFiles(files, (path) =>
+    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
+  );
+}
+
+// Entry-point candidates are fetched only for Python repositories, keeping the
+// per-detection GitHub request count unchanged for everything else.
+async function addPythonEntryFiles(files, fetchFile) {
+  if (!hasPythonMarkers(files)) {
+    return files;
+  }
+  const results = await Promise.allSettled(PYTHON_ENTRY_PATHS.map(fetchFile));
+  PYTHON_ENTRY_PATHS.forEach((path, index) => {
     files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
   });
   return files;
@@ -555,6 +764,7 @@ function detectedConfiguration(result) {
     applicationPort: result.applicationPort ?? null,
     healthCheckPath: '/',
     applicationRoot: result.applicationRoot ?? '.',
+    applicationModule: result.applicationModule ?? null,
   };
 }
 

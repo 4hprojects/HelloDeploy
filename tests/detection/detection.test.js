@@ -6,8 +6,12 @@ process.env.GITHUB_APP_ID = '12345';
 process.env.GITHUB_APP_NAME = 'test-app';
 process.env.HELLODEPLOY_MASTER_KEY = Buffer.alloc(32).toString('base64');
 
-const { detectRuntime, detectRequiredEnvironmentVariables, findDockerfileSystemPackages } =
-  await import('../../apps/web/src/services/detection.service.js');
+const {
+  detectRuntime,
+  detectRequiredEnvironmentVariables,
+  findDockerfileSystemPackages,
+  fetchProjectFilesForRepository,
+} = await import('../../apps/web/src/services/detection.service.js');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -214,6 +218,166 @@ describe('detectRuntime — NEXTJS', () => {
     assert.equal(result.runtimeType, 'NEXTJS');
     assert.ok(result.issues.some((i) => i.level === 'ERROR' && i.message.includes('"build"')));
     assert.equal(result.isValid, false);
+  });
+});
+
+// ── PYTHON ────────────────────────────────────────────────────────────────────
+
+describe('detectRuntime — PYTHON', () => {
+  const flaskApp = 'from flask import Flask\napplication = Flask(__name__)\n';
+
+  it('detects a Flask app and suggests its WSGI object', () => {
+    const result = detectRuntime(
+      files({ 'requirements.txt': 'flask==3.1.0\ngunicorn==23.0.0\n', 'app.py': flaskApp }),
+    );
+    assert.deepEqual(
+      {
+        runtimeType: result.runtimeType,
+        strategy: result.recommendedBuildStrategy,
+        module: result.applicationModule,
+        port: result.applicationPort,
+        isValid: result.isValid,
+      },
+      {
+        runtimeType: 'PYTHON',
+        strategy: 'python_flask_v1',
+        module: 'app:application',
+        port: 8000,
+        isValid: true,
+      },
+    );
+  });
+
+  it('detects FastAPI inside an app package', () => {
+    const result = detectRuntime(
+      files({
+        'requirements.txt': 'fastapi==0.115.0\nuvicorn==0.32.0\n',
+        'app/main.py': 'from fastapi import FastAPI\napi = FastAPI()\n',
+      }),
+    );
+    assert.equal(result.applicationModule, 'app.main:api');
+  });
+
+  it('derives the Django WSGI module from manage.py settings', () => {
+    const result = detectRuntime(
+      files({
+        'requirements.txt': 'Django==5.1.2\ngunicorn==23.0.0\n',
+        'manage.py': "os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'mysite.settings')\n",
+      }),
+    );
+    assert.equal(result.applicationModule, 'mysite.wsgi:application');
+  });
+
+  it('requires gunicorn for a Flask app', () => {
+    const result = detectRuntime(
+      files({ 'requirements.txt': 'flask==3.1.0\n', 'app.py': flaskApp }),
+    );
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'ERROR' && issue.message.includes('Add gunicorn'),
+      ),
+    );
+  });
+
+  it('requires uvicorn for a FastAPI app', () => {
+    const result = detectRuntime(files({ 'requirements.txt': 'fastapi==0.115.0\n' }));
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'ERROR' && issue.message.includes('Add uvicorn'),
+      ),
+    );
+  });
+
+  it('asks a pyproject-only project to export requirements.txt', () => {
+    const result = detectRuntime(
+      files({ 'pyproject.toml': '[project]\ndependencies = ["flask>=3", "gunicorn"]\n' }),
+    );
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'ERROR' && issue.message.includes('requirements.txt'),
+      ),
+    );
+  });
+
+  it('rejects an unsupported .python-version', () => {
+    const result = detectRuntime(
+      files({
+        'requirements.txt': 'flask==3.1.0\ngunicorn==23.0.0\n',
+        '.python-version': '3.8\n',
+        'app.py': flaskApp,
+      }),
+    );
+    assert.equal(result.isValid, false);
+  });
+
+  it('warns that unpinned requirements can change between builds', () => {
+    const result = detectRuntime(
+      files({ 'requirements.txt': 'flask\ngunicorn==23.0.0\n', 'app.py': flaskApp }),
+    );
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'WARNING' && issue.message.includes('flask')),
+    );
+  });
+
+  it('asks for the module when no entry point is found', () => {
+    const result = detectRuntime(files({ 'requirements.txt': 'flask==3.1.0\ngunicorn==23.0.0\n' }));
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'WARNING' && issue.message.includes('application module'),
+      ),
+    );
+  });
+
+  it('prefers Django and warns when several frameworks are listed', () => {
+    const result = detectRuntime(
+      files({ 'requirements.txt': 'django==5.1.2\nflask==3.1.0\ngunicorn==23.0.0\n' }),
+    );
+    assert.deepEqual(
+      [
+        result.recommendedBuildStrategy,
+        result.issues.some((issue) => issue.message.includes('Several Python web frameworks')),
+      ],
+      ['python_django_v1', true],
+    );
+  });
+
+  it('reports a Python project without a supported framework', () => {
+    const result = detectRuntime(files({ 'requirements.txt': 'requests==2.32.3\n' }));
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'ERROR' && issue.message.includes('Flask')),
+    );
+  });
+
+  it('serves a Flask repository with a root index.html as Python, not static files', () => {
+    const result = detectRuntime(
+      files({
+        'requirements.txt': 'flask==3.1.0\ngunicorn==23.0.0\n',
+        'index.html': '<html/>',
+        'app.py': flaskApp,
+      }),
+    );
+    assert.equal(result.runtimeType, 'PYTHON');
+  });
+
+  it('keeps an Express app with Python tooling detected as Express', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ dependencies: { express: '*' }, scripts: { start: 'node app.js' } }),
+        'package-lock.json': '{}',
+        'requirements.txt': 'flask==3.1.0\n',
+      }),
+    );
+    assert.equal(result.runtimeType, 'EXPRESS');
+  });
+
+  it('detects Python when package.json only carries asset tooling', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ devDependencies: { tailwindcss: '*' }, scripts: {} }),
+        'requirements.txt': 'django==5.1.2\ngunicorn==23.0.0\n',
+      }),
+    );
+    assert.equal(result.runtimeType, 'PYTHON');
   });
 });
 
@@ -446,5 +610,39 @@ describe('findDockerfileSystemPackages', () => {
 
   it('ignores npm installs', () => {
     assert.deepEqual(findDockerfileSystemPackages('RUN npm ci && npm run build'), []);
+  });
+});
+
+describe('fetchProjectFilesForRepository — Python entry files', () => {
+  const publicRepository = { sourceType: 'PUBLIC_GIT', fullName: 'owner/repo' };
+
+  async function requestedPaths(presentFiles) {
+    const paths = [];
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
+      paths.push(path);
+      if (!(path in presentFiles)) {
+        return new Response('', { status: 404 });
+      }
+      const content = Buffer.from(presentFiles[path]).toString('base64');
+      return new Response(JSON.stringify({ encoding: 'base64', content }), { status: 200 });
+    };
+    try {
+      await fetchProjectFilesForRepository(publicRepository, 'main');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+    return paths;
+  }
+
+  it('fetches entry-point candidates when requirements.txt exists', async () => {
+    const paths = await requestedPaths({ 'requirements.txt': 'flask==3.1.0\n' });
+    assert.ok(paths.includes('manage.py'));
+  });
+
+  it('does not fetch entry-point candidates for a Node repository', async () => {
+    const paths = await requestedPaths({ 'package.json': '{}' });
+    assert.equal(paths.includes('manage.py'), false);
   });
 });

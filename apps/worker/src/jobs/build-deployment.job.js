@@ -214,10 +214,10 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     });
     return;
   }
-  if (isNextBuildStrategy(buildStrategy) && !env.isNextStrategyEnabledFor(projectId)) {
+  if (!env.isStrategyEnabledFor(buildStrategy, projectId)) {
     await failBuild({
       failureCode: 'BUILD_STRATEGY_DISABLED',
-      failureSummary: 'The selected Next.js build strategy is not enabled for this project.',
+      failureSummary: `The selected ${buildStrategy} build strategy is not enabled for this project.`,
       completedAt: new Date(),
     });
     return;

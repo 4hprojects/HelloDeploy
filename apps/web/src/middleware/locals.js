@@ -17,7 +17,7 @@ export function localsMiddleware(req, res, next) {
   res.locals.correlationId = req.correlationId ?? null;
   res.locals.turnstileSiteKey = env.TURNSTILE_SITE_KEY ?? '';
   res.locals.googleAuthEnabled = env.isGoogleAuthConfigured();
-  res.locals.nextStrategiesEnabledFor = env.isNextStrategyEnabledFor;
+  res.locals.isStrategyEnabledFor = env.isStrategyEnabledFor;
   res.locals.statusPresentation = getStatusPresentation;
   res.locals.assetPath = assetPath;
   res.locals.pageMetadata = publicPageMetadata(req.path, env.PLATFORM_DOMAIN) ?? {

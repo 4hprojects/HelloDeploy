@@ -9,10 +9,12 @@
   const _gbValue = (field, fallback) =>
     _gbValues ? (_gbValues[field] ?? '') : (fallback ?? '');
   const _gbId = (field) => `${_gbPrefix}${field}`;
-  const _gbNextStrategiesEnabled =
-    typeof nextStrategiesEnabledFor === 'function' &&
+  const _gbStrategyEnabled = (strategy) =>
+    typeof isStrategyEnabledFor === 'function' &&
     typeof project !== 'undefined' &&
-    nextStrategiesEnabledFor(project._id);
+    isStrategyEnabledFor(strategy, project._id);
+  const _gbNextStrategiesEnabled = _gbStrategyEnabled('next_standard_v1');
+  const _gbPythonStrategiesEnabled = _gbStrategyEnabled('python_flask_v1');
   const _gbStoredStrategy =
     (typeof buildStrategy !== 'undefined' && buildStrategy) ||
     (typeof project !== 'undefined' && project.buildStrategy) ||

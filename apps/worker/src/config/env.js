@@ -9,6 +9,7 @@ import {
   optional,
   ConfigurationError,
   isValidNonproductionEnvironmentId,
+  isPilotStrategyEnabledFor,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 import {
@@ -87,13 +88,19 @@ const userImageRegistry = optional('USER_IMAGE_REGISTRY', '').replace(/\/$/, '')
 if (userImageRegistry && !/^ghcr\.io\/[a-z0-9_.-]+\/[a-z0-9_./-]+$/.test(userImageRegistry)) {
   throw new ConfigurationError('USER_IMAGE_REGISTRY must be a lowercase GHCR image prefix.');
 }
-const multiRuntimeNextV1Enabled = optional('MULTIRUNTIME_NEXT_V1_ENABLED', 'false') === 'true';
-const multiRuntimeNextV1ProjectIds = parseOptimizedProjectIds(
-  optional('MULTIRUNTIME_NEXT_V1_PROJECT_IDS', ''),
-);
 const registryManifestDeleteEnabled =
   optional('REGISTRY_MANIFEST_DELETE_ENABLED', 'false') === 'true';
-if (multiRuntimeNextV1Enabled) {
+
+// Each multi-runtime pilot builds only on the isolated remote builder, keeps
+// registry cleanup on, serves an explicit allowlist, and runs one job at a time.
+function parsePilotFlag(prefix) {
+  const flagName = `${prefix}_ENABLED`;
+  const allowlistName = `${prefix}_PROJECT_IDS`;
+  const enabled = optional(flagName, 'false') === 'true';
+  const projectIds = parseOptimizedProjectIds(optional(allowlistName, ''));
+  if (!enabled) {
+    return { enabled, projectIds };
+  }
   if (
     buildExecutor !== 'remote-buildkit' ||
     !buildBuilderName ||
@@ -101,20 +108,19 @@ if (multiRuntimeNextV1Enabled) {
     !registryManifestDeleteEnabled
   ) {
     throw new ConfigurationError(
-      'MULTIRUNTIME_NEXT_V1_ENABLED requires remote-buildkit, BUILD_BUILDER_NAME, USER_IMAGE_REGISTRY, and REGISTRY_MANIFEST_DELETE_ENABLED=true.',
+      `${flagName} requires remote-buildkit, BUILD_BUILDER_NAME, USER_IMAGE_REGISTRY, and REGISTRY_MANIFEST_DELETE_ENABLED=true.`,
     );
   }
-  if (multiRuntimeNextV1ProjectIds.size === 0) {
-    throw new ConfigurationError(
-      'MULTIRUNTIME_NEXT_V1_ENABLED requires a non-empty MULTIRUNTIME_NEXT_V1_PROJECT_IDS allowlist.',
-    );
+  if (projectIds.size === 0) {
+    throw new ConfigurationError(`${flagName} requires a non-empty ${allowlistName} allowlist.`);
   }
   if (workerConcurrency !== 1) {
-    throw new ConfigurationError(
-      'MULTIRUNTIME_NEXT_V1_ENABLED initially requires WORKER_CONCURRENCY=1.',
-    );
+    throw new ConfigurationError(`${flagName} initially requires WORKER_CONCURRENCY=1.`);
   }
+  return { enabled, projectIds };
 }
+const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
+const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
 const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
   min: 128,
   max: 32768,
@@ -212,8 +218,10 @@ export const env = {
   HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: nonproductionEnvironmentId,
   USER_IMAGE_REGISTRY: userImageRegistry,
   REGISTRY_MANIFEST_DELETE_ENABLED: registryManifestDeleteEnabled,
-  MULTIRUNTIME_NEXT_V1_ENABLED: multiRuntimeNextV1Enabled,
-  MULTIRUNTIME_NEXT_V1_PROJECT_IDS: multiRuntimeNextV1ProjectIds,
+  MULTIRUNTIME_NEXT_V1_ENABLED: nextPilot.enabled,
+  MULTIRUNTIME_NEXT_V1_PROJECT_IDS: nextPilot.projectIds,
+  MULTIRUNTIME_PYTHON_V1_ENABLED: pythonPilot.enabled,
+  MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: pythonPilot.projectIds,
   USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
   USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
@@ -255,7 +263,6 @@ export const env = {
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isEmailConfigured: () =>
     !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.RESEND_WEBHOOK_SECRET),
-  isNextStrategyEnabledFor: (projectId) =>
-    multiRuntimeNextV1Enabled &&
-    multiRuntimeNextV1ProjectIds.has(String(projectId ?? '').toLowerCase()),
+  isStrategyEnabledFor: (strategy, projectId) =>
+    isPilotStrategyEnabledFor(strategy, projectId, { next: nextPilot, python: pythonPilot }),
 };

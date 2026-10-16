@@ -5,6 +5,7 @@ const RUNTIME_LABELS = Object.freeze({
   REACT: 'React app',
   VUE: 'Vue app',
   NEXTJS: 'Next.js app',
+  PYTHON: 'Python app',
   EXPRESS: 'Express app',
   NODEJS: 'Node.js app',
   UNKNOWN: 'App type not recognized',

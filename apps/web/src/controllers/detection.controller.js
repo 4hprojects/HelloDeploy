@@ -83,6 +83,7 @@ export const postUpdateBuildConfiguration = asyncHandler(async (req, res) => {
     applicationPort: req.body.applicationPort,
     healthCheckPath: req.body.healthCheckPath,
     applicationRoot: req.body.applicationRoot,
+    applicationModule: req.body.applicationModule,
     buildStrategy: req.body.buildStrategy,
     actorId: req.session.user.id,
     sourceIp: req.ip,

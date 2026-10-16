@@ -1,4 +1,4 @@
-import { BuildStrategy, RuntimeType, isNextBuildStrategy } from '@hellodeploy/contracts';
+import { BuildStrategy, RuntimeType, getBuildStrategyRuntime } from '@hellodeploy/contracts';
 import { generateDockerfile, STATIC_PORT } from './dockerfile-generator.js';
 
 export function resolveBuildStrategy({ snapshot, templateVersion, buildArgNames = [] }) {
@@ -6,8 +6,9 @@ export function resolveBuildStrategy({ snapshot, templateVersion, buildArgNames 
     throw new Error('Deployment configuration snapshot is incomplete.');
   }
   const buildStrategy = snapshot.buildStrategy ?? BuildStrategy.LEGACY_GENERATED;
-  if (isNextBuildStrategy(buildStrategy) && snapshot.runtimeType !== RuntimeType.NEXTJS) {
-    throw new Error('A Next.js build strategy requires the NEXTJS runtime.');
+  const requiredRuntime = getBuildStrategyRuntime(buildStrategy);
+  if (requiredRuntime && snapshot.runtimeType !== requiredRuntime) {
+    throw new Error(`The ${buildStrategy} build strategy requires the ${requiredRuntime} runtime.`);
   }
   const config = snapshot.buildConfiguration;
   const isStatic =

@@ -10,7 +10,9 @@ import {
   RepositorySourceType,
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
-  isNextBuildStrategy,
+  RuntimeType,
+  isPythonBuildStrategy,
+  validateApplicationModule,
 } from '@hellodeploy/contracts';
 import { isActive, nextSequenceNumber } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -88,6 +90,7 @@ export function createConfigurationSnapshot(project, commitSha) {
       applicationPort: config.applicationPort ?? null,
       healthCheckPath: config.healthCheckPath ?? '/',
       applicationRoot: config.applicationRoot ?? '.',
+      applicationModule: config.applicationModule ?? null,
     },
     projectConfigurationVersion: project.configurationVersion,
     environmentVersion: project.environmentVersion ?? 1,
@@ -197,8 +200,28 @@ export async function createDeployment({
     return { success: false, error: 'Run project detection before deploying.' };
   }
 
-  if (isNextBuildStrategy(project.buildStrategy) && !env.isNextStrategyEnabledFor(project._id)) {
-    return { success: false, error: 'The selected Next.js deployment mode is not enabled.' };
+  if (!env.isStrategyEnabledFor(project.buildStrategy, project._id)) {
+    return {
+      success: false,
+      error: 'The selected deployment mode is not enabled for this project.',
+    };
+  }
+  // The generated legacy images cover only the original Node-family runtimes.
+  if (project.runtimeType === RuntimeType.PYTHON && !isPythonBuildStrategy(project.buildStrategy)) {
+    return {
+      success: false,
+      error:
+        'Python apps need a Python deployment mode, which is not enabled for this project yet.',
+    };
+  }
+  if (
+    isPythonBuildStrategy(project.buildStrategy) &&
+    validateApplicationModule(project.buildConfiguration?.applicationModule)
+  ) {
+    return {
+      success: false,
+      error: 'Confirm the application module in the build settings before deploying.',
+    };
   }
 
   const quotaRefusal = await checkDeploymentQuota(project);

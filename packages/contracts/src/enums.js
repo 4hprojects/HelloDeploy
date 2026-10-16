@@ -183,6 +183,7 @@ export const RuntimeType = Object.freeze({
   REACT: 'REACT',
   VUE: 'VUE',
   NEXTJS: 'NEXTJS',
+  PYTHON: 'PYTHON',
   UNKNOWN: 'UNKNOWN',
 });
 

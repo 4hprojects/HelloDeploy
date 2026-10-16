@@ -17,6 +17,8 @@ const buildConfigurationSchema = new Schema(
     applicationPort: { type: Number, default: null, min: 1, max: 65535 },
     healthCheckPath: { type: String, default: '/' },
     applicationRoot: { type: String, default: '.', maxlength: 255 },
+    // WSGI/ASGI entry point (`module:attribute`) for Python strategies only.
+    applicationModule: { type: String, default: null, maxlength: 200 },
   },
   { _id: false },
 );

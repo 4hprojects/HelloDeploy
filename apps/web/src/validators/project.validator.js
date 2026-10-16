@@ -2,10 +2,12 @@ import {
   ProjectRole,
   BuildStrategy,
   NEXT_BUILD_STRATEGIES,
+  PYTHON_BUILD_STRATEGIES,
   isReservedSubdomain,
   isValidSubdomainLabel,
   normalizeSubdomainLabel,
   validateApplicationRoot,
+  validateApplicationModule,
 } from '@hellodeploy/contracts';
 
 const INVITE_ROLES = [ProjectRole.MAINTAINER, ProjectRole.VIEWER];
@@ -106,8 +108,21 @@ export function validateUpdateBuildConfiguration(body) {
   }
 
   const buildStrategy = body.buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
-  if (![BuildStrategy.LEGACY_GENERATED, ...NEXT_BUILD_STRATEGIES].includes(buildStrategy)) {
+  if (
+    ![
+      BuildStrategy.LEGACY_GENERATED,
+      ...NEXT_BUILD_STRATEGIES,
+      ...PYTHON_BUILD_STRATEGIES,
+    ].includes(buildStrategy)
+  ) {
     errors.buildStrategy = 'Select a supported build strategy.';
+  }
+
+  if (PYTHON_BUILD_STRATEGIES.includes(buildStrategy)) {
+    const applicationModuleError = validateApplicationModule(body.applicationModule?.trim() ?? '');
+    if (applicationModuleError) {
+      errors.applicationModule = applicationModuleError;
+    }
   }
 
   return { errors, hasErrors: Object.keys(errors).length > 0 };

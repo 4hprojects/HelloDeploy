@@ -24,6 +24,8 @@ import {
   isReservedSubdomain,
   isValidSubdomainLabel,
   BuildStrategy,
+  getBuildStrategyRuntime,
+  isPythonBuildStrategy,
   normalizeApplicationRoot,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
@@ -177,6 +179,7 @@ export async function updateBuildConfiguration({
   applicationPort,
   healthCheckPath,
   applicationRoot,
+  applicationModule,
   buildStrategy,
   actorId,
   sourceIp,
@@ -193,7 +196,10 @@ export async function updateBuildConfiguration({
 
   const selectedStrategy = buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
   if (selectedStrategy !== BuildStrategy.LEGACY_GENERATED) {
-    if (project.runtimeType !== 'NEXTJS' || !env.isNextStrategyEnabledFor(project._id)) {
+    if (
+      project.runtimeType !== getBuildStrategyRuntime(selectedStrategy) ||
+      !env.isStrategyEnabledFor(selectedStrategy, project._id)
+    ) {
       return { success: false, error: 'That build strategy is not enabled for this project.' };
     }
   }
@@ -205,6 +211,9 @@ export async function updateBuildConfiguration({
     applicationPort: applicationPort?.trim() ? Number(applicationPort.trim()) : null,
     healthCheckPath: healthCheckPath?.trim() || '/',
     applicationRoot: normalizeApplicationRoot(applicationRoot),
+    applicationModule: isPythonBuildStrategy(selectedStrategy)
+      ? applicationModule?.trim() || null
+      : null,
   };
   project.buildStrategy = selectedStrategy;
   project.configurationVersion += 1;
@@ -248,11 +257,9 @@ export async function resetBuildConfigurationToDetected({
   project.buildConfiguration = detected.toObject?.() ?? { ...detected };
   const recommendedStrategy =
     project.detection?.recommendedBuildStrategy ?? BuildStrategy.LEGACY_GENERATED;
-  project.buildStrategy =
-    recommendedStrategy !== BuildStrategy.LEGACY_GENERATED &&
-    !env.isNextStrategyEnabledFor(project._id)
-      ? BuildStrategy.LEGACY_GENERATED
-      : recommendedStrategy;
+  project.buildStrategy = env.isStrategyEnabledFor(recommendedStrategy, project._id)
+    ? recommendedStrategy
+    : BuildStrategy.LEGACY_GENERATED;
   project.configurationVersion += 1;
   await project.save();
   await writeAuditEvent({
