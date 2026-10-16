@@ -348,6 +348,21 @@ describe('production worker routing validation', () => {
     assert.match(result.stdout, /MULTIRUNTIME_JAVA_V1_ENABLED requires remote-buildkit/);
   });
 
+  it('rejects owner images without an image scanner', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      BUILD_EXECUTOR: 'remote-buildkit',
+      BUILD_BUILDER_NAME: 'hellodeploy-test',
+      USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+      REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+      WORKER_CONCURRENCY: '1',
+      MULTIRUNTIME_OCI_V1_ENABLED: 'true',
+      MULTIRUNTIME_OCI_V1_PROJECT_IDS: '507f1f77bcf86cd799439011',
+      IMAGE_SCANNER: 'none',
+    });
+    assert.match(result.stdout, /require IMAGE_SCANNER=trivy/);
+  });
+
   it('rejects a nonproduction environment id on a production worker', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

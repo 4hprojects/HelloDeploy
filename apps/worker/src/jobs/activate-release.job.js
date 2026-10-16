@@ -12,6 +12,7 @@ import {
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { removeDockerImage } from '../deployment/build.js';
+import { ownsReleaseImage, pullReleaseImage } from '../deployment/release-image.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { activateRoute, activateRoutes } from '../nginx/helper-client.js';
 import { cleanupOldReleases } from '../deployment/retention.js';
@@ -85,6 +86,8 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
 
   const snapshot =
     deployment.configurationSnapshot?.toObject?.() ?? deployment.configurationSnapshot ?? null;
+  // A prebuilt image may also back a running release, so it is never removed here.
+  const ownsImage = ownsReleaseImage(snapshot?.buildStrategy);
   if (job.data.version >= 2) {
     if (
       !snapshot ||
@@ -101,7 +104,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
           failureSummary: 'Built image identity does not match the deployment snapshot.',
           completedAt: new Date(),
         },
-        { project, deps, removeImageOnFailure: true },
+        { project, deps, removeImageOnFailure: ownsImage },
       );
       return;
     }
@@ -114,23 +117,28 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
           failureSummary: 'Environment variables changed before release activation.',
           completedAt: new Date(),
         },
-        { project, deps, removeImageOnFailure: true },
+        { project, deps, removeImageOnFailure: ownsImage },
       );
       return;
     }
     if (deployment.imageRef.includes('@sha256:')) {
       try {
-        await deps.pullAndVerifyImage(deployment.imageRef);
+        await pullReleaseImage(
+          deployment.imageRef,
+          { buildStrategy: snapshot?.buildStrategy, projectId },
+          deps,
+        );
       } catch (error) {
         await updateStatus(
           deploymentId,
           DeploymentStatus.FAILED,
           {
-            failureCode: 'IMAGE_PULL_FAILED',
+            failureCode:
+              error.code === 'IMAGE_POLICY_FAILED' ? 'IMAGE_POLICY_FAILED' : 'IMAGE_PULL_FAILED',
             failureSummary: error.message,
             completedAt: new Date(),
           },
-          { project, deps, removeImageOnFailure: true },
+          { project, deps, removeImageOnFailure: ownsImage },
         );
         return;
       }
@@ -147,7 +155,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
     runtimeSpec: job.data.runtimeSpec,
     configurationSnapshot: snapshot,
     opts: {
-      removeImageOnFailure: true,
+      removeImageOnFailure: ownsImage,
       failOnInvalidSubdomain: true,
       persistSubdomain: true,
       markPreviousRolledBack: false,

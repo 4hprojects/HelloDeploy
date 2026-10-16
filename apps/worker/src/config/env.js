@@ -123,6 +123,23 @@ const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
 const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
 const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
 const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
+const dockerfilePilot = parsePilotFlag('MULTIRUNTIME_DOCKERFILE_V1');
+const ociPilot = parsePilotFlag('MULTIRUNTIME_OCI_V1');
+const imageScanner = optional('IMAGE_SCANNER', 'none');
+if (!['none', 'trivy'].includes(imageScanner)) {
+  throw new ConfigurationError('IMAGE_SCANNER must be none or trivy.');
+}
+// Owner-supplied images are only allowed with scanning in the pipeline.
+if ((dockerfilePilot.enabled || ociPilot.enabled) && imageScanner !== 'trivy') {
+  throw new ConfigurationError(
+    'MULTIRUNTIME_DOCKERFILE_V1_ENABLED and MULTIRUNTIME_OCI_V1_ENABLED require IMAGE_SCANNER=trivy.',
+  );
+}
+const customImageMaxMb = parseIntegerEnv(
+  'CUSTOM_IMAGE_MAX_MB',
+  optional('CUSTOM_IMAGE_MAX_MB', '2048'),
+  { min: 64, max: 20480 },
+);
 const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
   min: 128,
   max: 32768,
@@ -228,6 +245,12 @@ export const env = {
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
   MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
   MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
+  MULTIRUNTIME_DOCKERFILE_V1_ENABLED: dockerfilePilot.enabled,
+  MULTIRUNTIME_DOCKERFILE_V1_PROJECT_IDS: dockerfilePilot.projectIds,
+  MULTIRUNTIME_OCI_V1_ENABLED: ociPilot.enabled,
+  MULTIRUNTIME_OCI_V1_PROJECT_IDS: ociPilot.projectIds,
+  IMAGE_SCANNER: imageScanner,
+  CUSTOM_IMAGE_MAX_MB: customImageMaxMb,
   USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
   USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
@@ -275,5 +298,7 @@ export const env = {
       python: pythonPilot,
       php: phpPilot,
       java: javaPilot,
+      dockerfile: dockerfilePilot,
+      oci: ociPilot,
     }),
 };

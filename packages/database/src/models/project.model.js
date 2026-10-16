@@ -19,6 +19,10 @@ const buildConfigurationSchema = new Schema(
     applicationRoot: { type: String, default: '.', maxlength: 255 },
     // WSGI/ASGI entry point (`module:attribute`) for Python strategies only.
     applicationModule: { type: String, default: null, maxlength: 200 },
+    // Owner Dockerfile, relative to the application root (dockerfile_v1 only).
+    dockerfilePath: { type: String, default: null, maxlength: 255 },
+    // Prebuilt image reference as the owner entered it (oci_image_v1 only).
+    imageReference: { type: String, default: null, maxlength: 512 },
   },
   { _id: false },
 );

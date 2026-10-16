@@ -91,6 +91,8 @@ describe('deployment option payloads', () => {
         healthCheckPath: '/health',
         applicationRoot: 'apps/web',
         applicationModule: null,
+        dockerfilePath: null,
+        imageReference: null,
       },
       projectConfigurationVersion: 7,
       environmentVersion: 4,
