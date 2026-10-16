@@ -111,6 +111,10 @@ ISR and cache data remain container-local and are not preserved across replaceme
 rollback. Static export cannot use server routes, Server Actions, ISR, middleware, or
 server-side image optimization.
 
+The new Next.js modes remain a nonproduction, allowlisted pilot until the real
+BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
+does not make a mode generally available.
+
 Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 
 ## Build Filters

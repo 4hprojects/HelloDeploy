@@ -2403,3 +2403,25 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Live remote fixture, route, rollback, isolation, and registry evidence was not run:
   the separate nonproduction builder and private GHCR credentials are external
   prerequisites and remain explicit blockers.
+
+## 2026-10-16 — Multi-Runtime Nonproduction Acceptance Harness
+
+- Added an 18-root public fixture matrix covering the supported legacy runtimes,
+  Next.js 14/15/16 modes, SSR/RSC/API/Server Actions/assets/image/middleware/proxy/
+  streaming/ISR behavior, and controlled resilience/isolation probes. Dependencies are
+  exact and npm lockfiles are committed.
+- Added `npm run acceptance:multi-runtime`. It defaults to read-only preflight, rejects
+  production and unsafe protected inputs, uses normal deploy hooks plus existing
+  exact-SHA/rollback service contracts, and independently gates cancellation, timeout,
+  worker interruption, resource pressure, and registry cleanup.
+- Added bounded database polling, HTTPS and browser checks, streamed-response timing,
+  runtime inspection, BuildKit egress probing, digest/snapshot/environment assertions,
+  secret scanning, and mode-`0600` sanitized JSON/Markdown evidence.
+- Local fixture builds and injected-boundary coordinator tests pass. No live hook,
+  builder, registry, database, queue, runtime, Nginx, or production mutation was made;
+  the external acceptance gate remains blocked pending protected nonproduction inputs.
+- Focused detection/deployment/worker/Nginx/security/operations/installer checks pass
+  975/975; lint, formatting, and configuration validation pass; the complete suite
+  passes 1,834/1,834 with dotenv disabled. The first complete run also discovered 39
+  dependency-owned tests under locally built fixture `node_modules`; normal test
+  discovery now ignores generated dependency and framework output directories.

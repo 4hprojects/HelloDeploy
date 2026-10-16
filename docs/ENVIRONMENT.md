@@ -140,6 +140,15 @@ After deploying a public release, verify the HTTPS, header, health, readiness, a
 npm run production:check -- https://your-platform-domain.example
 ```
 
+### Multi-runtime acceptance operator environment
+
+`npm run acceptance:multi-runtime` reuses the installed `MONGODB_URI`, Redis settings,
+master key, Buildx context, Docker credential store, and ORAS login. Its schema-versioned
+JSON configuration is a separate mode-`0600` file outside the repository; do not copy
+hook URLs, canary values, private targets, or connection strings into `.env`, source,
+shell history, or committed evidence. The command refuses `NODE_ENV=production`.
+See [the BuildKit/GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
+
 ## Installer-only controls
 
 These values control host lifecycle scripts and do not belong in the application `.env`:

@@ -15,3 +15,9 @@
   worker store.
 - 2026-10-16: P1 is single-instance; ISR and cache durability across replacement or
   rollback are not part of the promise.
+- 2026-10-16: Live acceptance uses this public repository with one distinct application
+  root per fixture. Protected hook URLs and canary values remain outside the checkout.
+- 2026-10-16: The coordinator is preflight-only unless `--execute`, the exact
+  nonproduction confirmation ID, and an absolute evidence directory are all supplied.
+  Cancellation, timeout, worker interruption, resource pressure, and registry cleanup
+  each require an additional independent flag.

@@ -48,3 +48,65 @@ To stop the pilot, set `MULTIRUNTIME_NEXT_V1_ENABLED=false`, restart web and wor
 and leave retained digest records/images intact. Do not remove the remote builder or
 registry credentials until in-flight jobs have drained. Existing projects without a
 strategy continue using `legacy_generated` behavior.
+
+## Acceptance project provisioning
+
+Create one nonproduction project for every entry in
+`tests/fixtures/multi-runtime/manifest.json`. All projects use this repository, but
+each stores the manifest's distinct `applicationRoot`, runtime, and build strategy.
+Set `ACCEPTANCE_PRIVATE_CANARY` only on the `private-secret-probe` project. Configure
+the `registry-cleanup` project's `maxRollbackReleases` quota to `1` before running the
+optional registry-cleanup scenario; the harness refuses that scenario otherwise.
+
+Create deploy hooks only for these nonproduction fixture projects. Copy
+`acceptance-config.example.json` to a path outside the checkout, replace every
+placeholder, and protect it:
+
+```sh
+install -m 600 docs/multi-runtime/acceptance-config.example.json /protected/path/multi-runtime-acceptance.json
+```
+
+The operator environment, not the JSON file, supplies `MONGODB_URI`, Redis settings,
+the master key, Docker/Buildx credentials, and ORAS/GHCR credentials. Install Chromium
+for Playwright before execution. The baseline SHA must name the healthy fixture commit;
+the candidate SHA must be the current branch head containing the intentional build and
+health failures. Both must be full public commit SHAs.
+
+## Harness commands
+
+Preflight is read-only and is the default. It checks file permissions, source SHAs,
+stored project settings, idle projects, platform readiness, MongoDB, the queue/worker,
+the named Buildx builder, GHCR access, and all confirmation inputs:
+
+```sh
+npm run acceptance:multi-runtime -- --config /protected/path/multi-runtime-acceptance.json
+```
+
+Safe execution requires the exact configured confirmation ID and an absolute evidence
+directory:
+
+```sh
+npm run acceptance:multi-runtime -- \
+  --config /protected/path/multi-runtime-acceptance.json \
+  --execute \
+  --confirm-environment replace-with-unique-nonproduction-id \
+  --evidence-output /protected/path/multi-runtime-evidence
+```
+
+Disruptive cases are opt-in and should run only while the nonproduction environment is
+otherwise idle:
+
+```text
+--with-cancellation
+--with-timeout
+--with-worker-interruption
+--with-resource-pressure
+--with-registry-cleanup
+```
+
+The interruption case prints a deployment-ID checkpoint after the slow fixture reaches
+`BUILDING`; restart only the nonproduction worker and leave the coordinator running.
+The egress probe creates and removes a temporary platform-owned context and suppresses
+raw BuildKit output. Execution writes mode-`0600` JSON and Markdown reports. Review
+those reports against `acceptance-evidence.schema.json` before copying a sanitized
+summary into `docs/multi-runtime/evidence/`.

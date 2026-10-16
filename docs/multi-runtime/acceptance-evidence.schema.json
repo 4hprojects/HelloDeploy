@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hellodeploy.example/schemas/multi-runtime-acceptance-evidence-v1.json",
+  "title": "HelloDeploy multi-runtime nonproduction acceptance evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "environmentClass",
+    "startedAt",
+    "completedAt",
+    "result",
+    "fixtures"
+  ],
+  "properties": {
+    "schemaVersion": { "const": 1 },
+    "environmentClass": { "const": "nonproduction" },
+    "startedAt": { "type": "string", "format": "date-time" },
+    "completedAt": { "type": "string", "format": "date-time" },
+    "result": { "enum": ["pass", "fail", "blocked"] },
+    "fixtures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["fixtureId", "strategy", "result"],
+        "properties": {
+          "fixtureId": { "type": "string" },
+          "sourceSha": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+          "projectId": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+          "deploymentId": { "type": "string", "pattern": "^[0-9a-f]{24}$" },
+          "strategy": { "type": "string" },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "timings": { "type": "object" },
+          "routeStatus": { "type": "integer" },
+          "resourceObservations": { "type": "object" },
+          "result": { "enum": ["pass", "fail", "blocked"] }
+        }
+      }
+    }
+  }
+}
