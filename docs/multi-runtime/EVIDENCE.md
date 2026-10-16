@@ -38,6 +38,25 @@ payload, its focused rerun passed 5/5, and the complete suite then passed 1,805/
   `config`, `nginx`; 105 files): 895/895 passed with the same environment.
 - `npm run lint`, `npm run format:check`, and `npm run config:check` passed.
 
+## 2026-10-17 P1 close-out audit
+
+Checked against the P1 brief (`03_PHASE_0_1_BASELINE_NEXTJS.md`):
+
+| Requirement                                                                   | State               | Evidence                                                            |
+| ----------------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------- |
+| npm lockfile detection, Yarn/pnpm rejected                                    | Repository-complete | `detection.service.js` lockfile check and tests                     |
+| `next.config.*` output mode detection                                         | Repository-complete | five config extensions, comment-stripped static read                |
+| `next start`, standalone, and static export                                   | Repository-complete | three versioned templates and tests                                 |
+| Standalone `public` and `.next/static` assets                                 | Repository-complete | template copies both, with `public` created when absent             |
+| Host and port binding                                                         | Fixed 2026-10-17    | `HOSTNAME=0.0.0.0` and `PORT` in both server images                 |
+| Build-time vs runtime environment                                             | Repository-complete | only public-prefixed values reach the build (`public-build-env.js`) |
+| Server Actions behind the proxy                                               | Repository-complete | Nginx forwards `Host` and `X-Forwarded-Host`                        |
+| Plain-language unsupported messages                                           | Extended 2026-10-17 | start script, development-only `next`, custom `distDir`             |
+| SSR, route handlers, Server Actions, `next/image`, middleware, ISR at runtime | Blocked (external)  | fixtures exist; needs the BuildKit/GHCR acceptance run              |
+
+Tests: detection and Dockerfile generator files 78/78; every file that uses detection or
+the generator 96/96, with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

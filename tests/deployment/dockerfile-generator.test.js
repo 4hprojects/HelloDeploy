@@ -260,6 +260,39 @@ describe('generateDockerfile — versioned Next.js strategies', () => {
     assert.match(dockerfile, /COPY --from=builder \/app\/out \/usr\/share\/nginx\/html/);
     assert.match(dockerfile, /EXPOSE 8080/);
   });
+
+  // Docker sets HOSTNAME to the container id, and Next servers bind to it,
+  // leaving them listening on one interface instead of all of them.
+  it('binds the standalone server to every container interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standalone_v1' });
+    assert.match(dockerfile, /ENV HOSTNAME=0\.0\.0\.0\nCMD \["node", "server\.js"\]/);
+  });
+
+  it('binds the standard server to every container interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standard_v1' });
+    assert.match(dockerfile, /ENV HOSTNAME=0\.0\.0\.0\nCMD \["npm", "start"\]/);
+  });
+
+  it('disables Next.js telemetry in every versioned build stage', () => {
+    const builds = ['next_standard_v1', 'next_standalone_v1', 'next_export_v1'].map(
+      (buildStrategy) => generateDockerfile({ ...base, buildStrategy }),
+    );
+    assert.deepEqual(
+      builds.map((dockerfile) =>
+        /ENV NEXT_TELEMETRY_DISABLED=1\n.*RUN npm run build/s.test(dockerfile),
+      ),
+      [true, true, true],
+    );
+  });
+
+  it('leaves the legacy Next.js template without the versioned defaults', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      startCommand: null,
+      outputDirectory: '.next',
+    });
+    assert.doesNotMatch(dockerfile, /HOSTNAME|NEXT_TELEMETRY_DISABLED/);
+  });
 });
 
 describe('generateDockerfile — EXPRESS', () => {

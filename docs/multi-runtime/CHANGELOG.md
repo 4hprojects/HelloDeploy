@@ -14,6 +14,11 @@
   names such as `..cache` are no longer mistaken for escapes.
 - Pulled digest images must match the runtime Docker daemon's OS and architecture.
 - Fixed the canary-probe test spawning a `file://` URL instead of a path.
+- P1 close-out: versioned Next.js server images bind every container interface and
+  versioned builds disable Next.js telemetry.
+- Detection warns when standard mode lacks a start script or lists `next` only in
+  devDependencies, and when a custom `distDir` is configured. The user guide explains
+  each warning.
 
 ## 2026-10-16
 

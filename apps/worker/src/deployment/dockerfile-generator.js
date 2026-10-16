@@ -5,6 +5,8 @@ import { ImageTemplateVersion } from './template-policy.js';
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
 const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
+// Versioned Next.js images set HOSTNAME because Docker defaults it to the
+// container id, and Next servers bind to it instead of every interface.
 // Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
@@ -140,6 +142,7 @@ COPY package*.json ./
 RUN npm ci --prefer-offline
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN ${buildCommand}
 RUN npm prune --omit=dev
 
@@ -150,6 +153,7 @@ COPY --from=builder --chown=node:node /app ./
 USER node
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}
+ENV HOSTNAME=0.0.0.0
 CMD ["npm", "start"]
 `;
 }
@@ -165,6 +169,7 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN ${buildCommand}
 RUN mkdir -p /app/public
 
@@ -177,6 +182,7 @@ COPY --from=builder --chown=node:node /app/public ./public
 USER node
 EXPOSE ${applicationPort}
 ENV PORT=${applicationPort}
+ENV HOSTNAME=0.0.0.0
 CMD ["node", "server.js"]
 `;
 }
@@ -188,6 +194,7 @@ COPY package*.json ./
 RUN npm ci --prefer-offline
 COPY . .
 ${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
 RUN ${buildCommand}
 
 FROM ${NGINX_IMAGE}

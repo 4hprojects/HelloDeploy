@@ -136,6 +136,71 @@ describe('detectRuntime — NEXTJS', () => {
     );
   });
 
+  it('warns that standard server mode needs a start script', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^15.0.0' },
+          scripts: { build: 'next build' },
+        }),
+        'package-lock.json': '{}',
+      }),
+    );
+    assert.ok(
+      result.issues.some(
+        (issue) => issue.level === 'WARNING' && issue.message.includes('"start": "next start"'),
+      ),
+    );
+  });
+
+  it('warns that standard server mode prunes a next devDependency', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          devDependencies: { next: '^15.0.0' },
+          scripts: { build: 'next build', start: 'next start' },
+        }),
+        'package-lock.json': '{}',
+      }),
+    );
+    assert.ok(
+      result.issues.some(
+        (issue) =>
+          issue.level === 'WARNING' && issue.message.includes('move "next" to dependencies'),
+      ),
+    );
+  });
+
+  it('does not ask a standalone build for a start script or runtime next dependency', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          devDependencies: { next: '^15.0.0' },
+          scripts: { build: 'next build' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.mjs': `export default { output: 'standalone' };`,
+      }),
+    );
+    assert.deepEqual(result.issues, []);
+  });
+
+  it('warns that a custom Next.js distDir is not supported', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({
+          dependencies: { next: '^15.0.0' },
+          scripts: { build: 'next build', start: 'next start' },
+        }),
+        'package-lock.json': '{}',
+        'next.config.js': `module.exports = { distDir: 'build' };`,
+      }),
+    );
+    assert.ok(
+      result.issues.some((issue) => issue.level === 'WARNING' && issue.message.includes('distDir')),
+    );
+  });
+
   it('warns when build script is missing for NEXTJS', () => {
     const result = detectRuntime(
       files({

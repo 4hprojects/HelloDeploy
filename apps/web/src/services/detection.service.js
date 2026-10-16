@@ -37,11 +37,13 @@ function detectNextStrategy(files) {
   const matches = Object.entries(NEXT_OUTPUT_PATTERNS).filter(([, pattern]) =>
     pattern.test(content),
   );
+  const hasCustomDistDir = /\bdistDir\s*:/.test(content);
   if (matches.length === 1) {
     const [strategy] = matches[0];
     return {
       strategy,
       ambiguous: false,
+      hasCustomDistDir,
       rationale:
         strategy === BuildStrategy.NEXT_EXPORT_V1
           ? 'Next.js output: export was found; the generated files can be served statically.'
@@ -52,6 +54,7 @@ function detectNextStrategy(files) {
   return {
     strategy: BuildStrategy.NEXT_STANDARD_V1,
     ambiguous,
+    hasCustomDistDir,
     rationale: ambiguous
       ? 'The Next.js output setting is dynamic or unsupported, so standard next start is recommended.'
       : 'No static export or standalone output setting was found, so standard next start is recommended.',
@@ -154,6 +157,29 @@ export function detectRuntime(files) {
       startCommand = startCommand ?? 'npm start';
       outputDirectory = '.next';
       applicationPort = 3000;
+      if (!scripts.start) {
+        issues.push({
+          level: 'WARNING',
+          message:
+            'Standard Next.js server mode runs npm start, but package.json has no "start" script. Add "start": "next start".',
+        });
+      }
+      // The standard image prunes devDependencies after the build, so a next
+      // listed only there is gone when npm start runs.
+      if (!('next' in (pkg.dependencies ?? {}))) {
+        issues.push({
+          level: 'WARNING',
+          message:
+            'Standard Next.js server mode removes devDependencies after the build, so move "next" to dependencies in package.json.',
+        });
+      }
+    }
+    if (nextStrategy.hasCustomDistDir) {
+      issues.push({
+        level: 'WARNING',
+        message:
+          'A custom distDir was found in the Next.js config. HelloDeploy expects the default .next and out folders, so remove distDir before deploying.',
+      });
     }
     if (nextStrategy.ambiguous) {
       issues.push({

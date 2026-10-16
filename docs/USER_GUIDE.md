@@ -111,6 +111,14 @@ ISR and cache data remain container-local and are not preserved across replaceme
 rollback. Static export cannot use server routes, Server Actions, ISR, middleware, or
 server-side image optimization.
 
+Detection warns about Next.js settings that would otherwise fail after the build:
+
+- **Standard server** runs `npm start`, so `package.json` needs `"start": "next start"`.
+  Development dependencies are removed after the build, so `next` must be listed under
+  `dependencies`, not `devDependencies`. Standalone and static export need neither.
+- **Custom `distDir`** is not supported. HelloDeploy expects the default `.next` build
+  folder and `out` export folder.
+
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real
 BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
 does not make a mode generally available.

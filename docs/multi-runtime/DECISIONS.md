@@ -21,3 +21,14 @@
   nonproduction confirmation ID, and an absolute evidence directory are all supplied.
   Cancellation, timeout, worker interruption, resource pressure, and registry cleanup
   each require an additional independent flag.
+- 2026-10-17: A nonproduction pilot database is identified by a structured marker
+  keyed to `HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID`, which must equal the acceptance
+  `confirmationId`. Alternative rejected: relying on `NGINX_ENABLED`, which does not
+  identify an environment.
+- 2026-10-17: Versioned Next.js server images set `HOSTNAME=0.0.0.0`, and every
+  versioned Next.js build sets `NEXT_TELEMETRY_DISABLED=1`. Legacy templates are
+  unchanged so existing deployments keep byte-identical images.
+- 2026-10-17: Configurations that are known to fail after the build (no start script or
+  a development-only `next` in standard mode, a custom `distDir`) are detection
+  warnings, not errors. The owner can still choose a different mode, and an error would
+  block legacy projects whose image never runs `npm start`.
