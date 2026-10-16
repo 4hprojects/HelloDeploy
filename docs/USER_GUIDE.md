@@ -191,6 +191,31 @@ WordPress, queues, the scheduler, persistent uploads, and extensions other than 
 official image's defaults plus `pdo_mysql` are not supported in the pilot. Apache runs at
 most eight PHP workers per container to stay inside the memory and process limits.
 
+### Java Spring Boot apps (pilot)
+
+Allowlisted projects can deploy Spring Boot web apps built with Maven or Gradle.
+
+- **Commit the build wrapper.** HelloDeploy builds with `mvnw` (and the `.mvn` folder) or
+  `gradlew` (and `gradle/wrapper`), so every build uses the same tool version. Spring
+  Initializr projects already include them.
+- **Java version.** HelloDeploy reads `<java.version>` or `<maven.compiler.release>` from
+  `pom.xml`, or the toolchain `languageVersion` or `sourceCompatibility` from the Gradle
+  build, and supports 17, 21, and 25. Without one it uses 21.
+- **One executable jar.** The build runs `clean package` (Maven) or `clean bootJar` (Gradle)
+  with tests skipped and must produce exactly one Spring Boot executable jar. Multi-module
+  builds are not supported yet.
+- **Port and proxy.** The app listens on 8080 (`SERVER_PORT` overrides
+  `application.properties`) and trusts the platform proxy's forwarded headers.
+- **Health check.** With Spring Boot Actuator on the classpath, detection sets the health
+  check to `/actuator/health`. Otherwise `/` must answer with a success status, or set a
+  different path.
+- **Memory.** The JVM heap is capped at 60% of the container memory. Spring Boot apps
+  usually need at least 512 MB, so ask an administrator to raise the project quota when the
+  default is lower.
+
+Databases must be external. Application servers, WAR/EAR deployments, and background job
+runners are not supported in the pilot.
+
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real
 BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
 does not make a mode generally available.

@@ -93,6 +93,11 @@ const PILOT_RUNTIMES = Object.freeze({
     strategy: BuildStrategy.PYTHON_FLASK_V1,
   },
   [RuntimeType.PHP]: { label: 'PHP', choice: 'PHP app type', strategy: BuildStrategy.PHP_PLAIN_V1 },
+  [RuntimeType.JAVA]: {
+    label: 'Java',
+    choice: 'Java build tool',
+    strategy: BuildStrategy.JAVA_MAVEN_V1,
+  },
 });
 
 export function validateBuildStrategyReadiness(project, isStrategyEnabledFor) {

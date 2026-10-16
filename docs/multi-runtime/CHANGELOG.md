@@ -20,6 +20,19 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### P3B Java (2026-10-17)
+
+- Added the `JAVA` runtime, `java_maven_v1` and `java_gradle_v1` strategies, Java 17/21/25
+  selection from the build file, and the `MULTIRUNTIME_JAVA_V1_*` pilot flag.
+- Detection recognizes Spring Boot Maven and Gradle builds, requires the wrapper, rejects
+  multi-module builds and non-Spring Boot Java, suggests `/actuator/health` when Actuator
+  is present, and recommends 512 MB.
+- Java images build with the wrapper on a Temurin JDK, require exactly one Spring Boot
+  executable jar, and run it on the Temurin JRE as uid 10001 with a 60% heap cap.
+- The build form offers the build tool; detection results can now carry a health check
+  path.
+- Added Maven and Gradle Spring Boot fixtures with checksum-verified wrappers.
+
 ### P3A PHP (2026-10-17)
 
 - Detection lets a recognized backend framework own repositories where Node found only a

@@ -240,6 +240,19 @@ describe('guided detection inputs', () => {
     assert.match(html, /PHP apps are in a limited pilot/);
   });
 
+  it('offers the Java build tool when the pilot is enabled', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p4',
+        runtimeType: 'JAVA',
+        detection: { status: 'READY', recommendedBuildStrategy: 'java_gradle_v1' },
+        buildConfiguration: { healthCheckPath: '/actuator/health' },
+      },
+      isStrategyEnabledFor: () => true,
+    });
+    assert.match(html, /<option value="java_gradle_v1" selected>Gradle \(gradlew\)/);
+  });
+
   it('shares runtime-aware fields across detection and project settings', () => {
     assert.match(detection, /partials\/guided-build-fields/);
     assert.match(settings, /partials\/guided-build-fields/);

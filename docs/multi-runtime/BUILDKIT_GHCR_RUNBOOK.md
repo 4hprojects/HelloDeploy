@@ -33,6 +33,8 @@ MULTIRUNTIME_PYTHON_V1_ENABLED=true
 MULTIRUNTIME_PYTHON_V1_PROJECT_IDS=OBJECT_ID
 MULTIRUNTIME_PHP_V1_ENABLED=true
 MULTIRUNTIME_PHP_V1_PROJECT_IDS=OBJECT_ID
+MULTIRUNTIME_JAVA_V1_ENABLED=true
+MULTIRUNTIME_JAVA_V1_PROJECT_IDS=OBJECT_ID
 HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID=UNIQUE_NONPRODUCTION_ID
 ```
 
@@ -53,6 +55,10 @@ read-only ORAS tag probe. Remote mode never creates a local fallback builder.
 - Then test the plain PHP and Composer fixtures: `.php` execution, Composer autoloading,
   `www-data` runtime, denied `composer.json` and `vendor/` paths, the eight-worker cap
   under load, and digest rollback.
+- Then test the Maven and Gradle Spring Boot fixtures: wrapper download and checksum, one
+  executable jar, uid 10001 runtime, Actuator health, heap behavior at the project memory
+  quota, and digest rollback. Record build duration and peak builder memory; give the
+  fixture projects a 512 MB quota.
 - Verify build cleanup, cache/disk limits, log redaction, unauthorized registry denial,
   and network denial to each production control-plane endpoint.
 - Confirm a retained digest cannot be deleted and an unreferenced digest is removed.

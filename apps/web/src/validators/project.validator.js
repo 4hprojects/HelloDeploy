@@ -4,6 +4,7 @@ import {
   NEXT_BUILD_STRATEGIES,
   PYTHON_BUILD_STRATEGIES,
   PHP_BUILD_STRATEGIES,
+  JAVA_BUILD_STRATEGIES,
   isReservedSubdomain,
   isValidSubdomainLabel,
   normalizeSubdomainLabel,
@@ -116,6 +117,7 @@ export function validateUpdateBuildConfiguration(body) {
       ...NEXT_BUILD_STRATEGIES,
       ...PYTHON_BUILD_STRATEGIES,
       ...PHP_BUILD_STRATEGIES,
+      ...JAVA_BUILD_STRATEGIES,
     ].includes(buildStrategy)
   ) {
     errors.buildStrategy = 'Select a supported build strategy.';

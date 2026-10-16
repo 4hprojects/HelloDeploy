@@ -77,3 +77,19 @@
   scheduler are never run.
 - 2026-10-17: WordPress is detected and rejected with an explanation until persistent
   storage exists (default from file 11 confirmed).
+- 2026-10-17: Java supports Spring Boot only, through `java_maven_v1` and
+  `java_gradle_v1`, and requires the project wrapper (`mvnw` or `gradlew`). One Temurin
+  JDK builder family then serves both tools, and the tool version is pinned by the
+  repository. Alternative rejected: the `maven:` image without a wrapper, which leaves the
+  Maven version to the platform and still needs a second path for Gradle.
+- 2026-10-17: Approved Java versions are the LTS releases 17, 21, and 25 (default 21), read
+  from `pom.xml` or the Gradle build. The build runs `clean` first so a committed `target/`
+  or `build/` cannot add stray jars, must yield exactly one jar with a `BOOT-INF/` layout,
+  and copies it to a platform-owned name.
+- 2026-10-17: The JVM gets `-XX:MaxRAMPercentage=60` plus `ExitOnOutOfMemoryError`, and the
+  port is fixed at 8080 through `SERVER_PORT`, which outranks `application.properties`.
+  Detection recommends at least 512 MB instead of changing quota defaults.
+- 2026-10-17: Java fixture wrappers come from official sources with verified checksums. The
+  Maven script-only wrapper 3.3.4 matches Maven Central's SHA-1. The Gradle wrapper jar
+  matches the official checksum for Gradle 8.14 to 8.14.5, so the fixture pins Gradle
+  8.14.5. Distribution SHA-256 sums are set so the wrappers verify their own downloads.

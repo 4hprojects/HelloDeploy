@@ -97,6 +97,19 @@ contract suites, 1,692/1,692; lint and format clean. The Composer fixture's
 `composer.lock` has no packages; its `content-hash` was computed
 with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
 
+## 2026-10-17 P3B Java
+
+| Requirement (`05_PHASE_3_PHP_JAVA.md`, part B)                        | State               | Evidence                                                                 |
+| --------------------------------------------------------------------- | ------------------- | ------------------------------------------------------------------------ |
+| Detect `pom.xml` or the Gradle wrapper and Spring Boot                | Repository-complete | parent/plugin/groupId for Maven; plugin id for Gradle; wrapper required  |
+| Approved JDKs, verified toolchains, multi-stage build                 | Repository-complete | 17/21/25 Temurin JDK builder and JRE runtime                             |
+| Locate the executable artifact deterministically                      | Repository-complete | exactly one non-plain jar with `BOOT-INF/`, copied to a platform name    |
+| HTTP binding, port, and health via policy; Actuator only when present | Repository-complete | `SERVER_PORT=8080`; `/actuator/health` only with the Actuator starter    |
+| Heap limited to a safe share of memory                                | Repository-complete | `MaxRAMPercentage=60`; 512 MB recommendation                             |
+| Build CPU/memory measured on the 8 GB pilot host                      | Blocked (external)  | needs the remote builder                                                 |
+| Fixtures: Maven and Gradle Spring Boot                                | Repository-complete | wrapper checksums verified against Maven Central and services.gradle.org |
+| Live routing, logs, secrets, rollback, quotas, version errors         | Blocked (external)  | needs the BuildKit/GHCR acceptance run                                   |
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

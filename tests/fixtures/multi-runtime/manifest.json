@@ -110,6 +110,20 @@
       "probePath": "/acceptance.php"
     },
     {
+      "id": "java-maven",
+      "applicationRoot": "tests/fixtures/multi-runtime/java-maven",
+      "runtimeType": "JAVA",
+      "buildStrategy": "java_maven_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "java-gradle",
+      "applicationRoot": "tests/fixtures/multi-runtime/java-gradle",
+      "runtimeType": "JAVA",
+      "buildStrategy": "java_gradle_v1",
+      "probePath": "/acceptance"
+    },
+    {
       "id": "rollback-marker",
       "applicationRoot": "tests/fixtures/multi-runtime/rollback-marker",
       "runtimeType": "NODEJS",

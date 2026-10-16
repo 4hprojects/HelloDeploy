@@ -38,6 +38,7 @@
     NEXTJS: 'Next.js app',
     PYTHON: 'Python app',
     PHP: 'PHP app',
+    JAVA: 'Java app',
     EXPRESS: 'Express app',
     NODEJS: 'Node.js app',
     UNKNOWN: 'App type not recognized',
@@ -187,7 +188,7 @@
   <div class="guided-disclosure__body">
     <% if (membership.role === 'OWNER') { %>
     <%- include('../../partials/form-errors', { errors: bcErrors }) %>
-      <% if (['NEXTJS', 'PYTHON', 'PHP'].includes(project.runtimeType) && project.detection?.strategyRationale) { %>
+      <% if (['NEXTJS', 'PYTHON', 'PHP', 'JAVA'].includes(project.runtimeType) && project.detection?.strategyRationale) { %>
       <p class="form-hint mb-4"><strong>Detected mode:</strong> <%= project.detection.strategyRationale %></p>
       <% } %>
     <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>

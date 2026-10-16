@@ -31,7 +31,9 @@
   const _gbPythonRuntime = _gbRuntime === 'PYTHON';
   const _gbPhpRuntime = _gbRuntime === 'PHP';
   const _gbPhpStrategiesEnabled = _gbStrategyEnabled('php_plain_v1');
-  const _gbPilotLabel = { PYTHON: 'Python', PHP: 'PHP' }[_gbRuntime] ?? null;
+  const _gbJavaRuntime = _gbRuntime === 'JAVA';
+  const _gbJavaStrategiesEnabled = _gbStrategyEnabled('java_maven_v1');
+  const _gbPilotLabel = { PYTHON: 'Python', PHP: 'PHP', JAVA: 'Java' }[_gbRuntime] ?? null;
   const _gbStaticRuntime =
     ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
   const _gbBuiltStaticRuntime =
@@ -150,6 +152,26 @@
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
     <% } %>
   </div>
+  <% } else if (_gbJavaRuntime && _gbJavaStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Java build tool</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="java_maven_v1" <%= _gbStrategy === 'java_maven_v1' ? 'selected' : '' %>>Maven (mvnw)</option>
+      <option value="java_gradle_v1" <%= _gbStrategy === 'java_gradle_v1' ? 'selected' : '' %>>Gradle (gradlew)</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected tool. HelloDeploy builds one Spring Boot executable jar with the project
+      wrapper, skips tests, and runs it with <code class="code-inline">java -jar</code>.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
   <% } else { %>
   <input type="hidden" name="buildStrategy" value="<%= _gbStrategy %>" />
   <% if (_gbPilotLabel) { %>
@@ -181,6 +203,8 @@
       <% } else if (_gbPythonRuntime) { %>
         Optional. Runs after dependencies are installed. Django apps that serve static files with
         WhiteNoise usually use <code class="code-inline">python manage.py collectstatic --noinput</code>.
+      <% } else if (_gbJavaRuntime) { %>
+        Leave this blank. HelloDeploy builds Java apps with the project's Maven or Gradle wrapper.
       <% } else if (_gbPhpRuntime) { %>
         Laravel only: builds the frontend assets with npm, usually
         <code class="code-inline">npm run build</code>. Leave it blank for a plain PHP site or a
@@ -277,7 +301,7 @@
   </div>
   <% } %>
 
-  <% if (_gbStaticRuntime || _gbPhpRuntime) { %>
+  <% if (_gbStaticRuntime || _gbPhpRuntime || _gbJavaRuntime) { %>
   <div class="form-group guided-build-field--informational">
     <span class="form-label">App port</span>
     <p class="form-hint">

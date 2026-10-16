@@ -128,3 +128,10 @@ describe('validateUpdateBuildConfiguration — PHP strategies', () => {
     assert.match(errors.outputDirectory, /public folder/);
   });
 });
+
+describe('validateUpdateBuildConfiguration — Java strategies', () => {
+  it('accepts the Gradle strategy', () => {
+    const { hasErrors } = validateUpdateBuildConfiguration({ buildStrategy: 'java_gradle_v1' });
+    assert.equal(hasErrors, false);
+  });
+});
