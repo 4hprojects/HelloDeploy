@@ -20,6 +20,11 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### P5 design (2026-10-17)
+
+- Recorded the restricted Compose and entitlements ADR. Implementation is blocked at the
+  brief's P5 entry gate until P4 is proven live and host headroom is measured.
+
 ### P4 owner images (2026-10-17, stacked PR)
 
 - Registry deletion is limited to `USER_IMAGE_REGISTRY`, and cleanup skips images the
