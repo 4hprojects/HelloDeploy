@@ -21,8 +21,7 @@ import {
   toResourceLimits,
   STARTUP_DELAY_MS,
 } from '../deployment/pipeline.js';
-import { resolveBuildStrategy } from '../deployment/build-strategy.js';
-import { ImageTemplateVersion } from '../deployment/template-policy.js';
+import { resolveRuntimeSpec } from '../deployment/build-strategy.js';
 
 const defaultDeps = {
   allocatePort,
@@ -123,10 +122,7 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
   }
   let runtimeSpec;
   if (rollbackSnapshot) {
-    runtimeSpec = resolveBuildStrategy({
-      snapshot: rollbackSnapshot,
-      templateVersion: ImageTemplateVersion.LEGACY,
-    }).runtime;
+    runtimeSpec = resolveRuntimeSpec(rollbackSnapshot);
   }
   const sourceImage = sourceDeployment.imageRef ?? sourceDeployment.imageTag;
   if (sourceDeployment.imageDigest && sourceImage.includes('@sha256:')) {

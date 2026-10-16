@@ -18,6 +18,35 @@ export function resolveBuildStrategy({
   phpVersion = null,
   javaVersion = null,
 }) {
+  const runtime = resolveRuntimeSpec(snapshot);
+  const buildStrategy = snapshot.buildStrategy ?? BuildStrategy.LEGACY_GENERATED;
+  const config = snapshot.buildConfiguration;
+  return {
+    strategyId: buildStrategy,
+    applicationRoot: config.applicationRoot ?? '.',
+    dockerfileContent: generateDockerfile({
+      runtimeType: snapshot.runtimeType,
+      buildStrategy,
+      buildCommand: config.buildCommand ?? null,
+      startCommand: config.startCommand ?? null,
+      outputDirectory: config.outputDirectory ?? null,
+      applicationPort: config.applicationPort ?? null,
+      applicationModule: config.applicationModule ?? null,
+      pythonVersion,
+      phpVersion,
+      javaVersion,
+      buildArgNames,
+      templateVersion,
+    }),
+    runtime,
+  };
+}
+
+/**
+ * The container port and routing behavior a snapshot runs with. Rollback uses
+ * this alone: it reuses a built image and never regenerates its Dockerfile.
+ */
+export function resolveRuntimeSpec(snapshot) {
   if (!snapshot?.runtimeType || !snapshot?.buildConfiguration) {
     throw new Error('Deployment configuration snapshot is incomplete.');
   }
@@ -40,28 +69,10 @@ export function resolveBuildStrategy({
         ? JAVA_PORT
         : (config.applicationPort ?? defaultPort);
   return {
-    strategyId: buildStrategy,
-    applicationRoot: config.applicationRoot ?? '.',
-    dockerfileContent: generateDockerfile({
-      runtimeType: snapshot.runtimeType,
+    appPort,
+    static: isStatic,
+    streaming: [BuildStrategy.NEXT_STANDARD_V1, BuildStrategy.NEXT_STANDALONE_V1].includes(
       buildStrategy,
-      buildCommand: config.buildCommand ?? null,
-      startCommand: config.startCommand ?? null,
-      outputDirectory: config.outputDirectory ?? null,
-      applicationPort: config.applicationPort ?? null,
-      applicationModule: config.applicationModule ?? null,
-      pythonVersion,
-      phpVersion,
-      javaVersion,
-      buildArgNames,
-      templateVersion,
-    }),
-    runtime: {
-      appPort,
-      static: isStatic,
-      streaming: [BuildStrategy.NEXT_STANDARD_V1, BuildStrategy.NEXT_STANDALONE_V1].includes(
-        buildStrategy,
-      ),
-    },
+    ),
   };
 }

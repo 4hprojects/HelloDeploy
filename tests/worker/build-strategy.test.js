@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { resolveBuildStrategy } from '../../apps/worker/src/deployment/build-strategy.js';
+import {
+  resolveBuildStrategy,
+  resolveRuntimeSpec,
+} from '../../apps/worker/src/deployment/build-strategy.js';
 import {
   BuildExecutorMode,
   createBuildExecutor,
@@ -74,5 +77,40 @@ describe('BuildExecutor', () => {
       /remote unavailable/,
     );
     assert.equal(localBuilds, 0);
+  });
+});
+
+// Rollback needs only the runtime spec; the interpreter versions that Dockerfile
+// generation requires are read from the build context, which rollback never has.
+describe('resolveRuntimeSpec', () => {
+  const versioned = (buildStrategy, runtimeType, buildConfiguration = {}) => ({
+    buildStrategy,
+    runtimeType,
+    buildConfiguration: { applicationRoot: '.', applicationPort: null, ...buildConfiguration },
+  });
+
+  it('resolves a Python release without its interpreter version', () => {
+    assert.deepEqual(
+      resolveRuntimeSpec(
+        versioned('python_django_v1', 'PYTHON', { applicationModule: 'mysite.wsgi:application' }),
+      ),
+      { appPort: 8000, static: false, streaming: false },
+    );
+  });
+
+  it('resolves a PHP release on its fixed port', () => {
+    assert.equal(resolveRuntimeSpec(versioned('php_laravel_v1', 'PHP')).appPort, 8080);
+  });
+
+  it('resolves a Java release on its fixed port', () => {
+    assert.equal(resolveRuntimeSpec(versioned('java_maven_v1', 'JAVA')).appPort, 8080);
+  });
+
+  it('matches the runtime spec of a full build resolution', () => {
+    const snap = snapshot('next_standalone_v1');
+    assert.deepEqual(
+      resolveRuntimeSpec(snap),
+      resolveBuildStrategy({ snapshot: snap, templateVersion: 'legacy' }).runtime,
+    );
   });
 });

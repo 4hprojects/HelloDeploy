@@ -20,6 +20,12 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Rollback fix (2026-10-17)
+
+- Rollback now resolves only the runtime spec from the source snapshot. It used to
+  regenerate the Dockerfile, which requires the interpreter version read from the build
+  context, so rolling back any Python, PHP, or Java release threw before starting.
+
 ### P3B Java (2026-10-17)
 
 - Added the `JAVA` runtime, `java_maven_v1` and `java_gradle_v1` strategies, Java 17/21/25

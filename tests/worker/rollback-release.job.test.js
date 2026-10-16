@@ -102,6 +102,37 @@ describe('rollback-release job', () => {
     assert.equal(fresh.imageTag, 'img-v1');
   });
 
+  it('rolls a Python release back on its own port without rebuilding it', async () => {
+    const project = await createProject({ runtimeType: 'PYTHON' });
+    const sourceDeployment = await createDeployment(project._id, {
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-python-v1',
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'python_flask_v1',
+        runtimeType: 'PYTHON',
+        buildConfiguration: {
+          applicationRoot: '.',
+          applicationPort: 8000,
+          healthCheckPath: '/',
+          applicationModule: 'app:app',
+        },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+      },
+    });
+    const rollbackDeployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      triggerType: DeploymentTrigger.ROLLBACK,
+      status: DeploymentStatus.DEPLOYING,
+    });
+    const { deps, calls } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    assert.equal(calls.startedContainers[0]?.appPort, 8000);
+  });
+
   it('marks the previously active deployment ROLLED_BACK and stops its container', async () => {
     const { project, sourceDeployment, rollbackDeployment } = await seed();
     const previousActive = await createDeployment(project._id, {
