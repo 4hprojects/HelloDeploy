@@ -57,6 +57,27 @@ Checked against the P1 brief (`03_PHASE_0_1_BASELINE_NEXTJS.md`):
 Tests: detection and Dockerfile generator files 78/78; every file that uses detection or
 the generator 96/96, with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`.
 
+## 2026-10-17 P2 Python
+
+| Requirement (`04_PHASE_2_PYTHON.md`)                            | State               | Evidence                                                                                                                                                                    |
+| --------------------------------------------------------------- | ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Strategy interface with unchanged release lifecycle             | Repository-complete | Python strategies use the existing snapshot, resolver, executor, and activation path                                                                                        |
+| Framework detection from dependency metadata                    | Repository-complete | requirements/pyproject parsing; entry files only confirm the module                                                                                                         |
+| Approved Python version and installer                           | Repository-complete | `.python-version`, 3.12/3.13, `requirements.txt` only                                                                                                                       |
+| Non-root multi-stage image, `0.0.0.0` inside the container      | Repository-complete | venv builder, uid 10001 runtime, loopback host publish unchanged                                                                                                            |
+| Server defaults with confirmed module                           | Repository-complete | gunicorn/uvicorn; validator and deploy guard require the module                                                                                                             |
+| Django hosts, static files, migrations, external database       | Documented          | user guide; nothing runs implicitly                                                                                                                                         |
+| No arbitrary pre-deploy shell in the free tier                  | Repository-complete | only the existing build command, inside the isolated builder                                                                                                                |
+| UI: framework, module, port, health, env                        | Repository-complete | guided build form and render tests                                                                                                                                          |
+| Fixtures and Node regressions                                   | Repository-complete | three pinned fixtures; PyPI metadata check confirmed every pin exists, supports its Python version, and closes its dependency tree, with Linux wheels for compiled packages |
+| Live deploy, restart, rollback, redaction, quotas per framework | Blocked (external)  | needs the BuildKit/GHCR acceptance run                                                                                                                                      |
+
+Tests, all with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: Python contracts 17/17;
+detection 46/46; Dockerfile generator 57/57; Python build job 3/3; config validation
+37/37 with the job file; web-facing suites (projects, UI, deployment, admin, security,
+detection, API) 1,130/1,130; worker, deployment, security, config, contract, and detection
+suites 796/796. Phase gate: 179 files plus API and contract suites, 1,636/1,636. Playwright browser tests were not run.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

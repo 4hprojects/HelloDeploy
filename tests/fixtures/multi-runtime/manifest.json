@@ -72,6 +72,30 @@
       "probePath": "/acceptance"
     },
     {
+      "id": "python-flask",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-flask",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_flask_v1",
+      "applicationModule": "app:app",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "python-fastapi",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-fastapi",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_fastapi_v1",
+      "applicationModule": "app.main:api",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "python-django",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-django",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_django_v1",
+      "applicationModule": "mysite.wsgi:application",
+      "probePath": "/acceptance"
+    },
+    {
       "id": "rollback-marker",
       "applicationRoot": "tests/fixtures/multi-runtime/rollback-marker",
       "runtimeType": "NODEJS",

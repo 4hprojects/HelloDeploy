@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { describe, it } from 'node:test';
-import { BuildStrategy } from '@hellodeploy/contracts';
+import { BuildStrategy, resolvePythonVersion } from '@hellodeploy/contracts';
 import { detectRuntime } from '../../apps/web/src/services/detection.service.js';
 import { generateDockerfile } from '../../apps/worker/src/deployment/dockerfile-generator.js';
 
@@ -22,6 +22,16 @@ const detectionPaths = [
   'next.config.mjs',
   'next.config.ts',
   'next.config.mts',
+  'requirements.txt',
+  'pyproject.toml',
+  '.python-version',
+  'manage.py',
+  'app.py',
+  'main.py',
+  'wsgi.py',
+  'asgi.py',
+  'app/main.py',
+  'app/__init__.py',
 ];
 
 async function readDetectionFiles(directory) {
@@ -73,6 +83,20 @@ describe('tracked multi-runtime fixtures', () => {
         }
       }
 
+      if (files['requirements.txt']) {
+        assert.equal(detection.applicationModule, fixture.applicationModule);
+        for (const line of files['requirements.txt'].split('\n')) {
+          const requirement = line.replace(/#.*$/, '').trim();
+          if (requirement) {
+            assert.match(
+              requirement,
+              /^[a-z0-9-]+==\d+(?:\.\d+)+$/,
+              'fixture requirements must be exactly pinned',
+            );
+          }
+        }
+      }
+
       const dockerfile = generateDockerfile({
         runtimeType: fixture.runtimeType,
         buildStrategy: fixture.buildStrategy,
@@ -80,10 +104,15 @@ describe('tracked multi-runtime fixtures', () => {
         startCommand: detection.startCommand,
         outputDirectory: detection.outputDirectory,
         applicationPort: detection.applicationPort,
+        applicationModule: detection.applicationModule,
+        pythonVersion: resolvePythonVersion(files['.python-version']).version,
       });
       assert.match(dockerfile, /^FROM /);
       if (fixture.buildStrategy.startsWith('next_')) {
         assert.match(dockerfile, /node:22-bookworm-slim/);
+      }
+      if (fixture.buildStrategy.startsWith('python_')) {
+        assert.match(dockerfile, /python:3\.1[23]-slim-bookworm/);
       }
     });
   }

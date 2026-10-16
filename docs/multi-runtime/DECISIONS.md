@@ -32,3 +32,27 @@
   a development-only `next` in standard mode, a custom `distDir`) are detection
   warnings, not errors. The owner can still choose a different mode, and an error would
   block legacy projects whose image never runs `npm start`.
+- 2026-10-17: P2 Python is in the first release scope, still default-off and allowlisted
+  (`MULTIRUNTIME_PYTHON_V1_*`). This supersedes the 2026-10-16 deferral of Python.
+- 2026-10-17: Python uses `runtimeType: PYTHON` with one versioned strategy per framework
+  (`python_flask_v1`, `python_fastapi_v1`, `python_django_v1`), mirroring `NEXTJS` and its
+  `next_*` modes. Alternative rejected: one runtime type per framework, which would scatter
+  language-level checks.
+- 2026-10-17: The entry point is a validated `applicationModule` (`module:attribute`), not a
+  free-form start command, so nothing owner-typed reaches `CMD`. App factories need a
+  module-level object; `create_app()` call syntax is rejected.
+- 2026-10-17: Dependencies install only from `requirements.txt`. `pyproject.toml` is read
+  to recognize the framework, and pyproject-only projects get an export command. The
+  server package (gunicorn or uvicorn) must be listed; HelloDeploy never adds unpinned
+  packages.
+- 2026-10-17: The Python version comes from `.python-version` in the cloned commit, limited
+  to 3.12 and 3.13 (default 3.13) on `python:<v>-slim-bookworm`. No compiler is installed;
+  packages must ship wheels.
+- 2026-10-17: Node detection runs first, so existing Node projects detect unchanged. Python
+  wins over a root `index.html` (which would otherwise publish `.py` source as static
+  files) and over a `package.json` that names no Node runtime.
+- 2026-10-17: Django migrations and collectstatic are never run implicitly. collectstatic
+  is an optional owner build command; migrations stay an owner action against the external
+  database.
+- 2026-10-17: Strategy enablement is one shared rule in contracts
+  (`isPilotStrategyEnabledFor`), so web and worker cannot disagree.

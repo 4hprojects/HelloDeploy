@@ -29,6 +29,8 @@ REGISTRY_MANIFEST_DELETE_ENABLED=true
 WORKER_CONCURRENCY=1
 MULTIRUNTIME_NEXT_V1_ENABLED=true
 MULTIRUNTIME_NEXT_V1_PROJECT_IDS=OBJECT_ID
+MULTIRUNTIME_PYTHON_V1_ENABLED=true
+MULTIRUNTIME_PYTHON_V1_PROJECT_IDS=OBJECT_ID
 HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID=UNIQUE_NONPRODUCTION_ID
 ```
 
@@ -43,6 +45,9 @@ read-only ORAS tag probe. Remote mode never creates a local fallback builder.
 - Migrate Static, React, Vue, Express, Node.js, and legacy Next.js fixtures first.
 - Then test Next.js 15/16 standard, standalone, and export fixtures, including failure,
   cancellation, timeout, health-check preservation, streaming, and digest rollback.
+- Then test the Flask, FastAPI, and Django fixtures: healthy route, uid 10001 runtime,
+  restart behavior, secret redaction, quota limits, and digest rollback. Record build
+  duration and peak memory per framework.
 - Verify build cleanup, cache/disk limits, log redaction, unauthorized registry denial,
   and network denial to each production control-plane endpoint.
 - Confirm a retained digest cannot be deleted and an unreferenced digest is removed.
@@ -56,7 +61,8 @@ strategy continue using `legacy_generated` behavior.
 
 Create one nonproduction project for every entry in
 `tests/fixtures/multi-runtime/manifest.json`. All projects use this repository, but
-each stores the manifest's distinct `applicationRoot`, runtime, and build strategy.
+each stores the manifest's distinct `applicationRoot`, runtime, build strategy, and, for
+Python fixtures, `applicationModule`.
 Set `ACCEPTANCE_PRIVATE_CANARY` only on the `private-secret-probe` project. Configure
 the `registry-cleanup` project's `maxRollbackReleases` quota to `1` before running the
 optional registry-cleanup scenario; the harness refuses that scenario otherwise.

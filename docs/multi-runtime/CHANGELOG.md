@@ -20,6 +20,23 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### P2 Python (2026-10-17)
+
+- Added the `PYTHON` runtime, Flask/FastAPI/Django strategies, the `applicationModule`
+  build setting, the approved Python version list, and the `MULTIRUNTIME_PYTHON_V1_*`
+  pilot flag with the same isolated-build requirements as Next.js.
+- Detection recognizes the three frameworks, requires `requirements.txt` and the matching
+  server package, suggests the entry module, and warns about unpinned requirements.
+  Entry-point files are fetched only for repositories with Python markers.
+- Python images install into a venv, run as uid 10001, and start gunicorn or uvicorn on
+  `0.0.0.0`. Context exclusions now also drop virtualenvs and bytecode.
+- The build form offers the framework and module for allowlisted projects and explains the
+  pilot to the rest; deploys check strategy readiness through one guard.
+- Added pinned Flask, FastAPI, and Django acceptance fixtures; the coordinator now also
+  verifies each fixture project's application module.
+- Fixed a latent Next.js pilot bug: the worker allowlist was an array, so every allowlisted
+  build would have thrown and an empty allowlist was never rejected.
+
 ## 2026-10-16
 
 - Added versioned build strategies and normalized application roots.

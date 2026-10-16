@@ -119,6 +119,45 @@ Detection warns about Next.js settings that would otherwise fail after the build
 - **Custom `distDir`** is not supported. HelloDeploy expects the default `.next` build
   folder and `out` export folder.
 
+### Python apps (pilot)
+
+Allowlisted projects can deploy Flask, FastAPI, and Django apps. Detection reads
+`requirements.txt` (and `pyproject.toml`, to recognize the framework) and recommends one
+of three modes:
+
+| Framework | Server HelloDeploy starts | Detected application module                                         |
+| --------- | ------------------------- | ------------------------------------------------------------------- |
+| Flask     | gunicorn                  | `app:app` from `app.py`, `wsgi.py`, `main.py`, or `app/__init__.py` |
+| FastAPI   | uvicorn                   | `main:app` from `main.py`, or `app.main:app` from `app/main.py`     |
+| Django    | gunicorn                  | `mysite.wsgi:application` from the settings module in `manage.py`   |
+
+Before the first Python deploy:
+
+- **Confirm the application module** under **Advanced build settings** and save. It uses
+  the `module:object` form; for an app factory, add a module-level object such as
+  `app = create_app()` in `wsgi.py`.
+- **Commit `requirements.txt`** with every package pinned with `==`, including `gunicorn`
+  (Flask, Django) or `uvicorn` (FastAPI). Projects that only have `pyproject.toml` can
+  export one with `uv export --format requirements-txt > requirements.txt` or
+  `poetry export -f requirements.txt > requirements.txt`.
+- **Choose the Python version** with a `.python-version` file containing `3.12` or `3.13`.
+  Without one, HelloDeploy uses 3.13.
+- **Packages must have Linux wheels.** The image has no compiler, so a package that has to
+  be built from source fails the build.
+
+The server listens on port 8000 inside the container and trusts the platform proxy's
+forwarded headers, so apps see the public `https` scheme. The **build command** is optional
+and runs after dependencies are installed.
+
+For Django, add your HelloDeploy address to `ALLOWED_HOSTS` and keep `SECRET_KEY` in a
+HelloDeploy environment variable. Use an external database; HelloDeploy never runs
+migrations during a deploy, so run them yourself before deploying code that needs them. To
+serve static files, add WhiteNoise and set the build command to
+`python manage.py collectstatic --noinput`.
+
+Background workers, schedulers, persistent disks, and Python versions other than 3.12 and
+3.13 are not supported in the pilot.
+
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real
 BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
 does not make a mode generally available.

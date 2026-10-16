@@ -81,7 +81,9 @@ async function inspectPlatformState(config, manifest, database, queueClient) {
     if (
       project.runtimeType !== fixture.runtimeType ||
       (project.buildStrategy ?? 'legacy_generated') !== fixture.buildStrategy ||
-      (project.buildConfiguration?.applicationRoot ?? '.') !== fixture.applicationRoot
+      (project.buildConfiguration?.applicationRoot ?? '.') !== fixture.applicationRoot ||
+      (project.buildConfiguration?.applicationModule ?? null) !==
+        (fixture.applicationModule ?? null)
     ) {
       throw new Error(`Stored project settings do not match fixture ${fixture.id}.`);
     }
