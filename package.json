@@ -30,7 +30,8 @@
     "test:browser": "playwright test",
     "test:browser:update": "playwright test --update-snapshots",
     "previews:capture": "node scripts/capture-product-previews.js",
-    "performance:lab": "node scripts/run-lighthouse-lab.js"
+    "performance:lab": "node scripts/run-lighthouse-lab.js",
+    "acceptance:multi-runtime": "node scripts/run-multi-runtime-acceptance.js"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

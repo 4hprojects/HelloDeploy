@@ -24,6 +24,48 @@ function runDocker(args) {
   });
 }
 
+const ARCHITECTURE_ALIASES = new Map([
+  ['x86_64', 'amd64'],
+  ['aarch64', 'arm64'],
+]);
+
+export function normalizeDockerArchitecture(value) {
+  const architecture = String(value ?? '')
+    .trim()
+    .toLowerCase();
+  return ARCHITECTURE_ALIASES.get(architecture) ?? architecture;
+}
+
+export function assertCompatibleImagePlatform(imageDetails, runtimeArchitecture) {
+  if (imageDetails?.Os !== 'linux') {
+    throw new Error(`Unsupported image operating system: ${imageDetails?.Os ?? 'unknown'}`);
+  }
+  const imageArchitecture = normalizeDockerArchitecture(imageDetails.Architecture);
+  const hostArchitecture = normalizeDockerArchitecture(runtimeArchitecture);
+  if (!imageArchitecture || !hostArchitecture || imageArchitecture !== hostArchitecture) {
+    throw new Error(
+      `Unsupported image architecture: ${imageArchitecture || 'unknown'}; runtime Docker requires ${hostArchitecture || 'unknown'}.`,
+    );
+  }
+  return imageArchitecture;
+}
+
+export async function pullAndVerifyImage(imageRef, deps = {}) {
+  if (!/^[^\s@]+@sha256:[a-f0-9]{64}$/.test(imageRef ?? '')) {
+    throw new Error('Remote image reference must be pinned to a sha256 digest.');
+  }
+  const docker = deps.runDocker ?? runDocker;
+  await docker(['pull', imageRef]);
+  const details = JSON.parse(
+    await docker(['image', 'inspect', '--format', '{{json .}}', imageRef]),
+  );
+  const runtimeArchitecture = JSON.parse(
+    await docker(['info', '--format', '{{json .Architecture}}']),
+  );
+  const architecture = assertCompatibleImagePlatform(details, runtimeArchitecture);
+  return { imageId: details.Id, architecture };
+}
+
 // ─── Container name / network name helpers ─────────────────────────────────────
 
 export function containerName(projectSlug, deploymentId) {
@@ -100,10 +142,10 @@ export async function startContainer({
   pidsLimit = 100,
   projectId,
   deploymentId,
+  staticRuntime,
 }) {
-  const isStaticRuntime = [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(
-    runtimeType,
-  );
+  const isStaticRuntime =
+    staticRuntime ?? [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(runtimeType);
 
   // Build --env flags for each secret (NEVER log this list)
   const envArgs = [];

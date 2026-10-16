@@ -3,7 +3,12 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage, pruneDanglingImages } from '../deployment/build.js';
-import { getReleaseKeepCount, isImageTagInUse } from '../deployment/retention.js';
+import {
+  getReleaseKeepCount,
+  isImageDigestInUse,
+  isImageTagInUse,
+} from '../deployment/retention.js';
+import { deleteRegistryManifest } from '../deployment/registry.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { env } from '../config/env.js';
 
@@ -12,6 +17,7 @@ const defaultDeps = {
   removeDockerImage,
   cleanupAbandonedBuildWorkspaces,
   pruneDanglingImages,
+  deleteRegistryManifest,
 };
 
 export function isActiveDeploymentProtected(deployment, activeDeploymentIds) {
@@ -105,6 +111,22 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
         }
       }
 
+      if (
+        dep.imageDigest &&
+        dep.imageRef?.includes('@sha256:') &&
+        !(await isImageDigestInUse(dep.imageDigest, excess))
+      ) {
+        try {
+          await deps.deleteRegistryManifest(dep.imageRef);
+        } catch (err) {
+          logger.warn('CleanupReleases: failed to delete registry manifest', {
+            deploymentId: dep._id,
+            imageDigest: dep.imageDigest,
+            error: err.message,
+          });
+        }
+      }
+
       await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
         () => {},
       );
@@ -117,7 +139,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     ...projectMatch,
     status: { $in: [DeploymentStatus.FAILED, DeploymentStatus.CANCELLED] },
     completedAt: { $lt: cutoff },
-    imageTag: { $ne: null },
+    $or: [{ imageTag: { $ne: null } }, { imageRef: { $ne: null } }],
   }).lean();
 
   // A FAILED rollback carries the imageTag of its (possibly still HEALTHY)
@@ -125,6 +147,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
   const abandonedIds = abandonedFailed.map((dep) => dep._id);
   let removedAbandonedImages = 0;
   for (const dep of abandonedFailed) {
+    let registryDeleted = false;
     if (dep.imageTag && !(await isImageTagInUse(dep.imageTag, abandonedIds))) {
       try {
         await deps.removeDockerImage(dep.imageTag);
@@ -133,7 +156,24 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
         // Image may already be removed — non-fatal
       }
     }
-    await Deployment.updateOne({ _id: dep._id }, { $unset: { imageTag: 1 } }).catch(() => {});
+    if (
+      dep.imageDigest &&
+      dep.imageRef?.includes('@sha256:') &&
+      !(await isImageDigestInUse(dep.imageDigest, abandonedIds))
+    ) {
+      try {
+        await deps.deleteRegistryManifest(dep.imageRef);
+        registryDeleted = true;
+      } catch {
+        // Manifest may already be deleted — non-fatal and retried next sweep.
+      }
+    }
+    const unset = { imageTag: 1 };
+    if (registryDeleted) {
+      unset.imageRef = 1;
+      unset.imageDigest = 1;
+    }
+    await Deployment.updateOne({ _id: dep._id }, { $unset: unset }).catch(() => {});
   }
 
   const removedDanglingImages = await deps.pruneDanglingImages();

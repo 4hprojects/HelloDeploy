@@ -40,7 +40,7 @@ describe('deployment cancel and retry flows', () => {
     assert.equal(isRetryableDeploymentStatus(DeploymentStatus.HEALTHY), false);
   });
 
-  it('uses the exact original commit when queueing a retry deployment', () => {
+  it('queues retries with the version-2 deployment identity payload', () => {
     const payload = buildDeploymentJobPayload({
       project: { _id: id('project-1') },
       deployment: { _id: id('deployment-retry') },
@@ -53,7 +53,9 @@ describe('deployment cancel and retry flows', () => {
       correlationId: 'corr-retry',
     });
 
-    assert.equal(payload.commitSha, 'deadbeef34567890abcdef1234567890abcdef12');
+    assert.equal(payload.version, 2);
+    assert.equal(payload.deploymentId, 'deployment-retry');
+    assert.equal(payload.commitSha, undefined);
     assert.equal(payload.noCache, false);
   });
 

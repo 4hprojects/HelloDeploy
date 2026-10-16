@@ -2384,3 +2384,44 @@ recovery remain unexecuted until their declared operational preconditions pass.
   `studyId`. The Privacy Policy now names this data.
 - Not changed: the Privacy Policy "Effective" date (30 June 2026) was not moved for
   either study archive. Whether it needs to move is the operator's call.
+
+## 2026-10-16 — P0-P1 Multi-Runtime Foundation and Next.js Completion
+
+- Preserved the crash-diagnosis branch and untracked planning package, refreshed
+  `main`, and created `feat/multi-runtime-deployments` at `0234139`.
+- Recorded the baseline and corrected the readiness test's inherited-email state.
+- Added versioned strategies, safe application roots, immutable deployment snapshots,
+  environment revision fencing, v1/v2 queue compatibility, digest identity, remote
+  Buildx execution, GHCR retention, and readiness probes.
+- Added default-off, project-allowlisted Next.js standard, standalone, and export
+  detection, generated templates, UI confirmation, and streaming route behavior.
+- Added the threat model, operations runbook, environment/user/supported-app guidance,
+  and local/external evidence boundary under `docs/multi-runtime/`.
+- Verified 178/178 changed-area tests, 740/740 focused security/worker/Nginx/
+  operations/installer tests, and 1,805/1,805 full-suite tests with dotenv disabled;
+  lint, formatting, and configuration validation also pass.
+- Live remote fixture, route, rollback, isolation, and registry evidence was not run:
+  the separate nonproduction builder and private GHCR credentials are external
+  prerequisites and remain explicit blockers.
+
+## 2026-10-16 — Multi-Runtime Nonproduction Acceptance Harness
+
+- Added an 18-root public fixture matrix covering the supported legacy runtimes,
+  Next.js 14/15/16 modes, SSR/RSC/API/Server Actions/assets/image/middleware/proxy/
+  streaming/ISR behavior, and controlled resilience/isolation probes. Dependencies are
+  exact and npm lockfiles are committed.
+- Added `npm run acceptance:multi-runtime`. It defaults to read-only preflight, rejects
+  production and unsafe protected inputs, uses normal deploy hooks plus existing
+  exact-SHA/rollback service contracts, and independently gates cancellation, timeout,
+  worker interruption, resource pressure, and registry cleanup.
+- Added bounded database polling, HTTPS and browser checks, streamed-response timing,
+  runtime inspection, BuildKit egress probing, digest/snapshot/environment assertions,
+  secret scanning, and mode-`0600` sanitized JSON/Markdown evidence.
+- Local fixture builds and injected-boundary coordinator tests pass. No live hook,
+  builder, registry, database, queue, runtime, Nginx, or production mutation was made;
+  the external acceptance gate remains blocked pending protected nonproduction inputs.
+- Focused detection/deployment/worker/Nginx/security/operations/installer checks pass
+  975/975; lint, formatting, and configuration validation pass; the complete suite
+  passes 1,834/1,834 with dotenv disabled. The first complete run also discovered 39
+  dependency-owned tests under locally built fixture `node_modules`; normal test
+  discovery now ignores generated dependency and framework output directories.

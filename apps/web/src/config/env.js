@@ -9,6 +9,7 @@ import {
   required,
   optional,
   ConfigurationError,
+  isPilotStrategyEnabledFor,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 
@@ -50,6 +51,21 @@ const platformDomain = production
 const deploymentDomain = production
   ? parseHostnameEnv('DEPLOYMENT_DOMAIN', deploymentDomainRaw)
   : deploymentDomainRaw;
+function parsePilotFlag(prefix) {
+  return {
+    enabled: optional(`${prefix}_ENABLED`, 'false') === 'true',
+    projectIds: new Set(
+      optional(`${prefix}_PROJECT_IDS`, '')
+        .split(',')
+        .map((value) => value.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  };
+}
+const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
+const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
+const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
+const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
 
 assertPairedEnvironment(
   'GOOGLE_CLIENT_ID',
@@ -186,6 +202,14 @@ export const env = {
 
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
   BUILD_TIMEOUT_MS: buildTimeoutMs,
+  MULTIRUNTIME_NEXT_V1_ENABLED: nextPilot.enabled,
+  MULTIRUNTIME_NEXT_V1_PROJECT_IDS: nextPilot.projectIds,
+  MULTIRUNTIME_PYTHON_V1_ENABLED: pythonPilot.enabled,
+  MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: pythonPilot.projectIds,
+  MULTIRUNTIME_PHP_V1_ENABLED: phpPilot.enabled,
+  MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
+  MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
+  MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
   QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
   QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
@@ -204,4 +228,11 @@ export const env = {
       process.env.GITHUB_APP_NAME &&
       (process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY)
     ),
+  isStrategyEnabledFor: (strategy, projectId) =>
+    isPilotStrategyEnabledFor(strategy, projectId, {
+      next: nextPilot,
+      python: pythonPilot,
+      php: phpPilot,
+      java: javaPilot,
+    }),
 };

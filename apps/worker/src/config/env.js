@@ -8,6 +8,8 @@ import {
   required,
   optional,
   ConfigurationError,
+  isValidNonproductionEnvironmentId,
+  isPilotStrategyEnabledFor,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 import {
@@ -64,6 +66,63 @@ const userImageTemplateVersion = parseImageTemplateVersion(
 const userImageOptimizedProjectIds = parseOptimizedProjectIds(
   optional('USER_IMAGE_OPTIMIZED_PROJECT_IDS', ''),
 );
+const buildExecutor = optional('BUILD_EXECUTOR', 'local');
+if (!['local', 'remote-buildkit'].includes(buildExecutor)) {
+  throw new ConfigurationError('BUILD_EXECUTOR must be local or remote-buildkit.');
+}
+const nonproductionEnvironmentId =
+  optional('HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID', '').trim() || null;
+if (nonproductionEnvironmentId && !isValidNonproductionEnvironmentId(nonproductionEnvironmentId)) {
+  throw new ConfigurationError(
+    'HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID must be 8-128 letters, digits, hyphens, or underscores and start with a letter or digit.',
+  );
+}
+// A production worker carrying a pilot id would register a fresh production
+// database as nonproduction and then refuse the real marker on later starts.
+if (nonproductionEnvironmentId && production) {
+  throw new ConfigurationError(
+    'HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID must not be set when NODE_ENV=production.',
+  );
+}
+const userImageRegistry = optional('USER_IMAGE_REGISTRY', '').replace(/\/$/, '').toLowerCase();
+if (userImageRegistry && !/^ghcr\.io\/[a-z0-9_.-]+\/[a-z0-9_./-]+$/.test(userImageRegistry)) {
+  throw new ConfigurationError('USER_IMAGE_REGISTRY must be a lowercase GHCR image prefix.');
+}
+const registryManifestDeleteEnabled =
+  optional('REGISTRY_MANIFEST_DELETE_ENABLED', 'false') === 'true';
+
+// Each multi-runtime pilot builds only on the isolated remote builder, keeps
+// registry cleanup on, serves an explicit allowlist, and runs one job at a time.
+function parsePilotFlag(prefix) {
+  const flagName = `${prefix}_ENABLED`;
+  const allowlistName = `${prefix}_PROJECT_IDS`;
+  const enabled = optional(flagName, 'false') === 'true';
+  const projectIds = new Set(parseOptimizedProjectIds(optional(allowlistName, ''), allowlistName));
+  if (!enabled) {
+    return { enabled, projectIds };
+  }
+  if (
+    buildExecutor !== 'remote-buildkit' ||
+    !buildBuilderName ||
+    !userImageRegistry ||
+    !registryManifestDeleteEnabled
+  ) {
+    throw new ConfigurationError(
+      `${flagName} requires remote-buildkit, BUILD_BUILDER_NAME, USER_IMAGE_REGISTRY, and REGISTRY_MANIFEST_DELETE_ENABLED=true.`,
+    );
+  }
+  if (projectIds.size === 0) {
+    throw new ConfigurationError(`${flagName} requires a non-empty ${allowlistName} allowlist.`);
+  }
+  if (workerConcurrency !== 1) {
+    throw new ConfigurationError(`${flagName} initially requires WORKER_CONCURRENCY=1.`);
+  }
+  return { enabled, projectIds };
+}
+const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
+const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
+const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
+const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
 const runtimeMemoryMb = parseIntegerEnv('RUNTIME_MEMORY_MB', optional('RUNTIME_MEMORY_MB', '256'), {
   min: 128,
   max: 32768,
@@ -157,6 +216,18 @@ export const env = {
   BUILD_TIMEOUT_MS: buildTimeoutMs,
   BUILD_MEMORY_MB: buildMemoryMb,
   BUILD_BUILDER_NAME: buildBuilderName,
+  BUILD_EXECUTOR: buildExecutor,
+  HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: nonproductionEnvironmentId,
+  USER_IMAGE_REGISTRY: userImageRegistry,
+  REGISTRY_MANIFEST_DELETE_ENABLED: registryManifestDeleteEnabled,
+  MULTIRUNTIME_NEXT_V1_ENABLED: nextPilot.enabled,
+  MULTIRUNTIME_NEXT_V1_PROJECT_IDS: nextPilot.projectIds,
+  MULTIRUNTIME_PYTHON_V1_ENABLED: pythonPilot.enabled,
+  MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: pythonPilot.projectIds,
+  MULTIRUNTIME_PHP_V1_ENABLED: phpPilot.enabled,
+  MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
+  MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
+  MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
   USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
   USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,
   RUNTIME_MEMORY_MB: runtimeMemoryMb,
@@ -198,4 +269,11 @@ export const env = {
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isEmailConfigured: () =>
     !!(process.env.RESEND_API_KEY && process.env.EMAIL_FROM && process.env.RESEND_WEBHOOK_SECRET),
+  isStrategyEnabledFor: (strategy, projectId) =>
+    isPilotStrategyEnabledFor(strategy, projectId, {
+      next: nextPilot,
+      python: pythonPilot,
+      php: phpPilot,
+      java: javaPilot,
+    }),
 };

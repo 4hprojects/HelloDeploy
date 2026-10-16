@@ -54,6 +54,9 @@ export const JobType = Object.freeze({
  *   buildArgs?: Record<string, string>;
  *   noCache?: boolean;
  * }} BuildDeploymentPayload
+ *
+ * Version 2 stores commit, repository, runtime, and build settings in the
+ * Deployment configuration snapshot; the queue carries only stable IDs.
  */
 
 /**
@@ -96,6 +99,7 @@ export const JobType = Object.freeze({
  *   projectSlug: string;
  *   containerIds: string[];
  *   imageTags: string[];
+ *   registryImageRefs?: string[];
  * }} DeleteProjectPayload
  */
 

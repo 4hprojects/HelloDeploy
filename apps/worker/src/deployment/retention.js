@@ -3,6 +3,7 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from './container.js';
 import { removeDockerImage } from './build.js';
+import { deleteRegistryManifest } from './registry.js';
 
 // Statuses whose records may still need their image (running, about to run,
 // or eligible as a rollback source).
@@ -14,7 +15,7 @@ const LIVE_STATUSES = [
   DeploymentStatus.HEALTHY,
 ];
 
-const defaultDeps = { stopAndRemoveContainer, removeDockerImage };
+const defaultDeps = { stopAndRemoveContainer, removeDockerImage, deleteRegistryManifest };
 
 /**
  * True when a deployment outside `excludeIds` still references `imageTag` in a
@@ -28,6 +29,18 @@ export async function isImageTagInUse(imageTag, excludeIds) {
   const reference = await Deployment.exists({
     _id: { $nin: excludeIds },
     imageTag,
+    status: { $in: LIVE_STATUSES },
+  });
+  return Boolean(reference);
+}
+
+export async function isImageDigestInUse(imageDigest, excludeIds) {
+  if (!imageDigest) {
+    return false;
+  }
+  const reference = await Deployment.exists({
+    _id: { $nin: excludeIds },
+    imageDigest,
     status: { $in: LIVE_STATUSES },
   });
   return Boolean(reference);
@@ -81,6 +94,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
 
   const toCleanIds = toClean.map((dep) => dep._id);
   const removedTags = new Set();
+  const removedDigests = new Set();
 
   logger.info('Retention: cleaning up old releases', {
     projectId,
@@ -118,6 +132,30 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
           logger.warn('Retention: failed to remove image', {
             deploymentId: dep._id,
             imageTag: dep.imageTag,
+            error: err.message,
+          });
+        }
+      }
+    }
+
+    if (
+      dep.imageDigest &&
+      dep.imageRef?.includes('@sha256:') &&
+      !removedDigests.has(dep.imageDigest)
+    ) {
+      if (await isImageDigestInUse(dep.imageDigest, toCleanIds)) {
+        logger.info('Retention: kept registry manifest still referenced by a live deployment', {
+          deploymentId: dep._id,
+          imageDigest: dep.imageDigest,
+        });
+      } else {
+        try {
+          await deps.deleteRegistryManifest(dep.imageRef);
+          removedDigests.add(dep.imageDigest);
+        } catch (err) {
+          logger.warn('Retention: failed to delete registry manifest', {
+            deploymentId: dep._id,
+            imageDigest: dep.imageDigest,
             error: err.message,
           });
         }

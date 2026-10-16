@@ -4,6 +4,7 @@ import {
   validateCreateProject,
   validateUpdateProject,
   validateInviteMember,
+  validateUpdateBuildConfiguration,
 } from '../../apps/web/src/validators/project.validator.js';
 
 describe('validateCreateProject', () => {
@@ -79,5 +80,58 @@ describe('validateInviteMember', () => {
   it('rejects OWNER as invite role', () => {
     const { errors } = validateInviteMember({ email: 'a@b.com', role: 'OWNER' });
     assert.ok(errors.role);
+  });
+});
+
+describe('validateUpdateBuildConfiguration — Python strategies', () => {
+  it('accepts a Python strategy with a module:attribute entry point', () => {
+    const { hasErrors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'python_fastapi_v1',
+      applicationModule: 'main:app',
+    });
+    assert.equal(hasErrors, false);
+  });
+
+  it('requires the application module for a Python strategy', () => {
+    const { errors } = validateUpdateBuildConfiguration({ buildStrategy: 'python_django_v1' });
+    assert.match(errors.applicationModule, /required/);
+  });
+
+  it('does not ask a legacy project for an application module', () => {
+    const { errors } = validateUpdateBuildConfiguration({ buildStrategy: 'legacy_generated' });
+    assert.equal(errors.applicationModule, undefined);
+  });
+});
+
+describe('validateUpdateBuildConfiguration — PHP strategies', () => {
+  it('accepts a plain PHP site served from the repository root', () => {
+    const { hasErrors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_plain_v1',
+      outputDirectory: '.',
+    });
+    assert.equal(hasErrors, false);
+  });
+
+  it('rejects a document root outside the two layouts', () => {
+    const { errors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_plain_v1',
+      outputDirectory: 'web',
+    });
+    assert.match(errors.outputDirectory, /\. or public/);
+  });
+
+  it('requires Laravel to serve the public folder', () => {
+    const { errors } = validateUpdateBuildConfiguration({
+      buildStrategy: 'php_laravel_v1',
+      outputDirectory: '.',
+    });
+    assert.match(errors.outputDirectory, /public folder/);
+  });
+});
+
+describe('validateUpdateBuildConfiguration — Java strategies', () => {
+  it('accepts the Gradle strategy', () => {
+    const { hasErrors } = validateUpdateBuildConfiguration({ buildStrategy: 'java_gradle_v1' });
+    assert.equal(hasErrors, false);
   });
 });

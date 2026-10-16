@@ -52,7 +52,11 @@ To enable Google authentication, create an OAuth 2.0 **Web application** client 
 
 ### Local development must not share production's database or queue
 
-A worker started by `npm run dev` on the production host picks up production deployments whenever its `MONGODB_URI` and `REDIS_*` point at production's. On 2026-10-14, such a worker, running with `NGINX_ENABLED=false`, took real deployments and marked them live with no route. Use a separate MongoDB database and a separate Redis instance or db index for development. A production worker records `deployment-environment: production` in its database, and a worker with Nginx routing off refuses to start against a database carrying that marker.
+A worker started by `npm run dev` on the production host picks up production deployments whenever its `MONGODB_URI` and `REDIS_*` point at production's. On 2026-10-14, such a worker, running with `NGINX_ENABLED=false`, took real deployments and marked them live with no route. Use a separate MongoDB database and a separate Redis instance or db index for development. Each worker checks the `deployment-environment` marker in its database at startup:
+
+- A production worker records `production` in an unmarked database and refuses a database registered to any other environment.
+- A nonproduction pilot worker with `HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID` records that id and refuses any database registered to a different id or to production.
+- A development worker without that id refuses any marked database, with or without Nginx routing.
 
 ## Custom domains (web)
 
@@ -78,21 +82,33 @@ The platform can start without a GitHub App, but repository connection, webhooks
 
 ## Worker build/deploy
 
-| Variable                           | Required (prod) | Default                         | Purpose                                                                                                                                                               |
-| ---------------------------------- | --------------- | ------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `WORKER_CONCURRENCY`               | no              | `1`                             | Parallel BullMQ deployment jobs per worker process                                                                                                                    |
-| `NOTIFICATION_WORKER_CONCURRENCY`  | no              | `4`                             | Independent parallel email-delivery jobs                                                                                                                              |
-| `BUILD_TIMEOUT_MS`                 | no              | `600000`                        | Default build time limit for projects without a quota override, and the host-wide hard cap no override can exceed. Read by web and worker (same `.env`)               |
-| `BUILD_MEMORY_MB`                  | no              | `1024`                          | Build memory ceiling. Enforced only through `BUILD_BUILDER_NAME`; BuildKit ignores the per-build flag                                                                 |
-| `BUILD_BUILDER_NAME`               | no              | empty                           | Dedicated `docker-container` buildx builder the worker creates with `BUILD_MEMORY_MB` as its memory limit; empty keeps Docker's default builder (memory not enforced) |
-| `USER_IMAGE_TEMPLATE_VERSION`      | no              | `legacy`                        | Default hosted user-image template (`legacy` or `optimized-v1`)                                                                                                       |
-| `USER_IMAGE_OPTIMIZED_PROJECT_IDS` | no              | empty                           | Comma-separated project ObjectIds allowed to use `optimized-v1`                                                                                                       |
-| `RUNTIME_MEMORY_MB`                | no              | `256`                           | Default memory for each deployed application container when no quota override applies. Read by web and worker (same `.env`)                                           |
-| `BUILD_WORKSPACE_ROOT`             | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                                                                                                                                 |
-| `RELEASE_METADATA_ROOT`            | no              | `/var/lib/hellodeploy/releases` | Reserved: parsed by the worker but not read by any code path yet, so setting it has no effect                                                                         |
-| `PROJECT_VOLUME_ROOT`              | no              | `/var/lib/hellodeploy/projects` | Reserved for per-project persistent volumes: parsed by the worker but not read by any code path yet, so setting it has no effect                                      |
-| `PORT_RANGE_START`                 | no              | `10000`                         | First loopback host port available for deployed containers                                                                                                            |
-| `PORT_RANGE_END`                   | no              | `19999`                         | Last loopback host port available for deployed containers                                                                                                             |
+| Variable                                   | Required (prod) | Default                         | Purpose                                                                                                                                                  |
+| ------------------------------------------ | --------------- | ------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `WORKER_CONCURRENCY`                       | no              | `1`                             | Parallel BullMQ deployment jobs per worker process                                                                                                       |
+| `NOTIFICATION_WORKER_CONCURRENCY`          | no              | `4`                             | Independent parallel email-delivery jobs                                                                                                                 |
+| `BUILD_TIMEOUT_MS`                         | no              | `600000`                        | Default build time limit for projects without a quota override, and the host-wide hard cap no override can exceed. Read by web and worker (same `.env`)  |
+| `BUILD_MEMORY_MB`                          | no              | `1024`                          | Build memory ceiling. Enforced only through `BUILD_BUILDER_NAME`; BuildKit ignores the per-build flag                                                    |
+| `BUILD_BUILDER_NAME`                       | no              | empty                           | Local mode: dedicated builder the worker may create. Remote mode: pre-provisioned authenticated-TLS Buildx context that the worker only probes and uses  |
+| `BUILD_EXECUTOR`                           | no              | `local`                         | Build executor (`local` or `remote-buildkit`). Remote mode pushes directly to the configured registry and never falls back to a local build              |
+| `USER_IMAGE_REGISTRY`                      | pilot only      | empty                           | Lowercase private GHCR image prefix used by the remote executor, such as `ghcr.io/example/hellodeploy-apps`                                              |
+| `REGISTRY_MANIFEST_DELETE_ENABLED`         | pilot only      | `false`                         | Allows digest-safe GHCR manifest deletion through ORAS; required for the Next.js pilot so retention cannot leak registry artifacts                       |
+| `MULTIRUNTIME_NEXT_V1_ENABLED`             | no              | `false`                         | Exposes versioned Next.js strategies only when set to `true`; worker validation also requires remote BuildKit, GHCR, an allowlist, and concurrency `1`   |
+| `MULTIRUNTIME_NEXT_V1_PROJECT_IDS`         | pilot only      | empty                           | Comma-separated project ObjectIds allowed to select the versioned Next.js strategies                                                                     |
+| `MULTIRUNTIME_PYTHON_V1_ENABLED`           | no              | `false`                         | Exposes the Flask, FastAPI, and Django strategies only when set to `true`; the worker requires the same isolated build path as the Next.js pilot         |
+| `MULTIRUNTIME_PYTHON_V1_PROJECT_IDS`       | pilot only      | empty                           | Comma-separated project ObjectIds allowed to select the Python strategies                                                                                |
+| `MULTIRUNTIME_PHP_V1_ENABLED`              | no              | `false`                         | Exposes the plain PHP and Laravel strategies only when set to `true`; the worker requires the same isolated build path as the Next.js pilot              |
+| `MULTIRUNTIME_PHP_V1_PROJECT_IDS`          | pilot only      | empty                           | Comma-separated project ObjectIds allowed to select the PHP strategies                                                                                   |
+| `MULTIRUNTIME_JAVA_V1_ENABLED`             | no              | `false`                         | Exposes the Spring Boot Maven and Gradle strategies only when set to `true`; the worker requires the same isolated build path as the Next.js pilot       |
+| `MULTIRUNTIME_JAVA_V1_PROJECT_IDS`         | pilot only      | empty                           | Comma-separated project ObjectIds allowed to select the Java strategies                                                                                  |
+| `HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID` | pilot only      | empty                           | 8–128 letters, digits, `-` or `_` naming a nonproduction pilot database. Must equal the acceptance `confirmationId`. Rejected with `NODE_ENV=production` |
+| `USER_IMAGE_TEMPLATE_VERSION`              | no              | `legacy`                        | Default hosted user-image template (`legacy` or `optimized-v1`)                                                                                          |
+| `USER_IMAGE_OPTIMIZED_PROJECT_IDS`         | no              | empty                           | Comma-separated project ObjectIds allowed to use `optimized-v1`                                                                                          |
+| `RUNTIME_MEMORY_MB`                        | no              | `256`                           | Default memory for each deployed application container when no quota override applies. Read by web and worker (same `.env`)                              |
+| `BUILD_WORKSPACE_ROOT`                     | no              | `/var/lib/hellodeploy/builds`   | Scratch dir for cloned build contexts                                                                                                                    |
+| `RELEASE_METADATA_ROOT`                    | no              | `/var/lib/hellodeploy/releases` | Reserved: parsed by the worker but not read by any code path yet, so setting it has no effect                                                            |
+| `PROJECT_VOLUME_ROOT`                      | no              | `/var/lib/hellodeploy/projects` | Reserved for per-project persistent volumes: parsed by the worker but not read by any code path yet, so setting it has no effect                         |
+| `PORT_RANGE_START`                         | no              | `10000`                         | First loopback host port available for deployed containers                                                                                               |
+| `PORT_RANGE_END`                           | no              | `19999`                         | Last loopback host port available for deployed containers                                                                                                |
 
 ## Quota ceilings (web)
 
@@ -134,6 +150,15 @@ After deploying a public release, verify the HTTPS, header, health, readiness, a
 ```sh
 npm run production:check -- https://your-platform-domain.example
 ```
+
+### Multi-runtime acceptance operator environment
+
+`npm run acceptance:multi-runtime` reuses the installed `MONGODB_URI`, Redis settings,
+master key, Buildx context, Docker credential store, and ORAS login. Its schema-versioned
+JSON configuration is a separate mode-`0600` file outside the repository; do not copy
+hook URLs, canary values, private targets, or connection strings into `.env`, source,
+shell history, or committed evidence. The command refuses `NODE_ENV=production`.
+See [the BuildKit/GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 ## Installer-only controls
 

@@ -39,6 +39,7 @@ describe('web readiness', () => {
       database: { readyState: 1 },
       redis: { status: 'ready' },
       queue: { getJobCounts: async () => ({ waiting: 0 }) },
+      emailConfigured: false,
     });
     assert.deepEqual(result, {
       ready: true,
@@ -51,6 +52,7 @@ describe('web readiness', () => {
       database: { readyState: 0 },
       redis: { status: 'end' },
       queue: null,
+      emailConfigured: false,
     });
     assert.deepEqual(result, {
       ready: false,
@@ -63,6 +65,7 @@ describe('web readiness', () => {
       database: { readyState: 1 },
       redis: { status: 'ready' },
       queue: { getJobCounts: async () => Promise.reject(new Error('internal address')) },
+      emailConfigured: false,
     });
     assert.equal(result.ready, false);
     assert.equal(result.checks.queue, false);

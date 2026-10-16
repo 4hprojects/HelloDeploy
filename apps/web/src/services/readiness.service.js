@@ -19,13 +19,14 @@ export async function checkWebReadiness({
   redis = getRedisConnection(),
   queue = getDeploymentQueue(),
   notificationQueue = getNotificationQueue(),
+  emailConfigured = env.isEmailConfigured(),
   timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
   const checks = {
     mongodb: database?.readyState === 1,
     redis: redis?.status === 'ready',
     queue: false,
-    email: !env.isEmailConfigured(),
+    email: !emailConfigured,
   };
 
   if (checks.redis && queue) {
@@ -36,7 +37,7 @@ export async function checkWebReadiness({
       checks.queue = false;
     }
   }
-  if (checks.redis && notificationQueue && env.isEmailConfigured()) {
+  if (checks.redis && notificationQueue && emailConfigured) {
     try {
       const [, workers] = await Promise.all([
         withTimeout(notificationQueue.getJobCounts('waiting', 'active', 'delayed'), timeoutMs),

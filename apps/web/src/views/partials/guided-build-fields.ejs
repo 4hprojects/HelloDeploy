@@ -9,12 +9,181 @@
   const _gbValue = (field, fallback) =>
     _gbValues ? (_gbValues[field] ?? '') : (fallback ?? '');
   const _gbId = (field) => `${_gbPrefix}${field}`;
-  const _gbStaticRuntime = ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime);
-  const _gbBuiltStaticRuntime = ['REACT', 'VUE'].includes(_gbRuntime);
-  const _gbServerRuntime = ['EXPRESS', 'NODEJS'].includes(_gbRuntime);
+  const _gbStrategyEnabled = (strategy) =>
+    typeof isStrategyEnabledFor === 'function' &&
+    typeof project !== 'undefined' &&
+    isStrategyEnabledFor(strategy, project._id);
+  const _gbNextStrategiesEnabled = _gbStrategyEnabled('next_standard_v1');
+  const _gbPythonStrategiesEnabled = _gbStrategyEnabled('python_flask_v1');
+  const _gbStoredStrategy =
+    (typeof buildStrategy !== 'undefined' && buildStrategy) ||
+    (typeof project !== 'undefined' && project.buildStrategy) ||
+    'legacy_generated';
+  const _gbRecommendedStrategy =
+    typeof project !== 'undefined' ? project.detection?.recommendedBuildStrategy : null;
+  const _gbStrategy = _gbValues
+    ? (_gbValues.buildStrategy || _gbStoredStrategy)
+    : (_gbStoredStrategy === 'legacy_generated' &&
+        _gbRecommendedStrategy &&
+        _gbStrategyEnabled(_gbRecommendedStrategy)
+        ? _gbRecommendedStrategy
+        : _gbStoredStrategy);
+  const _gbPythonRuntime = _gbRuntime === 'PYTHON';
+  const _gbPhpRuntime = _gbRuntime === 'PHP';
+  const _gbPhpStrategiesEnabled = _gbStrategyEnabled('php_plain_v1');
+  const _gbJavaRuntime = _gbRuntime === 'JAVA';
+  const _gbJavaStrategiesEnabled = _gbStrategyEnabled('java_maven_v1');
+  const _gbPilotLabel = { PYTHON: 'Python', PHP: 'PHP', JAVA: 'Java' }[_gbRuntime] ?? null;
+  const _gbStaticRuntime =
+    ['STATIC', 'REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
+  const _gbBuiltStaticRuntime =
+    ['REACT', 'VUE'].includes(_gbRuntime) || _gbStrategy === 'next_export_v1';
+  const _gbServerRuntime =
+    ['EXPRESS', 'NODEJS'].includes(_gbRuntime) ||
+    (_gbRuntime === 'NEXTJS' && _gbStrategy !== 'next_export_v1');
+  const _gbModulePlaceholder =
+    _gbStrategy === 'python_django_v1' ? 'mysite.wsgi:application' : 'main:app';
 %>
 
 <div class="<%= _gbGridClass %>">
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('application-root') %>">Application root</label>
+    <input
+      class="form-input<%= _gbErrors.applicationRoot ? ' form-input--error' : '' %>"
+      id="<%= _gbId('application-root') %>"
+      name="applicationRoot"
+      value="<%= _gbValue('applicationRoot', _gbConfig.applicationRoot || '.') %>"
+      maxlength="255"
+      placeholder="."
+      autocomplete="off"
+      spellcheck="false"
+      aria-describedby="<%= _gbId('application-root-hint') %><%= _gbErrors.applicationRoot ? ` ${_gbId('application-root-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('application-root-hint') %>">
+      Use <code class="code-inline">.</code> for the repository root, or a folder such as
+      <code class="code-inline">apps/web</code> for a monorepo.
+    </p>
+    <% if (_gbErrors.applicationRoot) { %>
+    <span id="<%= _gbId('application-root-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationRoot %></span>
+    <% } %>
+  </div>
+
+  <% if (_gbRuntime === 'NEXTJS' && _gbNextStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Next.js deployment mode</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="next_standard_v1" <%= _gbStrategy === 'next_standard_v1' ? 'selected' : '' %>>Standard server (next start)</option>
+      <option value="next_standalone_v1" <%= _gbStrategy === 'next_standalone_v1' ? 'selected' : '' %>>Standalone server</option>
+      <option value="next_export_v1" <%= _gbStrategy === 'next_export_v1' ? 'selected' : '' %>>Static export</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected mode. Static export cannot run server routes, Server Actions, ISR, or image optimization.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+  <% } else if (_gbPythonRuntime && _gbPythonStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Python framework</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="python_flask_v1" <%= _gbStrategy === 'python_flask_v1' ? 'selected' : '' %>>Flask (served by gunicorn)</option>
+      <option value="python_fastapi_v1" <%= _gbStrategy === 'python_fastapi_v1' ? 'selected' : '' %>>FastAPI (served by uvicorn)</option>
+      <option value="python_django_v1" <%= _gbStrategy === 'python_django_v1' ? 'selected' : '' %>>Django (served by gunicorn)</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected framework. HelloDeploy installs <code class="code-inline">requirements.txt</code> and starts the matching server.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('application-module') %>">Application module</label>
+    <input
+      class="form-input<%= _gbErrors.applicationModule ? ' form-input--error' : '' %>"
+      id="<%= _gbId('application-module') %>"
+      name="applicationModule"
+      value="<%= _gbValue('applicationModule', _gbConfig.applicationModule) %>"
+      maxlength="200"
+      placeholder="<%= _gbModulePlaceholder %>"
+      autocomplete="off"
+      spellcheck="false"
+      required
+      aria-describedby="<%= _gbId('application-module-hint') %><%= _gbErrors.applicationModule ? ` ${_gbId('application-module-error')}` : '' %>"
+    />
+    <p class="form-hint" id="<%= _gbId('application-module-hint') %>">
+      The file and object the server loads, written as <code class="code-inline">module:object</code>.
+      Check the detected value before saving; for example <code class="code-inline">main:app</code> means
+      the <code class="code-inline">app</code> object in <code class="code-inline">main.py</code>.
+    </p>
+    <% if (_gbErrors.applicationModule) { %>
+    <span id="<%= _gbId('application-module-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationModule %></span>
+    <% } %>
+  </div>
+  <% } else if (_gbPhpRuntime && _gbPhpStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">PHP app type</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="php_plain_v1" <%= _gbStrategy === 'php_plain_v1' ? 'selected' : '' %>>PHP site</option>
+      <option value="php_laravel_v1" <%= _gbStrategy === 'php_laravel_v1' ? 'selected' : '' %>>Laravel</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected type. HelloDeploy installs Composer packages from
+      <code class="code-inline">composer.lock</code> and serves the app with Apache.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+  <% } else if (_gbJavaRuntime && _gbJavaStrategiesEnabled) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('build-strategy') %>">Java build tool</label>
+    <select
+      class="form-select<%= _gbErrors.buildStrategy ? ' form-input--error' : '' %>"
+      id="<%= _gbId('build-strategy') %>"
+      name="buildStrategy"
+      aria-describedby="<%= _gbId('build-strategy-hint') %><%= _gbErrors.buildStrategy ? ` ${_gbId('build-strategy-error')}` : '' %>"
+    >
+      <option value="java_maven_v1" <%= _gbStrategy === 'java_maven_v1' ? 'selected' : '' %>>Maven (mvnw)</option>
+      <option value="java_gradle_v1" <%= _gbStrategy === 'java_gradle_v1' ? 'selected' : '' %>>Gradle (gradlew)</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
+      Keep the detected tool. HelloDeploy builds one Spring Boot executable jar with the project
+      wrapper, skips tests, and runs it with <code class="code-inline">java -jar</code>.
+    </p>
+    <% if (_gbErrors.buildStrategy) { %>
+    <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
+    <% } %>
+  </div>
+  <% } else { %>
+  <input type="hidden" name="buildStrategy" value="<%= _gbStrategy %>" />
+  <% if (_gbPilotLabel) { %>
+  <div class="form-group guided-build-field--informational">
+    <span class="form-label"><%= _gbPilotLabel %> deployment</span>
+    <p class="form-hint">
+      <%= _gbPilotLabel %> apps are in a limited pilot and are not enabled for this project yet. Your
+      settings are saved, and you can deploy once the pilot is enabled.
+    </p>
+  </div>
+  <% } %>
+  <% } %>
   <div class="form-group">
     <label class="form-label" for="<%= _gbId('build-command') %>">Build command</label>
     <input
@@ -31,6 +200,15 @@
     <p class="form-hint" id="<%= _gbId('build-command-hint') %>">
       <% if (_gbRuntime === 'STATIC') { %>
         A plain HTML site does not need a build command. Leave this blank.
+      <% } else if (_gbPythonRuntime) { %>
+        Optional. Runs after dependencies are installed. Django apps that serve static files with
+        WhiteNoise usually use <code class="code-inline">python manage.py collectstatic --noinput</code>.
+      <% } else if (_gbJavaRuntime) { %>
+        Leave this blank. HelloDeploy builds Java apps with the project's Maven or Gradle wrapper.
+      <% } else if (_gbPhpRuntime) { %>
+        Laravel only: builds the frontend assets with npm, usually
+        <code class="code-inline">npm run build</code>. Leave it blank for a plain PHP site or a
+        Laravel app without a frontend build.
       <% } else if (_gbBuiltStaticRuntime || _gbRuntime === 'NEXTJS') { %>
         HelloDeploy found the command that prepares your app. Keep it unless the person who built
         the app gave you a different one. A common value is <code class="code-inline">npm run build</code>.
@@ -71,6 +249,28 @@
     <% } %>
   </div>
 
+  <% if (_gbPhpRuntime) { %>
+  <div class="form-group">
+    <label class="form-label" for="<%= _gbId('output-directory') %>">Document root</label>
+    <select
+      class="form-select<%= _gbErrors.outputDirectory ? ' form-input--error' : '' %>"
+      id="<%= _gbId('output-directory') %>"
+      name="outputDirectory"
+      aria-describedby="<%= _gbId('output-directory-hint') %><%= _gbErrors.outputDirectory ? ` ${_gbId('output-directory-error')}` : '' %>"
+    >
+      <% const _gbDocumentRoot = _gbValue('outputDirectory', _gbConfig.outputDirectory) || '.'; %>
+      <option value="." <%= _gbDocumentRoot === '.' ? 'selected' : '' %>>Repository root</option>
+      <option value="public" <%= _gbDocumentRoot === 'public' ? 'selected' : '' %>>public folder</option>
+    </select>
+    <p class="form-hint" id="<%= _gbId('output-directory-hint') %>">
+      The folder visitors can reach. Laravel always uses <code class="code-inline">public</code>; with the
+      repository root, every file except dotfiles, Composer files, and <code class="code-inline">vendor</code> is public.
+    </p>
+    <% if (_gbErrors.outputDirectory) { %>
+    <span id="<%= _gbId('output-directory-error') %>" class="form-error" role="alert"><%= _gbErrors.outputDirectory %></span>
+    <% } %>
+  </div>
+  <% } else { %>
   <div class="form-group">
     <label class="form-label" for="<%= _gbId('output-directory') %>">Published folder</label>
     <input
@@ -99,8 +299,9 @@
     <span id="<%= _gbId('output-directory-error') %>" class="form-error" role="alert"><%= _gbErrors.outputDirectory %></span>
     <% } %>
   </div>
+  <% } %>
 
-  <% if (_gbStaticRuntime) { %>
+  <% if (_gbStaticRuntime || _gbPhpRuntime || _gbJavaRuntime) { %>
   <div class="form-group guided-build-field--informational">
     <span class="form-label">App port</span>
     <p class="form-hint">
@@ -118,13 +319,18 @@
       value="<%= _gbValue('applicationPort', _gbConfig.applicationPort) %>"
       min="1"
       max="65535"
-      placeholder="3000"
+      placeholder="<%= _gbPythonRuntime ? '8000' : '3000' %>"
       inputmode="numeric"
       aria-describedby="<%= _gbId('application-port-hint') %><%= _gbErrors.applicationPort ? ` ${_gbId('application-port-error')}` : '' %>"
     />
     <p class="form-hint" id="<%= _gbId('application-port-hint') %>">
-      The internal port your app listens on. Keep the detected value; most Node.js apps use
-      <code class="code-inline">3000</code>.
+      <% if (_gbPythonRuntime) { %>
+        The internal port the Python server listens on. Keep the detected value,
+        <code class="code-inline">8000</code>, unless you have a reason to change it.
+      <% } else { %>
+        The internal port your app listens on. Keep the detected value; most Node.js apps use
+        <code class="code-inline">3000</code>.
+      <% } %>
     </p>
     <% if (_gbErrors.applicationPort) { %>
     <span id="<%= _gbId('application-port-error') %>" class="form-error" role="alert"><%= _gbErrors.applicationPort %></span>

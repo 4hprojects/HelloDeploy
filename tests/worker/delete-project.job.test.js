@@ -6,10 +6,11 @@ process.env.NGINX_ENABLED = 'true';
 const { handleDeleteProject } = await import('../../apps/worker/src/jobs/delete-project.job.js');
 
 function setup(data = {}) {
-  const calls = { containers: [], images: [], networks: [], routes: [] };
+  const calls = { containers: [], images: [], registryImages: [], networks: [], routes: [] };
   const deps = {
     stopAndRemoveContainer: async (value) => void calls.containers.push(value),
     removeDockerImage: async (value) => void calls.images.push(value),
+    deleteRegistryManifest: async (value) => void calls.registryImages.push(value),
     removeNetwork: async (value) => void calls.networks.push(value),
     removeRoute: async (value) => calls.routes.push(value),
   };
@@ -21,6 +22,10 @@ function setup(data = {}) {
       subdomain: 'my-project',
       containerIds: ['container-a', 'container-b', 'container-a'],
       imageTags: ['image-a', 'image-b', 'image-a'],
+      registryImageRefs: [
+        `ghcr.io/example/apps:one@sha256:${'a'.repeat(64)}`,
+        `ghcr.io/example/apps:one@sha256:${'a'.repeat(64)}`,
+      ],
       ...data,
     },
   };
@@ -34,6 +39,7 @@ describe('delete-project job', () => {
 
     assert.deepEqual(calls.containers, ['container-a', 'container-b']);
     assert.deepEqual(calls.images, ['image-a', 'image-b']);
+    assert.equal(calls.registryImages.length, 1);
     assert.deepEqual(calls.networks, ['hellodeploy-my-project']);
     assert.equal(calls.routes.length, 1);
     assert.equal(calls.routes[0].slug, 'my-project');
@@ -45,11 +51,13 @@ describe('delete-project job', () => {
       projectSlug: undefined,
       containerIds: undefined,
       imageTags: undefined,
+      registryImageRefs: undefined,
       activeContainerId: 'legacy-container',
     });
     await handleDeleteProject(job, deps);
     assert.deepEqual(calls.containers, ['legacy-container']);
     assert.deepEqual(calls.images, []);
+    assert.deepEqual(calls.registryImages, []);
     assert.deepEqual(calls.networks, []);
   });
 

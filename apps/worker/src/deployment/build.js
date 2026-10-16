@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 import { processOutputLines } from './log-capture.js';
@@ -154,6 +155,109 @@ export function createDockerBuildArgs({
   ];
 }
 
+export function createRemoteDockerBuildArgs({
+  contextDir,
+  imageRef,
+  builderName,
+  metadataFile,
+  noCache = false,
+  buildArgs = {},
+}) {
+  return [
+    'buildx',
+    'build',
+    '--builder',
+    builderName,
+    '--push',
+    '--provenance=true',
+    '--sbom=true',
+    '--metadata-file',
+    metadataFile,
+    '--tag',
+    imageRef,
+    '--file',
+    join(contextDir, 'Dockerfile'),
+    '--network',
+    'default',
+    ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
+    ...(noCache ? ['--no-cache'] : []),
+    contextDir,
+  ];
+}
+
+const IMAGE_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
+export async function buildAndPushDockerImage({
+  contextDir,
+  imageRef,
+  builderName,
+  buildTimeoutMs,
+  noCache = false,
+  buildArgs = {},
+  onLogLine,
+}) {
+  if (!builderName) {
+    throw new Error('Remote BuildKit builder is not configured.');
+  }
+  const metadataDir = await mkdtemp(join(tmpdir(), 'hellodeploy-build-'));
+  const metadataFile = join(metadataDir, 'metadata.json');
+  const args = createRemoteDockerBuildArgs({
+    contextDir,
+    imageRef,
+    builderName,
+    metadataFile,
+    noCache,
+    buildArgs,
+  });
+  const startedAt = Date.now();
+  try {
+    await new Promise((resolve, reject) => {
+      const proc = spawn('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+      const timeout = setTimeout(() => {
+        proc.kill('SIGKILL');
+        reject(new Error(`Remote Docker build timed out after ${buildTimeoutMs / 1000}s`));
+      }, buildTimeoutMs);
+      for (const [stream, output] of [
+        ['stdout', proc.stdout],
+        ['stderr', proc.stderr],
+      ]) {
+        output.on('data', (chunk) => {
+          processOutputLines(chunk).forEach((line) => onLogLine(line, stream));
+        });
+      }
+      proc.on('close', (code) => {
+        clearTimeout(timeout);
+        code === 0 ? resolve() : reject(new Error(`docker buildx build exited with code ${code}`));
+      });
+      proc.on('error', (error) => {
+        clearTimeout(timeout);
+        reject(new Error(`docker buildx spawn error: ${error.message}`));
+      });
+    });
+    const metadata = JSON.parse(await readFile(metadataFile, 'utf8'));
+    const imageDigest = metadata['containerimage.digest'];
+    if (!IMAGE_DIGEST_PATTERN.test(imageDigest ?? '')) {
+      throw new Error('Remote builder did not return a valid immutable image digest.');
+    }
+    return {
+      imageRef: `${imageRef.split('@')[0]}@${imageDigest}`,
+      imageDigest,
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    await rm(metadataDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+export async function inspectLocalImageDigest(imageTag) {
+  const result = await runDocker(['image', 'inspect', '--format', '{{.Id}}', imageTag]);
+  const imageDigest = result.stdout.trim();
+  if (result.code !== 0 || !IMAGE_DIGEST_PATTERN.test(imageDigest)) {
+    throw new Error('Docker did not return a valid immutable image ID.');
+  }
+  return { imageRef: imageDigest, imageDigest };
+}
+
 /**
  * Create the dedicated memory-limited buildx builder when it does not exist.
  * Builder definitions live in the invoking user's Docker config, so the worker
@@ -191,13 +295,36 @@ export async function ensureBuildBuilder({ name, memoryMb }, deps = { run: runDo
   return { created: true };
 }
 
+/**
+ * Confirm that a pre-provisioned remote builder is reachable. Remote builders
+ * are infrastructure-owned: the runtime worker must never create or silently
+ * replace one with a local builder.
+ */
+export async function verifyRemoteBuildBuilder(name, deps = { run: runDocker }) {
+  const inspect = await deps.run(['buildx', 'inspect', name, '--bootstrap']);
+  if (inspect.code !== 0) {
+    throw new Error(
+      `Remote build builder ${name} is unavailable: ${inspect.stderr.trim().slice(0, 500)}`,
+    );
+  }
+  return { ready: true };
+}
+
 function runDocker(args) {
   return new Promise((resolve) => {
+    const stdout = [];
     const stderr = [];
-    const proc = spawn('docker', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    proc.stdout.on('data', (chunk) => stdout.push(chunk));
     proc.stderr.on('data', (chunk) => stderr.push(chunk));
-    proc.on('close', (code) => resolve({ code, stderr: Buffer.concat(stderr).toString('utf8') }));
-    proc.on('error', (err) => resolve({ code: -1, stderr: err.message }));
+    proc.on('close', (code) =>
+      resolve({
+        code,
+        stdout: Buffer.concat(stdout).toString('utf8'),
+        stderr: Buffer.concat(stderr).toString('utf8'),
+      }),
+    );
+    proc.on('error', (err) => resolve({ code: -1, stdout: '', stderr: err.message }));
   });
 }
 

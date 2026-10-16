@@ -17,7 +17,10 @@ export function parseImageTemplateVersion(rawValue) {
   return rawValue;
 }
 
-export function parseOptimizedProjectIds(rawValue) {
+export function parseOptimizedProjectIds(
+  rawValue,
+  variableName = 'USER_IMAGE_OPTIMIZED_PROJECT_IDS',
+) {
   if (!rawValue?.trim()) {
     return [];
   }
@@ -28,7 +31,7 @@ export function parseOptimizedProjectIds(rawValue) {
     projectIds.some((projectId) => !PROJECT_ID_PATTERN.test(projectId))
   ) {
     throw new ConfigurationError(
-      `USER_IMAGE_OPTIMIZED_PROJECT_IDS must contain at most ${MAX_OPTIMIZED_PROJECTS} comma-separated MongoDB object IDs.`,
+      `${variableName} must contain at most ${MAX_OPTIMIZED_PROJECTS} comma-separated MongoDB object IDs.`,
     );
   }
   return projectIds;

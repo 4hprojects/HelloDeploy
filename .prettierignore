@@ -1,3 +1,8 @@
 .claude/
 # The imported UI/UX planning pack is preserved as authored user work.
 docs/archive/hellodeploy-uiux-improvement-pack/
+# Acceptance fixtures create nested framework build outputs during local validation.
+tests/fixtures/multi-runtime/**/.next/
+tests/fixtures/multi-runtime/**/dist/
+tests/fixtures/multi-runtime/**/node_modules/
+tests/fixtures/multi-runtime/**/out/

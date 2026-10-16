@@ -20,7 +20,8 @@ import { guardWorkerDatabase } from './config/database-guard.js';
 import { setWorkerQueue } from './queue/worker-queue.js';
 import { setWorkerRedis } from './queue/worker-redis.js';
 import { validateNginxConfig } from './nginx/helper-client.js';
-import { ensureBuildBuilder } from './deployment/build.js';
+import { ensureBuildBuilder, verifyRemoteBuildBuilder } from './deployment/build.js';
+import { verifyRegistryAccess } from './deployment/registry.js';
 import { handleBuildDeployment } from './jobs/build-deployment.job.js';
 import { handleActivateRelease } from './jobs/activate-release.job.js';
 import { handleRollbackRelease } from './jobs/rollback-release.job.js';
@@ -56,18 +57,28 @@ if (env.BUILD_BUILDER_NAME) {
   // A builder failure must not stop the worker: activations and rollbacks still
   // need it, and each build then fails with Docker's own explanation.
   try {
-    const { created } = await ensureBuildBuilder({
-      name: env.BUILD_BUILDER_NAME,
-      memoryMb: env.BUILD_MEMORY_MB,
-    });
-    logger.info('Worker: memory-limited build builder ready', {
-      builder: env.BUILD_BUILDER_NAME,
-      memoryMb: env.BUILD_MEMORY_MB,
-      created,
-    });
+    if (env.BUILD_EXECUTOR === 'remote-buildkit') {
+      await verifyRemoteBuildBuilder(env.BUILD_BUILDER_NAME);
+      await verifyRegistryAccess(env.USER_IMAGE_REGISTRY);
+      logger.info('Worker: remote BuildKit builder ready', {
+        builder: env.BUILD_BUILDER_NAME,
+        registry: env.USER_IMAGE_REGISTRY,
+      });
+    } else {
+      const { created } = await ensureBuildBuilder({
+        name: env.BUILD_BUILDER_NAME,
+        memoryMb: env.BUILD_MEMORY_MB,
+      });
+      logger.info('Worker: memory-limited build builder ready', {
+        builder: env.BUILD_BUILDER_NAME,
+        memoryMb: env.BUILD_MEMORY_MB,
+        created,
+      });
+    }
   } catch (err) {
     logger.error('Worker: build builder unavailable; builds will fail until it is fixed', {
       builder: env.BUILD_BUILDER_NAME,
+      executor: env.BUILD_EXECUTOR,
       error: err.message,
     });
   }
@@ -83,7 +94,7 @@ await connectDatabase(env.MONGODB_URI);
 logger.info('Worker: database connected');
 await guardWorkerDatabase({
   isProduction: env.NODE_ENV === 'production',
-  nginxEnabled: env.NGINX_ENABLED,
+  nonproductionEnvironmentId: env.HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID,
 });
 
 configureAuditService(AuditEvent);

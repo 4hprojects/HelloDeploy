@@ -36,13 +36,16 @@
     REACT: 'React app',
     VUE: 'Vue app',
     NEXTJS: 'Next.js app',
+    PYTHON: 'Python app',
+    PHP: 'PHP app',
+    JAVA: 'Java app',
     EXPRESS: 'Express app',
     NODEJS: 'Node.js app',
     UNKNOWN: 'App type not recognized',
   };
   const bc = project.buildConfiguration || {};
   const detectedBc = project.detection?.detectedConfiguration || null;
-  const configurationKeys = ['buildCommand', 'startCommand', 'outputDirectory', 'applicationPort', 'healthCheckPath'];
+  const configurationKeys = ['buildCommand', 'startCommand', 'outputDirectory', 'applicationPort', 'healthCheckPath', 'applicationRoot'];
   const hasCustomBuildConfiguration = Boolean(detectedBc && configurationKeys.some(key =>
     String(bc[key] ?? '') !== String(detectedBc[key] ?? '')
   ));
@@ -185,6 +188,9 @@
   <div class="guided-disclosure__body">
     <% if (membership.role === 'OWNER') { %>
     <%- include('../../partials/form-errors', { errors: bcErrors }) %>
+      <% if (['NEXTJS', 'PYTHON', 'PHP', 'JAVA'].includes(project.runtimeType) && project.detection?.strategyRationale) { %>
+      <p class="form-hint mb-4"><strong>Detected mode:</strong> <%= project.detection.strategyRationale %></p>
+      <% } %>
     <form method="POST" action="/projects/<%= project.slug %>/build-configuration" novalidate>
       <%- include('../../partials/csrf-field') %>
       <%- include('../../partials/guided-build-fields', {
@@ -207,6 +213,8 @@
       <% if (bc.buildCommand) { %><dt>Build command</dt><dd><code class="code-inline"><%= bc.buildCommand %></code></dd><% } %>
       <% if (bc.startCommand) { %><dt>Start command</dt><dd><code class="code-inline"><%= bc.startCommand %></code></dd><% } %>
       <% if (bc.outputDirectory) { %><dt>Published folder</dt><dd><code class="code-inline"><%= bc.outputDirectory %></code></dd><% } %>
+      <dt>Application root</dt><dd><code class="code-inline"><%= bc.applicationRoot || '.' %></code></dd>
+      <% if (bc.applicationModule) { %><dt>Application module</dt><dd><code class="code-inline"><%= bc.applicationModule %></code></dd><% } %>
       <% if (bc.applicationPort) { %><dt>App port</dt><dd><code class="code-inline"><%= bc.applicationPort %></code></dd><% } %>
       <dt>Working-page check</dt><dd><code class="code-inline"><%= bc.healthCheckPath || '/' %></code></dd>
     </dl>
