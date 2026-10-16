@@ -370,6 +370,32 @@ describe('detectRuntime — PYTHON', () => {
     assert.equal(result.runtimeType, 'EXPRESS');
   });
 
+  it('detects Django when its frontend builds with React and Vite', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ dependencies: { react: '*' }, scripts: { build: 'vite build' } }),
+        'package-lock.json': '{}',
+        'vite.config.js': 'export default {}',
+        'requirements.txt': 'django==5.1.2\ngunicorn==23.0.0\n',
+      }),
+    );
+    assert.equal(result.runtimeType, 'PYTHON');
+  });
+
+  it('keeps a React app with non-web Python tooling and its own lockfile error', () => {
+    const result = detectRuntime(
+      files({
+        'package.json': pkg({ dependencies: { react: '*' }, scripts: { build: 'vite build' } }),
+        'vite.config.js': 'export default {}',
+        'requirements.txt': 'black==24.10.0\n',
+      }),
+    );
+    assert.deepEqual(
+      [result.runtimeType, result.issues.some((issue) => issue.message.includes('package-lock'))],
+      ['REACT', true],
+    );
+  });
+
   it('detects Python when package.json only carries asset tooling', () => {
     const result = detectRuntime(
       files({

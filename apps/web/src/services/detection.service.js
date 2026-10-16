@@ -243,6 +243,10 @@ function detectPythonRuntime(files) {
   };
 }
 
+function detectPhpRuntime() {
+  return null;
+}
+
 // ─── Pure runtime analyzer ────────────────────────────────────────────────────
 // Exported so tests can call it directly without any HTTP or DB interaction.
 
@@ -264,14 +268,35 @@ function detectPythonRuntime(files) {
  * }}
  */
 export function detectRuntime(files) {
+  const nodeResult = detectNodeRuntime(files);
+  if (!FRONTEND_ONLY_RUNTIMES.includes(nodeResult.runtimeType)) {
+    return nodeResult;
+  }
+  // A backend framework owns the repository when Node found only a frontend
+  // build or nothing: React or Vue there is the backend's asset pipeline, and
+  // serving the repository as static files would publish its source.
+  const backend = detectPhpRuntime(files) ?? detectPythonRuntime(files);
+  if (
+    !backend ||
+    (backend.runtimeType === RuntimeType.UNKNOWN && nodeResult.runtimeType !== RuntimeType.UNKNOWN)
+  ) {
+    return nodeResult;
+  }
+  return backend;
+}
+
+const FRONTEND_ONLY_RUNTIMES = Object.freeze([
+  RuntimeType.STATIC,
+  RuntimeType.REACT,
+  RuntimeType.VUE,
+  RuntimeType.UNKNOWN,
+]);
+
+function detectNodeRuntime(files) {
   const issues = [];
 
   // ── No package.json — static or unknown ────────────────────────────────────
   if (!files['package.json']) {
-    const python = detectPythonRuntime(files);
-    if (python) {
-      return python;
-    }
     if (files['index.html'] !== null) {
       return {
         runtimeType: RuntimeType.STATIC,
@@ -406,9 +431,6 @@ export function detectRuntime(files) {
   } else if (scripts.start) {
     runtimeType = RuntimeType.NODEJS;
     applicationPort = findSamplePort(files) ?? 3000;
-  } else if (hasPythonMarkers(files)) {
-    // A package.json with no Node runtime is asset tooling beside a Python app.
-    return detectPythonRuntime(files);
   } else {
     runtimeType = RuntimeType.UNKNOWN;
     issues.push({
