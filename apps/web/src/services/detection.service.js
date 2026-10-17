@@ -14,6 +14,7 @@ import {
   resolvePhpVersion,
   parsePythonRequirementNames,
   resolvePythonVersion,
+  stripInlineComment,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getInstallationToken } from './github.service.js';
@@ -197,7 +198,7 @@ function detectPythonRuntime(files) {
     }
     const unpinned = String(files['requirements.txt'])
       .split('\n')
-      .map((line) => line.replace(/\s+#.*$/, '').trim())
+      .map((line) => stripInlineComment(line))
       .filter((line) => line && !line.startsWith('#') && !line.startsWith('-'))
       .filter((line) => !/==|===|\s@\s/.test(line))
       .map((line) => line.match(/^[A-Za-z0-9][A-Za-z0-9._-]*/)?.[0])

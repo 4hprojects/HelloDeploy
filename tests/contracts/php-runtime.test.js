@@ -60,6 +60,21 @@ describe('satisfiesComposerConstraint', () => {
     assert.equal(satisfiesComposerConstraint('8.4', '>=8.2,<8.4'), false);
   });
 
+  it('accepts a hyphen range', () => {
+    assert.equal(satisfiesComposerConstraint('8.3', '8.1 - 8.3'), true);
+  });
+
+  it('rejects a version above a hyphen range', () => {
+    assert.equal(satisfiesComposerConstraint('8.4', '8.1 - 8.3'), false);
+  });
+
+  // CodeQL js/polynomial-redos: whitespace runs must stay linear.
+  it('evaluates a constraint with long whitespace runs in linear time', () => {
+    const started = performance.now();
+    satisfiesComposerConstraint('8.3', `>=8.1${' '.repeat(200_000)}-`);
+    assert.ok(performance.now() - started < 100);
+  });
+
   it('matches a wildcard minor version', () => {
     assert.equal(satisfiesComposerConstraint('8.3', '8.3.*'), true);
   });

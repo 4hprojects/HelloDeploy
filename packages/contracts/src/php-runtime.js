@@ -55,10 +55,9 @@ export function satisfiesComposerConstraint(minorVersion, constraint) {
   return String(constraint)
     .split('||')
     .some((alternative) => {
-      const normalized = alternative
-        .trim()
-        .replace(/\s*-\s*/g, ' - ')
-        .replace(/(>=|<=|>|<|!=|==|=|\^|~)\s+/g, '$1');
+      // Composer requires spaces around a hyphen range, so whitespace splitting
+      // already yields a standalone `-` token.
+      const normalized = alternative.trim().replace(/(>=|<=|>|<|!=|==|=|\^|~)\s+/g, '$1');
       const tokens = normalized.split(/[\s,]+/).filter(Boolean);
       const ranges = [];
       for (let index = 0; index < tokens.length; index += 1) {

@@ -59,7 +59,7 @@ export function resolvePythonVersion(fileContent) {
 export function parsePythonRequirementNames(content) {
   const names = new Set();
   for (const rawLine of String(content ?? '').split('\n')) {
-    const line = rawLine.replace(/\s+#.*$/, '').trim();
+    const line = stripInlineComment(rawLine);
     if (!line || line.startsWith('#') || line.startsWith('-')) {
       continue;
     }
@@ -73,4 +73,19 @@ export function parsePythonRequirementNames(content) {
 
 export function normalizePythonPackageName(name) {
   return name.toLowerCase().replace(/[-_.]+/g, '-');
+}
+
+/**
+ * Drop a requirements-file comment: a `#` at the start of the line or after
+ * whitespace. A `#` inside a value, such as a URL fragment, is kept. A linear
+ * scan avoids the backtracking a `\s+#.*$` pattern has on long whitespace runs.
+ */
+export function stripInlineComment(line) {
+  const text = String(line ?? '');
+  for (let index = 0; index < text.length; index += 1) {
+    if (text[index] === '#' && (index === 0 || /\s/.test(text[index - 1]))) {
+      return text.slice(0, index).trim();
+    }
+  }
+  return text.trim();
 }

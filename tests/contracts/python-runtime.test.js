@@ -9,6 +9,7 @@ import {
   isPythonBuildStrategy,
   parsePythonRequirementNames,
   resolvePythonVersion,
+  stripInlineComment,
   validateApplicationModule,
 } from '@hellodeploy/contracts';
 
@@ -98,5 +99,29 @@ describe('parsePythonRequirementNames', () => {
       '# web\n--index-url https://example.test/simple\n-r base.txt\ngunicorn  # server\n',
     );
     assert.deepEqual([...names], ['gunicorn']);
+  });
+});
+
+describe('stripInlineComment', () => {
+  it('removes a comment that follows whitespace', () => {
+    assert.equal(stripInlineComment('gunicorn==23.0.0  # server'), 'gunicorn==23.0.0');
+  });
+
+  it('keeps a # that is part of a value', () => {
+    assert.equal(
+      stripInlineComment('pkg @ https://example.test/a#egg=pkg'),
+      'pkg @ https://example.test/a#egg=pkg',
+    );
+  });
+
+  it('treats a leading # as a whole-line comment', () => {
+    assert.equal(stripInlineComment('# notes'), '');
+  });
+
+  // CodeQL js/polynomial-redos: whitespace runs must stay linear.
+  it('handles long whitespace runs in linear time', () => {
+    const started = performance.now();
+    stripInlineComment(`a${' '.repeat(200_000)}b`);
+    assert.ok(performance.now() - started < 100);
   });
 });
