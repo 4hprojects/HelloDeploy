@@ -141,6 +141,14 @@ Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 186 files plus API
 contract suites, 1,820/1,820; lint, format, and config checks clean. The digest resolver completed Docker Hub's anonymous token flow during fixture creation and
 resolved `nginxinc/nginx-unprivileged:1.27-alpine` to the pinned `oci-nginx` digest.
 
+## 2026-10-18 P4 branch full suite
+
+CI and CodeQL run only on pull requests to `main`, so stacked PR #120 has no automated
+run. After rebasing onto the close-out commits, the full suite on `feat/multi-runtime-p4`
+passed 2,118/2,118 with `DOTENV_CONFIG_PATH=/dev/null`; lint, format, and config checks
+are clean. The P4 policy regexes for `RUN --mount` and parser directives were rewritten as
+token parsing ahead of CodeQL, with linear-time regression tests.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
