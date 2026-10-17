@@ -178,6 +178,28 @@ describe('findDockerfilePolicyViolations', () => {
     assert.match(messages('FROM node:22-slim\nUSER root\n')[0], /non-root USER/);
   });
 
+  it('still allows cache mounts', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22-slim\nRUN --mount=type=cache,target=/root/.npm npm ci\nUSER node\n',
+      ),
+      [],
+    );
+  });
+
+  // CodeQL js/polynomial-redos: hostile Dockerfiles must not backtrack.
+  it('checks a long mount option in linear time', () => {
+    const started = performance.now();
+    findDockerfilePolicyViolations(`FROM node:22\nRUN --mount=${'t'.repeat(200_000)}\nUSER node\n`);
+    assert.ok(performance.now() - started < 100);
+  });
+
+  it('checks a long parser directive in linear time', () => {
+    const started = performance.now();
+    findDockerfilePolicyViolations(`# syntax=${' '.repeat(200_000)}\nFROM node:22\nUSER node\n`);
+    assert.ok(performance.now() - started < 100);
+  });
+
   it('reports the line of each violation', () => {
     assert.equal(findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER node\n')[0].line, 2);
   });

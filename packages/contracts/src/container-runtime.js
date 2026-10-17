@@ -98,7 +98,7 @@ export function findDockerfilePolicyViolations(content) {
     const raw = lines[index];
     const trimmed = raw.trim();
     if (parserDirectives) {
-      const directive = trimmed.match(/^#\s*([a-z]+)\s*=\s*(.+)$/i);
+      const directive = trimmed.match(/^#\s*([a-z]+)\s*=(.*)$/i);
       if (directive) {
         if (
           directive[1].toLowerCase() === 'syntax' &&
@@ -183,7 +183,17 @@ export function findDockerfilePolicyViolations(content) {
           message: 'RUN --network=host is not allowed; builds cannot use the host network.',
         });
       }
-      if (/--mount=[^\s]*type=(ssh|secret)/i.test(args)) {
+      if (
+        args
+          .split(/\s+/)
+          .filter((token) => token.toLowerCase().startsWith('--mount='))
+          .some((token) =>
+            token
+              .slice('--mount='.length)
+              .split(',')
+              .some((option) => ['type=ssh', 'type=secret'].includes(option.toLowerCase())),
+          )
+      ) {
         violations.push({
           line,
           message:
