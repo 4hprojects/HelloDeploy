@@ -6,3 +6,5 @@ tests/fixtures/multi-runtime/**/.next/
 tests/fixtures/multi-runtime/**/dist/
 tests/fixtures/multi-runtime/**/node_modules/
 tests/fixtures/multi-runtime/**/out/
+# Composer writes lockfiles; keep them byte-for-byte as generated.
+tests/fixtures/multi-runtime/**/composer.lock

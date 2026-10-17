@@ -110,6 +110,13 @@
       "probePath": "/acceptance.php"
     },
     {
+      "id": "php-laravel",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-laravel",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_laravel_v1",
+      "probePath": "/acceptance"
+    },
+    {
       "id": "java-maven",
       "applicationRoot": "tests/fixtures/multi-runtime/java-maven",
       "runtimeType": "JAVA",

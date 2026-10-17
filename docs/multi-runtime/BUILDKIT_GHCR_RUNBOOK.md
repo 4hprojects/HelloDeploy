@@ -75,7 +75,10 @@ Create one nonproduction project for every entry in
 `tests/fixtures/multi-runtime/manifest.json`. All projects use this repository, but
 each stores the manifest's distinct `applicationRoot`, runtime, build strategy, and, for
 Python fixtures, `applicationModule`.
-Set `ACCEPTANCE_PRIVATE_CANARY` only on the `private-secret-probe` project. Configure
+Set `ACCEPTANCE_PRIVATE_CANARY` only on the `private-secret-probe` project. Give the
+`php-laravel` project `APP_KEY` (from `php artisan key:generate --show`),
+`SESSION_DRIVER=file`, and `CACHE_STORE=file`: the Laravel 13 skeleton otherwise keeps
+sessions and cache in a database the fixture does not have. Configure
 the `registry-cleanup` project's `maxRollbackReleases` quota to `1` before running the
 optional registry-cleanup scenario; the harness refuses that scenario otherwise.
 
