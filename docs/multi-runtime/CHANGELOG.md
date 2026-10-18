@@ -105,6 +105,11 @@ symlinks that leave the application root for elsewhere in the repository.
   legacy payloads require a commit SHA; settings stay editable after a pilot is turned
   off; Spring Boot caps Tomcat at 40 threads.
 
+### P4 review fixes (2026-10-18, stacked PR)
+
+- `USER 00` and other all-zero uids now count as root in both owner-image checks.
+- `COPY --from`, `ADD --from`, and `RUN --mount from=` follow the approved-registry rule.
+
 ### Code review fixes (2026-10-18)
 
 A full-branch review found ten defects; all ten were confirmed against the code and fixed

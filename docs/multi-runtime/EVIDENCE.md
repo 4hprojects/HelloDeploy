@@ -149,6 +149,13 @@ passed 2,118/2,118 with `DOTENV_CONFIG_PATH=/dev/null`; lint, format, and config
 are clean. The P4 policy regexes for `RUN --mount` and parser directives were rewritten as
 token parsing ahead of CodeQL, with linear-time regression tests.
 
+## 2026-10-18 P4 review fixes
+
+The two P4 review findings (zero-padded uid 0 passing as non-root, and `COPY --from` or
+`RUN --mount from=` bypassing the registry rule) are fixed with failing-first tests. After
+rebasing onto the reviewed base, the full suite on `feat/multi-runtime-p4` passed
+2,134/2,134 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format are clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
