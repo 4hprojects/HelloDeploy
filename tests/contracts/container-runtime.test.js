@@ -200,12 +200,50 @@ describe('findDockerfilePolicyViolations', () => {
     assert.ok(performance.now() - started < 100);
   });
 
+  it('rejects COPY --from an image in an unapproved registry', () => {
+    assert.match(
+      messages('FROM node:22\nCOPY --from=quay.io/attacker/payload:1 / /\nUSER node\n')[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('rejects a RUN mount from an image in an unapproved registry', () => {
+    assert.match(
+      messages(
+        'FROM node:22\nRUN --mount=type=bind,from=quay.io/attacker/tools:1,target=/t ls\nUSER node\n',
+      )[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('accepts COPY --from an earlier stage or a stage index', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22 AS build\nRUN npm ci\nFROM node:22-slim\nCOPY --from=build /app /app\nCOPY --from=0 /x /x\nUSER node\n',
+      ),
+      [],
+    );
+  });
+
+  it('accepts COPY --from an approved image', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22-slim\nCOPY --from=ghcr.io/owner/assets:1 /a /a\nUSER node\n',
+      ),
+      [],
+    );
+  });
+
   it('reports the line of each violation', () => {
     assert.equal(findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER node\n')[0].line, 2);
   });
 });
 
 describe('isNonRootImageUser', () => {
+  it('rejects numeric spellings of uid 0', () => {
+    assert.deepEqual(['00', '000:1000'].map(isNonRootImageUser), [false, false]);
+  });
+
   it('rejects an empty user, root, and uid 0', () => {
     assert.deepEqual(['', 'root', '0', '0:0', 'root:app'].map(isNonRootImageUser), [
       false,

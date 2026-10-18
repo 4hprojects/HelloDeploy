@@ -79,7 +79,8 @@ export function isNonRootImageUser(user) {
   const name = String(user ?? '')
     .trim()
     .split(':')[0];
-  return Boolean(name) && name !== 'root' && name !== '0';
+  // Docker reads any all-zero number as uid 0.
+  return Boolean(name) && name !== 'root' && !/^0+$/.test(name);
 }
 
 /**
@@ -129,6 +130,17 @@ export function findDockerfilePolicyViolations(content) {
   }
 
   const stageNames = new Set();
+  // COPY --from and RUN --mount from= can read any image, not only a stage, so
+  // they get the same registry rule as FROM.
+  const checkImageSource = (source, line) => {
+    if (/^\d+$/.test(source) || stageNames.has(source.toLowerCase())) {
+      return;
+    }
+    const parsed = parseImageReference(source);
+    if (parsed.error) {
+      violations.push({ line, message: `Image ${source}: ${parsed.error}` });
+    }
+  };
   // ARGs declared before the first FROM can name base images; only their
   // defaults are known statically, so an ARG without one cannot be checked.
   const globalArgs = new Map();
@@ -173,7 +185,22 @@ export function findDockerfilePolicyViolations(content) {
       if (as?.toUpperCase() === 'AS' && alias) {
         stageNames.add(alias.toLowerCase());
       }
+    } else if (keyword === 'COPY' || keyword === 'ADD') {
+      for (const token of args.split(/\s+/)) {
+        if (token.toLowerCase().startsWith('--from=')) {
+          checkImageSource(token.slice('--from='.length), line);
+        }
+      }
     } else if (keyword === 'RUN') {
+      for (const token of args.split(/\s+/)) {
+        if (token.toLowerCase().startsWith('--mount=')) {
+          for (const option of token.slice('--mount='.length).split(',')) {
+            if (option.toLowerCase().startsWith('from=')) {
+              checkImageSource(option.slice('from='.length), line);
+            }
+          }
+        }
+      }
       if (/--security[= ]insecure/i.test(args)) {
         violations.push({ line, message: 'RUN --security=insecure is not allowed.' });
       }
