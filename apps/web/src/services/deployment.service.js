@@ -460,6 +460,13 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     return { success: false, error: `Cannot retry a deployment with status ${original.status}.` };
   }
 
+  // A retry builds from the current settings, so it needs the same readiness
+  // check as a new deployment.
+  const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
+  if (strategyError) {
+    return { success: false, error: strategyError };
+  }
+
   const repo = await Repository.findById(project.repositoryId).lean();
   if (!repo || repo.accessStatus !== 'ACTIVE') {
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };

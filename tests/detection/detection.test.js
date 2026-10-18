@@ -11,6 +11,7 @@ const {
   detectRequiredEnvironmentVariables,
   findDockerfileSystemPackages,
   fetchProjectFilesForRepository,
+  strategyAfterDetection,
 } = await import('../../apps/web/src/services/detection.service.js');
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -890,5 +891,19 @@ describe('fetchProjectFilesForRepository — Python entry files', () => {
   it('does not fetch entry-point candidates for a Node repository', async () => {
     const paths = await requestedPaths({ 'package.json': '{}' });
     assert.equal(paths.includes('manage.py'), false);
+  });
+});
+
+describe('strategyAfterDetection', () => {
+  it('falls back to the legacy build when the runtime no longer matches', () => {
+    assert.equal(strategyAfterDetection('next_standard_v1', 'EXPRESS'), 'legacy_generated');
+  });
+
+  it('keeps a strategy that still matches the runtime', () => {
+    assert.equal(strategyAfterDetection('python_django_v1', 'PYTHON'), 'python_django_v1');
+  });
+
+  it('keeps the legacy build as it is', () => {
+    assert.equal(strategyAfterDetection(null, 'EXPRESS'), null);
   });
 });

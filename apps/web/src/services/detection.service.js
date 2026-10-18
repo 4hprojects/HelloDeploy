@@ -6,6 +6,7 @@ import {
   DetectionStatus,
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
+  getBuildStrategyRuntime,
   JAVA_PORT,
   PHP_PORT,
   normalizeApplicationRoot,
@@ -766,6 +767,18 @@ function detectNodeRuntime(files) {
   };
 }
 
+/**
+ * The saved strategy once detection has found a runtime. A versioned strategy
+ * bound to another runtime can no longer build, so it falls back to the legacy
+ * build until the owner picks a mode for the new runtime.
+ */
+export function strategyAfterDetection(currentStrategy, runtimeType) {
+  const strategyRuntime = getBuildStrategyRuntime(currentStrategy);
+  return strategyRuntime && strategyRuntime !== runtimeType
+    ? BuildStrategy.LEGACY_GENERATED
+    : (currentStrategy ?? null);
+}
+
 // ─── GitHub file fetching ─────────────────────────────────────────────────────
 
 const FILES_TO_FETCH = [
@@ -1140,6 +1153,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
       $set: {
         runtimeType: result.runtimeType,
         buildConfiguration: detected,
+        buildStrategy: strategyAfterDetection(project.buildStrategy, result.runtimeType),
         detection: {
           status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
           issues: safeDetectionIssues(result.issues),
