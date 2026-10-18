@@ -169,7 +169,8 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
       }
     }
     const unset = { imageTag: 1 };
-    if (registryDeleted) {
+    // A local image ID has no registry manifest, so nothing is left to retry.
+    if (registryDeleted || !dep.imageRef?.includes('@sha256:')) {
       unset.imageRef = 1;
       unset.imageDigest = 1;
     }

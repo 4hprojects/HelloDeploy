@@ -193,6 +193,28 @@ describe('prepareBuildContext — return value', () => {
   });
 });
 
+describe('prepareBuildContext — size of skipped folders', () => {
+  // Legacy builds send node_modules and .git to the daemon, so they count.
+  it('counts node_modules toward the context size limit', async () => {
+    const dir = await makeContext();
+    await mkdir(join(dir, 'node_modules'));
+    const handle = await open(join(dir, 'node_modules', 'big.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await assert.rejects(() => prepareBuildContext(dir), /Build context is too large/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('leaves symlinks inside node_modules alone', async () => {
+    const dir = await makeContext();
+    await mkdir(join(dir, 'node_modules', '.bin'), { recursive: true });
+    await symlink('/etc/hostname', join(dir, 'node_modules', '.bin', 'tool'));
+    await prepareBuildContext(dir);
+    assert.deepEqual(await readdir(join(dir, 'node_modules', '.bin')), ['tool']);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
 describe('platform Docker context exclusions', () => {
   it('writes fixed secret, dependency, log, cache, and coverage exclusions', async () => {
     const dir = await makeContext();

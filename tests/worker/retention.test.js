@@ -170,6 +170,23 @@ describe('retention — cleanupOldReleases', () => {
     assert.deepEqual(stub.removedManifests, []);
   });
 
+  it('records a deleted manifest so later sweeps do not delete it again', async () => {
+    const project = await createProject();
+    for (let seq = 1; seq <= 4; seq++) {
+      await createDeployment(project._id, {
+        sequenceNumber: seq,
+        status: DeploymentStatus.HEALTHY,
+        imageTag: `img-${seq}`,
+        imageRef: `ghcr.io/example/apps:release-${seq}@sha256:${String(seq).repeat(64)}`,
+        imageDigest: `sha256:${String(seq).repeat(64)}`,
+      });
+    }
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    await cleanupOldReleases(project._id, stub.deps);
+    assert.equal(stub.removedManifests.length, 1);
+  });
+
   it("never cleans the project's active deployment even beyond the limit", async () => {
     const project = await createProject();
     const [oldest] = await seedHealthyReleases(project._id, 5);

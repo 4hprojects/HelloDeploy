@@ -150,7 +150,13 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
         });
       } else {
         try {
-          await deps.deleteRegistryManifest(dep.imageRef);
+          if (await deps.deleteRegistryManifest(dep.imageRef)) {
+            // Recorded so later sweeps do not delete the same manifest again.
+            await Deployment.updateOne(
+              { _id: dep._id },
+              { $unset: { imageRef: 1, imageDigest: 1 } },
+            );
+          }
           removedDigests.add(dep.imageDigest);
         } catch (err) {
           logger.warn('Retention: failed to delete registry manifest', {

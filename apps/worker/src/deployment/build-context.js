@@ -75,19 +75,24 @@ export async function resolveApplicationRoot(contextDir, requestedRoot = '.') {
 
 // ─── Build context traversal ───────────────────────────────────────────────────
 
-// Directories docker build never reads from and that can grow huge (deps,
-// version control) — skip descending into them.
+// Dependency and version-control folders hold many legitimate links; they are
+// not scrubbed for escaping symlinks, but their size still counts.
 const SKIP_DIR_NAMES = new Set(['node_modules', '.git']);
 
 async function inspectBuildContext(rootDir) {
   let total = 0;
-  const pendingDirectories = [rootDir];
+  // Every folder counts toward the size limit, because legacy builds send the
+  // whole tree; dependency and version-control folders skip the symlink scrub.
+  const pendingDirectories = [{ directory: rootDir, scrub: true }];
 
   while (pendingDirectories.length > 0) {
-    const directory = pendingDirectories.pop();
+    const { directory, scrub } = pendingDirectories.pop();
     const entries = await readdir(directory, { withFileTypes: true });
     for (const entry of entries) {
       const entryPath = join(directory, entry.name);
+      if (entry.isSymbolicLink() && !scrub) {
+        continue;
+      }
       if (entry.isSymbolicLink()) {
         try {
           const realTarget = await realpath(entryPath);
@@ -107,9 +112,10 @@ async function inspectBuildContext(rootDir) {
         continue;
       }
       if (entry.isDirectory()) {
-        if (!SKIP_DIR_NAMES.has(entry.name)) {
-          pendingDirectories.push(entryPath);
-        }
+        pendingDirectories.push({
+          directory: entryPath,
+          scrub: scrub && !SKIP_DIR_NAMES.has(entry.name),
+        });
         continue;
       }
       if (entry.isFile()) {
