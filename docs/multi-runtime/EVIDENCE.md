@@ -113,6 +113,14 @@ with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
 Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 181 files plus API and
 contract suites, 1,727/1,727; lint, format, and config checks clean.
 
+## 2026-10-18 Code review
+
+A full-branch code review (`main...feat/multi-runtime-p4`) reported ten findings. Each was
+verified against the code before any change; all ten were real. Eight base fixes each have
+a test that failed before the fix (including a pre-upgrade project document with the field
+genuinely absent). Changed-area suites after the fixes: 183 files plus API and contract
+suites, 1,751/1,751; lint and format clean.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

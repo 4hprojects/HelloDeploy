@@ -20,6 +20,21 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Code review fixes (2026-10-18)
+
+A full-branch review found ten defects; all ten were confirmed against the code and fixed
+with regression tests (eight here, two on the P4 branch).
+
+- Existing projects have no stored `environmentVersion`; the post-build fence would have
+  failed every v2 deploy with `CONFIGURATION_CHANGED`. Fixed, and the first secret change
+  after the upgrade is now detected.
+- Failed local builds were removed by the shared image ID with `--force`, which could
+  delete a retained release's rollback image. Removal uses the unique tag.
+- Detection resets a strategy whose runtime changed; retries run the readiness guard.
+- `REGISTRY_MANIFEST_DELETE_ENABLED=false` is honored; retention and cleanup stop
+  repeating finished registry work; `node_modules` and `.git` count toward the context
+  size limit again; manifest-delete failures are logged.
+
 ### Close-out (2026-10-18)
 
 - Replaced two regexes CodeQL flagged as polynomial ReDoS (requirements comments and
