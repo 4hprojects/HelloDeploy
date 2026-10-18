@@ -332,6 +332,15 @@ function runDocker(args) {
  * Remove a Docker image by tag and report whether Docker confirmed removal.
  * SECURITY: command array.
  */
+/**
+ * The reference to remove a failed build's image by. A bare image ID is shared
+ * by every identical build, including retained releases kept for rollback, so
+ * removal falls back to the deployment's unique tag.
+ */
+export function removableImageReference({ imageRef, imageTag }) {
+  return imageRef && !imageRef.startsWith('sha256:') ? imageRef : imageTag;
+}
+
 export async function removeDockerImage(imageTag) {
   return new Promise((resolve) => {
     const proc = spawn('docker', ['rmi', '--force', imageTag], {

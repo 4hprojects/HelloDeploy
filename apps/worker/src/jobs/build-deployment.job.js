@@ -26,7 +26,12 @@ import {
   listRootEnvFiles,
   readOptionalContextFile,
 } from '../deployment/build-context.js';
-import { writeDockerfile, buildDockerImage, removeDockerImage } from '../deployment/build.js';
+import {
+  writeDockerfile,
+  buildDockerImage,
+  removeDockerImage,
+  removableImageReference,
+} from '../deployment/build.js';
 import { getProjectEnvVars } from '../deployment/secrets.js';
 import { selectPublicBuildEnv } from '../deployment/public-build-env.js';
 import { notifyDeploymentResult } from '../notification/deployment-notification.js';
@@ -117,9 +122,17 @@ const defaultDeps = {
 
 async function removeBuiltArtifact(builtImage, imageTag, deps) {
   if (builtImage?.imageRef?.includes('@sha256:') && deps.deleteRegistryManifest) {
-    await deps.deleteRegistryManifest(builtImage.imageRef).catch(() => {});
+    await deps.deleteRegistryManifest(builtImage.imageRef).catch((error) => {
+      // The abandoned-image sweep retries it; operators still need to see it.
+      logger.warn('BuildDeployment: failed to delete registry manifest', {
+        imageRef: builtImage.imageRef,
+        error: error.message,
+      });
+    });
   }
-  await deps.removeDockerImage(builtImage?.imageRef ?? imageTag);
+  await deps.removeDockerImage(
+    removableImageReference({ imageRef: builtImage?.imageRef, imageTag }),
+  );
 }
 
 /**
@@ -607,7 +620,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     snapshot &&
     !(await Project.exists({
       _id: projectId,
-      environmentVersion: snapshot.environmentVersion ?? 1,
+      ...environmentVersionFilter(snapshot.environmentVersion ?? 1),
     }))
   ) {
     await failBuild({
@@ -678,4 +691,15 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     imageTag,
     projectId,
   });
+}
+
+/**
+ * Match a project at an environment version. Documents stored before versions
+ * existed have no field and read as version 1, which a plain equality query
+ * would never match.
+ */
+function environmentVersionFilter(version) {
+  return version === 1
+    ? { $or: [{ environmentVersion: 1 }, { environmentVersion: { $exists: false } }] }
+    : { environmentVersion: version };
 }

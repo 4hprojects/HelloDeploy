@@ -11,8 +11,13 @@ export const MAX_ENV_FILE_SECRETS = 100;
 export const PLATFORM_MANAGED_NAME_ERROR =
   'HelloDeploy sets PORT for your app automatically from the application port in Settings. Change it there instead.';
 
+// Projects stored before environment versions existed read as version 1, so a
+// missing field is treated as 1; a plain $inc would set it to 1 and the first
+// change after the upgrade would look like no change.
 async function bumpEnvironmentVersion(projectId) {
-  await Project.updateOne({ _id: projectId }, { $inc: { environmentVersion: 1 } });
+  await Project.updateOne({ _id: projectId }, [
+    { $set: { environmentVersion: { $add: [{ $ifNull: ['$environmentVersion', 1] }, 1] } } },
+  ]);
 }
 
 export function validateSecretName(name) {

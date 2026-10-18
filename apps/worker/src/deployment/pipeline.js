@@ -21,6 +21,7 @@ import {
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { withProjectRouteLock } from '../nginx/project-route-lock.js';
 import { env } from '../config/env.js';
+import { removableImageReference } from './build.js';
 
 /**
  * Shared release pipeline for ACTIVATE_RELEASE and ROLLBACK_RELEASE:
@@ -161,15 +162,16 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   }
 
   // A failed activation leaves behind a freshly built image that will never
-  // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal
-  // cannot affect other releases. Fire-and-forget — cleanup must not block.
+  // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal by
+  // tag cannot affect other releases; a bare image ID could. Fire-and-forget —
+  // cleanup must not block.
   if (
     toStatus === DeploymentStatus.FAILED &&
     removeImageOnFailure &&
     deps?.removeDockerImage &&
     (freshDeployment?.imageRef || freshDeployment?.imageTag)
   ) {
-    deps.removeDockerImage(freshDeployment.imageRef ?? freshDeployment.imageTag);
+    deps.removeDockerImage(removableImageReference(freshDeployment));
   }
 
   writeAuditEvent({
