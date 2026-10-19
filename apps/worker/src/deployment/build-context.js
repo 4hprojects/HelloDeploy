@@ -191,21 +191,22 @@ export async function writePlatformDockerignore(contextDir, ownerPatterns = []) 
   const path = join(resolve(contextDir), '.dockerignore');
   const content =
     ownerPatterns.length > 0
-      ? `${PLATFORM_DOCKERIGNORE}# Owner exclusions\n${ownerPatterns.join('\n')}\n`
+      ? `# Owner rules\n${ownerPatterns.join('\n')}\n${PLATFORM_DOCKERIGNORE}`
       : PLATFORM_DOCKERIGNORE;
   await writeFile(path, content, { encoding: 'utf8', mode: 0o600 });
   return path;
 }
 
 /**
- * The exclusions an owner's own .dockerignore adds. Negations are dropped:
- * appended after the platform rules, `!.env` would re-include a secret file.
+ * The rules from an owner's own .dockerignore. Negations are kept for
+ * allowlist-style files; the platform rules are written after them, and later
+ * lines win, so `!.env` can never re-include a secret file.
  */
 export function ownerIgnorePatterns(content) {
   return String(content ?? '')
     .split(/\r?\n/)
     .map((line) => line.trim())
-    .filter((line) => line && !line.startsWith('#') && !line.startsWith('!'));
+    .filter((line) => line && !line.startsWith('#'));
 }
 
 /**

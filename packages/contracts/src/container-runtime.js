@@ -106,7 +106,7 @@ export const PUBLIC_BUILD_ENV_PREFIXES = Object.freeze([
  *
  * @returns {Array<{ line: number, message: string }>}
  */
-export function findDockerfilePolicyViolations(content) {
+export function findDockerfilePolicyViolations(content, { blockedRepositories = [] } = {}) {
   const violations = [];
   const lines = String(content ?? '').split(/\r?\n/);
   const instructions = [];
@@ -156,14 +156,28 @@ export function findDockerfilePolicyViolations(content) {
   const stageNames = new Set();
   // COPY --from and RUN --mount from= can read any image, not only a stage, so
   // they get the same registry rule as FROM.
+  // The builder authenticates with the platform's registry login, so an owner
+  // Dockerfile may not read the platform's own repository (other tenants' images).
+  const checkImage = (reference, line, label) => {
+    const parsed = parseImageReference(reference);
+    if (parsed.error) {
+      violations.push({ line, message: `${label} ${reference}: ${parsed.error}` });
+    } else if (
+      blockedRepositories.some(
+        (repository) => parsed.name === repository || parsed.name.startsWith(`${repository}/`),
+      )
+    ) {
+      violations.push({
+        line,
+        message: `${label} ${reference} is in the platform's own image repository, which owner builds cannot use.`,
+      });
+    }
+  };
   const checkImageSource = (source, line) => {
     if (/^\d+$/.test(source) || stageNames.has(source.toLowerCase())) {
       return;
     }
-    const parsed = parseImageReference(source);
-    if (parsed.error) {
-      violations.push({ line, message: `Image ${source}: ${parsed.error}` });
-    }
+    checkImage(source, line, 'Image');
   };
   // ARGs declared before the first FROM can name base images; only their
   // defaults are known statically, so an ARG without one cannot be checked.
@@ -218,10 +232,7 @@ export function findDockerfilePolicyViolations(content) {
           message: `Base image ${image} must be written out or use a global ARG default.`,
         });
       } else if (baseImage !== 'scratch' && !stageNames.has(baseImage.toLowerCase())) {
-        const parsed = parseImageReference(baseImage);
-        if (parsed.error) {
-          violations.push({ line, message: `Base image ${baseImage}: ${parsed.error}` });
-        }
+        checkImage(baseImage, line, 'Base image');
       }
       if (as?.toUpperCase() === 'AS' && alias) {
         stageNames.add(alias.toLowerCase());
@@ -266,6 +277,23 @@ export function findDockerfilePolicyViolations(content) {
           line,
           message:
             'SSH and secret mounts are not available; HelloDeploy never passes private credentials to a build.',
+        });
+      }
+      if (
+        args
+          .split(/\s+/)
+          .filter((token) => token.toLowerCase().startsWith('--mount='))
+          .some((token) =>
+            token
+              .slice('--mount='.length)
+              .split(',')
+              .some((option) => option.toLowerCase() === 'type=cache'),
+          )
+      ) {
+        violations.push({
+          line,
+          message:
+            'Cache mounts are not available: the build cache is shared with other projects on the builder.',
         });
       }
     } else if (keyword === 'VOLUME') {

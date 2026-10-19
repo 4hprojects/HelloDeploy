@@ -252,4 +252,24 @@ describe('build-deployment job — versioned runtime strategies', () => {
     });
     assert.equal(deployment.failureCode, 'IMAGE_RESOLUTION_FAILED');
   });
+
+  it("refuses a prebuilt image from the platform's own image repository", async () => {
+    const { deployment } = await runVersionedJob({
+      ...OCI_SNAPSHOT,
+      buildConfiguration: {
+        applicationPort: 8080,
+        imageReference: `ghcr.io/example/hellodeploy-apps@sha256:${'a'.repeat(64)}`,
+      },
+    });
+    assert.match(deployment.failureSummary, /own image repository/);
+  });
+
+  it("refuses an owner Dockerfile built from the platform's own image repository", async () => {
+    const { deployment } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
+      contextFiles: {
+        Dockerfile: `FROM ghcr.io/example/hellodeploy-apps@sha256:${'a'.repeat(64)}\nUSER 10001\n`,
+      },
+    });
+    assert.equal(deployment.failureCode, 'DOCKERFILE_POLICY_VIOLATION');
+  });
 });

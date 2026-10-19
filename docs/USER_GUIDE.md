@@ -235,13 +235,15 @@ Both need the **App port** the container listens on, and both must:
   user list decides what a name means; use its number instead (`USER 1000` for `node`);
 - declare no `VOLUME` and use base images from docker.io or ghcr.io only;
 - avoid custom `# syntax` frontends, a custom `# escape` character, `RUN --network=host`,
-  `RUN --security=insecure`, and SSH or secret mounts;
+  `RUN --security=insecure`, and SSH, secret, or cache mounts (the build cache would be
+  shared with other projects);
 - write base images out, or use an `ARG` default; an `ARG` your environment variables can
   override (`VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`, `VUE_APP_*`) cannot choose an image;
 - pass a scan for fixable critical vulnerabilities and stay under the size limit.
 
-Your `.dockerignore` can exclude more files, but it cannot re-include files HelloDeploy
-always excludes, such as `.env` files. Private build-time secrets are not passed to the
+Your `.dockerignore` works as usual, including allowlist rules such as `*` followed by
+`!src`, but it cannot re-include files HelloDeploy always excludes, such as `.env` files.
+Images from HelloDeploy's own image repository cannot be used as a base or a prebuilt image. Private build-time secrets are not passed to the
 build.
 
 The new Next.js modes remain a nonproduction, allowlisted pilot until the real

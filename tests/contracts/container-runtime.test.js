@@ -212,12 +212,34 @@ describe('findDockerfilePolicyViolations', () => {
     assert.match(messages('FROM node:22-slim\nUSER root\n')[0], /numeric non-root USER/);
   });
 
-  it('still allows cache mounts', () => {
-    assert.deepEqual(
-      findDockerfilePolicyViolations(
+  // Cache mounts live on the one shared builder, so one tenant could poison or
+  // read another's cache.
+  it('rejects cache mounts, which every tenant on the builder shares', () => {
+    assert.match(
+      messages(
         'FROM node:22-slim\nRUN --mount=type=cache,target=/root/.npm npm ci\nUSER 10001\n',
-      ),
-      [],
+      )[0],
+      /Cache mounts/,
+    );
+  });
+
+  it("rejects a base image from the platform's own image repository", () => {
+    assert.match(
+      findDockerfilePolicyViolations(
+        `FROM ghcr.io/example/hellodeploy-apps@sha256:${'a'.repeat(64)}\nUSER 10001\n`,
+        { blockedRepositories: ['ghcr.io/example/hellodeploy-apps'] },
+      )[0].message,
+      /platform's own/,
+    );
+  });
+
+  it("rejects COPY --from the platform's own image repository", () => {
+    assert.match(
+      findDockerfilePolicyViolations(
+        'FROM node:22\nCOPY --from=ghcr.io/example/hellodeploy-apps:release-1 / /\nUSER 10001\n',
+        { blockedRepositories: ['ghcr.io/example/hellodeploy-apps'] },
+      )[0].message,
+      /platform's own/,
     );
   });
 

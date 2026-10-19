@@ -74,10 +74,16 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
 
 ### Fourth review (2026-10-19)
 
-- Rollbacks honor a turned-off pilot in the web service and the worker.
-- An already-deleted manifest counts as deleted.
-- A detection run that cannot reach the repository keeps earlier findings.
-- Retention and release cleanup share one image retirement helper.
+Ten findings, all confirmed and fixed with failing-first tests.
+
+- Base: rollbacks honor a turned-off pilot; an already-deleted manifest counts as deleted;
+  failed detection keeps earlier findings; retention and cleanup share one image
+  retirement helper.
+- P4: prebuilt-image pulls and scans never use the worker's own registry login; owner
+  images and Dockerfiles may not use the platform's image repository; cache mounts are
+  refused; owner `.dockerignore` rules keep negations and sit before the platform rules;
+  credential-load errors are logged; duplicate CVEs count once; release cleanup also
+  removes local copies of prebuilt images.
 
 ### Third review (2026-10-19)
 

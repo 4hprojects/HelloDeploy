@@ -111,6 +111,7 @@ describe('registry operations', () => {
       `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`,
       {
         isDeletionEnabled: true,
+        platformRepository,
         run: async () => ({ code: 1, stderr: 'Error: MANIFEST_UNKNOWN: manifest unknown' }),
       },
     );

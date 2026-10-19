@@ -57,5 +57,7 @@ export async function scanImage(imageRef, { dockerConfigDir, run = runTrivy } = 
   const ids = (report.Results ?? []).flatMap((entry) =>
     (entry.Vulnerabilities ?? []).map((vulnerability) => vulnerability.VulnerabilityID),
   );
-  return { criticalCount: ids.length, ids: [...new Set(ids)].slice(0, MAX_REPORTED_IDS) };
+  // One CVE can appear in several packages of the same image; count it once.
+  const uniqueIds = [...new Set(ids)];
+  return { criticalCount: uniqueIds.length, ids: uniqueIds.slice(0, MAX_REPORTED_IDS) };
 }

@@ -428,7 +428,9 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   }
 
   if (ownerDockerfile !== null) {
-    const violations = findDockerfilePolicyViolations(ownerDockerfile);
+    const violations = findDockerfilePolicyViolations(ownerDockerfile, {
+      blockedRepositories: platformImageRepositories(),
+    });
     if (violations.length > 0) {
       for (const violation of violations) {
         await logEvent(
@@ -926,6 +928,21 @@ async function deployOwnerImage({
     });
     return;
   }
+  // The platform's repository holds every tenant's builds; an owner reference
+  // into it would run someone else's image and make it look platform-owned.
+  if (
+    platformImageRepositories().some(
+      (repository) => reference.name === repository || reference.name.startsWith(`${repository}/`),
+    )
+  ) {
+    await failBuild({
+      failureCode: 'IMAGE_RESOLUTION_FAILED',
+      failureSummary:
+        "Images in HelloDeploy's own image repository cannot be deployed as a prebuilt image.",
+      completedAt: new Date(),
+    });
+    return;
+  }
   await updateStatus(deploymentId, DeploymentStatus.BUILDING);
   await logEvent(
     deploymentId,
@@ -938,10 +955,16 @@ async function deployOwnerImage({
   let credential;
   try {
     credential = await deps.loadRegistryCredential(projectId, reference.registry);
-  } catch {
+  } catch (error) {
+    logger.warn('BuildDeployment: failed to load the registry credential', {
+      deploymentId,
+      registry: reference.registry,
+      error: error.message,
+    });
     await failBuild({
       failureCode: 'SECRET_DECRYPTION_FAILED',
-      failureSummary: 'The saved registry credential could not be decrypted.',
+      failureSummary:
+        'The saved registry credential could not be read. Try again, or save it again.',
       completedAt: new Date(),
     });
     return;
@@ -993,4 +1016,9 @@ async function deployOwnerImage({
     failBuild,
     isPlatformImage: false,
   });
+}
+
+/** The platform's own image repositories, which owner images may never use. */
+function platformImageRepositories() {
+  return [env.USER_IMAGE_REGISTRY].filter(Boolean);
 }

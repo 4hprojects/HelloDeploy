@@ -120,8 +120,12 @@ describe('registry credentials', () => {
     assert.deepEqual(Object.keys(config.auths), ['https://index.docker.io/v1/']);
   });
 
-  it('passes no config directory for a public image', async () => {
-    assert.equal(await withDockerConfig('docker.io', null, async (dir) => dir), undefined);
+  // Without a credential the pull must be anonymous, never the worker's own login.
+  it('pulls a public image with an empty private Docker config', async () => {
+    const config = await withDockerConfig('docker.io', null, async (dir) =>
+      JSON.parse(await readFile(join(dir, 'config.json'), 'utf8')),
+    );
+    assert.deepEqual(config, { auths: {} });
   });
 });
 
@@ -130,6 +134,13 @@ describe('scanImage', () => {
     JSON.stringify({
       Results: [{ Vulnerabilities: ids.map((id) => ({ VulnerabilityID: id })) }],
     });
+
+  it('counts a vulnerability found in several packages once', async () => {
+    const result = await scanImage(`ghcr.io/o/a@${DIGEST}`, {
+      run: async () => ({ code: 0, stdout: report(['CVE-1', 'CVE-1']), stderr: '' }),
+    });
+    assert.equal(result.criticalCount, 1);
+  });
 
   it('counts fixable critical vulnerabilities', async () => {
     const result = await scanImage(`ghcr.io/o/a@${DIGEST}`, {

@@ -37,21 +37,22 @@ export async function loadRegistryCredential(projectId, registry, deps = {}) {
 
 /**
  * Run `fn` with a private Docker config directory holding only this
- * credential, so docker and the scanner authenticate without touching the
- * worker's own registry login. The directory is removed afterwards.
+ * credential (or none), so docker and the scanner never use the worker's own
+ * registry login for an owner image. The directory is removed afterwards.
  */
 export async function withDockerConfig(registry, credential, fn) {
-  if (!credential) {
-    return fn(undefined);
-  }
   const directory = await mkdtemp(join(tmpdir(), 'hellodeploy-registry-'));
   try {
-    const auth = Buffer.from(`${credential.username}:${credential.token}`).toString('base64');
-    await writeFile(
-      join(directory, 'config.json'),
-      JSON.stringify({ auths: { [DOCKER_AUTH_KEYS[registry]]: { auth } } }),
-      { mode: 0o600 },
-    );
+    // Without a credential the config is empty, so the pull is anonymous and
+    // never falls back to the worker's own registry login.
+    const auths = credential
+      ? {
+          [DOCKER_AUTH_KEYS[registry]]: {
+            auth: Buffer.from(`${credential.username}:${credential.token}`).toString('base64'),
+          },
+        }
+      : {};
+    await writeFile(join(directory, 'config.json'), JSON.stringify({ auths }), { mode: 0o600 });
     return await fn(directory);
   } finally {
     await rm(directory, { recursive: true, force: true });

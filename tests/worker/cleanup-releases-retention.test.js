@@ -99,4 +99,23 @@ describe('cleanup-releases job — HEALTHY release trimming', () => {
     const fresh = await Deployment.findById(failed._id).lean();
     assert.equal(fresh.imageRef ?? null, null);
   });
+
+  it('removes the local copy of a trimmed prebuilt owner image', async () => {
+    const project = await createProject();
+    const refs = [];
+    for (let seq = 1; seq <= 4; seq++) {
+      const ref = `docker.io/library/nginx@sha256:${String(seq).repeat(64)}`;
+      refs.push(ref);
+      await createDeployment(project._id, {
+        sequenceNumber: seq,
+        status: DeploymentStatus.HEALTHY,
+        imageTag: `img-${seq}`,
+        imageRef: ref,
+        imageDigest: `sha256:${String(seq).repeat(64)}`,
+      });
+    }
+    const { deps, removedImages } = makeDeps();
+    await handleCleanupReleases({ data: {} }, deps);
+    assert.equal(removedImages.includes(refs[0]), true);
+  });
 });

@@ -18,6 +18,7 @@ const { startTestDb, stopTestDb, clearTestDb } = await import('../helpers/worker
 const { createProject } = await import('../helpers/worker-fixtures.js');
 const { resetBuildConfigurationToDetected, updateBuildConfiguration } =
   await import('../../apps/web/src/services/project.service.js');
+const { runProjectDetection } = await import('../../apps/web/src/services/detection.service.js');
 const { resolveSelectedStrategy, validateUpdateBuildConfiguration } =
   await import('../../apps/web/src/validators/project.validator.js');
 
@@ -91,6 +92,18 @@ describe('owner image build settings', () => {
       actorId: new mongoose.Types.ObjectId(),
     });
     assert.match(result.error, /Run the app check again/);
+  });
+
+  it('keeps the detected runtime when a later detection cannot reach the repository', async () => {
+    await createProject({
+      _id: PILOT_PROJECT_ID,
+      runtimeType: 'CONTAINER',
+      buildStrategy: 'oci_image_v1',
+      detection: { status: 'READY', detectedRuntimeType: 'PYTHON' },
+    });
+    await runProjectDetection(PILOT_PROJECT_ID, new mongoose.Types.ObjectId());
+    const stored = await Project.findById(PILOT_PROJECT_ID).lean();
+    assert.equal(stored.detection.detectedRuntimeType, 'PYTHON');
   });
 });
 

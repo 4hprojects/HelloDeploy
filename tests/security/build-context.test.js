@@ -370,18 +370,21 @@ describe('readContainedFile', () => {
 });
 
 describe('owner ignore rules', () => {
-  it('keeps owner exclusions and drops negations that could re-include files', () => {
-    assert.deepEqual(ownerIgnorePatterns('# notes\nfixtures\n!.env\n\n  *.log  \n'), [
-      'fixtures',
-      '*.log',
+  it('keeps owner rules, including allowlist negations', () => {
+    assert.deepEqual(ownerIgnorePatterns('# notes\n*\n!src\n\n  !package*.json  \n'), [
+      '*',
+      '!src',
+      '!package*.json',
     ]);
   });
 
-  it('appends owner exclusions after the platform rules', async () => {
+  // Later .dockerignore lines win, so platform exclusions come last and an
+  // owner's `!.env` can never re-include a secret file.
+  it('writes owner rules before the platform rules', async () => {
     const dir = await makeContext();
-    await writePlatformDockerignore(dir, ['fixtures']);
+    await writePlatformDockerignore(dir, ['*', '!src', '!.env']);
     const lines = (await readFile(join(dir, '.dockerignore'), 'utf8')).split('\n');
-    assert.ok(lines.indexOf('fixtures') > lines.indexOf('**/.env*'));
+    assert.ok(lines.lastIndexOf('!.env') < lines.lastIndexOf('**/.env*'));
     await rm(dir, { recursive: true, force: true });
   });
 });

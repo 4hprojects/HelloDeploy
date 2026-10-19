@@ -23,6 +23,24 @@ const defaultDeps = { stopAndRemoveContainer, removeDockerImage, deleteRegistryM
  * clear the record's image identity when the image is gone everywhere, so it
  * is neither swept again nor offered as a rollback target.
  */
+/**
+ * Remove the worker's local copy of a retired prebuilt owner image. The image
+ * stays in the owner's registry and can be pulled again for a rollback, so its
+ * record keeps the reference. Returns whether a copy was removed.
+ */
+export async function removeOwnerImageCopy(dep, excludeIds, deps) {
+  if (
+    !dep.imageDigest ||
+    !dep.imageRef?.includes('@sha256:') ||
+    isPlatformImageRef(dep.imageRef) ||
+    (await isImageDigestInUse(dep.imageDigest, excludeIds))
+  ) {
+    return false;
+  }
+  await deps.removeDockerImage(dep.imageRef);
+  return true;
+}
+
 export async function retireRegistryImage(dep, deps) {
   const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
   await deps.removeDockerImage(dep.imageRef);
@@ -181,16 +199,10 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
       }
     }
 
-    // A prebuilt owner image stays in the owner's registry and can be pulled
-    // again for a rollback; only the worker's local copy is removed.
     if (
-      dep.imageDigest &&
-      dep.imageRef?.includes('@sha256:') &&
-      !isPlatformImageRef(dep.imageRef) &&
       !removedDigests.has(dep.imageDigest) &&
-      !(await isImageDigestInUse(dep.imageDigest, toCleanIds))
+      (await removeOwnerImageCopy(dep, toCleanIds, deps))
     ) {
-      await deps.removeDockerImage(dep.imageRef);
       removedDigests.add(dep.imageDigest);
     }
 

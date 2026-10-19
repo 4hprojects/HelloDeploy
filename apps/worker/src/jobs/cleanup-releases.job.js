@@ -7,6 +7,7 @@ import {
   getReleaseKeepCount,
   isImageDigestInUse,
   isImageTagInUse,
+  removeOwnerImageCopy,
   retireRegistryImage,
 } from '../deployment/retention.js';
 import { deleteRegistryManifest, isPlatformImageRef } from '../deployment/registry.js';
@@ -128,6 +129,8 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
           });
         }
       }
+
+      await removeOwnerImageCopy(dep, excess, deps);
 
       await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
         () => {},
