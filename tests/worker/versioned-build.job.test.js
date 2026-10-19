@@ -254,6 +254,18 @@ describe('build-deployment job — versioned runtime strategies', () => {
     assert.equal(deployment.failureCode, 'IMAGE_RESOLUTION_FAILED');
   });
 
+  // A thrown job would leave the deployment BUILDING and block every later deploy.
+  it('fails a prebuilt image deployment when the private Docker config cannot be written', async () => {
+    const { deployment } = await runVersionedJob(OCI_SNAPSHOT, {
+      depsOverrides: {
+        withDockerConfig: async () => {
+          throw Object.assign(new Error('ENOSPC: no space left on device'), { code: 'ENOSPC' });
+        },
+      },
+    });
+    assert.equal(deployment.status, 'FAILED');
+  });
+
   it("refuses a prebuilt image from the platform's own image repository", async () => {
     const { deployment } = await runVersionedJob({
       ...OCI_SNAPSHOT,
@@ -290,6 +302,6 @@ describe('build-deployment job — versioned runtime strategies', () => {
         },
       },
     });
-    assert.equal(buildOptions[0]?.isolateRegistryCredentials, true);
+    assert.equal(buildOptions[0]?.shouldIsolateRegistryCredentials, true);
   });
 });

@@ -209,10 +209,16 @@ export async function createIsolatedDockerConfig(
 ) {
   const directory = join(parentDir, 'docker-config');
   await mkdir(directory, { mode: 0o700 });
-  await writeFile(join(directory, 'config.json'), JSON.stringify({ auths: {} }), { mode: 0o600 });
-  // Builder definitions (including the TLS client material) and CLI plugins
-  // hold no registry credentials.
-  for (const entry of ['buildx', 'cli-plugins']) {
+  const currentContext = await readFile(join(sourceConfigDir, 'config.json'), 'utf8').then(
+    (text) => JSON.parse(text).currentContext,
+    () => undefined,
+  );
+  await writeFile(join(directory, 'config.json'), JSON.stringify({ auths: {}, currentContext }), {
+    mode: 0o600,
+  });
+  // Builder definitions, Docker contexts (both with their TLS client material)
+  // and CLI plugins hold no registry credentials.
+  for (const entry of ['buildx', 'contexts', 'cli-plugins']) {
     const source = join(sourceConfigDir, entry);
     if (
       await access(source).then(
@@ -263,7 +269,7 @@ export async function buildAndPushDockerImage({
   noCache = false,
   buildArgs = {},
   onLogLine,
-  isolateRegistryCredentials = false,
+  shouldIsolateRegistryCredentials = false,
 }) {
   if (!builderName) {
     throw new Error('Remote BuildKit builder is not configured.');
@@ -284,7 +290,7 @@ export async function buildAndPushDockerImage({
   });
   const startedAt = Date.now();
   try {
-    const buildEnv = isolateRegistryCredentials
+    const buildEnv = shouldIsolateRegistryCredentials
       ? { DOCKER_CONFIG: await createIsolatedDockerConfig(metadataDir) }
       : undefined;
     await runTimedProcess('docker', args, buildTimeoutMs, {

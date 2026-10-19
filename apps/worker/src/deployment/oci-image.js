@@ -1,13 +1,5 @@
-// Registry API and token hosts for each approved registry. Credentials are only
-// ever sent to these token hosts, whatever a registry's challenge names.
-const REGISTRY_API = Object.freeze({
-  'docker.io': 'https://registry-1.docker.io',
-  'ghcr.io': 'https://ghcr.io',
-});
-const TOKEN_HOSTS = Object.freeze({
-  'docker.io': ['auth.docker.io'],
-  'ghcr.io': ['ghcr.io'],
-});
+import { IMAGE_REGISTRIES } from '@hellodeploy/contracts';
+
 const MANIFEST_ACCEPT = [
   'application/vnd.oci.image.index.v1+json',
   'application/vnd.docker.distribution.manifest.list.v2+json',
@@ -36,7 +28,7 @@ export async function resolveImageDigest(
   { registry, repository, tag },
   { credential = null, fetchImpl = fetch } = {},
 ) {
-  const apiBase = REGISTRY_API[registry];
+  const apiBase = IMAGE_REGISTRIES[registry]?.apiBase;
   if (!apiBase) {
     throw new ImageResolutionError(`${registry} is not an approved registry.`);
   }
@@ -96,7 +88,10 @@ async function requestRegistryToken({ registry, repository, challenge, credentia
   } catch {
     throw new ImageResolutionError('The registry returned an invalid sign-in address.');
   }
-  if (realm.protocol !== 'https:' || !TOKEN_HOSTS[registry].includes(realm.hostname)) {
+  if (
+    realm.protocol !== 'https:' ||
+    !IMAGE_REGISTRIES[registry].tokenHosts.includes(realm.hostname)
+  ) {
     throw new ImageResolutionError(
       'The registry asked for credentials at an unexpected address, so HelloDeploy did not send them.',
     );

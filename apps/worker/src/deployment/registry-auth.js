@@ -2,14 +2,9 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { IMAGE_REGISTRIES } from '@hellodeploy/contracts';
 import { RegistryCredential, registryCredentialAadName } from '@hellodeploy/database';
 import { buildSecretAad, decrypt } from '@hellodeploy/security';
-
-// Keys Docker uses for each registry in config.json `auths`.
-const DOCKER_AUTH_KEYS = Object.freeze({
-  'docker.io': 'https://index.docker.io/v1/',
-  'ghcr.io': 'ghcr.io',
-});
 
 /**
  * Decrypt a project's saved pull credential for one registry, or null when the
@@ -47,7 +42,7 @@ export async function withDockerConfig(registry, credential, fn) {
     // never falls back to the worker's own registry login.
     const auths = credential
       ? {
-          [DOCKER_AUTH_KEYS[registry]]: {
+          [IMAGE_REGISTRIES[registry].dockerAuthKey]: {
             auth: Buffer.from(`${credential.username}:${credential.token}`).toString('base64'),
           },
         }

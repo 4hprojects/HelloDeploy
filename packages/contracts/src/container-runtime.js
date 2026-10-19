@@ -1,7 +1,23 @@
 import { validateApplicationRoot } from './build-strategies.js';
 
-// Registries an owner-supplied image or Dockerfile base image may come from.
-export const APPROVED_IMAGE_REGISTRIES = Object.freeze(['docker.io', 'ghcr.io']);
+/**
+ * Registries an owner-supplied image or Dockerfile base image may come from,
+ * with what the worker needs to reach each one. Credentials are only ever sent
+ * to `tokenHosts`, whatever a registry's challenge names.
+ */
+export const IMAGE_REGISTRIES = Object.freeze({
+  'docker.io': Object.freeze({
+    apiBase: 'https://registry-1.docker.io',
+    tokenHosts: Object.freeze(['auth.docker.io']),
+    dockerAuthKey: 'https://index.docker.io/v1/',
+  }),
+  'ghcr.io': Object.freeze({
+    apiBase: 'https://ghcr.io',
+    tokenHosts: Object.freeze(['ghcr.io']),
+    dockerAuthKey: 'ghcr.io',
+  }),
+});
+export const APPROVED_IMAGE_REGISTRIES = Object.freeze(Object.keys(IMAGE_REGISTRIES));
 
 const REPOSITORY_COMPONENT = /^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*$/;
 const TAG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
@@ -163,8 +179,8 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
   const stageNames = new Set();
   // COPY --from and RUN --mount from= can read any image, not only a stage, so
   // they get the same registry rule as FROM.
-  // The builder authenticates with the platform's registry login, so an owner
-  // Dockerfile may not read the platform's own repository (other tenants' images).
+  // The platform's own repository holds other tenants' images. Owner builds have
+  // no registry credentials, so such a pull fails anyway; naming it here explains why.
   const checkImage = (reference, line, label) => {
     const parsed = parseImageReference(reference);
     if (parsed.error) {

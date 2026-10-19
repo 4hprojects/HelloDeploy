@@ -12,7 +12,10 @@ async function workerDockerConfig() {
   await mkdir(join(dir, 'cli-plugins'));
   await writeFile(
     join(dir, 'config.json'),
-    JSON.stringify({ auths: { 'ghcr.io': { auth: 'cGxhdGZvcm06bG9naW4=' } } }),
+    JSON.stringify({
+      auths: { 'ghcr.io': { auth: 'cGxhdGZvcm06bG9naW4=' } },
+      currentContext: 'remote-builder',
+    }),
   );
   return dir;
 }
@@ -20,12 +23,23 @@ async function workerDockerConfig() {
 // Owner Dockerfiles run owner code on the builder, and buildx hands the
 // client's registry credentials to the builder for any pull.
 describe('createIsolatedDockerConfig', () => {
+  // A builder created on a Docker context endpoint resolves through it.
+  it('keeps the current Docker context', async () => {
+    const source = await workerDockerConfig();
+    const parent = await mkdtemp(join(tmpdir(), 'hellodeploy-isolated-'));
+    const isolated = await createIsolatedDockerConfig(parent, source);
+    const config = JSON.parse(await readFile(join(isolated, 'config.json'), 'utf8'));
+    assert.equal(config.currentContext, 'remote-builder');
+    await rm(source, { recursive: true, force: true });
+    await rm(parent, { recursive: true, force: true });
+  });
+
   it('carries no registry credentials', async () => {
     const source = await workerDockerConfig();
     const parent = await mkdtemp(join(tmpdir(), 'hellodeploy-isolated-'));
     const isolated = await createIsolatedDockerConfig(parent, source);
     const config = JSON.parse(await readFile(join(isolated, 'config.json'), 'utf8'));
-    assert.deepEqual(config, { auths: {} });
+    assert.deepEqual(config.auths, {});
     await rm(source, { recursive: true, force: true });
     await rm(parent, { recursive: true, force: true });
   });

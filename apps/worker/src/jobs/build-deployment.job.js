@@ -659,7 +659,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       noCache: noCache === true,
       buildArgs: publicBuildEnv,
       // Owner Dockerfiles build without any registry credential.
-      isolateRegistryCredentials: buildStrategy === BuildStrategy.DOCKERFILE_V1,
+      shouldIsolateRegistryCredentials: buildStrategy === BuildStrategy.DOCKERFILE_V1,
       onLogLine: async (line, stream) => {
         await logEvent(
           deploymentId,
@@ -991,12 +991,23 @@ async function deployOwnerImage({
   const imageRef = `${reference.name}@${digest}`;
   await logEvent(deploymentId, 'BUILD', 'INFO', `Locked image to ${imageRef}.`, correlationId);
 
-  const hasPassedScan = await deps.withDockerConfig(
-    reference.registry,
-    credential,
-    (dockerConfigDir) =>
+  let hasPassedScan;
+  try {
+    hasPassedScan = await deps.withDockerConfig(reference.registry, credential, (dockerConfigDir) =>
       enforceImageScan({ imageRef, dockerConfigDir, deps, deploymentId, correlationId, failBuild }),
-  );
+    );
+  } catch (error) {
+    logger.error('BuildDeployment: failed to prepare the image scan', {
+      deploymentId,
+      error: error.message,
+    });
+    await failBuild({
+      failureCode: 'IMAGE_SCAN_UNAVAILABLE',
+      failureSummary: 'HelloDeploy could not prepare the image check. Try again shortly.',
+      completedAt: new Date(),
+    });
+    return;
+  }
   if (!hasPassedScan) {
     return;
   }
