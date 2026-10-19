@@ -167,6 +167,16 @@ and the port field). One was declined: the second context walk enforces containm
 the application root and is not redundant. Full suite on `feat/multi-runtime-p4`:
 2,150/2,150 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
 
+## 2026-10-19 Third review
+
+Ten findings, all confirmed and fixed with failing-first tests: seven on the base branch
+(health-check form resetting settings, pre-snapshot rollbacks, streaming on maintenance and
+custom-domain routes, local copies and identity after manifest deletion, GitHub errors read
+as missing files, duplicate size accounting, naming) and four on P4 (owner-image fields in
+the health form, the reset guard, local copies of prebuilt images, abandoned-sweep
+bookkeeping). Full suite on `feat/multi-runtime-p4`: 2,162/2,162 with
+`DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
