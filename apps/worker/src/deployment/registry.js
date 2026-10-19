@@ -44,6 +44,11 @@ export async function deleteRegistryManifest(imageRef, deps = {}) {
   }
   const result = await run(['manifest', 'delete', '--force', imageRef]);
   if (result.code !== 0) {
+    // Already gone (another sweep or a rollback record sharing the digest got
+    // there first): that is the state cleanup wants, so later sweeps stop.
+    if (/MANIFEST_UNKNOWN|not found|404/i.test(result.stderr)) {
+      return true;
+    }
     throw new Error(`Registry manifest deletion failed: ${result.stderr.trim().slice(0, 500)}`);
   }
   return true;

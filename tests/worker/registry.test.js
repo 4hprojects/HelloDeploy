@@ -42,4 +42,16 @@ describe('registry operations', () => {
     );
     assert.deepEqual([result, commands], [false, []]);
   });
+
+  // A manifest already deleted by another sweep is the outcome cleanup wanted.
+  it('treats an already-deleted manifest as deleted', async () => {
+    const result = await deleteRegistryManifest(
+      `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`,
+      {
+        isDeletionEnabled: true,
+        run: async () => ({ code: 1, stderr: 'Error: MANIFEST_UNKNOWN: manifest unknown' }),
+      },
+    );
+    assert.equal(result, true);
+  });
 });

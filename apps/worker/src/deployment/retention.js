@@ -18,6 +18,24 @@ const LIVE_STATUSES = [
 const defaultDeps = { stopAndRemoveContainer, removeDockerImage, deleteRegistryManifest };
 
 /**
+ * Retire a release's registry image once no live release uses its digest:
+ * delete the platform manifest, remove the local copy pulled by digest, and
+ * clear the record's image identity when the image is gone everywhere, so it
+ * is neither swept again nor offered as a rollback target.
+ */
+export async function retireRegistryImage(dep, deps) {
+  const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
+  await deps.removeDockerImage(dep.imageRef);
+  if (isManifestDeleted) {
+    await Deployment.updateOne(
+      { _id: dep._id },
+      { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1 } },
+    );
+  }
+  return isManifestDeleted;
+}
+
+/**
  * True when a deployment outside `excludeIds` still references `imageTag` in a
  * live status. Rollbacks copy the source deployment's imageTag, so two records
  * can share one image — removing it for one would break the other.
@@ -150,17 +168,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
         });
       } else {
         try {
-          const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
-          // The release ran from a copy pulled by digest, which is no longer needed.
-          await deps.removeDockerImage(dep.imageRef);
-          if (isManifestDeleted) {
-            // The image is gone everywhere: clear its identity so later sweeps skip it
-            // and the release is no longer offered as a rollback target.
-            await Deployment.updateOne(
-              { _id: dep._id },
-              { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1 } },
-            );
-          }
+          await retireRegistryImage(dep, deps);
           removedDigests.add(dep.imageDigest);
         } catch (err) {
           logger.warn('Retention: failed to delete registry manifest', {

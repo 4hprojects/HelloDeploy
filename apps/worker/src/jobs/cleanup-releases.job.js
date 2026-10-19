@@ -7,6 +7,7 @@ import {
   getReleaseKeepCount,
   isImageDigestInUse,
   isImageTagInUse,
+  retireRegistryImage,
 } from '../deployment/retention.js';
 import { deleteRegistryManifest } from '../deployment/registry.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
@@ -117,17 +118,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
         !(await isImageDigestInUse(dep.imageDigest, excess))
       ) {
         try {
-          const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
-          // The release ran from a copy pulled by digest, which is no longer needed.
-          await deps.removeDockerImage(dep.imageRef);
-          if (isManifestDeleted) {
-            // The image is gone everywhere: clear its identity so later sweeps skip it
-            // and the release is no longer offered as a rollback target.
-            await Deployment.updateOne(
-              { _id: dep._id },
-              { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1 } },
-            );
-          }
+          await retireRegistryImage(dep, deps);
         } catch (err) {
           logger.warn('CleanupReleases: failed to delete registry manifest', {
             deploymentId: dep._id,

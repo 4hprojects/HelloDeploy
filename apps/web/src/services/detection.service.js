@@ -1027,15 +1027,17 @@ async function persistDetectionResult(projectId, result, checkedCommitSha = null
   await Project.updateOne(
     { _id: projectId },
     {
+      // Field by field, so what an earlier successful run found survives a
+      // run that could not reach the repository.
       $set: {
-        detection: {
-          status: result.isValid ? DetectionStatus.READY : DetectionStatus.NEEDS_ATTENTION,
-          issues: safeDetectionIssues(result.issues),
-          checkedCommitSha,
-          checkedAt: new Date(),
-          detectedConfiguration: null,
-          requiredEnvironmentVariables: [],
-        },
+        'detection.status': result.isValid
+          ? DetectionStatus.READY
+          : DetectionStatus.NEEDS_ATTENTION,
+        'detection.issues': safeDetectionIssues(result.issues),
+        'detection.checkedCommitSha': checkedCommitSha,
+        'detection.checkedAt': new Date(),
+        'detection.detectedConfiguration': null,
+        'detection.requiredEnvironmentVariables': [],
       },
     },
   );

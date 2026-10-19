@@ -609,6 +609,13 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     return { success: false, error: 'Target deployment is already active.' };
   }
 
+  if (!env.isStrategyEnabledFor(targetDeployment.configurationSnapshot?.buildStrategy, projectId)) {
+    return {
+      success: false,
+      error: 'That release uses a deployment mode that is not enabled for this project.',
+    };
+  }
+
   // Releases from before snapshots recorded nothing about how they were built,
   // so they can only roll back under the generated build they were made with.
   if (

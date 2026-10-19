@@ -22,6 +22,7 @@ import {
   STARTUP_DELAY_MS,
 } from '../deployment/pipeline.js';
 import { resolveRuntimeSpec } from '../deployment/build-strategy.js';
+import { env } from '../config/env.js';
 
 const defaultDeps = {
   allocatePort,
@@ -114,6 +115,20 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
       {
         failureCode: 'CONFIGURATION_CHANGED',
         failureSummary: 'Environment variables changed before rollback activation.',
+        completedAt: new Date(),
+      },
+      { project, deps },
+    );
+    return;
+  }
+  // A turned-off pilot stops rollbacks too, not only new builds.
+  if (!env.isStrategyEnabledFor(rollbackSnapshot?.buildStrategy, projectId)) {
+    await updateStatus(
+      deploymentId,
+      DeploymentStatus.FAILED,
+      {
+        failureCode: 'BUILD_STRATEGY_DISABLED',
+        failureSummary: `The ${rollbackSnapshot.buildStrategy} deployment mode is not enabled for this project.`,
         completedAt: new Date(),
       },
       { project, deps },
