@@ -270,11 +270,27 @@ export async function buildAndPushDockerImage({
     return {
       imageRef: `${imageRef.split('@')[0]}@${imageDigest}`,
       imageDigest,
+      childDigests: await readLayoutChildDigests(layoutDir, imageDigest),
       durationMs: Date.now() - startedAt,
     };
   } finally {
     await rm(metadataDir, { recursive: true, force: true }).catch(() => {});
   }
+}
+
+/**
+ * The manifests an exported image index lists: the platform image and its
+ * provenance and SBOM attestations. Registry cleanup needs them because GHCR
+ * keeps each as its own package version.
+ */
+export async function readLayoutChildDigests(layoutDir, imageDigest) {
+  const blob = await readFile(
+    join(layoutDir, 'blobs', 'sha256', imageDigest.slice('sha256:'.length)),
+    'utf8',
+  );
+  return (JSON.parse(blob).manifests ?? [])
+    .map((descriptor) => descriptor.digest)
+    .filter((digest) => IMAGE_DIGEST_PATTERN.test(digest ?? ''));
 }
 
 export async function inspectLocalImageDigest(imageTag) {

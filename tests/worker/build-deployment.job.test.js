@@ -107,6 +107,45 @@ describe('build-deployment job', () => {
     assert.equal(calls.enqueued[0]?.jobId, `activate-${deployment._id}`);
   });
 
+  // Registry cleanup must not delete a child manifest another release still lists.
+  it('records the manifests the pushed image index lists', async () => {
+    const { project, repo, deployment: originalDeployment } = await seed();
+    await Project.updateOne({ _id: project._id }, { $set: { repositoryId: repo._id } });
+    await originalDeployment.deleteOne();
+    const deployment = await createDeployment(project._id, {
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'legacy_generated',
+        runtimeType: 'NODEJS',
+        buildConfiguration: { applicationRoot: '.', applicationPort: 3000, healthCheckPath: '/' },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: originalDeployment.commitSha,
+      },
+    });
+    const digest = `sha256:${'b'.repeat(64)}`;
+    const children = [`sha256:${'c'.repeat(64)}`];
+    const { deps } = makeDeps({
+      resolveApplicationRoot: async (workDir) => workDir,
+      buildExecutor: {
+        build: async () => ({ imageRef: digest, imageDigest: digest, childDigests: children }),
+      },
+    });
+    await handleBuildDeployment(
+      {
+        data: {
+          version: 2,
+          projectId: project._id.toString(),
+          deploymentId: deployment._id.toString(),
+          correlationId: 'v2-children-test',
+        },
+      },
+      deps,
+    );
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.deepEqual(fresh.imageChildDigests, children);
+  });
+
   it('builds a v2 job only from its stored snapshot and records immutable image identity', async () => {
     const { project, repo, deployment: originalDeployment } = await seed();
     await Project.updateOne(

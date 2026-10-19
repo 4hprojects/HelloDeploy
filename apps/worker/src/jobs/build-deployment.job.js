@@ -640,6 +640,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     imageTag,
     imageRef: builtImage.imageRef,
     imageDigest: builtImage.imageDigest,
+    imageChildDigests: builtImage.childDigests ?? [],
   });
   await logEvent(
     deploymentId,

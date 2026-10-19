@@ -29,7 +29,7 @@ export async function retireRegistryImage(dep, deps) {
   if (isManifestDeleted) {
     await Deployment.updateOne(
       { _id: dep._id },
-      { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1 } },
+      { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1, imageChildDigests: 1 } },
     );
   }
   return isManifestDeleted;

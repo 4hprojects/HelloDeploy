@@ -19,12 +19,20 @@ production host while the acceptance record remains incomplete.
 6. Install ORAS for the worker account. Log in to private GHCR through the worker's
    protected Docker credential helper/store using a least-privilege package token.
    Do not place the token in `.env` or shell history.
-7. Prove GHCR accepts manifest deletion through the registry API before any pilot is
-   enabled. Push a throwaway artifact to the platform repository with ORAS, then run
-   `oras manifest delete --force ghcr.io/OWNER/PRIVATE_REPOSITORY@sha256:DIGEST`. If GHCR
-   answers `405`, `UNSUPPORTED`, or `DENIED`, stop: retention and project deletion use
-   this call, and would fail and retry on every sweep while the repository grows.
-   Deletion through the GitHub Packages REST API is not implemented.
+7. Choose how registry cleanup deletes images. Push a throwaway image to the platform
+   repository with ORAS, then run
+   `oras manifest delete --force ghcr.io/OWNER/PRIVATE_REPOSITORY@sha256:DIGEST`.
+   - If it succeeds, keep the default `REGISTRY_DELETE_API=oci`.
+   - If GHCR answers `405`, `UNSUPPORTED`, or `DENIED`, set
+     `REGISTRY_DELETE_API=github-packages`. Create a classic personal access token
+     with `read:packages` and `delete:packages` (fine-grained tokens cannot manage
+     packages), write it to a file readable only by the worker account, and set
+     `GHCR_PACKAGES_TOKEN_PATH` to that file. Set `GHCR_PACKAGES_OWNER_TYPE=user` when
+     the repository belongs to a personal account. This mode deletes the image's
+     platform and attestation manifests and then its index, and keeps any manifest
+     another retained release still lists.
+   - In either mode, push a second throwaway image and confirm one cleanup sweep removes
+     it from the package's version list.
 
 Set the shared protected environment only after the probes below pass:
 

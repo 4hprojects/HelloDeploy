@@ -93,3 +93,16 @@
   Maven script-only wrapper 3.3.4 matches Maven Central's SHA-1. The Gradle wrapper jar
   matches the official checksum for Gradle 8.14 to 8.14.5, so the fixture pins Gradle
   8.14.5. Distribution SHA-256 sums are set so the wrappers verify their own downloads.
+- 2026-10-20: Registry cleanup gains a `github-packages` deletion mode. GHCR has been
+  reported to answer the OCI manifest DELETE with `405`, and the OCI spec lets registries
+  disable deletion, so cleanup could otherwise fail on every sweep. The mode deletes
+  package versions through the GitHub REST API; the runbook probe chooses the mode, and
+  `oci` stays the default. Builds attach provenance and SBOM attestations, so each image
+  is an index whose child manifests GHCR keeps as separate versions; deleting only the
+  index would leave the layers. The child list comes from the registry at deletion time,
+  and each release records its children so a manifest another retained release lists
+  (a fully cached rebuild can reuse one) is kept. Cleanup and builds are serialized by
+  the pilot's `WORKER_CONCURRENCY=1`, which closes the window between a push and the
+  record of its children. The token is read from a worker-only file, not the
+  environment that build child processes inherit. Alternative rejected: turning off
+  attestations to make each image one manifest, which drops supply-chain evidence.

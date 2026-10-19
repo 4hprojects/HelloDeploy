@@ -68,6 +68,12 @@ const deploymentSchema = new Schema(
       default: null,
       match: /^sha256:[a-f0-9]{64}$/,
     },
+    // Manifests the image index lists. Registry cleanup keeps any that another
+    // retained release also lists.
+    imageChildDigests: {
+      type: [{ type: String, match: /^sha256:[a-f0-9]{64}$/ }],
+      default: undefined,
+    },
     configurationSnapshot: {
       type: configurationSnapshotSchema,
       default: null,

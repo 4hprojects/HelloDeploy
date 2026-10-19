@@ -384,6 +384,15 @@ describe('production worker routing validation', () => {
     assert.equal(result.status, 0, result.stdout || result.stderr);
   });
 
+  it('requires a readable token file for GitHub Packages registry cleanup', () => {
+    const result = validateWorker({
+      NGINX_ENABLED: 'true',
+      REGISTRY_DELETE_API: 'github-packages',
+      GHCR_PACKAGES_TOKEN_PATH: '/nonexistent/hellodeploy-packages-token',
+    });
+    assert.match(result.stdout, /GHCR_PACKAGES_TOKEN_PATH/);
+  });
+
   it('enforces one-build concurrency during the initial pilot', () => {
     const result = validateWorker({
       NGINX_ENABLED: 'true',

@@ -178,6 +178,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     if (isRegistryDeleted || !dep.imageRef?.includes('@sha256:')) {
       unset.imageRef = 1;
       unset.imageDigest = 1;
+      unset.imageChildDigests = 1;
     }
     await Deployment.updateOne({ _id: dep._id }, { $unset: unset }).catch(() => {});
   }

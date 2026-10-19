@@ -182,6 +182,7 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
         imageTag: sourceDeployment.imageTag ?? null,
         imageRef: sourceDeployment.imageRef ?? null,
         imageDigest: sourceDeployment.imageDigest ?? null,
+        imageChildDigests: sourceDeployment.imageChildDigests ?? [],
       },
     },
   );

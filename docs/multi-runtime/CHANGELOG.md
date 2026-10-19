@@ -20,6 +20,16 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### GHCR deletion fallback (2026-10-20)
+
+- New `REGISTRY_DELETE_API=github-packages` mode deletes platform images through the
+  GitHub Packages REST API: child manifests first, then the index, skipping any child
+  another retained release lists. The token comes from `GHCR_PACKAGES_TOKEN_PATH` and is
+  probed at worker startup.
+- Remote builds record the manifests their image index lists (`imageChildDigests`);
+  rollbacks copy them and cleanup clears them with the rest of the image identity.
+- Runbook step 7 now chooses the deletion mode from a live probe instead of stopping.
+
 ### Sixth review (2026-10-20)
 
 - A lockfile (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `composer.lock`)

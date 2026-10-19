@@ -90,6 +90,26 @@ if (userImageRegistry && !/^ghcr\.io\/[a-z0-9_.-]+\/[a-z0-9_./-]+$/.test(userIma
 }
 const registryManifestDeleteEnabled =
   optional('REGISTRY_MANIFEST_DELETE_ENABLED', 'false') === 'true';
+const registryDeleteApi = optional('REGISTRY_DELETE_API', 'oci');
+if (!['oci', 'github-packages'].includes(registryDeleteApi)) {
+  throw new ConfigurationError('REGISTRY_DELETE_API must be oci or github-packages.');
+}
+const ghcrPackagesOwnerType = optional('GHCR_PACKAGES_OWNER_TYPE', 'org');
+if (!['org', 'user'].includes(ghcrPackagesOwnerType)) {
+  throw new ConfigurationError('GHCR_PACKAGES_OWNER_TYPE must be org or user.');
+}
+const ghcrPackagesTokenPath = optional('GHCR_PACKAGES_TOKEN_PATH', '');
+// The token is read from a worker-only file at each call, so it never sits in
+// the environment that build and Docker child processes inherit.
+if (registryDeleteApi === 'github-packages') {
+  try {
+    accessSync(ghcrPackagesTokenPath, fsConstants.R_OK);
+  } catch {
+    throw new ConfigurationError(
+      'REGISTRY_DELETE_API=github-packages requires GHCR_PACKAGES_TOKEN_PATH to reference a readable file.',
+    );
+  }
+}
 
 // Each multi-runtime pilot builds only on the isolated remote builder, keeps
 // registry cleanup on, serves an explicit allowlist, and runs one job at a time.
@@ -220,6 +240,9 @@ export const env = {
   HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: nonproductionEnvironmentId,
   USER_IMAGE_REGISTRY: userImageRegistry,
   REGISTRY_MANIFEST_DELETE_ENABLED: registryManifestDeleteEnabled,
+  REGISTRY_DELETE_API: registryDeleteApi,
+  GHCR_PACKAGES_OWNER_TYPE: ghcrPackagesOwnerType,
+  GHCR_PACKAGES_TOKEN_PATH: ghcrPackagesTokenPath,
   MULTIRUNTIME_NEXT_V1_ENABLED: nextPilot.enabled,
   MULTIRUNTIME_NEXT_V1_PROJECT_IDS: nextPilot.projectIds,
   MULTIRUNTIME_PYTHON_V1_ENABLED: pythonPilot.enabled,

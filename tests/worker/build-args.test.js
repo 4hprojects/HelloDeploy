@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
@@ -6,6 +9,7 @@ import {
   createRemoteDockerBuildArgs,
   createOrasPushArgs,
   ensureBuildBuilder,
+  readLayoutChildDigests,
   verifyRemoteBuildBuilder,
 } from '../../apps/worker/src/deployment/build.js';
 
@@ -189,5 +193,20 @@ describe('verifyRemoteBuildBuilder', () => {
       /TLS handshake failed/,
     );
     assert.equal(commands.length, 1);
+  });
+});
+
+describe('readLayoutChildDigests', () => {
+  // GHCR keeps the platform image and each attestation as its own package version.
+  it('lists the manifests the exported image index names', async () => {
+    const layoutDir = await mkdtemp(join(tmpdir(), 'hellodeploy-layout-'));
+    const indexDigest = `sha256:${'a'.repeat(64)}`;
+    const children = [`sha256:${'b'.repeat(64)}`, `sha256:${'c'.repeat(64)}`];
+    await mkdir(join(layoutDir, 'blobs', 'sha256'), { recursive: true });
+    await writeFile(
+      join(layoutDir, 'blobs', 'sha256', 'a'.repeat(64)),
+      JSON.stringify({ manifests: children.map((digest) => ({ digest })) }),
+    );
+    assert.deepEqual(await readLayoutChildDigests(layoutDir, indexDigest), children);
   });
 });
