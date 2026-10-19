@@ -20,6 +20,19 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Third review (2026-10-19)
+
+Ten findings; all ten confirmed. Base-branch fixes, each with a failing-first test:
+
+- Saving only the health check no longer resets the build strategy, application root, and
+  Python module.
+- Rollback to a pre-snapshot release is refused once the project uses a versioned mode.
+- Maintenance restores and custom-domain routes keep Next.js server routes unbuffered.
+- Deleted registry images also leave the worker disk, and their records stop being
+  offered as rollback targets.
+- GitHub errors fail detection instead of reading as missing files.
+- The application-root pass skips duplicate size accounting.
+
 ### Second review (2026-10-19)
 
 A deeper review reported fifteen findings; fourteen were confirmed and fixed with
