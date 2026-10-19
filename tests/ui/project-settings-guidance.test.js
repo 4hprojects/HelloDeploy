@@ -193,4 +193,31 @@ describe('simplified project settings', () => {
     assert.match(componentsCss, /@media \(max-width: 48rem\)[\s\S]*\.settings-section__header/);
     assert.match(componentsCss, /@media \(max-width: 30rem\)[\s\S]*\.settings-display-row/);
   });
+
+  // The health-check form saves through the full build-configuration route, so
+  // every setting it does not edit must ride along unchanged.
+  it('keeps the strategy, root, and module when saving only the health check', async () => {
+    const html = await renderSettings({
+      project: {
+        buildStrategy: 'python_django_v1',
+        buildConfiguration: {
+          applicationRoot: 'apps/web',
+          applicationModule: 'mysite.wsgi:application',
+          healthCheckPath: '/',
+        },
+      },
+    });
+    const form = html.slice(
+      html.indexOf('#health-maintenance">'),
+      html.indexOf('</form>', html.indexOf('#health-maintenance">')),
+    );
+    assert.deepEqual(
+      [
+        /name="buildStrategy" value="python_django_v1"/.test(form),
+        /name="applicationRoot" value="apps\/web"/.test(form),
+        /name="applicationModule" value="mysite\.wsgi:application"/.test(form),
+      ],
+      [true, true, true],
+    );
+  });
 });

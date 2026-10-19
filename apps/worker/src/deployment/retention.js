@@ -150,11 +150,15 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
         });
       } else {
         try {
-          if (await deps.deleteRegistryManifest(dep.imageRef)) {
-            // Recorded so later sweeps do not delete the same manifest again.
+          const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
+          // The release ran from a copy pulled by digest, which is no longer needed.
+          await deps.removeDockerImage(dep.imageRef);
+          if (isManifestDeleted) {
+            // The image is gone everywhere: clear its identity so later sweeps skip it
+            // and the release is no longer offered as a rollback target.
             await Deployment.updateOne(
               { _id: dep._id },
-              { $unset: { imageRef: 1, imageDigest: 1 } },
+              { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1 } },
             );
           }
           removedDigests.add(dep.imageDigest);

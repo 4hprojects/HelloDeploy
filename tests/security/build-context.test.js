@@ -215,6 +215,21 @@ describe('prepareBuildContext — size of skipped folders', () => {
   });
 });
 
+describe('prepareBuildContext — application-root pass', () => {
+  // The repository pass already counted every file; the application-root pass
+  // only tightens symlink containment and removes forbidden files.
+  it('scrubs links leaving the root without recounting file sizes', async () => {
+    const dir = await makeContext();
+    const handle = await open(join(dir, 'big.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await symlink('/etc/hostname', join(dir, 'escape'));
+    await prepareBuildContext(dir, { countSize: false });
+    assert.deepEqual((await readdir(dir)).sort(), ['big.bin']);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
 describe('platform Docker context exclusions', () => {
   it('writes fixed secret, dependency, log, cache, and coverage exclusions', async () => {
     const dir = await makeContext();

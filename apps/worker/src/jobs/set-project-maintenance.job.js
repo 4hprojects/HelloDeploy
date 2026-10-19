@@ -2,6 +2,7 @@ import { Project, Deployment } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 import { generateServerBlock, generateMaintenanceBlock } from '../nginx/template.js';
 import { activateRoute } from '../nginx/helper-client.js';
+import { isStreamingDeployment } from '../deployment/build-strategy.js';
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
 
@@ -75,6 +76,7 @@ export async function handleSetProjectMaintenance(job) {
     domain: env.DEPLOYMENT_DOMAIN,
     port: activeDeployment.containerPort,
     deploymentId: activeDeployment._id.toString(),
+    streaming: isStreamingDeployment(activeDeployment),
   });
 
   await activateRoute({

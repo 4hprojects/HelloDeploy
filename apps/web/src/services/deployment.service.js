@@ -609,6 +609,19 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     return { success: false, error: 'Target deployment is already active.' };
   }
 
+  // Releases from before snapshots recorded nothing about how they were built,
+  // so they can only roll back under the generated build they were made with.
+  if (
+    !targetDeployment.configurationSnapshot &&
+    (project.buildStrategy ?? BuildStrategy.LEGACY_GENERATED) !== BuildStrategy.LEGACY_GENERATED
+  ) {
+    return {
+      success: false,
+      error:
+        'This release was built before HelloDeploy recorded deployment settings, and the project now uses a different deployment mode. Deploy again instead of rolling back.',
+    };
+  }
+
   // One-active-deployment check
   const active = await findInFlightDeployment(projectId);
   if (active) {

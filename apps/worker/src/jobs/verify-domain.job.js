@@ -15,6 +15,7 @@ import { activateRoute, removeRoute } from '../nginx/helper-client.js';
 import { withProjectRouteLock } from '../nginx/project-route-lock.js';
 import { getWorkerQueue } from '../queue/worker-queue.js';
 import { env } from '../config/env.js';
+import { isStreamingDeployment } from '../deployment/build-strategy.js';
 
 const VERIFICATION_TXT_PREFIX = 'hellodeploy-verify=';
 const VERIFICATION_SUBDOMAIN_PREFIX = '_hellodeploy-verify.';
@@ -320,6 +321,7 @@ export async function handleActivateDomainWithDependencies(
           hostname: data.hostname,
           port: deployment.containerPort,
           deploymentId: deployment._id.toString(),
+          streaming: isStreamingDeployment(deployment),
         }),
       });
       routeActivated = true;
@@ -520,6 +522,7 @@ async function handleLegacyDomainJob(
           hostname,
           port: deployment.containerPort,
           deploymentId: deployment._id.toString(),
+          streaming: isStreamingDeployment(deployment),
         }),
       });
       await DomainModel.updateOne(

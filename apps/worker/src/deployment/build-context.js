@@ -79,7 +79,7 @@ export async function resolveApplicationRoot(contextDir, requestedRoot = '.') {
 // not scrubbed for escaping symlinks, but their size still counts.
 const SKIP_DIR_NAMES = new Set(['node_modules', '.git']);
 
-async function inspectBuildContext(rootDir) {
+async function inspectBuildContext(rootDir, { countSize = true } = {}) {
   let total = 0;
   // Every folder counts toward the size limit, because legacy builds send the
   // whole tree; dependency and version-control folders skip the symlink scrub.
@@ -118,7 +118,7 @@ async function inspectBuildContext(rootDir) {
         });
         continue;
       }
-      if (entry.isFile()) {
+      if (countSize && entry.isFile()) {
         total += (await stat(entryPath)).size;
         if (total > MAX_CONTEXT_BYTES) {
           throw new Error(
@@ -144,7 +144,7 @@ async function inspectBuildContext(rootDir) {
  * @param {string} contextDir - Absolute path to the cloned source directory
  * @returns {Promise<{ sizeBytes: number }>}
  */
-export async function prepareBuildContext(contextDir) {
+export async function prepareBuildContext(contextDir, { countSize = true } = {}) {
   const resolvedRoot = resolve(contextDir);
 
   // ── Validate all top-level filenames ──────────────────────────────────────
@@ -167,7 +167,7 @@ export async function prepareBuildContext(contextDir) {
   // Iteratively inspect every included directory without a depth cutoff. This
   // avoids call-stack limits while ensuring deeply nested symlinks and files
   // cannot bypass containment or the context-size ceiling.
-  const sizeBytes = await inspectBuildContext(resolvedRoot);
+  const sizeBytes = await inspectBuildContext(resolvedRoot, { countSize });
 
   logger.info('BuildContext: prepared', {
     sizeBytes,

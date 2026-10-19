@@ -345,8 +345,10 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
         buildConfiguration.applicationRoot ?? '.',
       );
     }
+    // The repository pass already counted every file; this pass tightens
+    // symlink containment to the application root and removes its forbidden files.
     if (contextDir !== workDir) {
-      await deps.prepareBuildContext(contextDir);
+      await deps.prepareBuildContext(contextDir, { countSize: false });
     }
     await logEvent(deploymentId, 'VALIDATE', 'INFO', 'Build context validated.', correlationId);
   } catch (err) {

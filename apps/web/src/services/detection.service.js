@@ -867,62 +867,26 @@ async function fetchGithubFile(token, owner, repo, path, ref) {
   return data.content ?? null;
 }
 
-/**
- * Fetch key project files from GitHub for a specific commit ref.
- * Returns a map of filename → content (string) or null if absent.
- *
- * @param {number} installationId
- * @param {string} fullName - "owner/repo"
- * @param {string} ref - branch name or commit SHA
- * @returns {Promise<{ [filename: string]: string | null }>}
- */
 function fileAtApplicationRoot(applicationRoot, path) {
   return applicationRoot === '.' ? path : `${applicationRoot}/${path}`;
 }
 
-export async function fetchProjectFiles(installationId, fullName, ref, applicationRoot = '.') {
-  const token = await getInstallationToken(installationId);
-  const [owner, repo] = fullName.split('/');
-
-  const results = await Promise.allSettled(
-    FILES_TO_FETCH.map((path) =>
-      fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
-    ),
-  );
-
-  const files = {};
-  FILES_TO_FETCH.forEach((path, i) => {
-    const result = results[i];
-    if (result.status === 'fulfilled') {
-      files[path] = result.value; // string or null
-    } else {
-      logger.warn('Detection: failed to fetch file', { path, error: result.reason?.message });
-      files[path] = null;
-    }
-  });
-  return addBackendEntryFiles(files, (path) =>
-    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
-  );
-}
-
+/**
+ * Fetch the detection files for a repository at a ref. A missing file (404) is
+ * null; any other GitHub error fails the whole fetch, so a rate limit is never
+ * mistaken for an absent file and saved as the wrong runtime.
+ */
 export async function fetchProjectFilesForRepository(repository, ref, applicationRoot = '.') {
   const token =
     repository.sourceType === RepositorySourceType.PUBLIC_GIT
       ? null
       : await getInstallationToken(repository.installationId);
   const [owner, repo] = repository.fullName.split('/');
-  const results = await Promise.allSettled(
-    FILES_TO_FETCH.map((path) =>
-      fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
-    ),
-  );
-  const files = {};
-  FILES_TO_FETCH.forEach((path, index) => {
-    files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
-  });
-  return addBackendEntryFiles(files, (path) =>
-    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref),
-  );
+  const fetchFile = (path) =>
+    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref);
+  const contents = await Promise.all(FILES_TO_FETCH.map(fetchFile));
+  const files = Object.fromEntries(FILES_TO_FETCH.map((path, index) => [path, contents[index]]));
+  return addBackendEntryFiles(files, fetchFile);
 }
 
 // Entry-point candidates are fetched only for repositories with backend
@@ -933,9 +897,9 @@ async function addBackendEntryFiles(files, fetchFile) {
     ...(hasPhpMarkers(files) ? PHP_ENTRY_PATHS : []),
     ...(hasJavaMarkers(files) ? JAVA_ENTRY_PATHS : []),
   ];
-  const results = await Promise.allSettled(paths.map(fetchFile));
+  const contents = await Promise.all(paths.map(fetchFile));
   paths.forEach((path, index) => {
-    files[path] = results[index].status === 'fulfilled' ? results[index].value : null;
+    files[path] = contents[index];
   });
   return files;
 }

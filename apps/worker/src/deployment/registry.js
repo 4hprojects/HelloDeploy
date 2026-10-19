@@ -34,12 +34,12 @@ export async function verifyRegistryAccess(repository, deps = { run: runOras }) 
 /** Delete exactly one immutable GHCR manifest through the OCI API via ORAS. */
 export async function deleteRegistryManifest(imageRef, deps = {}) {
   const run = deps.run ?? runOras;
-  const deletionEnabled = deps.deletionEnabled ?? env.REGISTRY_MANIFEST_DELETE_ENABLED;
+  const isDeletionEnabled = deps.isDeletionEnabled ?? env.REGISTRY_MANIFEST_DELETE_ENABLED;
   if (!PINNED_GHCR_REFERENCE.test(imageRef ?? '')) {
     throw new Error('Registry cleanup requires a digest-pinned GHCR image reference.');
   }
   // Operators who keep registry history leave deletion off; nothing to do then.
-  if (!deletionEnabled) {
+  if (!isDeletionEnabled) {
     return false;
   }
   const result = await run(['manifest', 'delete', '--force', imageRef]);

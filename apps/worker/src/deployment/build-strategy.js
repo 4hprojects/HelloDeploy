@@ -8,6 +8,8 @@ import {
   isPhpBuildStrategy,
   isPythonBuildStrategy,
 } from '@hellodeploy/contracts';
+import { logger } from '@hellodeploy/observability';
+
 import { generateDockerfile, STATIC_PORT } from './dockerfile-generator.js';
 
 export function resolveBuildStrategy({
@@ -75,4 +77,24 @@ export function resolveRuntimeSpec(snapshot) {
       buildStrategy,
     ),
   };
+}
+
+/**
+ * Whether a deployment's routes must stream (unbuffered). Every route writer
+ * uses this, so maintenance restores and custom domains match the release.
+ */
+export function isStreamingDeployment(deployment) {
+  const snapshot = deployment?.configurationSnapshot;
+  if (!snapshot) {
+    return false;
+  }
+  try {
+    return resolveRuntimeSpec(snapshot).streaming;
+  } catch (error) {
+    logger.warn('BuildStrategy: unreadable snapshot; routing buffered', {
+      deploymentId: deployment._id?.toString(),
+      error: error.message,
+    });
+    return false;
+  }
 }

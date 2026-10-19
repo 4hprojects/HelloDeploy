@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
 import {
+  isStreamingDeployment,
   resolveBuildStrategy,
   resolveRuntimeSpec,
 } from '../../apps/worker/src/deployment/build-strategy.js';
@@ -112,5 +113,18 @@ describe('resolveRuntimeSpec', () => {
       resolveRuntimeSpec(snap),
       resolveBuildStrategy({ snapshot: snap, templateVersion: 'legacy' }).runtime,
     );
+  });
+});
+
+describe('isStreamingDeployment', () => {
+  it('streams a Next.js server release', () => {
+    assert.equal(
+      isStreamingDeployment({ configurationSnapshot: snapshot('next_standard_v1') }),
+      true,
+    );
+  });
+
+  it('buffers a release recorded before snapshots existed', () => {
+    assert.equal(isStreamingDeployment({ configurationSnapshot: null }), false);
   });
 });

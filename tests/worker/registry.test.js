@@ -21,7 +21,7 @@ describe('registry operations', () => {
     const imageRef = `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`;
     const commands = [];
     await deleteRegistryManifest(imageRef, {
-      deletionEnabled: true,
+      isDeletionEnabled: true,
       run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
     });
     assert.deepEqual(commands, [['manifest', 'delete', '--force', imageRef]]);
@@ -36,7 +36,7 @@ describe('registry operations', () => {
     const result = await deleteRegistryManifest(
       `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`,
       {
-        deletionEnabled: false,
+        isDeletionEnabled: false,
         run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
       },
     );

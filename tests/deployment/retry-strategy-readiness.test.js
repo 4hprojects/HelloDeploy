@@ -10,7 +10,8 @@ const { DeploymentStatus } = await import('@hellodeploy/contracts');
 const { startTestDb, stopTestDb, clearTestDb, objectId } = await import('../helpers/worker-db.js');
 const { createProject, createDeployment, createRepository } =
   await import('../helpers/worker-fixtures.js');
-const { retryDeployment } = await import('../../apps/web/src/services/deployment.service.js');
+const { retryDeployment, rollbackDeployment } =
+  await import('../../apps/web/src/services/deployment.service.js');
 
 describe('retry strategy readiness', () => {
   before(async () => {
@@ -35,5 +36,22 @@ describe('retry strategy readiness', () => {
       [result.success, /limited pilot/.test(result.error), await Deployment.countDocuments()],
       [false, true, 1],
     );
+  });
+
+  it('refuses a rollback to a pre-snapshot release after the deployment mode changed', async () => {
+    const project = await createProject({
+      runtimeType: 'NEXTJS',
+      buildStrategy: 'next_standard_v1',
+    });
+    const repo = await createRepository(project._id);
+    await project.updateOne({ $set: { repositoryId: repo._id } });
+    const preUpgrade = await createDeployment(project._id, {
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-pre-upgrade',
+    });
+
+    const result = await rollbackDeployment(project._id, preUpgrade._id, objectId());
+
+    assert.match(result.error, /before HelloDeploy recorded deployment settings/);
   });
 });

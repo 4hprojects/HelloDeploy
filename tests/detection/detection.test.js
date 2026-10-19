@@ -888,6 +888,24 @@ describe('fetchProjectFilesForRepository — Python entry files', () => {
     assert.ok(paths.includes('manage.py'));
   });
 
+  // A rate limit must not look like a missing package.json and be saved as the
+  // repository's runtime.
+  it('fails instead of treating a GitHub error as a missing file', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) =>
+      String(url).includes('package.json')
+        ? new Response('rate limited', { status: 403 })
+        : new Response('', { status: 404 });
+    try {
+      await assert.rejects(
+        fetchProjectFilesForRepository(publicRepository, 'main'),
+        /GitHub API error fetching package\.json: 403/,
+      );
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('does not fetch entry-point candidates for a Node repository', async () => {
     const paths = await requestedPaths({ 'package.json': '{}' });
     assert.equal(paths.includes('manage.py'), false);

@@ -187,6 +187,29 @@ describe('retention — cleanupOldReleases', () => {
     assert.equal(stub.removedManifests.length, 1);
   });
 
+  it('removes the local copy and the record identity once a manifest is deleted', async () => {
+    const project = await createProject();
+    const created = [];
+    for (let seq = 1; seq <= 4; seq++) {
+      created.push(
+        await createDeployment(project._id, {
+          sequenceNumber: seq,
+          status: DeploymentStatus.HEALTHY,
+          imageTag: `img-${seq}`,
+          imageRef: `ghcr.io/example/apps:release-${seq}@sha256:${String(seq).repeat(64)}`,
+          imageDigest: `sha256:${String(seq).repeat(64)}`,
+        }),
+      );
+    }
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    const retired = await Deployment.findById(created[0]._id).lean();
+    assert.deepEqual(
+      [stub.removedImages.includes(created[0].imageRef), retired.imageTag ?? null],
+      [true, null],
+    );
+  });
+
   it("never cleans the project's active deployment even beyond the limit", async () => {
     const project = await createProject();
     const [oldest] = await seedHealthyReleases(project._id, 5);

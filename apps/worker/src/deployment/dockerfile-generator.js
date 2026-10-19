@@ -377,7 +377,7 @@ CMD ["java","-jar","/app/application.jar"]
 function generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion }) {
   const image = `php:${phpVersion}-apache-bookworm`;
   const isLaravel = buildStrategy === BuildStrategy.PHP_LARAVEL_V1;
-  const buildsAssets = isLaravel && Boolean(buildCommand);
+  const shouldBuildAssets = isLaravel && Boolean(buildCommand);
   const webRoot = documentRoot === 'public' ? '/var/www/html/public' : '/var/www/html';
   const site = [
     `<VirtualHost *:${PHP_PORT}>`,
@@ -410,7 +410,7 @@ function generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot,
     '</IfModule>',
   ];
   const quoted = (lines) => lines.map((line) => `'${line}'`).join(' ');
-  const assetsStage = buildsAssets
+  const assetsStage = shouldBuildAssets
     ? `
 FROM ${NEXT_NODE_IMAGE} AS assets
 WORKDIR /app
@@ -453,7 +453,7 @@ RUN docker-php-ext-install pdo_mysql \\
  && chown -R www-data:www-data /var/run/apache2 /var/lock/apache2
 WORKDIR /var/www/html
 COPY --from=vendor /app ./
-${buildsAssets ? 'COPY --from=assets /app/public/build ./public/build\n' : ''}${laravelRuntime}USER www-data
+${shouldBuildAssets ? 'COPY --from=assets /app/public/build ./public/build\n' : ''}${laravelRuntime}USER www-data
 EXPOSE ${PHP_PORT}
 ENV PORT=${PHP_PORT}
 CMD ["apache2-foreground"]
