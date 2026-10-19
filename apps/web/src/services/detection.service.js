@@ -1144,12 +1144,12 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
 
   // A project deployed from its own image keeps its runtime and settings;
   // detection still records what the repository looks like.
-  const keepsOwnerImage = isContainerBuildStrategy(project.buildStrategy);
+  const isOwnerImageProject = isContainerBuildStrategy(project.buildStrategy);
   await Project.updateOne(
     { _id: project._id },
     {
       $set: {
-        ...(keepsOwnerImage
+        ...(isOwnerImageProject
           ? {}
           : {
               runtimeType: result.runtimeType,

@@ -590,6 +590,8 @@
                 <input type="hidden" name="applicationRoot" value="<%= bc.applicationRoot || '.' %>">
                 <input type="hidden" name="applicationModule" value="<%= bc.applicationModule ?? '' %>">
                 <input type="hidden" name="buildStrategy" value="<%= project.buildStrategy || 'legacy_generated' %>">
+                <input type="hidden" name="dockerfilePath" value="<%= bc.dockerfilePath ?? '' %>">
+                <input type="hidden" name="imageReference" value="<%= bc.imageReference ?? '' %>">
                 <%- include('../../partials/form-errors', { errors: bcErrors }) %>
                 <div class="settings-field-row">
                   <div>

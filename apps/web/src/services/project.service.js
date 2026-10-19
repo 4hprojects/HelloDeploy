@@ -200,14 +200,14 @@ export async function updateBuildConfiguration({
   }
 
   const selectedStrategy = buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
-  const usesOwnerImage = isContainerBuildStrategy(selectedStrategy);
+  const isOwnerImage = isContainerBuildStrategy(selectedStrategy);
   // Leaving an owner image restores the runtime detection last found.
-  const runtimeType = usesOwnerImage
+  const runtimeType = isOwnerImage
     ? RuntimeType.CONTAINER
     : project.runtimeType === RuntimeType.CONTAINER
       ? project.detection?.detectedRuntimeType
       : project.runtimeType;
-  if (!usesOwnerImage && project.runtimeType === RuntimeType.CONTAINER && !runtimeType) {
+  if (!isOwnerImage && project.runtimeType === RuntimeType.CONTAINER && !runtimeType) {
     return {
       success: false,
       error: 'Run the app check again before switching back to a HelloDeploy build.',
@@ -282,6 +282,12 @@ export async function resetBuildConfigurationToDetected({
     return { success: false, error: 'Run app setup detection before resetting.' };
   }
 
+  if (project.runtimeType === RuntimeType.CONTAINER && !project.detection?.detectedRuntimeType) {
+    return {
+      success: false,
+      error: 'Run the app check again before resetting to the detected settings.',
+    };
+  }
   project.buildConfiguration = detected.toObject?.() ?? { ...detected };
   if (project.detection?.detectedRuntimeType) {
     project.runtimeType = project.detection.detectedRuntimeType;

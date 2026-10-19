@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Quota } from '@hellodeploy/database';
+import { Deployment, Quota } from '@hellodeploy/database';
 import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
@@ -84,5 +84,19 @@ describe('cleanup-releases job — HEALTHY release trimming', () => {
     await handleCleanupReleases({ data: {} }, deps);
     await handleCleanupReleases({ data: {} }, deps);
     assert.equal(removedManifests.length, 1);
+  });
+
+  it('stops rescanning an abandoned prebuilt owner image', async () => {
+    const project = await createProject();
+    const failed = await createDeployment(project._id, {
+      status: DeploymentStatus.FAILED,
+      completedAt: new Date(0),
+      imageRef: `docker.io/library/nginx@sha256:${'e'.repeat(64)}`,
+      imageDigest: `sha256:${'e'.repeat(64)}`,
+    });
+    const { deps } = makeDeps();
+    await handleCleanupReleases({ data: {} }, deps);
+    const fresh = await Deployment.findById(failed._id).lean();
+    assert.equal(fresh.imageRef ?? null, null);
   });
 });

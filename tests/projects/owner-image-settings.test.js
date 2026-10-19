@@ -16,7 +16,8 @@ Object.assign(process.env, {
 const { Project } = await import('@hellodeploy/database');
 const { startTestDb, stopTestDb, clearTestDb } = await import('../helpers/worker-db.js');
 const { createProject } = await import('../helpers/worker-fixtures.js');
-const { updateBuildConfiguration } = await import('../../apps/web/src/services/project.service.js');
+const { resetBuildConfigurationToDetected, updateBuildConfiguration } =
+  await import('../../apps/web/src/services/project.service.js');
 const { resolveSelectedStrategy, validateUpdateBuildConfiguration } =
   await import('../../apps/web/src/validators/project.validator.js');
 
@@ -77,6 +78,19 @@ describe('owner image build settings', () => {
     await pythonProject(outsider);
     const result = await saveImage(outsider);
     assert.match(result.error, /not enabled/);
+  });
+  it('refuses to reset an owner-image project whose detected runtime is unknown', async () => {
+    await createProject({
+      _id: PILOT_PROJECT_ID,
+      runtimeType: 'CONTAINER',
+      buildStrategy: 'oci_image_v1',
+      detection: { status: 'READY', detectedConfiguration: { applicationRoot: '.' } },
+    });
+    const result = await resetBuildConfigurationToDetected({
+      projectId: PILOT_PROJECT_ID,
+      actorId: new mongoose.Types.ObjectId(),
+    });
+    assert.match(result.error, /Run the app check again/);
   });
 });
 

@@ -181,6 +181,19 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
       }
     }
 
+    // A prebuilt owner image stays in the owner's registry and can be pulled
+    // again for a rollback; only the worker's local copy is removed.
+    if (
+      dep.imageDigest &&
+      dep.imageRef?.includes('@sha256:') &&
+      !isPlatformImageRef(dep.imageRef) &&
+      !removedDigests.has(dep.imageDigest) &&
+      !(await isImageDigestInUse(dep.imageDigest, toCleanIds))
+    ) {
+      await deps.removeDockerImage(dep.imageRef);
+      removedDigests.add(dep.imageDigest);
+    }
+
     // Clear container references now that they are removed
     await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
       (err) => {
