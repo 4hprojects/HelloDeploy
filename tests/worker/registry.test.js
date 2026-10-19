@@ -185,6 +185,7 @@ describe('registry deletion through GitHub Packages', () => {
 
   const packagesDeps = (overrides) => ({
     isDeletionEnabled: true,
+    platformRepository: 'ghcr.io/example/hellodeploy-apps',
     deleteApi: 'github-packages',
     packagesOwnerType: 'org',
     packagesTokenPath,
