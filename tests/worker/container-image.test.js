@@ -110,7 +110,7 @@ describe('owner image policy at pull time', () => {
     await assert.rejects(
       pullAndVerifyImage(
         digestRef,
-        { runDocker: dockerReturning({ User: 'app', Volumes: { '/var/lib/data': {} } }) },
+        { runDocker: dockerReturning({ User: '10001', Volumes: { '/var/lib/data': {} } }) },
         { policy },
       ),
       /\/var\/lib\/data/,
@@ -121,7 +121,7 @@ describe('owner image policy at pull time', () => {
     await assert.rejects(
       pullAndVerifyImage(
         digestRef,
-        { runDocker: dockerReturning({ User: 'app' }, { size: 5000 }) },
+        { runDocker: dockerReturning({ User: '10001' }, { size: 5000 }) },
         { policy },
       ),
       /larger than/,
@@ -139,9 +139,21 @@ describe('owner image policy at pull time', () => {
     const calls = [];
     await pullAndVerifyImage(
       digestRef,
-      { runDocker: dockerReturning({ User: 'app' }, { calls }) },
+      { runDocker: dockerReturning({ User: '10001' }, { calls }) },
       { policy, dockerConfigDir: '/tmp/hd-auth-1' },
     );
     assert.equal(calls[0].options.env.DOCKER_CONFIG, '/tmp/hd-auth-1');
+  });
+
+  it('removes an owner image that fails the policy instead of keeping it on disk', async () => {
+    const calls = [];
+    await assert.rejects(
+      pullAndVerifyImage(
+        digestRef,
+        { runDocker: dockerReturning({ User: '' }, { calls }) },
+        { policy },
+      ),
+    );
+    assert.deepEqual(calls.at(-1).args, ['rmi', digestRef]);
   });
 });

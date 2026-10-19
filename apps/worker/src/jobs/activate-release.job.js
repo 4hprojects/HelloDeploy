@@ -87,7 +87,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
   const snapshot =
     deployment.configurationSnapshot?.toObject?.() ?? deployment.configurationSnapshot ?? null;
   // A prebuilt image may also back a running release, so it is never removed here.
-  const ownsImage = ownsReleaseImage(snapshot?.buildStrategy);
+  const isPlatformImage = ownsReleaseImage(snapshot?.buildStrategy);
   if (job.data.version >= 2) {
     if (
       !snapshot ||
@@ -104,7 +104,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
           failureSummary: 'Built image identity does not match the deployment snapshot.',
           completedAt: new Date(),
         },
-        { project, deps, removeImageOnFailure: ownsImage },
+        { project, deps, removeImageOnFailure: isPlatformImage },
       );
       return;
     }
@@ -117,7 +117,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
           failureSummary: 'Environment variables changed before release activation.',
           completedAt: new Date(),
         },
-        { project, deps, removeImageOnFailure: ownsImage },
+        { project, deps, removeImageOnFailure: isPlatformImage },
       );
       return;
     }
@@ -138,7 +138,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
             failureSummary: error.message,
             completedAt: new Date(),
           },
-          { project, deps, removeImageOnFailure: ownsImage },
+          { project, deps, removeImageOnFailure: isPlatformImage },
         );
         return;
       }
@@ -155,7 +155,7 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
     runtimeSpec: job.data.runtimeSpec,
     configurationSnapshot: snapshot,
     opts: {
-      removeImageOnFailure: ownsImage,
+      removeImageOnFailure: isPlatformImage,
       failOnInvalidSubdomain: true,
       persistSubdomain: true,
       markPreviousRolledBack: false,

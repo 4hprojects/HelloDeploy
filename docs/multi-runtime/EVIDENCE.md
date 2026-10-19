@@ -156,6 +156,17 @@ The two P4 review findings (zero-padded uid 0 passing as non-root, and `COPY --f
 rebasing onto the reviewed base, the full suite on `feat/multi-runtime-p4` passed
 2,134/2,134 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format are clean.
 
+## 2026-10-19 Second review
+
+A deeper review reported fifteen findings. Fourteen were confirmed and fixed with
+failing-first tests: seven on the base branch (rollback image identity, snapshot
+repository, cleanup bookkeeping, legacy payload SHA, settings after a pilot is off, Tomcat
+threads, and conventions) and seven on P4 (numeric non-root uid, inherited users,
+`# escape`, build-argument base images, `localhost` registries, removal of rejected images,
+and the port field). One was declined: the second context walk enforces containment to
+the application root and is not redundant. Full suite on `feat/multi-runtime-p4`:
+2,150/2,150 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,

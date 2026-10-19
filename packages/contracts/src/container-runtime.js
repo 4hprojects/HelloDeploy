@@ -37,7 +37,8 @@ export function parseImageReference(value) {
 
   const segments = path.split('/');
   const hasRegistry =
-    segments.length > 1 && (segments[0].includes('.') || segments[0].includes(':'));
+    segments.length > 1 &&
+    (segments[0].includes('.') || segments[0].includes(':') || segments[0] === 'localhost');
   const registry = hasRegistry ? segments.shift() : 'docker.io';
   if (registry === 'docker.io' && segments.length === 1) {
     segments.unshift('library');
@@ -74,14 +75,29 @@ export function validateDockerfilePath(value) {
   return error ? error.replace('Application root', 'Dockerfile path') : null;
 }
 
-/** True when an image `User` value names neither root nor uid 0. */
+/**
+ * True when an image `User` value is a numeric uid other than 0. Names are not
+ * accepted: Docker resolves them through the image's own /etc/passwd, which
+ * the owner controls and can map to uid 0.
+ */
 export function isNonRootImageUser(user) {
-  const name = String(user ?? '')
+  const uid = String(user ?? '')
     .trim()
     .split(':')[0];
-  // Docker reads any all-zero number as uid 0.
-  return Boolean(name) && name !== 'root' && !/^0+$/.test(name);
+  return /^\d+$/.test(uid) && Number(uid) > 0;
 }
+
+/**
+ * Environment-variable prefixes a project can pass to its build. Each is a
+ * framework's marker for values compiled into client code, so they are
+ * already public.
+ */
+export const PUBLIC_BUILD_ENV_PREFIXES = Object.freeze([
+  'NEXT_PUBLIC_',
+  'VITE_',
+  'REACT_APP_',
+  'VUE_APP_',
+]);
 
 /**
  * Statically check an owner Dockerfile against the build policy. BuildKit's
@@ -101,6 +117,14 @@ export function findDockerfilePolicyViolations(content) {
     if (parserDirectives) {
       const directive = trimmed.match(/^#\s*([a-z]+)\s*=(.*)$/i);
       if (directive) {
+        // Continuations are joined on a backslash below, so another escape
+        // character would make this check see different instructions than BuildKit.
+        if (directive[1].toLowerCase() === 'escape' && directive[2].trim() !== '\\') {
+          violations.push({
+            line: index + 1,
+            message: 'Only the default backslash escape character is supported.',
+          });
+        }
         if (
           directive[1].toLowerCase() === 'syntax' &&
           !OFFICIAL_FRONTEND.test(directive[2].trim())
@@ -145,7 +169,11 @@ export function findDockerfilePolicyViolations(content) {
   // defaults are known statically, so an ARG without one cannot be checked.
   const globalArgs = new Map();
   let seenFrom = false;
-  let finalStageUser = null;
+  // undefined means the user comes from an external base image, which the
+  // activation check reads from the pulled image itself.
+  const stageUsers = new Map();
+  let currentStage = null;
+  let finalStageUser;
   let finalStageLine = 0;
   for (const { line, keyword, args } of instructions) {
     if (keyword === 'ARG' && !seenFrom) {
@@ -163,15 +191,28 @@ export function findDockerfilePolicyViolations(content) {
       seenFrom = true;
       const tokens = args.split(/\s+/).filter((token) => !token.startsWith('--'));
       const [image = '', as, alias] = tokens;
-      finalStageUser = null;
       finalStageLine = line;
       let isResolved = true;
+      let usesProjectBuildArg = false;
       const baseImage = image.replace(/\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/g, (_, name) => {
         const value = globalArgs.get(name);
         isResolved &&= typeof value === 'string';
+        usesProjectBuildArg ||= PUBLIC_BUILD_ENV_PREFIXES.some((prefix) => name.startsWith(prefix));
         return value ?? '';
       });
-      if (!isResolved) {
+      finalStageUser = stageNames.has(baseImage.toLowerCase())
+        ? stageUsers.get(baseImage.toLowerCase())
+        : undefined;
+      currentStage = as?.toUpperCase() === 'AS' && alias ? alias.toLowerCase() : null;
+      if (currentStage) {
+        stageUsers.set(currentStage, finalStageUser);
+      }
+      if (usesProjectBuildArg) {
+        violations.push({
+          line,
+          message: `Base image ${image} uses a build argument the project environment can override; write the image out instead.`,
+        });
+      } else if (!isResolved) {
         violations.push({
           line,
           message: `Base image ${image} must be written out or use a global ARG default.`,
@@ -235,12 +276,15 @@ export function findDockerfilePolicyViolations(content) {
       });
     } else if (keyword === 'USER') {
       finalStageUser = args.trim();
+      if (currentStage) {
+        stageUsers.set(currentStage, finalStageUser);
+      }
     }
   }
-  if (instructions.length > 0 && !isNonRootImageUser(finalStageUser)) {
+  if (finalStageUser !== undefined && !isNonRootImageUser(finalStageUser)) {
     violations.push({
       line: finalStageLine,
-      message: 'The final stage must switch to a non-root USER, such as USER 10001.',
+      message: 'The final stage must run as a numeric non-root USER, such as USER 10001.',
     });
   }
   return violations;

@@ -6,6 +6,8 @@ import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
+// Cleanup deletes registry manifests only in the platform's own repository.
+process.env.USER_IMAGE_REGISTRY = 'ghcr.io/example/apps';
 const { handleCleanupReleases } =
   await import('../../apps/worker/src/jobs/cleanup-releases.job.js');
 

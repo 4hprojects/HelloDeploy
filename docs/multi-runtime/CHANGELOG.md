@@ -105,6 +105,16 @@ symlinks that leave the application root for elsewhere in the repository.
   legacy payloads require a commit SHA; settings stay editable after a pilot is turned
   off; Spring Boot caps Tomcat at 40 threads.
 
+### P4 second-review fixes (2026-10-19, stacked PR)
+
+- Owner images must use a numeric non-zero uid; names (resolved through the image's own
+  `/etc/passwd`) and spellings such as `+0` are refused. A final stage may inherit its user
+  from an earlier stage or a base image, and the activation check decides.
+- The Dockerfile policy rejects custom `# escape` characters, images chosen by build
+  arguments the project environment can set, and `localhost` registries.
+- Rejected owner images are removed after the pull; fixed-port projects show the port
+  input when "Deploy from" is offered.
+
 ### P4 review fixes (2026-10-18, stacked PR)
 
 - `USER 00` and other all-zero uids now count as root in both owner-image checks.

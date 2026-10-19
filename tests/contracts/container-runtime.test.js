@@ -72,6 +72,10 @@ describe('parseImageReference', () => {
     assert.match(parseImageReference('Owner/App:1').error, /image reference/);
   });
 
+  it('treats localhost as a registry, not a Docker Hub namespace', () => {
+    assert.match(parseImageReference('localhost/evil:1').error, /localhost is not approved/);
+  });
+
   it('rejects shell syntax', () => {
     assert.match(parseImageReference('nginx;id').error, /image reference/);
   });
@@ -96,7 +100,7 @@ describe('validateDockerfilePath', () => {
 });
 
 describe('findDockerfilePolicyViolations', () => {
-  const ok = 'FROM node:22-slim\nUSER node\nCMD ["node", "server.js"]\n';
+  const ok = 'FROM node:22-slim\nUSER 10001\nCMD ["node", "server.js"]\n';
 
   it('accepts a plain Dockerfile with a non-root user', () => {
     assert.deepEqual(findDockerfilePolicyViolations(ok), []);
@@ -112,14 +116,14 @@ describe('findDockerfilePolicyViolations', () => {
 
   it('rejects an insecure RUN', () => {
     assert.match(
-      messages(`FROM node:22-slim\nRUN --security=insecure id\nUSER node\n`)[0],
+      messages(`FROM node:22-slim\nRUN --security=insecure id\nUSER 10001\n`)[0],
       /insecure/,
     );
   });
 
   it('rejects host networking, including across a line continuation', () => {
     assert.match(
-      messages('FROM node:22-slim\nRUN \\\n  --network=host curl x\nUSER node\n')[0],
+      messages('FROM node:22-slim\nRUN \\\n  --network=host curl x\nUSER 10001\n')[0],
       /host network/,
     );
   });
@@ -127,14 +131,14 @@ describe('findDockerfilePolicyViolations', () => {
   it('rejects SSH and secret mounts', () => {
     assert.equal(
       messages(
-        'FROM node:22-slim\nRUN --mount=type=ssh id\nRUN --mount=type=secret,id=a id\nUSER node\n',
+        'FROM node:22-slim\nRUN --mount=type=ssh id\nRUN --mount=type=secret,id=a id\nUSER 10001\n',
       ).length,
       2,
     );
   });
 
   it('rejects VOLUME, which creates unmanaged storage on the host', () => {
-    assert.match(messages('FROM node:22-slim\nVOLUME /data\nUSER node\n')[0], /VOLUME/);
+    assert.match(messages('FROM node:22-slim\nVOLUME /data\nUSER 10001\n')[0], /VOLUME/);
   });
 
   it('rejects a base image from an unapproved registry', () => {
@@ -144,7 +148,7 @@ describe('findDockerfilePolicyViolations', () => {
   it('accepts a later stage built from an earlier one', () => {
     assert.deepEqual(
       findDockerfilePolicyViolations(
-        'FROM node:22-slim AS build\nRUN npm ci\nFROM build\nUSER node\n',
+        'FROM node:22-slim AS build\nRUN npm ci\nFROM build\nUSER 10001\n',
       ),
       [],
     );
@@ -161,7 +165,7 @@ describe('findDockerfilePolicyViolations', () => {
   it('accepts an approved base image named through a global ARG default', () => {
     assert.deepEqual(
       // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
-      findDockerfilePolicyViolations('ARG NODE=22\nFROM node:${NODE}-slim\nUSER node\n'),
+      findDockerfilePolicyViolations('ARG NODE=22\nFROM node:${NODE}-slim\nUSER 10001\n'),
       [],
     );
   });
@@ -170,18 +174,48 @@ describe('findDockerfilePolicyViolations', () => {
     assert.match(messages('ARG BASE\nFROM $BASE\nUSER app\n')[0], /ARG default/);
   });
 
-  it('requires the final stage to switch to a non-root user', () => {
-    assert.match(messages('FROM node:22-slim\nUSER node\nFROM nginx:1\n')[0], /non-root USER/);
+  // The pulled image's own Config.User decides an inherited user at activation.
+  it('leaves a user inherited from an external base image to the image check', () => {
+    assert.deepEqual(findDockerfilePolicyViolations('FROM nginxinc/nginx-unprivileged:1\n'), []);
+  });
+
+  it('inherits the user of an earlier stage', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations('FROM node:22 AS base\nUSER 10001\nFROM base\nCMD ["node"]\n'),
+      [],
+    );
+  });
+
+  it('rejects an earlier stage that switched to root', () => {
+    assert.match(
+      messages('FROM node:22 AS base\nUSER root\nFROM base\n')[0],
+      /numeric non-root USER/,
+    );
+  });
+
+  // Names resolve through the image's own /etc/passwd, which may map them to 0.
+  it('rejects a named user', () => {
+    assert.match(messages('FROM node:22-slim\nUSER node\n')[0], /numeric non-root USER/);
+  });
+
+  it('rejects a custom escape character the checker cannot follow', () => {
+    assert.match(messages('# escape=`\nFROM node:22\nUSER 10001\n')[0], /escape/);
+  });
+
+  it('rejects a base image chosen by a build argument the project can set', () => {
+    // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
+    const dockerfile = 'ARG VITE_BASE=node:22\nFROM ${VITE_BASE}\nUSER 10001\n';
+    assert.match(messages(dockerfile)[0], /build argument/);
   });
 
   it('rejects USER root in the final stage', () => {
-    assert.match(messages('FROM node:22-slim\nUSER root\n')[0], /non-root USER/);
+    assert.match(messages('FROM node:22-slim\nUSER root\n')[0], /numeric non-root USER/);
   });
 
   it('still allows cache mounts', () => {
     assert.deepEqual(
       findDockerfilePolicyViolations(
-        'FROM node:22-slim\nRUN --mount=type=cache,target=/root/.npm npm ci\nUSER node\n',
+        'FROM node:22-slim\nRUN --mount=type=cache,target=/root/.npm npm ci\nUSER 10001\n',
       ),
       [],
     );
@@ -190,19 +224,21 @@ describe('findDockerfilePolicyViolations', () => {
   // CodeQL js/polynomial-redos: hostile Dockerfiles must not backtrack.
   it('checks a long mount option in linear time', () => {
     const started = performance.now();
-    findDockerfilePolicyViolations(`FROM node:22\nRUN --mount=${'t'.repeat(200_000)}\nUSER node\n`);
+    findDockerfilePolicyViolations(
+      `FROM node:22\nRUN --mount=${'t'.repeat(200_000)}\nUSER 10001\n`,
+    );
     assert.ok(performance.now() - started < 100);
   });
 
   it('checks a long parser directive in linear time', () => {
     const started = performance.now();
-    findDockerfilePolicyViolations(`# syntax=${' '.repeat(200_000)}\nFROM node:22\nUSER node\n`);
+    findDockerfilePolicyViolations(`# syntax=${' '.repeat(200_000)}\nFROM node:22\nUSER 10001\n`);
     assert.ok(performance.now() - started < 100);
   });
 
   it('rejects COPY --from an image in an unapproved registry', () => {
     assert.match(
-      messages('FROM node:22\nCOPY --from=quay.io/attacker/payload:1 / /\nUSER node\n')[0],
+      messages('FROM node:22\nCOPY --from=quay.io/attacker/payload:1 / /\nUSER 10001\n')[0],
       /docker\.io, ghcr\.io/,
     );
   });
@@ -210,7 +246,7 @@ describe('findDockerfilePolicyViolations', () => {
   it('rejects a RUN mount from an image in an unapproved registry', () => {
     assert.match(
       messages(
-        'FROM node:22\nRUN --mount=type=bind,from=quay.io/attacker/tools:1,target=/t ls\nUSER node\n',
+        'FROM node:22\nRUN --mount=type=bind,from=quay.io/attacker/tools:1,target=/t ls\nUSER 10001\n',
       )[0],
       /docker\.io, ghcr\.io/,
     );
@@ -219,7 +255,7 @@ describe('findDockerfilePolicyViolations', () => {
   it('accepts COPY --from an earlier stage or a stage index', () => {
     assert.deepEqual(
       findDockerfilePolicyViolations(
-        'FROM node:22 AS build\nRUN npm ci\nFROM node:22-slim\nCOPY --from=build /app /app\nCOPY --from=0 /x /x\nUSER node\n',
+        'FROM node:22 AS build\nRUN npm ci\nFROM node:22-slim\nCOPY --from=build /app /app\nCOPY --from=0 /x /x\nUSER 10001\n',
       ),
       [],
     );
@@ -228,20 +264,23 @@ describe('findDockerfilePolicyViolations', () => {
   it('accepts COPY --from an approved image', () => {
     assert.deepEqual(
       findDockerfilePolicyViolations(
-        'FROM node:22-slim\nCOPY --from=ghcr.io/owner/assets:1 /a /a\nUSER node\n',
+        'FROM node:22-slim\nCOPY --from=ghcr.io/owner/assets:1 /a /a\nUSER 10001\n',
       ),
       [],
     );
   });
 
   it('reports the line of each violation', () => {
-    assert.equal(findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER node\n')[0].line, 2);
+    assert.equal(
+      findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER 10001\n')[0].line,
+      2,
+    );
   });
 });
 
 describe('isNonRootImageUser', () => {
   it('rejects numeric spellings of uid 0', () => {
-    assert.deepEqual(['00', '000:1000'].map(isNonRootImageUser), [false, false]);
+    assert.deepEqual(['00', '000:1000', '+0'].map(isNonRootImageUser), [false, false, false]);
   });
 
   it('rejects an empty user, root, and uid 0', () => {
@@ -254,12 +293,11 @@ describe('isNonRootImageUser', () => {
     ]);
   });
 
-  it('accepts a named or numeric non-root user', () => {
-    assert.deepEqual(['node', '10001', '10001:10001', 'app:app'].map(isNonRootImageUser), [
-      true,
-      true,
-      true,
-      true,
-    ]);
+  it('accepts a numeric non-root user', () => {
+    assert.deepEqual(['10001', '10001:10001', '101'].map(isNonRootImageUser), [true, true, true]);
+  });
+
+  it('rejects a named user, whose uid the image itself decides', () => {
+    assert.deepEqual(['node', 'app:app'].map(isNonRootImageUser), [false, false]);
   });
 });

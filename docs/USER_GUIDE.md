@@ -230,10 +230,14 @@ build settings**:
 
 Both need the **App port** the container listens on, and both must:
 
-- run as a non-root user (`USER 10001` or a named user in the final stage);
+- run as a numeric non-root user, such as `USER 10001`, set in the Dockerfile or inherited
+  from the base image. Names such as `USER node` are not accepted, because the image's own
+  user list decides what a name means; use its number instead (`USER 1000` for `node`);
 - declare no `VOLUME` and use base images from docker.io or ghcr.io only;
-- avoid custom `# syntax` frontends, `RUN --network=host`, `RUN --security=insecure`, and
-  SSH or secret mounts;
+- avoid custom `# syntax` frontends, a custom `# escape` character, `RUN --network=host`,
+  `RUN --security=insecure`, and SSH or secret mounts;
+- write base images out, or use an `ARG` default; an `ARG` your environment variables can
+  override (`VITE_*`, `NEXT_PUBLIC_*`, `REACT_APP_*`, `VUE_APP_*`) cannot choose an image;
 - pass a scan for fixable critical vulnerabilities and stay under the size limit.
 
 Your `.dockerignore` can exclude more files, but it cannot re-include files HelloDeploy

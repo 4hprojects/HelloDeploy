@@ -90,7 +90,18 @@ export async function pullAndVerifyImage(imageRef, deps = {}, options = {}) {
   );
   const architecture = assertCompatibleImagePlatform(details, runtimeArchitecture);
   if (options.policy) {
-    assertImagePolicy(details, options.policy);
+    try {
+      assertImagePolicy(details, options.policy);
+    } catch (error) {
+      // A rejected owner image is never used, so it should not stay on disk.
+      await docker(['rmi', imageRef], pullOptions).catch((removeError) => {
+        logger.warn('Container: failed to remove a rejected owner image', {
+          imageRef,
+          error: removeError.message,
+        });
+      });
+      throw error;
+    }
   }
   return { imageId: details.Id, architecture };
 }

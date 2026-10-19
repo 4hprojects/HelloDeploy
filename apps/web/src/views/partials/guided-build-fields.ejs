@@ -375,7 +375,7 @@
   </div>
   <% } %>
 
-  <% if (_gbStaticRuntime || _gbPhpRuntime || _gbJavaRuntime) { %>
+  <% if ((_gbStaticRuntime || _gbPhpRuntime || _gbJavaRuntime) && !_gbOwnerImageChoices) { %>
   <div class="form-group guided-build-field--informational">
     <span class="form-label">App port</span>
     <p class="form-hint">
@@ -398,7 +398,10 @@
       aria-describedby="<%= _gbId('application-port-hint') %><%= _gbErrors.applicationPort ? ` ${_gbId('application-port-error')}` : '' %>"
     />
     <p class="form-hint" id="<%= _gbId('application-port-hint') %>">
-      <% if (_gbPythonRuntime) { %>
+      <% if (_gbOwnerImageChoices && (_gbStaticRuntime || _gbPhpRuntime || _gbJavaRuntime)) { %>
+        Needed only when you deploy from your own Dockerfile or image: the port your container
+        listens on. HelloDeploy builds choose the port automatically.
+      <% } else if (_gbPythonRuntime) { %>
         The internal port the Python server listens on. Keep the detected value,
         <code class="code-inline">8000</code>, unless you have a reason to change it.
       <% } else { %>

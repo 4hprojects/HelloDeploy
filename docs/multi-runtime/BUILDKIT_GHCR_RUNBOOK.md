@@ -179,8 +179,9 @@ signed off on [the owner-image threat model](THREAT_MODEL.md#owner-images-p4-pil
    approval.
 
 3. Run the `dockerfile-node` and `oci-nginx` fixtures, then confirm each failure case fails
-   closed: a Dockerfile with `VOLUME`, `USER root`, `RUN --network=host`, a custom
-   `# syntax`, a `quay.io` base image, a symlinked Dockerfile, an image running as root, an
+   closed: a Dockerfile with `VOLUME`, `USER root`, `USER app` (a name), `# escape=\``,
+`COPY --from=quay.io/...`, `FROM ${VITE_BASE}`, `RUN --network=host`, a custom
+`# syntax`, a `quay.io` base image, a symlinked Dockerfile, an image running as root, an
    image declaring a volume, a tag whose digest changes between deploys (rollback must keep
    the old digest), and a private image without a saved credential.
 

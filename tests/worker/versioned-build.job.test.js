@@ -209,7 +209,7 @@ describe('build-deployment job — versioned runtime strategies', () => {
   });
 
   it('builds the owner Dockerfile unchanged', async () => {
-    const dockerfile = 'FROM node:22-slim\nUSER node\nCMD ["node", "server.js"]\n';
+    const dockerfile = 'FROM node:22-slim\nUSER 10001\nCMD ["node", "server.js"]\n';
     const { dockerfiles } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
       contextFiles: { Dockerfile: dockerfile },
     });
@@ -218,7 +218,7 @@ describe('build-deployment job — versioned runtime strategies', () => {
 
   it('fails an owner Dockerfile that breaks the build policy before building', async () => {
     const { deployment, dockerfiles } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
-      contextFiles: { Dockerfile: 'FROM node:22-slim\nVOLUME /data\nUSER node\n' },
+      contextFiles: { Dockerfile: 'FROM node:22-slim\nVOLUME /data\nUSER 10001\n' },
     });
     assert.deepEqual(
       [deployment.failureCode, dockerfiles.length],
@@ -228,7 +228,7 @@ describe('build-deployment job — versioned runtime strategies', () => {
 
   it('fails an owner image with fixable critical vulnerabilities', async () => {
     const { deployment } = await runVersionedJob(DOCKERFILE_SNAPSHOT, {
-      contextFiles: { Dockerfile: 'FROM node:22-slim\nUSER node\n' },
+      contextFiles: { Dockerfile: 'FROM node:22-slim\nUSER 10001\n' },
       depsOverrides: { scanImage: async () => ({ criticalCount: 1, ids: ['CVE-2026-0001'] }) },
     });
     assert.deepEqual(

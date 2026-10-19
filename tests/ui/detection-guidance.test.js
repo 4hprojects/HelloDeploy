@@ -264,6 +264,14 @@ describe('guided detection inputs', () => {
     );
   });
 
+  it('offers the container port to a PHP project choosing its own image', async () => {
+    const html = await renderDetection({
+      project: { _id: 'p6', runtimeType: 'PHP', buildConfiguration: {} },
+      isStrategyEnabledFor: (strategy) => strategy === 'dockerfile_v1',
+    });
+    assert.match(html, /name="applicationPort"/);
+  });
+
   it('shows no deployment source choice outside the container pilots', async () => {
     const html = await renderDetection({
       project: { _id: 'p5', runtimeType: 'EXPRESS', buildConfiguration: {} },

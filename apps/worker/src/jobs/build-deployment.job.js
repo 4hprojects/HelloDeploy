@@ -757,7 +757,7 @@ async function finishBuild({
   quota,
   workDir,
   failBuild,
-  ownsImage = true,
+  isPlatformImage = true,
 }) {
   if (
     snapshot &&
@@ -771,7 +771,7 @@ async function finishBuild({
       failureSummary: 'Environment variables changed while this deployment was building.',
       completedAt: new Date(),
     });
-    if (ownsImage) {
+    if (isPlatformImage) {
       await removeBuiltArtifact(builtImage, imageTag, deps);
     }
     await deps.cleanupBuildWorkspace(workDir);
@@ -828,7 +828,7 @@ async function finishBuild({
       failureSummary: `Could not enqueue release activation: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
-    if (ownsImage) {
+    if (isPlatformImage) {
       await removeBuiltArtifact(builtImage, imageTag, deps);
     }
     return;
@@ -963,13 +963,13 @@ async function deployOwnerImage({
   const imageRef = `${reference.name}@${digest}`;
   await logEvent(deploymentId, 'BUILD', 'INFO', `Locked image to ${imageRef}.`, correlationId);
 
-  const passedScan = await deps.withDockerConfig(
+  const hasPassedScan = await deps.withDockerConfig(
     reference.registry,
     credential,
     (dockerConfigDir) =>
       enforceImageScan({ imageRef, dockerConfigDir, deps, deploymentId, correlationId, failBuild }),
   );
-  if (!passedScan) {
+  if (!hasPassedScan) {
     return;
   }
 
@@ -991,6 +991,6 @@ async function deployOwnerImage({
     quota,
     workDir,
     failBuild,
-    ownsImage: false,
+    isPlatformImage: false,
   });
 }
