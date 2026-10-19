@@ -64,7 +64,12 @@ export async function resolveApplicationRoot(contextDir, requestedRoot = '.') {
   const applicationRoot = normalizeApplicationRoot(requestedRoot);
   const repositoryRoot = await realpath(resolve(contextDir));
   const candidate = resolve(repositoryRoot, applicationRoot);
-  const resolvedCandidate = await realpath(candidate);
+  const resolvedCandidate = await realpath(candidate).catch((error) => {
+    if (error.code === 'ENOENT') {
+      throw new Error(`Application root ${applicationRoot} does not exist at this commit.`);
+    }
+    throw error;
+  });
   const rel = relative(repositoryRoot, resolvedCandidate);
   if (rel.startsWith('..') || rel.startsWith(sep + '..')) {
     throw new Error('Application root resolves outside the checked-out repository.');
@@ -115,10 +120,11 @@ async function inspectBuildContext(rootDir, { countSize = true } = {}) {
         continue;
       }
       if (entry.isDirectory()) {
-        pendingDirectories.push({
-          directory: entryPath,
-          scrub: scrub && !SKIP_DIR_NAMES.has(entry.name),
-        });
+        const shouldScrub = scrub && !SKIP_DIR_NAMES.has(entry.name);
+        // Without the scrub or the size count, a walk of the folder does nothing.
+        if (shouldScrub || countSize) {
+          pendingDirectories.push({ directory: entryPath, scrub: shouldScrub });
+        }
         continue;
       }
       if (countSize && entry.isFile()) {

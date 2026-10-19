@@ -30,7 +30,7 @@ export function generateServerBlock({
   deploymentId,
   generatedAt = new Date(),
   routeHost,
-  streaming = false,
+  isStreaming = false,
 }) {
   const fqdn = `${subdomain}.${domain}`;
   const ts = generatedAt.toISOString();
@@ -83,7 +83,7 @@ server {
         proxy_set_header Connection $connection_upgrade;
 
         # Do not buffer large responses
-        proxy_buffering ${streaming ? 'off' : 'on'};
+        proxy_buffering ${isStreaming ? 'off' : 'on'};
         proxy_buffers 16 16k;
         proxy_buffer_size 32k;
     }
@@ -101,7 +101,7 @@ export function generateCustomDomainServerBlock({
   port,
   deploymentId,
   generatedAt,
-  streaming = false,
+  isStreaming = false,
 }) {
   return generateServerBlock({
     subdomain: hostname,
@@ -110,7 +110,7 @@ export function generateCustomDomainServerBlock({
     deploymentId,
     generatedAt,
     routeHost: hostname,
-    streaming,
+    isStreaming,
   }).replace(/server_name .+;/, `server_name ${hostname};`);
 }
 

@@ -906,6 +906,22 @@ describe('fetchProjectFilesForRepository — Python entry files', () => {
     }
   });
 
+  // Only a lockfile's presence matters, and large apps commit lockfiles bigger
+  // than the detection response cap.
+  it('counts an oversized lockfile as present', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) =>
+      String(url).includes('package-lock.json')
+        ? new Response('', { status: 200, headers: { 'content-length': '900000' } })
+        : new Response('', { status: 404 });
+    try {
+      const files = await fetchProjectFilesForRepository(publicRepository, 'main');
+      assert.equal(files['package-lock.json'], '');
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
   it('does not fetch entry-point candidates for a Node repository', async () => {
     const paths = await requestedPaths({ 'package.json': '{}' });
     assert.equal(paths.includes('manage.py'), false);

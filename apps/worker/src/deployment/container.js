@@ -142,10 +142,10 @@ export async function startContainer({
   pidsLimit = 100,
   projectId,
   deploymentId,
-  staticRuntime,
+  isStatic,
 }) {
   const isStaticRuntime =
-    staticRuntime ?? [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(runtimeType);
+    isStatic ?? [RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE].includes(runtimeType);
 
   // Build --env flags for each secret (NEVER log this list)
   const envArgs = [];

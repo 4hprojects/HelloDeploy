@@ -76,7 +76,7 @@ export async function handleSetProjectMaintenance(job) {
     domain: env.DEPLOYMENT_DOMAIN,
     port: activeDeployment.containerPort,
     deploymentId: activeDeployment._id.toString(),
-    streaming: isStreamingDeployment(activeDeployment),
+    isStreaming: isStreamingDeployment(activeDeployment),
   });
 
   await activateRoute({

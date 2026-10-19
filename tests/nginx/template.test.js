@@ -157,7 +157,7 @@ describe('generateServerBlock', () => {
       deploymentId: 'streaming',
       generatedAt: FIXED_DATE,
     };
-    assert.match(generateServerBlock({ ...base, streaming: true }), /proxy_buffering off;/);
+    assert.match(generateServerBlock({ ...base, isStreaming: true }), /proxy_buffering off;/);
     assert.match(generateServerBlock(base), /proxy_buffering on;/);
   });
 });

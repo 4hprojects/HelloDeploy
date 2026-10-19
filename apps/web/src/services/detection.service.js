@@ -51,7 +51,7 @@ function detectNextStrategy(files) {
     const [strategy] = matches[0];
     return {
       strategy,
-      ambiguous: false,
+      isAmbiguous: false,
       hasCustomDistDir,
       rationale:
         strategy === BuildStrategy.NEXT_EXPORT_V1
@@ -59,12 +59,12 @@ function detectNextStrategy(files) {
           : 'Next.js output: standalone was found; the minimal standalone server can be used.',
     };
   }
-  const ambiguous = matches.length > 1 || /\boutput\s*:/.test(content);
+  const isAmbiguous = matches.length > 1 || /\boutput\s*:/.test(content);
   return {
     strategy: BuildStrategy.NEXT_STANDARD_V1,
-    ambiguous,
+    isAmbiguous,
     hasCustomDistDir,
-    rationale: ambiguous
+    rationale: isAmbiguous
       ? 'The Next.js output setting is dynamic or unsupported, so standard next start is recommended.'
       : 'No static export or standalone output setting was found, so standard next start is recommended.',
   };
@@ -642,7 +642,7 @@ function detectNodeRuntime(files) {
           'A custom distDir was found in the Next.js config. HelloDeploy expects the default .next and out folders, so remove distDir before deploying.',
       });
     }
-    if (nextStrategy.ambiguous) {
+    if (nextStrategy.isAmbiguous) {
       issues.push({
         level: 'WARNING',
         message:
@@ -809,11 +809,25 @@ const FILES_TO_FETCH = [
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
+// Detection only checks that these exist, so one too large to read still counts.
+const PRESENCE_ONLY_FILES = new Set([
+  'package-lock.json',
+  'yarn.lock',
+  'pnpm-lock.yaml',
+  'composer.lock',
+]);
+
+class DetectionFileTooLargeError extends Error {
+  constructor(path) {
+    super(`GitHub API response too large for ${path}`);
+    this.code = 'DETECTION_FILE_TOO_LARGE';
+  }
+}
 
 async function readBoundedDetectionResponse(res, path) {
   const declaredLength = Number.parseInt(res.headers.get('content-length') ?? '0', 10);
   if (declaredLength > DETECTION_RESPONSE_MAX_BYTES) {
-    throw new Error(`GitHub API response too large for ${path}`);
+    throw new DetectionFileTooLargeError(path);
   }
   const chunks = [];
   let receivedBytes = 0;
@@ -829,7 +843,7 @@ async function readBoundedDetectionResponse(res, path) {
     receivedBytes += value.byteLength;
     if (receivedBytes > DETECTION_RESPONSE_MAX_BYTES) {
       await reader.cancel();
-      throw new Error(`GitHub API response too large for ${path}`);
+      throw new DetectionFileTooLargeError(path);
     }
     chunks.push(Buffer.from(value));
   }
@@ -873,8 +887,9 @@ function fileAtApplicationRoot(applicationRoot, path) {
 
 /**
  * Fetch the detection files for a repository at a ref. A missing file (404) is
- * null; any other GitHub error fails the whole fetch, so a rate limit is never
- * mistaken for an absent file and saved as the wrong runtime.
+ * null and an oversized lockfile is an empty string; any other GitHub error
+ * fails the whole fetch, so a rate limit is never mistaken for an absent file
+ * and saved as the wrong runtime.
  */
 export async function fetchProjectFilesForRepository(repository, ref, applicationRoot = '.') {
   const token =
@@ -882,8 +897,22 @@ export async function fetchProjectFilesForRepository(repository, ref, applicatio
       ? null
       : await getInstallationToken(repository.installationId);
   const [owner, repo] = repository.fullName.split('/');
-  const fetchFile = (path) =>
-    fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref);
+  const fetchFile = async (path) => {
+    try {
+      return await fetchGithubFile(
+        token,
+        owner,
+        repo,
+        fileAtApplicationRoot(applicationRoot, path),
+        ref,
+      );
+    } catch (error) {
+      if (error.code === 'DETECTION_FILE_TOO_LARGE' && PRESENCE_ONLY_FILES.has(path)) {
+        return '';
+      }
+      throw error;
+    }
+  };
   const contents = await Promise.all(FILES_TO_FETCH.map(fetchFile));
   const files = Object.fromEntries(FILES_TO_FETCH.map((path, index) => [path, contents[index]]));
   return addBackendEntryFiles(files, fetchFile);

@@ -25,7 +25,6 @@ export function resolveBuildStrategy({
   const config = snapshot.buildConfiguration;
   return {
     strategyId: buildStrategy,
-    applicationRoot: config.applicationRoot ?? '.',
     dockerfileContent: generateDockerfile({
       runtimeType: snapshot.runtimeType,
       buildStrategy,
@@ -72,8 +71,8 @@ export function resolveRuntimeSpec(snapshot) {
         : (config.applicationPort ?? defaultPort);
   return {
     appPort,
-    static: isStatic,
-    streaming: [BuildStrategy.NEXT_STANDARD_V1, BuildStrategy.NEXT_STANDALONE_V1].includes(
+    isStatic,
+    isStreaming: [BuildStrategy.NEXT_STANDARD_V1, BuildStrategy.NEXT_STANDALONE_V1].includes(
       buildStrategy,
     ),
   };
@@ -89,7 +88,7 @@ export function isStreamingDeployment(deployment) {
     return false;
   }
   try {
-    return resolveRuntimeSpec(snapshot).streaming;
+    return resolveRuntimeSpec(snapshot).isStreaming;
   } catch (error) {
     logger.warn('BuildStrategy: unreadable snapshot; routing buffered', {
       deploymentId: deployment._id?.toString(),

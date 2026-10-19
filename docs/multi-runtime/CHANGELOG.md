@@ -20,6 +20,22 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Sixth review (2026-10-20)
+
+- A lockfile (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `composer.lock`)
+  larger than the detection response cap counts as present. Detection only checks that
+  these exist, and failing on them blocked detection for large repositories.
+- A missing application root reports `Application root <path> does not exist at this
+commit.` instead of a raw `ENOENT` that named the worker's workspace path.
+- The application-root context pass no longer walks dependency and `.git` folders,
+  where it neither scrubs links nor counts sizes.
+- Boolean names follow the project convention: `isStatic`, `isStreaming`,
+  `isAmbiguous`. The unused `applicationRoot` field is gone from the
+  build strategy result.
+- The runbook requires a live GHCR manifest-deletion probe before any pilot. Whether
+  GHCR accepts OCI manifest deletion through the registry API is unverified; if it
+  does not, retention cannot work and pilots stay off.
+
 ### Fifth review (2026-10-20)
 
 - Remote builds export an OCI layout to the worker, which pushes the exact digest with

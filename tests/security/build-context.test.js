@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdtemp, writeFile, symlink, readdir, rm, mkdir, readFile, open } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  writeFile,
+  symlink,
+  readdir,
+  rm,
+  mkdir,
+  readFile,
+  open,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -236,6 +246,17 @@ describe('prepareBuildContext — application-root pass', () => {
     await symlink('/etc/hostname', join(dir, 'escape'));
     await prepareBuildContext(dir, { countSize: false });
     assert.deepEqual((await readdir(dir)).sort(), ['big.bin']);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // An unreadable folder fails the pass only if the pass walks into it.
+  it('does not walk dependency folders it neither scrubs nor counts', async () => {
+    const dir = await makeContext();
+    const sealed = join(dir, 'node_modules', 'sealed');
+    await mkdir(sealed, { recursive: true });
+    await chmod(sealed, 0o000);
+    await assert.doesNotReject(prepareBuildContext(dir, { countSize: false }));
+    await chmod(sealed, 0o700);
     await rm(dir, { recursive: true, force: true });
   });
 });

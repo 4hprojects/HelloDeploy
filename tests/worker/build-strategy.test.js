@@ -33,7 +33,7 @@ describe('resolveBuildStrategy', () => {
         snapshot: snapshot(strategy),
         templateVersion: 'legacy',
       });
-      assert.deepEqual(spec.runtime, { appPort: 3000, static: false, streaming: true });
+      assert.deepEqual(spec.runtime, { appPort: 3000, isStatic: false, isStreaming: true });
     }
   });
 
@@ -42,7 +42,7 @@ describe('resolveBuildStrategy', () => {
       snapshot: snapshot('next_export_v1'),
       templateVersion: 'legacy',
     });
-    assert.deepEqual(spec.runtime, { appPort: 8080, static: true, streaming: false });
+    assert.deepEqual(spec.runtime, { appPort: 8080, isStatic: true, isStreaming: false });
   });
 
   it('rejects a Next strategy paired with a non-Next runtime', () => {
@@ -95,7 +95,7 @@ describe('resolveRuntimeSpec', () => {
       resolveRuntimeSpec(
         versioned('python_django_v1', 'PYTHON', { applicationModule: 'mysite.wsgi:application' }),
       ),
-      { appPort: 8000, static: false, streaming: false },
+      { appPort: 8000, isStatic: false, isStreaming: false },
     );
   });
 

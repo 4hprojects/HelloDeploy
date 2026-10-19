@@ -361,7 +361,7 @@ export async function runReleasePipeline({
       pidsLimit: resourceLimits?.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       projectId: projectId.toString(),
       deploymentId: deploymentId.toString(),
-      staticRuntime: runtimeSpec?.static,
+      isStatic: runtimeSpec?.isStatic,
     });
 
     await Deployment.updateOne(
@@ -541,7 +541,7 @@ export async function runReleasePipeline({
                 domain: env.DEPLOYMENT_DOMAIN,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
-                streaming: runtimeSpec?.streaming === true,
+                isStreaming: runtimeSpec?.isStreaming === true,
               }),
             },
             ...customDomains.map((domain) => ({
@@ -550,7 +550,7 @@ export async function runReleasePipeline({
                 hostname: domain.hostnameNormalized,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
-                streaming: runtimeSpec?.streaming === true,
+                isStreaming: runtimeSpec?.isStreaming === true,
               }),
             })),
           ];

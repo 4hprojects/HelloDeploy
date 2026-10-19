@@ -19,6 +19,12 @@ production host while the acceptance record remains incomplete.
 6. Install ORAS for the worker account. Log in to private GHCR through the worker's
    protected Docker credential helper/store using a least-privilege package token.
    Do not place the token in `.env` or shell history.
+7. Prove GHCR accepts manifest deletion through the registry API before any pilot is
+   enabled. Push a throwaway artifact to the platform repository with ORAS, then run
+   `oras manifest delete --force ghcr.io/OWNER/PRIVATE_REPOSITORY@sha256:DIGEST`. If GHCR
+   answers `405`, `UNSUPPORTED`, or `DENIED`, stop: retention and project deletion use
+   this call, and would fail and retry on every sweep while the repository grows.
+   Deletion through the GitHub Packages REST API is not implemented.
 
 Set the shared protected environment only after the probes below pass:
 

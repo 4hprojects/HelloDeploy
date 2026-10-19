@@ -31,6 +31,14 @@ describe('application root contract', () => {
     );
   });
 
+  // The owner sees this message, so it must not name the worker's workspace path.
+  it('reports a missing application root without the workspace path', async () => {
+    const repository = await mkdtemp(join(tmpdir(), 'hellodeploy-root-'));
+    await assert.rejects(resolveApplicationRoot(repository, 'apps/web'), {
+      message: 'Application root apps/web does not exist at this commit.',
+    });
+  });
+
   it('resolves an in-repository application directory to its real path', async () => {
     const repository = await mkdtemp(join(tmpdir(), 'hellodeploy-root-'));
     const application = join(repository, 'apps', 'web');

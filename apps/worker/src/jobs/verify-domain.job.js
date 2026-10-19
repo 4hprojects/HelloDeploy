@@ -321,7 +321,7 @@ export async function handleActivateDomainWithDependencies(
           hostname: data.hostname,
           port: deployment.containerPort,
           deploymentId: deployment._id.toString(),
-          streaming: isStreamingDeployment(deployment),
+          isStreaming: isStreamingDeployment(deployment),
         }),
       });
       routeActivated = true;
@@ -522,7 +522,7 @@ async function handleLegacyDomainJob(
           hostname,
           port: deployment.containerPort,
           deploymentId: deployment._id.toString(),
-          streaming: isStreamingDeployment(deployment),
+          isStreaming: isStreamingDeployment(deployment),
         }),
       });
       await DomainModel.updateOne(
