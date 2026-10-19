@@ -66,11 +66,20 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
 
 ### Fifth review (2026-10-20)
 
+Ten findings: nine confirmed and fixed with failing-first tests; one (shared build cache
+through `ONBUILD`) mitigated and recorded as a residual risk.
+
 - Remote builds export an OCI layout to the worker, which pushes the exact digest with
   ORAS. The builder never pushes, so a timed-out build can no longer leave an untracked
   image in the registry.
-- A committed `Dockerfile.dockerignore`, which BuildKit prefers over `.dockerignore`, is
-  removed so it cannot replace the platform exclusions.
+- Owner Dockerfile builds run with an isolated Docker config that holds no registry
+  credential, so `ONBUILD` triggers and quoted flags can only pull public images; the
+  policy normalizes quotes and escapes like BuildKit.
+- A committed `Dockerfile.dockerignore` is removed so it cannot replace the platform
+  exclusions.
+- Retention clears every record that shared a deleted digest; a scanner outage has its own
+  failure code; scans use the runtime platform; shared ownership and blocked-repository
+  helpers replace hand-copied checks.
 
 ### Fourth review (2026-10-19)
 

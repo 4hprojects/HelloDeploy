@@ -186,6 +186,15 @@ image repository were neither refused nor told apart from platform builds. Full 
 `feat/multi-runtime-p4`: 2,173/2,173 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format
 clean.
 
+## 2026-10-20 Fifth review
+
+The fifth review's main finding was architectural: owner Dockerfile builds ran with the
+worker's registry credentials, so the static policy was the effective boundary and could
+be bypassed with quoted flags or `ONBUILD` triggers. Owner builds now hold no registry
+credential and the builder never pushes. Nine findings were fixed with failing-first
+tests; the shared BuildKit cache remains a documented residual risk for general
+availability.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
