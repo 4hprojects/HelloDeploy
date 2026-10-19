@@ -200,6 +200,7 @@ describe('contracts — getFailureCopy', () => {
       'DOCKERFILE_POLICY_VIOLATION',
       'IMAGE_RESOLUTION_FAILED',
       'IMAGE_POLICY_FAILED',
+      'IMAGE_SCAN_UNAVAILABLE',
     ];
     const missing = codes.filter((code) => !DEPLOYMENT_FAILURE_COPY[code]);
     assert.deepEqual(missing, []);

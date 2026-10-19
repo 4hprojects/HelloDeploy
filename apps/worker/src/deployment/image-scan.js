@@ -2,6 +2,15 @@ import { spawn } from 'node:child_process';
 
 const MAX_REPORTED_IDS = 5;
 
+/** The scanner itself could not run; the image was not judged. */
+export class ImageScanUnavailableError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ImageScanUnavailableError';
+    this.code = 'IMAGE_SCAN_UNAVAILABLE';
+  }
+}
+
 function runTrivy(args, env) {
   return new Promise((resolve) => {
     const stdout = [];
@@ -30,10 +39,12 @@ function runTrivy(args, env) {
  * @param {{ dockerConfigDir?: string, run?: Function }} options
  * @returns {Promise<{ criticalCount: number, ids: string[] }>}
  */
-export async function scanImage(imageRef, { dockerConfigDir, run = runTrivy } = {}) {
+export async function scanImage(imageRef, { dockerConfigDir, platform, run = runTrivy } = {}) {
   const result = await run(
     [
       'image',
+      // A digest may name a multi-platform index; scan the variant that runs here.
+      ...(platform ? ['--platform', platform] : []),
       '--quiet',
       '--no-progress',
       '--severity',
@@ -46,13 +57,15 @@ export async function scanImage(imageRef, { dockerConfigDir, run = runTrivy } = 
     dockerConfigDir ? { DOCKER_CONFIG: dockerConfigDir } : {},
   );
   if (result.code !== 0) {
-    throw new Error(`The image scanner could not run: ${result.stderr.trim().slice(0, 300)}`);
+    throw new ImageScanUnavailableError(
+      `The image scanner could not run: ${result.stderr.trim().slice(0, 300)}`,
+    );
   }
   let report;
   try {
     report = JSON.parse(result.stdout);
   } catch {
-    throw new Error('The image scanner returned a report that is not JSON.');
+    throw new ImageScanUnavailableError('The image scanner returned a report that is not JSON.');
   }
   const ids = (report.Results ?? []).flatMap((entry) =>
     (entry.Vulnerabilities ?? []).map((vulnerability) => vulnerability.VulnerabilityID),

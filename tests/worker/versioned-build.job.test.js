@@ -76,6 +76,7 @@ function makeDeps(contextFiles, overrides = {}) {
     readOptionalContextFile: async (_dir, name) => contextFiles[name] ?? null,
     readContainedFile: async (_dir, name) => contextFiles[name] ?? null,
     scanImage: async () => ({ criticalCount: 0, ids: [] }),
+    getRuntimePlatform: async () => 'linux/amd64',
     resolveImageDigest: async () => OWNER_DIGEST,
     loadRegistryCredential: async () => null,
     withDockerConfig: async (_registry, _credential, fn) => fn(undefined),
@@ -271,5 +272,24 @@ describe('build-deployment job — versioned runtime strategies', () => {
       },
     });
     assert.equal(deployment.failureCode, 'DOCKERFILE_POLICY_VIOLATION');
+  });
+
+  it('builds an owner Dockerfile without the worker registry credentials', async () => {
+    const buildOptions = [];
+    await runVersionedJob(DOCKERFILE_SNAPSHOT, {
+      contextFiles: { Dockerfile: 'FROM node:22-slim\nUSER 10001\n' },
+      depsOverrides: {
+        buildExecutor: {
+          build: async (options) => {
+            buildOptions.push(options);
+            return {
+              imageRef: `ghcr.io/example/hellodeploy-apps:x@sha256:${'c'.repeat(64)}`,
+              imageDigest: `sha256:${'c'.repeat(64)}`,
+            };
+          },
+        },
+      },
+    });
+    assert.equal(buildOptions[0]?.isolateRegistryCredentials, true);
   });
 });

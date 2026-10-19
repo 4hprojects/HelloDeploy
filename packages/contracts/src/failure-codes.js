@@ -146,6 +146,10 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     action:
       'Check the image name, tag, or digest, and the registry credentials if the image is private.',
   },
+  IMAGE_SCAN_UNAVAILABLE: {
+    message: "HelloDeploy's image scanner was unavailable, so your image was not checked.",
+    action: TRY_AGAIN_ACTION,
+  },
   IMAGE_POLICY_FAILED: {
     message: 'Your container image did not pass the platform safety checks.',
     action: `The technical details explain which check failed, such as running as root, declaring volumes, being too large, or having critical vulnerabilities. ${ASK_BUILDER_ACTION}`,

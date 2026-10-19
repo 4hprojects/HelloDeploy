@@ -169,4 +169,25 @@ describe('scanImage', () => {
       /could not run/,
     );
   });
+
+  it('reports a scanner that cannot run as unavailable, not as a bad image', async () => {
+    await assert.rejects(
+      scanImage(`ghcr.io/o/a@${DIGEST}`, {
+        run: async () => ({ code: 1, stdout: '', stderr: 'db download failed' }),
+      }),
+      { code: 'IMAGE_SCAN_UNAVAILABLE' },
+    );
+  });
+
+  it('scans the variant for the runtime platform', async () => {
+    const calls = [];
+    await scanImage(`ghcr.io/o/a@${DIGEST}`, {
+      platform: 'linux/arm64',
+      run: async (args) => {
+        calls.push(args);
+        return { code: 0, stdout: report([]), stderr: '' };
+      },
+    });
+    assert.equal(calls[0][calls[0].indexOf('--platform') + 1], 'linux/arm64');
+  });
 });

@@ -6,6 +6,7 @@ import {
   RuntimeType,
   findDockerfilePolicyViolations,
   getBuildStrategyRuntime,
+  isBlockedRepository,
   isContainerBuildStrategy,
   isNonRootImageUser,
   isPilotStrategyEnabledFor,
@@ -292,6 +293,30 @@ describe('findDockerfilePolicyViolations', () => {
     );
   });
 
+  // BuildKit removes quotes and escapes from flags before acting on them.
+  it('sees through a quoted COPY --from flag name', () => {
+    assert.match(
+      messages('FROM node:22\nCOPY --fr"om"=quay.io/attacker/payload:1 / /\nUSER 10001\n')[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('sees through a quoted mount option', () => {
+    assert.match(
+      messages(
+        'FROM node:22\nRUN --mount=type=bind,"from"=quay.io/attacker/t:1,target=/m ls\nUSER 10001\n',
+      )[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('sees through a quoted cache mount type', () => {
+    assert.match(
+      messages('FROM node:22\nRUN --mount=type="cache",target=/root/.npm npm ci\nUSER 10001\n')[0],
+      /Cache mounts/,
+    );
+  });
+
   it('reports the line of each violation', () => {
     assert.equal(
       findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER 10001\n')[0].line,
@@ -321,5 +346,16 @@ describe('isNonRootImageUser', () => {
 
   it('rejects a named user, whose uid the image itself decides', () => {
     assert.deepEqual(['node', 'app:app'].map(isNonRootImageUser), [false, false]);
+  });
+});
+
+describe('isBlockedRepository', () => {
+  it('matches the repository and paths below it', () => {
+    assert.deepEqual(
+      ['ghcr.io/p/apps', 'ghcr.io/p/apps/x', 'ghcr.io/p/apps-other'].map((name) =>
+        isBlockedRepository(name, ['ghcr.io/p/apps']),
+      ),
+      [true, true, false],
+    );
   });
 });

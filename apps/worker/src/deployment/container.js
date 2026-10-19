@@ -39,6 +39,13 @@ export function normalizeDockerArchitecture(value) {
   return ARCHITECTURE_ALIASES.get(architecture) ?? architecture;
 }
 
+/** The `os/arch` platform of the runtime Docker daemon, such as linux/amd64. */
+export async function getRuntimePlatform(deps = {}) {
+  const docker = deps.runDocker ?? runDocker;
+  const architecture = JSON.parse(await docker(['info', '--format', '{{json .Architecture}}']));
+  return `linux/${normalizeDockerArchitecture(architecture)}`;
+}
+
 export function assertCompatibleImagePlatform(imageDetails, runtimeArchitecture) {
   if (imageDetails?.Os !== 'linux') {
     throw new Error(`Unsupported image operating system: ${imageDetails?.Os ?? 'unknown'}`);

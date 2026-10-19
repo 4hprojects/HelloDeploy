@@ -259,4 +259,32 @@ describe('retention — cleanupOldReleases', () => {
       [true, created[0].imageRef, []],
     );
   });
+
+  // A release and its rollback share one digest; both stop advertising it once
+  // the manifest is deleted.
+  it('clears the identity of every retired record that shared a deleted digest', async () => {
+    const project = await createProject();
+    const shared = `sha256:${'7'.repeat(64)}`;
+    const created = [];
+    for (let seq = 1; seq <= 5; seq++) {
+      const digest = seq <= 2 ? shared : `sha256:${String(seq).repeat(64)}`;
+      created.push(
+        await createDeployment(project._id, {
+          sequenceNumber: seq,
+          status: DeploymentStatus.HEALTHY,
+          imageTag: `img-${seq}`,
+          imageRef: `ghcr.io/example/apps:release-${seq}@${digest}`,
+          imageDigest: digest,
+        }),
+      );
+    }
+    await cleanupOldReleases(project._id, makeDockerStub().deps);
+    const retired = await Deployment.find({
+      _id: { $in: [created[0]._id, created[1]._id] },
+    }).lean();
+    assert.deepEqual(
+      retired.map((dep) => dep.imageRef ?? null),
+      [null, null],
+    );
+  });
 });

@@ -15,6 +15,7 @@ import {
   resolvePhpVersion,
   resolvePythonVersion,
   findDockerfilePolicyViolations,
+  isBlockedRepository,
   parseImageReference,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -52,6 +53,7 @@ import { resolveBuildStrategy, resolveRuntimeSpec } from '../deployment/build-st
 import { resolveImageDigest } from '../deployment/oci-image.js';
 import { loadRegistryCredential, withDockerConfig } from '../deployment/registry-auth.js';
 import { scanImage } from '../deployment/image-scan.js';
+import { getRuntimePlatform } from '../deployment/container.js';
 import { createBuildExecutor } from '../deployment/build-executor.js';
 import { deleteRegistryManifest } from '../deployment/registry.js';
 
@@ -130,6 +132,7 @@ const defaultDeps = {
   loadRegistryCredential,
   withDockerConfig,
   scanImage,
+  getRuntimePlatform,
   sleep: (ms) => new Promise((resolve) => setTimeout(resolve, ms)),
 };
 
@@ -655,6 +658,8 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       buildMemoryMb: env.BUILD_MEMORY_MB,
       noCache: noCache === true,
       buildArgs: publicBuildEnv,
+      // Owner Dockerfiles build without any registry credential.
+      isolateRegistryCredentials: buildStrategy === BuildStrategy.DOCKERFILE_V1,
       onLogLine: async (line, stream) => {
         await logEvent(
           deploymentId,
@@ -871,10 +876,14 @@ async function enforceImageScan({
   }
   let result;
   try {
-    result = await deps.scanImage(imageRef, { dockerConfigDir });
+    result = await deps.scanImage(imageRef, {
+      dockerConfigDir,
+      platform: await deps.getRuntimePlatform(),
+    });
   } catch (error) {
     await failBuild({
-      failureCode: 'IMAGE_POLICY_FAILED',
+      // A scanner outage is the platform's problem, not the owner's image.
+      failureCode: error.code === 'IMAGE_SCAN_UNAVAILABLE' ? error.code : 'IMAGE_POLICY_FAILED',
       failureSummary: error.message.slice(0, 1000),
       completedAt: new Date(),
     });
@@ -930,11 +939,7 @@ async function deployOwnerImage({
   }
   // The platform's repository holds every tenant's builds; an owner reference
   // into it would run someone else's image and make it look platform-owned.
-  if (
-    platformImageRepositories().some(
-      (repository) => reference.name === repository || reference.name.startsWith(`${repository}/`),
-    )
-  ) {
+  if (isBlockedRepository(reference.name, platformImageRepositories())) {
     await failBuild({
       failureCode: 'IMAGE_RESOLUTION_FAILED',
       failureSummary:

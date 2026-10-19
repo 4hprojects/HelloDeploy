@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { homedir } from 'node:os';
 import { join } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
@@ -196,9 +197,41 @@ export function createOrasPushArgs({ layoutDir, imageDigest, imageRef }) {
   return ['cp', '--from-oci-layout', `${layoutDir}@${imageDigest}`, imageRef];
 }
 
-function runTimedProcess(command, args, timeoutMs, { onLogLine, label }) {
+/**
+ * A Docker config directory with no registry credentials that still reaches
+ * the worker's remote builder. Owner Dockerfiles run owner code on the builder,
+ * and buildx serves the client's credentials to the builder for any pull, so
+ * owner builds pull anonymously; the worker pushes the result itself.
+ */
+export async function createIsolatedDockerConfig(
+  parentDir,
+  sourceConfigDir = process.env.DOCKER_CONFIG ?? join(homedir(), '.docker'),
+) {
+  const directory = join(parentDir, 'docker-config');
+  await mkdir(directory, { mode: 0o700 });
+  await writeFile(join(directory, 'config.json'), JSON.stringify({ auths: {} }), { mode: 0o600 });
+  // Builder definitions (including the TLS client material) and CLI plugins
+  // hold no registry credentials.
+  for (const entry of ['buildx', 'cli-plugins']) {
+    const source = join(sourceConfigDir, entry);
+    if (
+      await access(source).then(
+        () => true,
+        () => false,
+      )
+    ) {
+      await symlink(source, join(directory, entry));
+    }
+  }
+  return directory;
+}
+
+function runTimedProcess(command, args, timeoutMs, { onLogLine, label, env: extraEnv }) {
   return new Promise((resolve, reject) => {
-    const proc = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn(command, args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...(extraEnv ? { env: { ...process.env, ...extraEnv } } : {}),
+    });
     const timeout = setTimeout(() => {
       proc.kill('SIGKILL');
       reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`));
@@ -230,6 +263,7 @@ export async function buildAndPushDockerImage({
   noCache = false,
   buildArgs = {},
   onLogLine,
+  isolateRegistryCredentials = false,
 }) {
   if (!builderName) {
     throw new Error('Remote BuildKit builder is not configured.');
@@ -250,9 +284,13 @@ export async function buildAndPushDockerImage({
   });
   const startedAt = Date.now();
   try {
+    const buildEnv = isolateRegistryCredentials
+      ? { DOCKER_CONFIG: await createIsolatedDockerConfig(metadataDir) }
+      : undefined;
     await runTimedProcess('docker', args, buildTimeoutMs, {
       onLogLine,
       label: 'Remote Docker build',
+      env: buildEnv,
     });
     const metadata = JSON.parse(await readFile(metadataFile, 'utf8'));
     const imageDigest = metadata['containerimage.digest'];

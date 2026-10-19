@@ -66,6 +66,13 @@ export function isPlatformImageRef(imageRef, platformRepository = env.USER_IMAGE
   return repository === platformRepository;
 }
 
+/** True when a release's image is a digest-pinned image in the platform repository. */
+export function isPlatformRegistryRelease(dep) {
+  return Boolean(
+    dep?.imageDigest && dep.imageRef?.includes('@sha256:') && isPlatformImageRef(dep.imageRef),
+  );
+}
+
 /**
  * Delete one immutable GHCR image, by digest, with everything it pushed: the
  * index, its child manifests (platform image, provenance and SBOM

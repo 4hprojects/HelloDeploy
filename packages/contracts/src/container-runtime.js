@@ -66,6 +66,13 @@ export function parseImageReference(value) {
   };
 }
 
+/** True when an image name is one of the repositories, or a path below one. */
+export function isBlockedRepository(name, repositories) {
+  return repositories.some(
+    (repository) => name === repository || name.startsWith(`${repository}/`),
+  );
+}
+
 /** A Dockerfile path relative to the application root, never the root itself. */
 export function validateDockerfilePath(value) {
   if (value === '.') {
@@ -162,11 +169,7 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
     const parsed = parseImageReference(reference);
     if (parsed.error) {
       violations.push({ line, message: `${label} ${reference}: ${parsed.error}` });
-    } else if (
-      blockedRepositories.some(
-        (repository) => parsed.name === repository || parsed.name.startsWith(`${repository}/`),
-      )
-    ) {
+    } else if (isBlockedRepository(parsed.name, blockedRepositories)) {
       violations.push({
         line,
         message: `${label} ${reference} is in the platform's own image repository, which owner builds cannot use.`,
@@ -190,6 +193,9 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
   let finalStageUser;
   let finalStageLine = 0;
   for (const { line, keyword, args } of instructions) {
+    // BuildKit strips quotes and escapes from flags before using them, so the
+    // checks read the same normalized text.
+    const flags = args.replace(/["'\\]/g, '');
     if (keyword === 'ARG' && !seenFrom) {
       const [name, ...value] = args.split('=');
       globalArgs.set(
@@ -238,13 +244,13 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
         stageNames.add(alias.toLowerCase());
       }
     } else if (keyword === 'COPY' || keyword === 'ADD') {
-      for (const token of args.split(/\s+/)) {
+      for (const token of flags.split(/\s+/)) {
         if (token.toLowerCase().startsWith('--from=')) {
           checkImageSource(token.slice('--from='.length), line);
         }
       }
     } else if (keyword === 'RUN') {
-      for (const token of args.split(/\s+/)) {
+      for (const token of flags.split(/\s+/)) {
         if (token.toLowerCase().startsWith('--mount=')) {
           for (const option of token.slice('--mount='.length).split(',')) {
             if (option.toLowerCase().startsWith('from=')) {
@@ -253,17 +259,17 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
           }
         }
       }
-      if (/--security[= ]insecure/i.test(args)) {
+      if (/--security[= ]insecure/i.test(flags)) {
         violations.push({ line, message: 'RUN --security=insecure is not allowed.' });
       }
-      if (/--network[= ]host/i.test(args)) {
+      if (/--network[= ]host/i.test(flags)) {
         violations.push({
           line,
           message: 'RUN --network=host is not allowed; builds cannot use the host network.',
         });
       }
       if (
-        args
+        flags
           .split(/\s+/)
           .filter((token) => token.toLowerCase().startsWith('--mount='))
           .some((token) =>
@@ -280,7 +286,7 @@ export function findDockerfilePolicyViolations(content, { blockedRepositories = 
         });
       }
       if (
-        args
+        flags
           .split(/\s+/)
           .filter((token) => token.toLowerCase().startsWith('--mount='))
           .some((token) =>
