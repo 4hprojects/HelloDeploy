@@ -177,6 +177,15 @@ the health form, the reset guard, local copies of prebuilt images, abandoned-swe
 bookkeeping). Full suite on `feat/multi-runtime-p4`: 2,162/2,162 with
 `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
 
+## 2026-10-19 Fourth review
+
+Ten findings, all confirmed and fixed with failing-first tests (four base, six P4). The two
+most serious were P4 security gaps: an owner image without a saved credential was pulled
+and scanned with the worker's own registry login, and owner references into the platform's
+image repository were neither refused nor told apart from platform builds. Full suite on
+`feat/multi-runtime-p4`: 2,173/2,173 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format
+clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
