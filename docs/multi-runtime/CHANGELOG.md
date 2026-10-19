@@ -20,6 +20,21 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Fifth review (2026-10-20)
+
+- Remote builds export an OCI layout to the worker, which pushes the exact digest with
+  ORAS. The builder never pushes, so a timed-out build can no longer leave an untracked
+  image in the registry.
+- A committed `Dockerfile.dockerignore`, which BuildKit prefers over `.dockerignore`, is
+  removed so it cannot replace the platform exclusions.
+
+### Fourth review (2026-10-19)
+
+- Rollbacks honor a turned-off pilot in the web service and the worker.
+- An already-deleted manifest counts as deleted.
+- A detection run that cannot reach the repository keeps earlier findings.
+- Retention and release cleanup share one image retirement helper.
+
 ### Third review (2026-10-19)
 
 Ten findings; all ten confirmed. Base-branch fixes, each with a failing-first test:
