@@ -195,6 +195,14 @@ credential and the builder never pushes. Nine findings were fixed with failing-f
 tests; the shared BuildKit cache remains a documented residual risk for general
 availability.
 
+## 2026-10-20 Sixth review
+
+Ten findings. Eight confirmed and fixed (five on the base branch, three on P4), each
+behavior change with a failing-first test; one duplication finding declined; one
+(GHCR rejecting OCI manifest deletion) cannot be confirmed without live GHCR and is now
+a mandatory runbook probe before any pilot. Full suite on `feat/multi-runtime-p4`:
+2,192/2,192 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,

@@ -63,6 +63,17 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
 - The runbook requires a live GHCR manifest-deletion probe before any pilot. Whether
   GHCR accepts OCI manifest deletion through the registry API is unverified; the
   probe now chooses between that and the GitHub Packages fallback.
+- P4: a prebuilt-image deployment whose private Docker config cannot be written fails
+  with `IMAGE_SCAN_UNAVAILABLE` instead of throwing and leaving the deployment
+  `BUILDING`, which blocked every later deploy for the project.
+- P4: the isolated build Docker config keeps Docker contexts and `currentContext`, so a
+  builder defined on a context endpoint still resolves.
+- P4: registry API hosts, token hosts, and Docker auth keys live in one contracts table
+  (`IMAGE_REGISTRIES`) that defines `APPROVED_IMAGE_REGISTRIES`, so a registry cannot be
+  approved without them. `isolateRegistryCredentials` is now
+  `shouldIsolateRegistryCredentials`.
+- Declined: reusing `getRuntimePlatform` inside `pullAndVerifyImage`. That lookup predates
+  the branch and costs one `docker info` per activation.
 
 ### Fifth review (2026-10-20)
 
