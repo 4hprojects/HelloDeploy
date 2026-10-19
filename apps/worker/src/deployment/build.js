@@ -1,8 +1,8 @@
 import { spawn } from 'node:child_process';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { logger } from '@hellodeploy/observability';
+import { env } from '../config/env.js';
 import { processOutputLines } from './log-capture.js';
 
 /**
@@ -160,15 +160,19 @@ export function createRemoteDockerBuildArgs({
   imageRef,
   builderName,
   metadataFile,
+  layoutDir,
   noCache = false,
   buildArgs = {},
 }) {
+  // The builder exports to the worker and never pushes: a killed build then
+  // leaves nothing in the registry, and the builder needs no push credential.
   return [
     'buildx',
     'build',
     '--builder',
     builderName,
-    '--push',
+    '--output',
+    `type=oci,dest=${layoutDir},tar=false`,
     '--provenance=true',
     '--sbom=true',
     '--metadata-file',
@@ -187,6 +191,37 @@ export function createRemoteDockerBuildArgs({
 
 const IMAGE_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
 
+/** Push exactly the built digest from a local OCI layout to its registry tag. */
+export function createOrasPushArgs({ layoutDir, imageDigest, imageRef }) {
+  return ['cp', '--from-oci-layout', `${layoutDir}@${imageDigest}`, imageRef];
+}
+
+function runTimedProcess(command, args, timeoutMs, { onLogLine, label }) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const timeout = setTimeout(() => {
+      proc.kill('SIGKILL');
+      reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+    for (const [stream, output] of [
+      ['stdout', proc.stdout],
+      ['stderr', proc.stderr],
+    ]) {
+      output.on('data', (chunk) => {
+        processOutputLines(chunk).forEach((line) => onLogLine?.(line, stream));
+      });
+    }
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      code === 0 ? resolve() : reject(new Error(`${label} exited with code ${code}`));
+    });
+    proc.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(new Error(`${label} could not start: ${error.message}`));
+    });
+  });
+}
+
 export async function buildAndPushDockerImage({
   contextDir,
   imageRef,
@@ -199,46 +234,39 @@ export async function buildAndPushDockerImage({
   if (!builderName) {
     throw new Error('Remote BuildKit builder is not configured.');
   }
-  const metadataDir = await mkdtemp(join(tmpdir(), 'hellodeploy-build-'));
+  // The exported layout can be gigabytes, so it lives on the build volume
+  // beside the clones rather than in a possibly small system temp directory.
+  const metadataDir = await mkdtemp(join(env.BUILD_WORKSPACE_ROOT, '.export-'));
   const metadataFile = join(metadataDir, 'metadata.json');
+  const layoutDir = join(metadataDir, 'layout');
   const args = createRemoteDockerBuildArgs({
     contextDir,
     imageRef,
     builderName,
     metadataFile,
+    layoutDir,
     noCache,
     buildArgs,
   });
   const startedAt = Date.now();
   try {
-    await new Promise((resolve, reject) => {
-      const proc = spawn('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] });
-      const timeout = setTimeout(() => {
-        proc.kill('SIGKILL');
-        reject(new Error(`Remote Docker build timed out after ${buildTimeoutMs / 1000}s`));
-      }, buildTimeoutMs);
-      for (const [stream, output] of [
-        ['stdout', proc.stdout],
-        ['stderr', proc.stderr],
-      ]) {
-        output.on('data', (chunk) => {
-          processOutputLines(chunk).forEach((line) => onLogLine(line, stream));
-        });
-      }
-      proc.on('close', (code) => {
-        clearTimeout(timeout);
-        code === 0 ? resolve() : reject(new Error(`docker buildx build exited with code ${code}`));
-      });
-      proc.on('error', (error) => {
-        clearTimeout(timeout);
-        reject(new Error(`docker buildx spawn error: ${error.message}`));
-      });
+    await runTimedProcess('docker', args, buildTimeoutMs, {
+      onLogLine,
+      label: 'Remote Docker build',
     });
     const metadata = JSON.parse(await readFile(metadataFile, 'utf8'));
     const imageDigest = metadata['containerimage.digest'];
     if (!IMAGE_DIGEST_PATTERN.test(imageDigest ?? '')) {
       throw new Error('Remote builder did not return a valid immutable image digest.');
     }
+    // The push gets whatever build time is left; the manifest is written last,
+    // so an interrupted push never leaves a usable tag behind.
+    await runTimedProcess(
+      'oras',
+      createOrasPushArgs({ layoutDir, imageDigest, imageRef }),
+      Math.max(buildTimeoutMs - (Date.now() - startedAt), 60_000),
+      { onLogLine, label: 'Image push' },
+    );
     return {
       imageRef: `${imageRef.split('@')[0]}@${imageDigest}`,
       imageDigest,

@@ -90,6 +90,16 @@ describe('prepareBuildContext — forbidden file removal', () => {
 
 // ─── Symlink containment (path traversal via symlink) ────────────────────────
 
+describe('prepareBuildContext — Dockerfile-specific ignore file', () => {
+  it('removes a committed Dockerfile.dockerignore that would replace the platform rules', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, 'Dockerfile.dockerignore'), '');
+    await prepareBuildContext(dir);
+    assert.deepEqual(await readdir(dir), []);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
 describe('prepareBuildContext — symlink containment', () => {
   it('removes a top-level symlink whose real target is outside the build context', async () => {
     const dir = await makeContext();

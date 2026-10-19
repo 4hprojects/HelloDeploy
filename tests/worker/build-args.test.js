@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import {
   createDockerBuildArgs,
   createRemoteDockerBuildArgs,
+  createOrasPushArgs,
   ensureBuildBuilder,
   verifyRemoteBuildBuilder,
 } from '../../apps/worker/src/deployment/build.js';
@@ -66,26 +67,51 @@ describe('createDockerBuildArgs — dedicated builder', () => {
 });
 
 describe('createRemoteDockerBuildArgs', () => {
-  it('pushes through the named builder and records immutable metadata', () => {
-    const args = createRemoteDockerBuildArgs({
-      contextDir: '/builds/abc',
-      imageRef: 'ghcr.io/acme/hellodeploy:demo-1',
-      builderName: 'remote-builder',
-      metadataFile: '/tmp/build-metadata.json',
-      buildArgs: { NEXT_PUBLIC_ORIGIN: 'https://example.test' },
-    });
-    assert.deepEqual(args.slice(0, 5), [
-      'buildx',
-      'build',
-      '--builder',
-      'remote-builder',
-      '--push',
-    ]);
-    assert.ok(args.includes('--provenance=true'));
-    assert.ok(args.includes('--sbom=true'));
+  const args = createRemoteDockerBuildArgs({
+    contextDir: '/builds/abc',
+    imageRef: 'ghcr.io/acme/hellodeploy:demo-1',
+    builderName: 'remote-builder',
+    metadataFile: '/tmp/build-metadata.json',
+    layoutDir: '/tmp/build-layout',
+    buildArgs: { NEXT_PUBLIC_ORIGIN: 'https://example.test' },
+  });
+
+  it('builds through the named builder with provenance and an SBOM', () => {
+    assert.deepEqual(
+      [args.slice(0, 4), args.includes('--provenance=true'), args.includes('--sbom=true')],
+      [['buildx', 'build', '--builder', 'remote-builder'], true, true],
+    );
+  });
+
+  // The builder never pushes: a killed build then leaves nothing in the
+  // registry, and the push needs no credential on the builder.
+  it('exports an OCI layout to the worker instead of pushing', () => {
+    assert.deepEqual(
+      [args.includes('--push'), args[args.indexOf('--output') + 1]],
+      [false, 'type=oci,dest=/tmp/build-layout,tar=false'],
+    );
+  });
+
+  it('records immutable metadata for the built image', () => {
     assert.equal(args[args.indexOf('--metadata-file') + 1], '/tmp/build-metadata.json');
-    assert.equal(args[args.indexOf('--tag') + 1], 'ghcr.io/acme/hellodeploy:demo-1');
-    assert.equal(args.includes('--load'), false);
+  });
+});
+
+describe('createOrasPushArgs', () => {
+  it('copies exactly the built digest from the layout to the registry tag', () => {
+    assert.deepEqual(
+      createOrasPushArgs({
+        layoutDir: '/tmp/build-layout',
+        imageDigest: `sha256:${'a'.repeat(64)}`,
+        imageRef: 'ghcr.io/acme/hellodeploy:demo-1',
+      }),
+      [
+        'cp',
+        '--from-oci-layout',
+        `/tmp/build-layout@sha256:${'a'.repeat(64)}`,
+        'ghcr.io/acme/hellodeploy:demo-1',
+      ],
+    );
   });
 });
 

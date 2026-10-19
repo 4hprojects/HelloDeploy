@@ -9,8 +9,7 @@ different privilege levels and must not be shared with build containers.
 
 The worker clones an exact commit, sanitizes and bounds the context, generates the
 Dockerfile, and sends the selected application root to a separately provisioned
-rootless BuildKit daemon over authenticated TLS. BuildKit pushes directly to private
-GHCR. The runtime host pulls and starts only the recorded digest.
+rootless BuildKit daemon over authenticated TLS. BuildKit exports the image to the worker as an OCI layout, and the worker pushes exactly that digest to private GHCR with ORAS. The builder never pushes, so a killed build leaves nothing in the registry. The runtime host pulls and starts only the recorded digest.
 
 ## Primary threats and controls
 

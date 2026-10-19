@@ -10,6 +10,9 @@ const FORBIDDEN_FILENAMES = [
   'Dockerfile',
   'dockerfile',
   '.dockerignore',
+  // BuildKit prefers <Dockerfile>.dockerignore over .dockerignore, so a committed
+  // one would replace the platform exclusions.
+  'Dockerfile.dockerignore',
   'docker-compose.yml',
   'docker-compose.yaml',
   'docker-compose.override.yml',
