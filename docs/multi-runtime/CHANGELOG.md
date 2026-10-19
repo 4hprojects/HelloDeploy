@@ -20,6 +20,19 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Second review (2026-10-19)
+
+A deeper review reported fifteen findings; fourteen were confirmed and fixed with
+failing-first tests (seven here, the rest on the P4 branch). One was declined: the second
+build-context walk over the application root is not redundant, because it removes
+symlinks that leave the application root for elsewhere in the repository.
+
+- Rollbacks run local images by their unique tag and carry the source's image identity,
+  so cleanup no longer removes a live rollback's image by ID.
+- The snapshot fixes the source repository; release cleanup records deleted manifests;
+  legacy payloads require a commit SHA; settings stay editable after a pilot is turned
+  off; Spring Boot caps Tomcat at 40 threads.
+
 ### Code review fixes (2026-10-18)
 
 A full-branch review found ten defects; all ten were confirmed against the code and fixed
