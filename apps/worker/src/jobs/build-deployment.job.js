@@ -16,6 +16,7 @@ import {
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
+import { buildImageTag } from '@hellodeploy/deployment-core';
 import { env } from '../config/env.js';
 import { getInstallationToken } from '../git/github-token.js';
 import { cloneExactCommit, clonePublicExactCommit } from '../git/clone.js';
@@ -42,7 +43,6 @@ import {
 } from '../deployment/template-policy.js';
 import { resolveBuildProfile } from '../deployment/build-profile.js';
 import { logEvent, updateStatus, toResourceLimits } from '../deployment/pipeline.js';
-import { buildImageTag } from '@hellodeploy/deployment-core';
 import { resolveBuildStrategy } from '../deployment/build-strategy.js';
 import { createBuildExecutor } from '../deployment/build-executor.js';
 import { deleteRegistryManifest } from '../deployment/registry.js';
@@ -200,7 +200,7 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
   const runtimeType = snapshot?.runtimeType ?? legacyRuntimeType;
   const buildStrategy = snapshot?.buildStrategy ?? BuildStrategy.LEGACY_GENERATED;
   const buildConfiguration = snapshot?.buildConfiguration ?? project?.buildConfiguration;
-  const repositoryId = legacyRepositoryId ?? project?.repositoryId;
+  const repositoryId = legacyRepositoryId ?? snapshot?.sourceRepositoryId ?? project?.repositoryId;
   const imageTag =
     legacyImageTag ??
     (project && commitSha

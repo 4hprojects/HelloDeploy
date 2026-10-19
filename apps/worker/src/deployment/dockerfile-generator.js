@@ -364,8 +364,9 @@ WORKDIR /app
 COPY --from=builder /app/application.jar ./application.jar
 USER ${APP_UID}
 # The environment overrides application.properties, so the app listens where
-# the platform routes; the heap cap leaves room for metaspace and threads.
-ENV SERVER_PORT=${JAVA_PORT} SERVER_FORWARD_HEADERS_STRATEGY=native \\
+# the platform routes. The heap cap leaves room for metaspace and threads, and
+# Tomcat's request threads stay well under the container's PID limit.
+ENV SERVER_PORT=${JAVA_PORT} SERVER_FORWARD_HEADERS_STRATEGY=native SERVER_TOMCAT_THREADS_MAX=40 \\
     JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Xss512k"
 EXPOSE ${JAVA_PORT}
 ENV PORT=${JAVA_PORT}

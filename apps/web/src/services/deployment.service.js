@@ -139,6 +139,7 @@ export function createConfigurationSnapshot(project, commitSha) {
     projectConfigurationVersion: project.configurationVersion,
     environmentVersion: project.environmentVersion ?? 1,
     sourceCommit: commitSha,
+    sourceRepositoryId: project.repositoryId ?? null,
   };
 }
 

@@ -35,6 +35,8 @@ const configurationSnapshotSchema = new Schema(
     projectConfigurationVersion: { type: Number, required: true },
     environmentVersion: { type: Number, required: true },
     sourceCommit: { type: String, required: true, maxlength: 40 },
+    // The repository the commit belongs to, fixed at enqueue like the commit.
+    sourceRepositoryId: { type: Schema.Types.ObjectId, ref: 'Repository', default: null },
   },
   { _id: false },
 );

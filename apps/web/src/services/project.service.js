@@ -195,7 +195,10 @@ export async function updateBuildConfiguration({
   }
 
   const selectedStrategy = buildStrategy?.trim() || BuildStrategy.LEGACY_GENERATED;
-  if (selectedStrategy !== BuildStrategy.LEGACY_GENERATED) {
+  // Keeping the stored strategy is always allowed, so turning a pilot off does
+  // not freeze the other build settings; the deploy guard explains the rest.
+  const keepsStoredStrategy = selectedStrategy === project.buildStrategy;
+  if (selectedStrategy !== BuildStrategy.LEGACY_GENERATED && !keepsStoredStrategy) {
     if (
       project.runtimeType !== getBuildStrategyRuntime(selectedStrategy) ||
       !env.isStrategyEnabledFor(selectedStrategy, project._id)

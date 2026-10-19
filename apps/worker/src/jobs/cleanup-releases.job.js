@@ -117,7 +117,13 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
         !(await isImageDigestInUse(dep.imageDigest, excess))
       ) {
         try {
-          await deps.deleteRegistryManifest(dep.imageRef);
+          if (await deps.deleteRegistryManifest(dep.imageRef)) {
+            // Recorded so later sweeps do not delete the same manifest again.
+            await Deployment.updateOne(
+              { _id: dep._id },
+              { $unset: { imageRef: 1, imageDigest: 1 } },
+            );
+          }
         } catch (err) {
           logger.warn('CleanupReleases: failed to delete registry manifest', {
             deploymentId: dep._id,
@@ -147,7 +153,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
   const abandonedIds = abandonedFailed.map((dep) => dep._id);
   let removedAbandonedImages = 0;
   for (const dep of abandonedFailed) {
-    let registryDeleted = false;
+    let isRegistryDeleted = false;
     if (dep.imageTag && !(await isImageTagInUse(dep.imageTag, abandonedIds))) {
       try {
         await deps.removeDockerImage(dep.imageTag);
@@ -163,14 +169,18 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     ) {
       try {
         await deps.deleteRegistryManifest(dep.imageRef);
-        registryDeleted = true;
-      } catch {
-        // Manifest may already be deleted — non-fatal and retried next sweep.
+        isRegistryDeleted = true;
+      } catch (err) {
+        // Non-fatal: the next sweep retries it.
+        logger.warn('CleanupReleases: failed to delete abandoned registry manifest', {
+          deploymentId: dep._id,
+          error: err.message,
+        });
       }
     }
     const unset = { imageTag: 1 };
     // A local image ID has no registry manifest, so nothing is left to retry.
-    if (registryDeleted || !dep.imageRef?.includes('@sha256:')) {
+    if (isRegistryDeleted || !dep.imageRef?.includes('@sha256:')) {
       unset.imageRef = 1;
       unset.imageDigest = 1;
     }

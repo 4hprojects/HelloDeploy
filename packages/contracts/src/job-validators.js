@@ -79,7 +79,7 @@ const VALIDATORS = {
     for (const field of fields) {
       requireString(data, field, JobType.BUILD_DEPLOYMENT);
     }
-    if (data.version < 2 || data.commitSha !== undefined) {
+    if (!(data.version >= 2) || data.commitSha !== undefined) {
       requireCommitSha(data, 'commitSha', JobType.BUILD_DEPLOYMENT);
     }
   },

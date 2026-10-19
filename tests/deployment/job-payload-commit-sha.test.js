@@ -44,4 +44,11 @@ describe('build deployment payload commit SHA', () => {
       code: 'JOB_PAYLOAD_INVALID',
     });
   });
+
+  it('requires a commit SHA on a payload without a version', () => {
+    const { commitSha: _commitSha, ...withoutCommit } = payload('a'.repeat(40));
+    assert.throws(() => validateJobPayload(JobType.BUILD_DEPLOYMENT, withoutCommit), {
+      code: 'JOB_PAYLOAD_INVALID',
+    });
+  });
 });

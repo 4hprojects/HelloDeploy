@@ -216,4 +216,30 @@ describe('rollback-release job', () => {
     await handleRollbackRelease(makeJob(project, finished, sourceDeployment), deps);
     assert.equal(calls.startedContainers.length, 0);
   });
+
+  // Local builds record their image ID as imageRef; it is shared by identical
+  // builds, so the rollback must run and record the source's unique tag.
+  it('runs a local rollback from the source tag and records its image identity', async () => {
+    const project = await createProject();
+    const imageId = `sha256:${'c'.repeat(64)}`;
+    const sourceDeployment = await createDeployment(project._id, {
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-local-1',
+      imageRef: imageId,
+      imageDigest: imageId,
+    });
+    const rollbackDeployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      triggerType: DeploymentTrigger.ROLLBACK,
+      status: DeploymentStatus.DEPLOYING,
+    });
+    const { deps, calls } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    const fresh = await Deployment.findById(rollbackDeployment._id).lean();
+    assert.deepEqual(
+      [calls.startedContainers[0]?.imageTag, fresh.imageTag, fresh.imageDigest],
+      ['img-local-1', 'img-local-1', imageId],
+    );
+  });
 });

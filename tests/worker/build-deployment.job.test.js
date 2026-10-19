@@ -447,6 +447,58 @@ describe('build-deployment job', () => {
     assert.equal(calls.publicClones[0].repoName, 'repo');
   });
 
+  it('clones the repository recorded in the snapshot, not one connected later', async () => {
+    const { project, deployment: originalDeployment } = await seed();
+    await originalDeployment.deleteOne();
+    const publicRepo = (projectId, name) =>
+      createRepository(projectId, {
+        sourceType: RepositorySourceType.PUBLIC_GIT,
+        provider: 'GITHUB',
+        installationId: null,
+        githubRepoId: null,
+        nodeId: null,
+        name,
+        fullName: `owner/${name}`,
+        canonicalCloneUrl: `https://github.com/owner/${name}.git`,
+        visibility: 'public',
+      });
+    const queuedRepo = await publicRepo(project._id, 'queued-repo');
+    const laterRepo = await publicRepo(project._id, 'later-repo');
+    await Project.updateOne({ _id: project._id }, { $set: { repositoryId: laterRepo._id } });
+    const deployment = await createDeployment(project._id, {
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'legacy_generated',
+        runtimeType: 'NODEJS',
+        buildConfiguration: { applicationRoot: '.', startCommand: 'node server.js' },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+        sourceRepositoryId: queuedRepo._id,
+      },
+    });
+    const { deps, calls } = makeDeps({
+      buildExecutor: {
+        build: async () => ({
+          imageRef: `sha256:${'d'.repeat(64)}`,
+          imageDigest: `sha256:${'d'.repeat(64)}`,
+        }),
+      },
+    });
+    await handleBuildDeployment(
+      {
+        data: {
+          version: 2,
+          projectId: project._id.toString(),
+          deploymentId: deployment._id.toString(),
+          correlationId: 'repo-identity',
+        },
+      },
+      deps,
+    );
+    assert.equal(calls.publicClones[0]?.repoName, 'queued-repo');
+  });
+
   it('marks REPO_ACCESS_REVOKED when the repository is revoked', async () => {
     const { project, deployment } = await seed();
     const revokedRepo = await createRepository(project._id, {

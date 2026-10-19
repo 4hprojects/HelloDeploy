@@ -124,8 +124,15 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
   if (rollbackSnapshot) {
     runtimeSpec = resolveRuntimeSpec(rollbackSnapshot);
   }
-  const sourceImage = sourceDeployment.imageRef ?? sourceDeployment.imageTag;
-  if (sourceDeployment.imageDigest && sourceImage.includes('@sha256:')) {
+  // Registry images run by digest. A local build runs by its unique tag: its
+  // image ID is shared by identical builds, so it is never the identity used.
+  const isRegistryImage = Boolean(
+    sourceDeployment.imageDigest && sourceDeployment.imageRef?.includes('@sha256:'),
+  );
+  const sourceImage = isRegistryImage
+    ? sourceDeployment.imageRef
+    : (sourceDeployment.imageTag ?? sourceDeployment.imageRef);
+  if (isRegistryImage) {
     try {
       await deps.pullAndVerifyImage(sourceImage);
     } catch (error) {
@@ -151,6 +158,19 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     correlationId,
   );
 
+  // The rollback carries the source's image identity, so in-use checks by tag
+  // and digest keep protecting that image while this release is live.
+  await Deployment.updateOne(
+    { _id: deploymentId },
+    {
+      $set: {
+        imageTag: sourceDeployment.imageTag ?? null,
+        imageRef: sourceDeployment.imageRef ?? null,
+        imageDigest: sourceDeployment.imageDigest ?? null,
+      },
+    },
+  );
+
   const quota = await resolveProjectQuota(project._id, project.ownerId);
   const result = await runReleasePipeline({
     project,
@@ -166,7 +186,6 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
       failOnInvalidSubdomain: false,
       persistSubdomain: false,
       markPreviousRolledBack: true,
-      recordImageTagOnStart: true,
       logLabel: 'Rollback container',
     },
   });

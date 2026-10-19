@@ -151,7 +151,6 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
       failOnInvalidSubdomain: true,
       persistSubdomain: true,
       markPreviousRolledBack: false,
-      recordImageTagOnStart: false,
       logLabel: 'Container',
     },
   });

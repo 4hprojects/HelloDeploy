@@ -230,7 +230,6 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
  *     failOnInvalidSubdomain: boolean, // activate: fail the deploy; rollback: skip nginx silently
  *     persistSubdomain: boolean,       // activate assigns platformSubdomain on first deploy
  *     markPreviousRolledBack: boolean, // rollback marks the replaced release ROLLED_BACK
- *     recordImageTagOnStart: boolean,  // rollback stamps the source imageTag on its record
  *     logLabel: string,                // 'Container' | 'Rollback container' — event log wording
  *   },
  * }} params
@@ -368,10 +367,7 @@ export async function runReleasePipeline({
     await Deployment.updateOne(
       { _id: deploymentId },
       {
-        $set: {
-          candidateContainerId: containerId,
-          ...(opts.recordImageTagOnStart ? { imageTag } : {}),
-        },
+        $set: { candidateContainerId: containerId },
       },
     );
 

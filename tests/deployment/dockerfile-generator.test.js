@@ -502,6 +502,11 @@ describe('generateDockerfile — versioned Java strategies', () => {
     );
   });
 
+  // Every JVM thread counts against the container's PID limit of 100.
+  it('caps Tomcat request threads below the container process limit', () => {
+    assert.match(maven(), /SERVER_TOMCAT_THREADS_MAX=40/);
+  });
+
   it('caps the heap below the container memory limit', () => {
     assert.match(maven(), /-XX:MaxRAMPercentage=60/);
   });
