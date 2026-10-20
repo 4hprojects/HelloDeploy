@@ -20,6 +20,16 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### #119 merged; first CodeQL run on #120 (2026-10-20)
+
+- #119 merged to `main` and autodeployed to production (`9572051`) with every pilot
+  off; the installer's checks passed, and the dashboard and live apps answered 200.
+- #120 now targets `main`, so CI and CodeQL run on it. CodeQL flagged two owner-image
+  checks it could not recognize as guards: the registry allowlist `includes` (read as a
+  URL substring test) and the credential filter built from form input. Both now use
+  `isApprovedImageRegistry`: a string that is an own key of `IMAGE_REGISTRIES`. Deleting a
+  credential checks it too.
+
 ### Pre-merge smoke run (2026-10-20)
 
 - Ran the branch with every flag off against a throwaway database and the local Docker

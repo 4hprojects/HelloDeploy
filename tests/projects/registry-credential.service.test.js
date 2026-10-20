@@ -64,6 +64,12 @@ describe('registry credential service', () => {
     assert.match(result.error, /docker\.io, ghcr\.io/);
   });
 
+  // Extended form parsing turns `registry[$ne]=x` into an object; it must never reach a query.
+  it('refuses a registry sent as an object', async () => {
+    const result = await save({ registry: { $ne: 'quay.io' } });
+    assert.match(result.error, /docker\.io, ghcr\.io/);
+  });
+
   it('refuses an empty token', async () => {
     const result = await save({ token: '' });
     assert.match(result.error, /access token/);

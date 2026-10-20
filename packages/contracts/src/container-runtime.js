@@ -19,6 +19,11 @@ export const IMAGE_REGISTRIES = Object.freeze({
 });
 export const APPROVED_IMAGE_REGISTRIES = Object.freeze(Object.keys(IMAGE_REGISTRIES));
 
+/** True only for an approved registry host given as a string, never a lookalike or object. */
+export function isApprovedImageRegistry(registry) {
+  return typeof registry === 'string' && Object.hasOwn(IMAGE_REGISTRIES, registry);
+}
+
 const REPOSITORY_COMPONENT = /^[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*$/;
 const TAG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$/;
 const DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
@@ -66,7 +71,7 @@ export function parseImageReference(value) {
   ) {
     return invalid('The image reference is not valid; use lowercase names such as owner/app:1.0.');
   }
-  if (!APPROVED_IMAGE_REGISTRIES.includes(registry)) {
+  if (!isApprovedImageRegistry(registry)) {
     return invalid(
       `Images must come from ${APPROVED_IMAGE_REGISTRIES.join(', ')}; ${registry} is not approved.`,
     );

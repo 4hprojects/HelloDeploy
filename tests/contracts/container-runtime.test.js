@@ -6,6 +6,7 @@ import {
   RuntimeType,
   findDockerfilePolicyViolations,
   getBuildStrategyRuntime,
+  isApprovedImageRegistry,
   isBlockedRepository,
   isContainerBuildStrategy,
   isNonRootImageUser,
@@ -357,5 +358,23 @@ describe('isBlockedRepository', () => {
       ),
       [true, true, false],
     );
+  });
+});
+
+describe('isApprovedImageRegistry', () => {
+  it('accepts an approved registry', () => {
+    assert.equal(isApprovedImageRegistry('ghcr.io'), true);
+  });
+
+  it('refuses a host that only contains an approved registry name', () => {
+    assert.equal(isApprovedImageRegistry('docker.io.evil.example'), false);
+  });
+
+  it('refuses an inherited object key', () => {
+    assert.equal(isApprovedImageRegistry('constructor'), false);
+  });
+
+  it('refuses a value that is not a string', () => {
+    assert.equal(isApprovedImageRegistry({ $ne: 'quay.io' }), false);
   });
 });

@@ -1,4 +1,8 @@
-import { APPROVED_IMAGE_REGISTRIES, AuditOutcome } from '@hellodeploy/contracts';
+import {
+  APPROVED_IMAGE_REGISTRIES,
+  AuditOutcome,
+  isApprovedImageRegistry,
+} from '@hellodeploy/contracts';
 import { RegistryCredential, registryCredentialAadName } from '@hellodeploy/database';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { buildSecretAad, encrypt, hasControlChars } from '@hellodeploy/security';
@@ -31,7 +35,7 @@ export async function saveRegistryCredential({
 }) {
   const name = String(username ?? '').trim();
   const secret = String(token ?? '');
-  if (!APPROVED_IMAGE_REGISTRIES.includes(registry)) {
+  if (!isApprovedImageRegistry(registry)) {
     return {
       success: false,
       error: `Choose one of ${APPROVED_IMAGE_REGISTRIES.join(', ')}.`,
@@ -83,6 +87,9 @@ export async function deleteRegistryCredential({
   sourceIp,
   correlationId,
 }) {
+  if (!isApprovedImageRegistry(registry)) {
+    return { success: false, error: 'No credential is saved for that registry.' };
+  }
   const result = await RegistryCredential.deleteOne({ projectId, registry });
   if (result.deletedCount === 0) {
     return { success: false, error: 'No credential is saved for that registry.' };
