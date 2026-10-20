@@ -3,7 +3,7 @@ import { DeploymentStatus } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { stopAndRemoveContainer } from './container.js';
 import { removeDockerImage } from './build.js';
-import { deleteRegistryManifest } from './registry.js';
+import { deleteRegistryManifest, isPlatformRegistryRelease } from './registry.js';
 
 // Statuses whose records may still need their image (running, about to run,
 // or eligible as a rollback source).
@@ -18,6 +18,24 @@ const LIVE_STATUSES = [
 const defaultDeps = { stopAndRemoveContainer, removeDockerImage, deleteRegistryManifest };
 
 /**
+ * Remove the worker's local copy of a retired prebuilt owner image. The image
+ * stays in the owner's registry and can be pulled again for a rollback, so its
+ * record keeps the reference. Returns whether a copy was removed.
+ */
+export async function removeOwnerImageCopy(dep, excludeIds, deps) {
+  if (
+    !dep.imageDigest ||
+    !dep.imageRef?.includes('@sha256:') ||
+    isPlatformRegistryRelease(dep) ||
+    (await isImageDigestInUse(dep.imageDigest, excludeIds))
+  ) {
+    return false;
+  }
+  await deps.removeDockerImage(dep.imageRef);
+  return true;
+}
+
+/**
  * Retire a release's registry image once no live release uses its digest:
  * delete the platform manifest, remove the local copy pulled by digest, and
  * clear the record's image identity when the image is gone everywhere, so it
@@ -27,12 +45,16 @@ export async function retireRegistryImage(dep, deps) {
   const isManifestDeleted = await deps.deleteRegistryManifest(dep.imageRef);
   await deps.removeDockerImage(dep.imageRef);
   if (isManifestDeleted) {
-    await Deployment.updateOne(
-      { _id: dep._id },
-      { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1, imageChildDigests: 1 } },
-    );
+    await clearImageIdentity(dep._id);
   }
   return isManifestDeleted;
+}
+
+function clearImageIdentity(deploymentId) {
+  return Deployment.updateOne(
+    { _id: deploymentId },
+    { $unset: { imageTag: 1, imageRef: 1, imageDigest: 1, imageChildDigests: 1 } },
+  );
 }
 
 /**
@@ -113,6 +135,7 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
   const toCleanIds = toClean.map((dep) => dep._id);
   const removedTags = new Set();
   const removedDigests = new Set();
+  const deletedDigests = new Set();
 
   logger.info('Retention: cleaning up old releases', {
     projectId,
@@ -156,11 +179,10 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
       }
     }
 
-    if (
-      dep.imageDigest &&
-      dep.imageRef?.includes('@sha256:') &&
-      !removedDigests.has(dep.imageDigest)
-    ) {
+    if (isPlatformRegistryRelease(dep) && deletedDigests.has(dep.imageDigest)) {
+      // An earlier record in this pass shared the digest and deleted it.
+      await clearImageIdentity(dep._id);
+    } else if (isPlatformRegistryRelease(dep) && !removedDigests.has(dep.imageDigest)) {
       if (await isImageDigestInUse(dep.imageDigest, toCleanIds)) {
         logger.info('Retention: kept registry manifest still referenced by a live deployment', {
           deploymentId: dep._id,
@@ -168,7 +190,9 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
         });
       } else {
         try {
-          await retireRegistryImage(dep, deps);
+          if (await retireRegistryImage(dep, deps)) {
+            deletedDigests.add(dep.imageDigest);
+          }
           removedDigests.add(dep.imageDigest);
         } catch (err) {
           logger.warn('Retention: failed to delete registry manifest', {
@@ -178,6 +202,13 @@ export async function cleanupOldReleases(projectId, deps = defaultDeps) {
           });
         }
       }
+    }
+
+    if (
+      !removedDigests.has(dep.imageDigest) &&
+      (await removeOwnerImageCopy(dep, toCleanIds, deps))
+    ) {
+      removedDigests.add(dep.imageDigest);
     }
 
     // Clear container references now that they are removed

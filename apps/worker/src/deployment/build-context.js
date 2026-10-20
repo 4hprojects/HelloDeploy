@@ -1,4 +1,4 @@
-import { readdir, readFile, stat, unlink, realpath, writeFile } from 'node:fs/promises';
+import { lstat, readdir, readFile, stat, unlink, realpath, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
 import { normalizeApplicationRoot } from '@hellodeploy/contracts';
@@ -187,10 +187,66 @@ export async function prepareBuildContext(contextDir, { countSize = true } = {})
 }
 
 /** Write the platform-owned Docker context exclusions after sanitization. */
-export async function writePlatformDockerignore(contextDir) {
+export async function writePlatformDockerignore(contextDir, ownerPatterns = []) {
   const path = join(resolve(contextDir), '.dockerignore');
-  await writeFile(path, PLATFORM_DOCKERIGNORE, { encoding: 'utf8', mode: 0o600 });
+  const content =
+    ownerPatterns.length > 0
+      ? `# Owner rules\n${ownerPatterns.join('\n')}\n${PLATFORM_DOCKERIGNORE}`
+      : PLATFORM_DOCKERIGNORE;
+  await writeFile(path, content, { encoding: 'utf8', mode: 0o600 });
   return path;
+}
+
+/**
+ * The rules from an owner's own .dockerignore. Negations are kept for
+ * allowlist-style files; the platform rules are written after them, and later
+ * lines win, so `!.env` can never re-include a secret file.
+ */
+export function ownerIgnorePatterns(content) {
+  return String(content ?? '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line && !line.startsWith('#'));
+}
+
+/**
+ * Read a regular file at a repository-relative path inside `rootDir`. Owner
+ * build files are read before the context is sanitized, so containment is
+ * checked here: no symlink as the file itself, and no path through a link that
+ * leaves the root.
+ */
+export async function readContainedFile(
+  rootDir,
+  relativePath,
+  maxBytes,
+  { optional = false } = {},
+) {
+  const root = await realpath(resolve(rootDir));
+  const candidate = resolve(root, relativePath);
+  let details;
+  try {
+    details = await lstat(candidate);
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      if (optional) {
+        return null;
+      }
+      throw new Error(`${relativePath} was not found in the application root.`);
+    }
+    throw error;
+  }
+  if (!details.isFile()) {
+    throw new Error(`${relativePath} must be a regular file, not a link or folder.`);
+  }
+  const real = await realpath(candidate);
+  const rel = relative(root, real);
+  if (rel === '..' || rel.startsWith(`..${sep}`)) {
+    throw new Error(`${relativePath} resolves outside the application root.`);
+  }
+  if (details.size > maxBytes) {
+    throw new Error(`${relativePath} is larger than ${Math.round(maxBytes / 1024)} KB.`);
+  }
+  return readFile(real, 'utf8');
 }
 
 /**

@@ -220,4 +220,26 @@ describe('simplified project settings', () => {
       [true, true, true],
     );
   });
+
+  it('keeps the Dockerfile path and image reference when saving only the health check', async () => {
+    const html = await renderSettings({
+      project: {
+        buildStrategy: 'oci_image_v1',
+        buildConfiguration: {
+          imageReference: 'ghcr.io/owner/app:1.0',
+          dockerfilePath: 'Dockerfile',
+          healthCheckPath: '/',
+        },
+      },
+    });
+    const start = html.indexOf('#health-maintenance">');
+    const form = html.slice(start, html.indexOf('</form>', start));
+    assert.deepEqual(
+      [
+        /name="imageReference" value="ghcr.io\/owner\/app:1.0"/.test(form),
+        /name="dockerfilePath" value="Dockerfile"/.test(form),
+      ],
+      [true, true],
+    );
+  });
 });

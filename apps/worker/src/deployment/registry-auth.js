@@ -1,0 +1,55 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { IMAGE_REGISTRIES } from '@hellodeploy/contracts';
+import { RegistryCredential, registryCredentialAadName } from '@hellodeploy/database';
+import { buildSecretAad, decrypt } from '@hellodeploy/security';
+
+/**
+ * Decrypt a project's saved pull credential for one registry, or null when the
+ * project has none (public images).
+ */
+export async function loadRegistryCredential(projectId, registry, deps = {}) {
+  const findCredential =
+    deps.findCredential ?? ((query) => RegistryCredential.findOne(query).lean());
+  const record = await findCredential({ projectId, registry });
+  if (!record) {
+    return null;
+  }
+  const token = decrypt({
+    ciphertext: record.ciphertext,
+    iv: record.iv,
+    authTag: record.authTag,
+    version: record.encryptionVersion,
+    aad: buildSecretAad({
+      projectId: String(projectId),
+      name: registryCredentialAadName(registry),
+    }),
+  });
+  return { username: record.username, token };
+}
+
+/**
+ * Run `fn` with a private Docker config directory holding only this
+ * credential (or none), so docker and the scanner never use the worker's own
+ * registry login for an owner image. The directory is removed afterwards.
+ */
+export async function withDockerConfig(registry, credential, fn) {
+  const directory = await mkdtemp(join(tmpdir(), 'hellodeploy-registry-'));
+  try {
+    // Without a credential the config is empty, so the pull is anonymous and
+    // never falls back to the worker's own registry login.
+    const auths = credential
+      ? {
+          [IMAGE_REGISTRIES[registry].dockerAuthKey]: {
+            auth: Buffer.from(`${credential.username}:${credential.token}`).toString('base64'),
+          },
+        }
+      : {};
+    await writeFile(join(directory, 'config.json'), JSON.stringify({ auths }), { mode: 0o600 });
+    return await fn(directory);
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
+}

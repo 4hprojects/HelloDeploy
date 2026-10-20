@@ -12,6 +12,8 @@ export const BuildStrategy = Object.freeze({
   PHP_LARAVEL_V1: 'php_laravel_v1',
   JAVA_MAVEN_V1: 'java_maven_v1',
   JAVA_GRADLE_V1: 'java_gradle_v1',
+  DOCKERFILE_V1: 'dockerfile_v1',
+  OCI_IMAGE_V1: 'oci_image_v1',
 });
 
 export const NEXT_BUILD_STRATEGIES = Object.freeze([
@@ -52,6 +54,16 @@ export function isJavaBuildStrategy(value) {
   return JAVA_BUILD_STRATEGIES.includes(value);
 }
 
+// Owner-supplied images: a Dockerfile in the repository or a prebuilt image.
+export const CONTAINER_BUILD_STRATEGIES = Object.freeze([
+  BuildStrategy.DOCKERFILE_V1,
+  BuildStrategy.OCI_IMAGE_V1,
+]);
+
+export function isContainerBuildStrategy(value) {
+  return CONTAINER_BUILD_STRATEGIES.includes(value);
+}
+
 /** The runtime a versioned strategy requires; the legacy strategy is not bound to one. */
 export function getBuildStrategyRuntime(strategy) {
   if (isNextBuildStrategy(strategy)) {
@@ -65,6 +77,9 @@ export function getBuildStrategyRuntime(strategy) {
   }
   if (isJavaBuildStrategy(strategy)) {
     return RuntimeType.JAVA;
+  }
+  if (isContainerBuildStrategy(strategy)) {
+    return RuntimeType.CONTAINER;
   }
   return null;
 }
@@ -112,7 +127,8 @@ export function normalizeApplicationRoot(value) {
  *
  * @param {string|null|undefined} strategy
  * @param {unknown} projectId
- * @param {{ next: Pilot, python: Pilot, php: Pilot, java: Pilot }} pilots
+ * @param {{ next?: Pilot, python?: Pilot, php?: Pilot, java?: Pilot, dockerfile?: Pilot,
+ *   oci?: Pilot }} pilots
  * @typedef {{ enabled: boolean, projectIds: Set<string> }} Pilot
  */
 export function isPilotStrategyEnabledFor(strategy, projectId, pilots) {
@@ -127,6 +143,10 @@ export function isPilotStrategyEnabledFor(strategy, projectId, pilots) {
         ? pilots.php
         : isJavaBuildStrategy(strategy)
           ? pilots.java
-          : null;
+          : strategy === BuildStrategy.DOCKERFILE_V1
+            ? pilots.dockerfile
+            : strategy === BuildStrategy.OCI_IMAGE_V1
+              ? pilots.oci
+              : null;
   return Boolean(pilot?.enabled && pilot.projectIds.has(String(projectId ?? '').toLowerCase()));
 }

@@ -14,8 +14,13 @@ import {
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
-const { prepareBuildContext, writePlatformDockerignore, listRootEnvFiles } =
-  await import('../../apps/worker/src/deployment/build-context.js');
+const {
+  prepareBuildContext,
+  writePlatformDockerignore,
+  listRootEnvFiles,
+  readContainedFile,
+  ownerIgnorePatterns,
+} = await import('../../apps/worker/src/deployment/build-context.js');
 
 async function makeContext() {
   return mkdtemp(join(tmpdir(), 'hellodeploy-bc-'));
@@ -313,6 +318,73 @@ describe('listRootEnvFiles', () => {
     await mkdir(join(dir, 'app'));
     await writeFile(join(dir, 'app', '.env'), 'NESTED=1\n');
     assert.deepEqual(await listRootEnvFiles(dir), ['.env', '.env.production']);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('readContainedFile', () => {
+  it('reads a regular file inside the root', async () => {
+    const dir = await makeContext();
+    await mkdir(join(dir, 'docker'));
+    await writeFile(join(dir, 'docker', 'web.Dockerfile'), 'FROM node:22\n');
+    assert.equal(await readContainedFile(dir, 'docker/web.Dockerfile', 1024), 'FROM node:22\n');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('refuses a symlink, even one that stays inside the root', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, 'real.Dockerfile'), 'FROM node:22\n');
+    await symlink(join(dir, 'real.Dockerfile'), join(dir, 'Dockerfile'));
+    await assert.rejects(readContainedFile(dir, 'Dockerfile', 1024), /regular file/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('refuses a path through a symlinked directory that leaves the root', async () => {
+    const dir = await makeContext();
+    const outside = await makeContext();
+    await writeFile(join(outside, 'Dockerfile'), 'FROM node:22\n');
+    await symlink(outside, join(dir, 'escape'));
+    await assert.rejects(readContainedFile(dir, 'escape/Dockerfile', 1024), /outside/);
+    await rm(dir, { recursive: true, force: true });
+    await rm(outside, { recursive: true, force: true });
+  });
+
+  it('refuses a file over the size limit', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, 'Dockerfile'), 'x'.repeat(2048));
+    await assert.rejects(readContainedFile(dir, 'Dockerfile', 1024), /larger than/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('returns null for a missing optional file', async () => {
+    const dir = await makeContext();
+    assert.equal(await readContainedFile(dir, '.dockerignore', 1024, { optional: true }), null);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('reports a missing file plainly', async () => {
+    const dir = await makeContext();
+    await assert.rejects(readContainedFile(dir, 'Dockerfile', 1024), /was not found/);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('owner ignore rules', () => {
+  it('keeps owner rules, including allowlist negations', () => {
+    assert.deepEqual(ownerIgnorePatterns('# notes\n*\n!src\n\n  !package*.json  \n'), [
+      '*',
+      '!src',
+      '!package*.json',
+    ]);
+  });
+
+  // Later .dockerignore lines win, so platform exclusions come last and an
+  // owner's `!.env` can never re-include a secret file.
+  it('writes owner rules before the platform rules', async () => {
+    const dir = await makeContext();
+    await writePlatformDockerignore(dir, ['*', '!src', '!.env']);
+    const lines = (await readFile(join(dir, '.dockerignore'), 'utf8')).split('\n');
+    assert.ok(lines.lastIndexOf('!.env') < lines.lastIndexOf('**/.env*'));
     await rm(dir, { recursive: true, force: true });
   });
 });

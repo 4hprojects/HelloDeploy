@@ -1,0 +1,380 @@
+import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
+
+import {
+  BuildStrategy,
+  RuntimeType,
+  findDockerfilePolicyViolations,
+  getBuildStrategyRuntime,
+  isApprovedImageRegistry,
+  isBlockedRepository,
+  isContainerBuildStrategy,
+  isNonRootImageUser,
+  isPilotStrategyEnabledFor,
+  parseImageReference,
+  validateDockerfilePath,
+} from '@hellodeploy/contracts';
+
+const DIGEST = `sha256:${'b'.repeat(64)}`;
+const messages = (content) => findDockerfilePolicyViolations(content).map((v) => v.message);
+
+describe('container build strategies', () => {
+  it('recognizes the Dockerfile and OCI image strategies', () => {
+    assert.deepEqual(
+      [BuildStrategy.DOCKERFILE_V1, BuildStrategy.OCI_IMAGE_V1].map(isContainerBuildStrategy),
+      [true, true],
+    );
+  });
+
+  it('binds both strategies to the CONTAINER runtime', () => {
+    assert.equal(getBuildStrategyRuntime(BuildStrategy.OCI_IMAGE_V1), RuntimeType.CONTAINER);
+  });
+
+  it('enables the Dockerfile and OCI strategies through separate pilots', () => {
+    const pilots = {
+      dockerfile: { enabled: true, projectIds: new Set(['p1']) },
+      oci: { enabled: false, projectIds: new Set(['p1']) },
+    };
+    assert.deepEqual(
+      [
+        isPilotStrategyEnabledFor(BuildStrategy.DOCKERFILE_V1, 'p1', pilots),
+        isPilotStrategyEnabledFor(BuildStrategy.OCI_IMAGE_V1, 'p1', pilots),
+      ],
+      [true, false],
+    );
+  });
+});
+
+describe('parseImageReference', () => {
+  it('expands a Docker Hub official image to its full name', () => {
+    assert.deepEqual(parseImageReference('nginx:1.27'), {
+      registry: 'docker.io',
+      repository: 'library/nginx',
+      tag: '1.27',
+      digest: null,
+      name: 'docker.io/library/nginx',
+      error: null,
+    });
+  });
+
+  it('keeps a GHCR digest reference pinned', () => {
+    const parsed = parseImageReference(`ghcr.io/owner/app@${DIGEST}`);
+    assert.deepEqual([parsed.registry, parsed.digest, parsed.tag], ['ghcr.io', DIGEST, null]);
+  });
+
+  it('treats a missing tag and digest as latest', () => {
+    assert.equal(parseImageReference('owner/app').tag, 'latest');
+  });
+
+  it('rejects a registry outside the approved list', () => {
+    assert.match(parseImageReference('quay.io/owner/app:1').error, /docker\.io, ghcr\.io/);
+  });
+
+  it('rejects uppercase repository names', () => {
+    assert.match(parseImageReference('Owner/App:1').error, /image reference/);
+  });
+
+  it('treats localhost as a registry, not a Docker Hub namespace', () => {
+    assert.match(parseImageReference('localhost/evil:1').error, /localhost is not approved/);
+  });
+
+  it('rejects shell syntax', () => {
+    assert.match(parseImageReference('nginx;id').error, /image reference/);
+  });
+
+  it('rejects a digest that is not sha256', () => {
+    assert.match(parseImageReference(`nginx@md5:${'a'.repeat(32)}`).error, /image reference/);
+  });
+});
+
+describe('validateDockerfilePath', () => {
+  it('accepts a nested Dockerfile path', () => {
+    assert.equal(validateDockerfilePath('docker/web.Dockerfile'), null);
+  });
+
+  it('rejects traversal', () => {
+    assert.match(validateDockerfilePath('../Dockerfile'), /traversal/);
+  });
+
+  it('rejects the application root itself', () => {
+    assert.match(validateDockerfilePath('.'), /file/);
+  });
+});
+
+describe('findDockerfilePolicyViolations', () => {
+  const ok = 'FROM node:22-slim\nUSER 10001\nCMD ["node", "server.js"]\n';
+
+  it('accepts a plain Dockerfile with a non-root user', () => {
+    assert.deepEqual(findDockerfilePolicyViolations(ok), []);
+  });
+
+  it('rejects a custom BuildKit frontend', () => {
+    assert.match(messages(`# syntax=evil.example/frontend\n${ok}`)[0], /frontend/);
+  });
+
+  it('accepts the official Dockerfile frontend', () => {
+    assert.deepEqual(findDockerfilePolicyViolations(`# syntax=docker/dockerfile:1.7\n${ok}`), []);
+  });
+
+  it('rejects an insecure RUN', () => {
+    assert.match(
+      messages(`FROM node:22-slim\nRUN --security=insecure id\nUSER 10001\n`)[0],
+      /insecure/,
+    );
+  });
+
+  it('rejects host networking, including across a line continuation', () => {
+    assert.match(
+      messages('FROM node:22-slim\nRUN \\\n  --network=host curl x\nUSER 10001\n')[0],
+      /host network/,
+    );
+  });
+
+  it('rejects SSH and secret mounts', () => {
+    assert.equal(
+      messages(
+        'FROM node:22-slim\nRUN --mount=type=ssh id\nRUN --mount=type=secret,id=a id\nUSER 10001\n',
+      ).length,
+      2,
+    );
+  });
+
+  it('rejects VOLUME, which creates unmanaged storage on the host', () => {
+    assert.match(messages('FROM node:22-slim\nVOLUME /data\nUSER 10001\n')[0], /VOLUME/);
+  });
+
+  it('rejects a base image from an unapproved registry', () => {
+    assert.match(messages('FROM quay.io/owner/base:1\nUSER app\n')[0], /docker\.io, ghcr\.io/);
+  });
+
+  it('accepts a later stage built from an earlier one', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22-slim AS build\nRUN npm ci\nFROM build\nUSER 10001\n',
+      ),
+      [],
+    );
+  });
+
+  it('checks a base image named through a global ARG default', () => {
+    assert.match(
+      // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
+      messages('ARG BASE=quay.io/owner/base:1\nFROM ${BASE}\nUSER app\n')[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('accepts an approved base image named through a global ARG default', () => {
+    assert.deepEqual(
+      // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
+      findDockerfilePolicyViolations('ARG NODE=22\nFROM node:${NODE}-slim\nUSER 10001\n'),
+      [],
+    );
+  });
+
+  it('rejects a base image whose ARG has no default', () => {
+    assert.match(messages('ARG BASE\nFROM $BASE\nUSER app\n')[0], /ARG default/);
+  });
+
+  // The pulled image's own Config.User decides an inherited user at activation.
+  it('leaves a user inherited from an external base image to the image check', () => {
+    assert.deepEqual(findDockerfilePolicyViolations('FROM nginxinc/nginx-unprivileged:1\n'), []);
+  });
+
+  it('inherits the user of an earlier stage', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations('FROM node:22 AS base\nUSER 10001\nFROM base\nCMD ["node"]\n'),
+      [],
+    );
+  });
+
+  it('rejects an earlier stage that switched to root', () => {
+    assert.match(
+      messages('FROM node:22 AS base\nUSER root\nFROM base\n')[0],
+      /numeric non-root USER/,
+    );
+  });
+
+  // Names resolve through the image's own /etc/passwd, which may map them to 0.
+  it('rejects a named user', () => {
+    assert.match(messages('FROM node:22-slim\nUSER node\n')[0], /numeric non-root USER/);
+  });
+
+  it('rejects a custom escape character the checker cannot follow', () => {
+    assert.match(messages('# escape=`\nFROM node:22\nUSER 10001\n')[0], /escape/);
+  });
+
+  it('rejects a base image chosen by a build argument the project can set', () => {
+    // eslint-disable-next-line no-template-curly-in-string -- Dockerfile syntax, not JavaScript.
+    const dockerfile = 'ARG VITE_BASE=node:22\nFROM ${VITE_BASE}\nUSER 10001\n';
+    assert.match(messages(dockerfile)[0], /build argument/);
+  });
+
+  it('rejects USER root in the final stage', () => {
+    assert.match(messages('FROM node:22-slim\nUSER root\n')[0], /numeric non-root USER/);
+  });
+
+  // Cache mounts live on the one shared builder, so one tenant could poison or
+  // read another's cache.
+  it('rejects cache mounts, which every tenant on the builder shares', () => {
+    assert.match(
+      messages(
+        'FROM node:22-slim\nRUN --mount=type=cache,target=/root/.npm npm ci\nUSER 10001\n',
+      )[0],
+      /Cache mounts/,
+    );
+  });
+
+  it("rejects a base image from the platform's own image repository", () => {
+    assert.match(
+      findDockerfilePolicyViolations(
+        `FROM ghcr.io/example/hellodeploy-apps@sha256:${'a'.repeat(64)}\nUSER 10001\n`,
+        { blockedRepositories: ['ghcr.io/example/hellodeploy-apps'] },
+      )[0].message,
+      /platform's own/,
+    );
+  });
+
+  it("rejects COPY --from the platform's own image repository", () => {
+    assert.match(
+      findDockerfilePolicyViolations(
+        'FROM node:22\nCOPY --from=ghcr.io/example/hellodeploy-apps:release-1 / /\nUSER 10001\n',
+        { blockedRepositories: ['ghcr.io/example/hellodeploy-apps'] },
+      )[0].message,
+      /platform's own/,
+    );
+  });
+
+  // CodeQL js/polynomial-redos: hostile Dockerfiles must not backtrack.
+  it('checks a long mount option in linear time', () => {
+    const started = performance.now();
+    findDockerfilePolicyViolations(
+      `FROM node:22\nRUN --mount=${'t'.repeat(200_000)}\nUSER 10001\n`,
+    );
+    assert.ok(performance.now() - started < 100);
+  });
+
+  it('checks a long parser directive in linear time', () => {
+    const started = performance.now();
+    findDockerfilePolicyViolations(`# syntax=${' '.repeat(200_000)}\nFROM node:22\nUSER 10001\n`);
+    assert.ok(performance.now() - started < 100);
+  });
+
+  it('rejects COPY --from an image in an unapproved registry', () => {
+    assert.match(
+      messages('FROM node:22\nCOPY --from=quay.io/attacker/payload:1 / /\nUSER 10001\n')[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('rejects a RUN mount from an image in an unapproved registry', () => {
+    assert.match(
+      messages(
+        'FROM node:22\nRUN --mount=type=bind,from=quay.io/attacker/tools:1,target=/t ls\nUSER 10001\n',
+      )[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('accepts COPY --from an earlier stage or a stage index', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22 AS build\nRUN npm ci\nFROM node:22-slim\nCOPY --from=build /app /app\nCOPY --from=0 /x /x\nUSER 10001\n',
+      ),
+      [],
+    );
+  });
+
+  it('accepts COPY --from an approved image', () => {
+    assert.deepEqual(
+      findDockerfilePolicyViolations(
+        'FROM node:22-slim\nCOPY --from=ghcr.io/owner/assets:1 /a /a\nUSER 10001\n',
+      ),
+      [],
+    );
+  });
+
+  // BuildKit removes quotes and escapes from flags before acting on them.
+  it('sees through a quoted COPY --from flag name', () => {
+    assert.match(
+      messages('FROM node:22\nCOPY --fr"om"=quay.io/attacker/payload:1 / /\nUSER 10001\n')[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('sees through a quoted mount option', () => {
+    assert.match(
+      messages(
+        'FROM node:22\nRUN --mount=type=bind,"from"=quay.io/attacker/t:1,target=/m ls\nUSER 10001\n',
+      )[0],
+      /docker\.io, ghcr\.io/,
+    );
+  });
+
+  it('sees through a quoted cache mount type', () => {
+    assert.match(
+      messages('FROM node:22\nRUN --mount=type="cache",target=/root/.npm npm ci\nUSER 10001\n')[0],
+      /Cache mounts/,
+    );
+  });
+
+  it('reports the line of each violation', () => {
+    assert.equal(
+      findDockerfilePolicyViolations('FROM node:22\nVOLUME /x\nUSER 10001\n')[0].line,
+      2,
+    );
+  });
+});
+
+describe('isNonRootImageUser', () => {
+  it('rejects numeric spellings of uid 0', () => {
+    assert.deepEqual(['00', '000:1000', '+0'].map(isNonRootImageUser), [false, false, false]);
+  });
+
+  it('rejects an empty user, root, and uid 0', () => {
+    assert.deepEqual(['', 'root', '0', '0:0', 'root:app'].map(isNonRootImageUser), [
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('accepts a numeric non-root user', () => {
+    assert.deepEqual(['10001', '10001:10001', '101'].map(isNonRootImageUser), [true, true, true]);
+  });
+
+  it('rejects a named user, whose uid the image itself decides', () => {
+    assert.deepEqual(['node', 'app:app'].map(isNonRootImageUser), [false, false]);
+  });
+});
+
+describe('isBlockedRepository', () => {
+  it('matches the repository and paths below it', () => {
+    assert.deepEqual(
+      ['ghcr.io/p/apps', 'ghcr.io/p/apps/x', 'ghcr.io/p/apps-other'].map((name) =>
+        isBlockedRepository(name, ['ghcr.io/p/apps']),
+      ),
+      [true, true, false],
+    );
+  });
+});
+
+describe('isApprovedImageRegistry', () => {
+  it('accepts an approved registry', () => {
+    assert.equal(isApprovedImageRegistry('ghcr.io'), true);
+  });
+
+  it('refuses a host that only contains an approved registry name', () => {
+    assert.equal(isApprovedImageRegistry('docker.io.evil.example'), false);
+  });
+
+  it('refuses an inherited object key', () => {
+    assert.equal(isApprovedImageRegistry('constructor'), false);
+  });
+
+  it('refuses a value that is not a string', () => {
+    assert.equal(isApprovedImageRegistry({ $ne: 'quay.io' }), false);
+  });
+});

@@ -6,6 +6,8 @@ import { DeploymentStatus, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 
+// Retention deletes registry manifests only in the platform's own repository.
+process.env.USER_IMAGE_REGISTRY = 'ghcr.io/example/apps';
 const { cleanupOldReleases } = await import('../../apps/worker/src/deployment/retention.js');
 
 function makeDockerStub() {
@@ -231,5 +233,58 @@ describe('retention — cleanupOldReleases', () => {
     const stub = makeDockerStub();
     await cleanupOldReleases(project._id, stub.deps);
     assert.equal(stub.removedImages.length, 0);
+  });
+
+  // Prebuilt owner images can be pulled again for a rollback, so only the
+  // worker's local copy is removed.
+  it('removes the local copy of a retired prebuilt image and keeps its reference', async () => {
+    const project = await createProject();
+    const created = [];
+    for (let seq = 1; seq <= 4; seq++) {
+      created.push(
+        await createDeployment(project._id, {
+          sequenceNumber: seq,
+          status: DeploymentStatus.HEALTHY,
+          imageTag: `img-${seq}`,
+          imageRef: `docker.io/library/nginx@sha256:${String(seq).repeat(64)}`,
+          imageDigest: `sha256:${String(seq).repeat(64)}`,
+        }),
+      );
+    }
+    const stub = makeDockerStub();
+    await cleanupOldReleases(project._id, stub.deps);
+    const retired = await Deployment.findById(created[0]._id).lean();
+    assert.deepEqual(
+      [stub.removedImages.includes(created[0].imageRef), retired.imageRef, stub.removedManifests],
+      [true, created[0].imageRef, []],
+    );
+  });
+
+  // A release and its rollback share one digest; both stop advertising it once
+  // the manifest is deleted.
+  it('clears the identity of every retired record that shared a deleted digest', async () => {
+    const project = await createProject();
+    const shared = `sha256:${'7'.repeat(64)}`;
+    const created = [];
+    for (let seq = 1; seq <= 5; seq++) {
+      const digest = seq <= 2 ? shared : `sha256:${String(seq).repeat(64)}`;
+      created.push(
+        await createDeployment(project._id, {
+          sequenceNumber: seq,
+          status: DeploymentStatus.HEALTHY,
+          imageTag: `img-${seq}`,
+          imageRef: `ghcr.io/example/apps:release-${seq}@${digest}`,
+          imageDigest: digest,
+        }),
+      );
+    }
+    await cleanupOldReleases(project._id, makeDockerStub().deps);
+    const retired = await Deployment.find({
+      _id: { $in: [created[0]._id, created[1]._id] },
+    }).lean();
+    assert.deepEqual(
+      retired.map((dep) => dep.imageRef ?? null),
+      [null, null],
+    );
   });
 });

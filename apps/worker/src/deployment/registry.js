@@ -57,6 +57,22 @@ export async function verifyRegistryAccess(repository, deps = {}) {
   return { ready: true };
 }
 
+/** True when a reference names the platform's own image repository. */
+export function isPlatformImageRef(imageRef, platformRepository = env.USER_IMAGE_REGISTRY) {
+  if (!platformRepository || typeof imageRef !== 'string') {
+    return false;
+  }
+  const repository = imageRef.split('@')[0].replace(/:[a-z0-9_.-]+$/, '');
+  return repository === platformRepository;
+}
+
+/** True when a release's image is a digest-pinned image in the platform repository. */
+export function isPlatformRegistryRelease(dep) {
+  return Boolean(
+    dep?.imageDigest && dep.imageRef?.includes('@sha256:') && isPlatformImageRef(dep.imageRef),
+  );
+}
+
 /**
  * Delete one immutable GHCR image, by digest, with everything it pushed: the
  * index, its child manifests (platform image, provenance and SBOM
@@ -64,17 +80,23 @@ export async function verifyRegistryAccess(repository, deps = {}) {
  * when the registry has no Referrers API. Children another retained release
  * lists stay, with their fallback tags. The default `oci` mode deletes through
  * ORAS; `github-packages` mode deletes package versions through the GitHub
- * REST API, for a registry that refuses the OCI manifest DELETE.
+ * REST API, for a registry that refuses the OCI manifest DELETE. Only images
+ * in the platform's own repository qualify: owner-supplied images can also
+ * live on GHCR, and the platform credential must never delete them.
  *
  * @returns {Promise<boolean>} true when the image is gone, false when
  *   deletion is turned off.
  */
 export async function deleteRegistryManifest(imageRef, deps = {}) {
   const run = deps.run ?? runOras;
+  const platformRepository = deps.platformRepository ?? env.USER_IMAGE_REGISTRY;
   const isDeletionEnabled = deps.isDeletionEnabled ?? env.REGISTRY_MANIFEST_DELETE_ENABLED;
   const deleteApi = deps.deleteApi ?? env.REGISTRY_DELETE_API;
   if (!PINNED_GHCR_REFERENCE.test(imageRef ?? '')) {
     throw new Error('Registry cleanup requires a digest-pinned GHCR image reference.');
+  }
+  if (!isPlatformImageRef(imageRef, platformRepository)) {
+    throw new Error('Registry cleanup only deletes manifests in the platform registry.');
   }
   // Operators who keep registry history leave deletion off; nothing to do then.
   if (!isDeletionEnabled) {

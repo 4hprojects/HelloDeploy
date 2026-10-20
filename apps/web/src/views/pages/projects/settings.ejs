@@ -434,6 +434,57 @@
       </div>
     </section>
 
+    <% if (typeof registryCredentials !== 'undefined' && registryCredentials !== null && !settingsState.readOnly && membership?.role === 'OWNER') { %>
+    <section class="settings-section" id="registry-credentials" tabindex="-1"
+      aria-labelledby="registry-credentials-title" data-settings-section>
+      <header class="settings-section__header">
+        <div>
+          <h2 id="registry-credentials-title">Registry credentials</h2>
+          <p>Read-only access for pulling a private prebuilt image. Tokens are encrypted and never shown again.</p>
+        </div>
+      </header>
+      <div class="settings-section__body settings-group-list">
+        <% if (registryCredentials.length) { %>
+        <ul class="settings-summary-list">
+          <% registryCredentials.forEach(credential => { %>
+          <li>
+            <span><%= credential.registry %> as <%= credential.username %></span>
+            <form method="POST" action="/projects/<%= project.slug %>/registry-credentials/<%= encodeURIComponent(credential.registry) %>/delete">
+              <%- include('../../partials/csrf-field') %>
+              <button type="submit" class="button button--secondary button--sm">Remove</button>
+            </form>
+          </li>
+          <% }) %>
+        </ul>
+        <% } else { %>
+        <span class="text-muted text-sm">No registry credentials. Public images need none.</span>
+        <% } %>
+        <form method="POST" action="/projects/<%= project.slug %>/registry-credentials" class="guided-build-grid" autocomplete="off">
+          <%- include('../../partials/csrf-field') %>
+          <div class="form-group">
+            <label class="form-label" for="registry-credential-registry">Registry</label>
+            <select class="form-select" id="registry-credential-registry" name="registry">
+              <option value="ghcr.io">GitHub Container Registry (ghcr.io)</option>
+              <option value="docker.io">Docker Hub (docker.io)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registry-credential-username">Username</label>
+            <input class="form-input" id="registry-credential-username" name="username" maxlength="255" required spellcheck="false" />
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="registry-credential-token">Access token</label>
+            <input class="form-input" type="password" id="registry-credential-token" name="token" maxlength="4096" required autocomplete="new-password" aria-describedby="registry-credential-token-hint" />
+            <p class="form-hint" id="registry-credential-token-hint">Use a token that can only read packages. Saving replaces any token for the same registry.</p>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="button button--primary">Save credential</button>
+          </div>
+        </form>
+      </div>
+    </section>
+    <% } %>
+
     <section class="settings-section" id="notifications" tabindex="-1"
       aria-labelledby="notifications-title" data-settings-section>
       <header class="settings-section__header">
@@ -539,6 +590,8 @@
                 <input type="hidden" name="applicationRoot" value="<%= bc.applicationRoot || '.' %>">
                 <input type="hidden" name="applicationModule" value="<%= bc.applicationModule ?? '' %>">
                 <input type="hidden" name="buildStrategy" value="<%= project.buildStrategy || 'legacy_generated' %>">
+                <input type="hidden" name="dockerfilePath" value="<%= bc.dockerfilePath ?? '' %>">
+                <input type="hidden" name="imageReference" value="<%= bc.imageReference ?? '' %>">
                 <%- include('../../partials/form-errors', { errors: bcErrors }) %>
                 <div class="settings-field-row">
                   <div>

@@ -1,12 +1,15 @@
 import { spawn } from 'node:child_process';
 import { logger } from '@hellodeploy/observability';
-import { RuntimeType } from '@hellodeploy/contracts';
+import { RuntimeType, isNonRootImageUser } from '@hellodeploy/contracts';
 
 // ─── Docker runner (command arrays only — no shell) ───────────────────────────
 
-function runDocker(args) {
+function runDocker(args, { env } = {}) {
   return new Promise((resolve, reject) => {
-    const proc = spawn('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const proc = spawn('docker', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
+      ...(env ? { env: { ...process.env, ...env } } : {}),
+    });
     const out = [];
     const err = [];
     proc.stdout.on('data', (d) => out.push(d));
@@ -36,6 +39,13 @@ export function normalizeDockerArchitecture(value) {
   return ARCHITECTURE_ALIASES.get(architecture) ?? architecture;
 }
 
+/** The `os/arch` platform of the runtime Docker daemon, such as linux/amd64. */
+export async function getRuntimePlatform(deps = {}) {
+  const docker = deps.runDocker ?? runDocker;
+  const architecture = JSON.parse(await docker(['info', '--format', '{{json .Architecture}}']));
+  return `linux/${normalizeDockerArchitecture(architecture)}`;
+}
+
 export function assertCompatibleImagePlatform(imageDetails, runtimeArchitecture) {
   if (imageDetails?.Os !== 'linux') {
     throw new Error(`Unsupported image operating system: ${imageDetails?.Os ?? 'unknown'}`);
@@ -50,12 +60,35 @@ export function assertCompatibleImagePlatform(imageDetails, runtimeArchitecture)
   return imageArchitecture;
 }
 
-export async function pullAndVerifyImage(imageRef, deps = {}) {
+/** An owner-supplied image failed a platform safety check. */
+export class ImagePolicyError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'ImagePolicyError';
+    this.code = 'IMAGE_POLICY_FAILED';
+  }
+}
+
+/**
+ * Pull a digest-pinned image and verify it can run here. Owner-supplied images
+ * also pass `policy`, because their Dockerfile is not platform-generated.
+ *
+ * @param {string} imageRef
+ * @param {{ runDocker?: Function }} deps
+ * @param {{ policy?: { requireNonRootUser?: boolean, rejectVolumes?: boolean,
+ *   maxImageBytes?: number }, dockerConfigDir?: string }} options
+ */
+export async function pullAndVerifyImage(imageRef, deps = {}, options = {}) {
   if (!/^[^\s@]+@sha256:[a-f0-9]{64}$/.test(imageRef ?? '')) {
     throw new Error('Remote image reference must be pinned to a sha256 digest.');
   }
   const docker = deps.runDocker ?? runDocker;
-  await docker(['pull', imageRef]);
+  // A per-pull config keeps one project's registry credentials away from every
+  // other pull the worker makes.
+  const pullOptions = options.dockerConfigDir
+    ? { env: { DOCKER_CONFIG: options.dockerConfigDir } }
+    : undefined;
+  await docker(['pull', imageRef], pullOptions);
   const details = JSON.parse(
     await docker(['image', 'inspect', '--format', '{{json .}}', imageRef]),
   );
@@ -63,7 +96,40 @@ export async function pullAndVerifyImage(imageRef, deps = {}) {
     await docker(['info', '--format', '{{json .Architecture}}']),
   );
   const architecture = assertCompatibleImagePlatform(details, runtimeArchitecture);
+  if (options.policy) {
+    try {
+      assertImagePolicy(details, options.policy);
+    } catch (error) {
+      // A rejected owner image is never used, so it should not stay on disk.
+      await docker(['rmi', imageRef], pullOptions).catch((removeError) => {
+        logger.warn('Container: failed to remove a rejected owner image', {
+          imageRef,
+          error: removeError.message,
+        });
+      });
+      throw error;
+    }
+  }
   return { imageId: details.Id, architecture };
+}
+
+function assertImagePolicy(details, { requireNonRootUser, rejectVolumes, maxImageBytes }) {
+  if (requireNonRootUser && !isNonRootImageUser(details.Config?.User)) {
+    throw new ImagePolicyError(
+      'The image runs as root. Set a non-root USER, such as USER 10001, in its final stage.',
+    );
+  }
+  const volumes = Object.keys(details.Config?.Volumes ?? {});
+  if (rejectVolumes && volumes.length > 0) {
+    throw new ImagePolicyError(
+      `The image declares volumes (${volumes.slice(0, 5).join(', ')}), which would create unmanaged storage on the host.`,
+    );
+  }
+  if (maxImageBytes && Number(details.Size) > maxImageBytes) {
+    throw new ImagePolicyError(
+      `The image is ${Math.round(details.Size / 1024 / 1024)} MB, larger than the ${Math.round(maxImageBytes / 1024 / 1024)} MB limit.`,
+    );
+  }
 }
 
 // ─── Container name / network name helpers ─────────────────────────────────────

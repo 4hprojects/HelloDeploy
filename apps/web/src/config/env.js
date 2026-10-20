@@ -66,6 +66,8 @@ const nextPilot = parsePilotFlag('MULTIRUNTIME_NEXT_V1');
 const pythonPilot = parsePilotFlag('MULTIRUNTIME_PYTHON_V1');
 const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
 const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
+const dockerfilePilot = parsePilotFlag('MULTIRUNTIME_DOCKERFILE_V1');
+const ociPilot = parsePilotFlag('MULTIRUNTIME_OCI_V1');
 
 assertPairedEnvironment(
   'GOOGLE_CLIENT_ID',
@@ -210,6 +212,10 @@ export const env = {
   MULTIRUNTIME_PHP_V1_PROJECT_IDS: phpPilot.projectIds,
   MULTIRUNTIME_JAVA_V1_ENABLED: javaPilot.enabled,
   MULTIRUNTIME_JAVA_V1_PROJECT_IDS: javaPilot.projectIds,
+  MULTIRUNTIME_DOCKERFILE_V1_ENABLED: dockerfilePilot.enabled,
+  MULTIRUNTIME_DOCKERFILE_V1_PROJECT_IDS: dockerfilePilot.projectIds,
+  MULTIRUNTIME_OCI_V1_ENABLED: ociPilot.enabled,
+  MULTIRUNTIME_OCI_V1_PROJECT_IDS: ociPilot.projectIds,
   QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
   QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
@@ -234,5 +240,7 @@ export const env = {
       python: pythonPilot,
       php: phpPilot,
       java: javaPilot,
+      dockerfile: dockerfilePilot,
+      oci: ociPilot,
     }),
 };

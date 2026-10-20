@@ -121,6 +121,97 @@ a test that failed before the fix (including a pre-upgrade project document with
 genuinely absent). Changed-area suites after the fixes: 183 files plus API and contract
 suites, 1,751/1,751; lint and format clean.
 
+## 2026-10-17 P4 owner images (stacked branch)
+
+| Requirement (`06_PHASE_4_DOCKERFILE_REGISTRY.md`)                            | State                       | Evidence                                                           |
+| ---------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------ |
+| Build context and Dockerfile path restricted to the repository subtree       | Repository-complete         | contained reader; traversal, symlinked file, and link-escape tests |
+| Safe `.dockerignore`, no host volumes, entitlements, host network, or socket | Repository-complete         | negation-free owner rules; static policy; remote builder only      |
+| Dedicated isolated builder                                                   | Repository-complete in code | job refuses local builds; host itself is blocked externally        |
+| No build-arg secrets                                                         | Repository-complete         | only public-prefixed values reach any build                        |
+| Digest, user, volumes, size, platform checks; scan                           | Repository-complete         | activation policy tests; Trivy wrapper fails closed                |
+| Runtime profile enforced regardless of the Dockerfile                        | Repository-complete         | unchanged container profile for every strategy                     |
+| Approved registries, encrypted per-project credentials                       | Repository-complete         | docker.io and ghcr.io only; AES-GCM bound to project and registry  |
+| Immutable digests; tags locked at deploy                                     | Repository-complete         | digest resolution; rollback reuses the recorded digest             |
+| Reject redirects and credential leakage                                      | Repository-complete         | token host allowlist; `redirect: 'error'`; leak test               |
+| Cleanup never removes an owner's image                                       | Repository-complete         | platform-repository deletion guard; ownership on failure           |
+| Security review, isolated test host, adversarial live run                    | Blocked (external)          | runbook lists each fail-closed case                                |
+
+Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 186 files plus API and
+contract suites, 1,820/1,820; lint, format, and config checks clean. The digest resolver completed Docker Hub's anonymous token flow during fixture creation and
+resolved `nginxinc/nginx-unprivileged:1.27-alpine` to the pinned `oci-nginx` digest.
+
+## 2026-10-18 P4 branch full suite
+
+CI and CodeQL run only on pull requests to `main`, so stacked PR #120 has no automated
+run. After rebasing onto the close-out commits, the full suite on `feat/multi-runtime-p4`
+passed 2,118/2,118 with `DOTENV_CONFIG_PATH=/dev/null`; lint, format, and config checks
+are clean. The P4 policy regexes for `RUN --mount` and parser directives were rewritten as
+token parsing ahead of CodeQL, with linear-time regression tests.
+
+## 2026-10-18 P4 review fixes
+
+The two P4 review findings (zero-padded uid 0 passing as non-root, and `COPY --from` or
+`RUN --mount from=` bypassing the registry rule) are fixed with failing-first tests. After
+rebasing onto the reviewed base, the full suite on `feat/multi-runtime-p4` passed
+2,134/2,134 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format are clean.
+
+## 2026-10-19 Second review
+
+A deeper review reported fifteen findings. Fourteen were confirmed and fixed with
+failing-first tests: seven on the base branch (rollback image identity, snapshot
+repository, cleanup bookkeeping, legacy payload SHA, settings after a pilot is off, Tomcat
+threads, and conventions) and seven on P4 (numeric non-root uid, inherited users,
+`# escape`, build-argument base images, `localhost` registries, removal of rejected images,
+and the port field). One was declined: the second context walk enforces containment to
+the application root and is not redundant. Full suite on `feat/multi-runtime-p4`:
+2,150/2,150 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
+## 2026-10-19 Third review
+
+Ten findings, all confirmed and fixed with failing-first tests: seven on the base branch
+(health-check form resetting settings, pre-snapshot rollbacks, streaming on maintenance and
+custom-domain routes, local copies and identity after manifest deletion, GitHub errors read
+as missing files, duplicate size accounting, naming) and four on P4 (owner-image fields in
+the health form, the reset guard, local copies of prebuilt images, abandoned-sweep
+bookkeeping). Full suite on `feat/multi-runtime-p4`: 2,162/2,162 with
+`DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
+## 2026-10-19 Fourth review
+
+Ten findings, all confirmed and fixed with failing-first tests (four base, six P4). The two
+most serious were P4 security gaps: an owner image without a saved credential was pulled
+and scanned with the worker's own registry login, and owner references into the platform's
+image repository were neither refused nor told apart from platform builds. Full suite on
+`feat/multi-runtime-p4`: 2,173/2,173 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format
+clean.
+
+## 2026-10-20 Fifth review
+
+The fifth review's main finding was architectural: owner Dockerfile builds ran with the
+worker's registry credentials, so the static policy was the effective boundary and could
+be bypassed with quoted flags or `ONBUILD` triggers. Owner builds now hold no registry
+credential and the builder never pushes. Nine findings were fixed with failing-first
+tests; the shared BuildKit cache remains a documented residual risk for general
+availability.
+
+## 2026-10-20 Sixth review
+
+Ten findings. Eight confirmed and fixed (five on the base branch, three on P4), each
+behavior change with a failing-first test; one duplication finding declined; one
+(GHCR rejecting OCI manifest deletion) cannot be confirmed without live GHCR and is now
+a mandatory runbook probe before any pilot. Full suite on `feat/multi-runtime-p4`:
+2,192/2,192 with `DOTENV_CONFIG_PATH=/dev/null`; lint and format clean.
+
+## 2026-10-20 GHCR deletion fallback
+
+`REGISTRY_DELETE_API=github-packages` is covered by tests against a fake GitHub Packages
+API and an in-memory database: children before the index, a shared child kept, an
+already-deleted index, a refused deletion, and the startup token probe. Real GHCR
+behavior in either mode is unverified until runbook step 7 runs. Full suite on
+`feat/multi-runtime-p4`: 2,200/2,200 with `DOTENV_CONFIG_PATH=/dev/null`; lint and
+format clean.
+
 ## 2026-10-20 Local registry verification
 
 Run on the development machine against a throwaway `registry:2` (deletion enabled,
@@ -171,6 +262,20 @@ host were compared before and after: unchanged.
 `/app/public`; only `optimized-v1` creates it. `main` has the same template, so this is
 existing production behavior, not a regression from this branch. The per-owner
 running-app quota (one by default) refused a second app for the same owner, as designed.
+
+## 2026-10-21 Pre-merge smoke run for #120, flags off
+
+The same isolated setup as the #119 run, on the #120 head (`2181331`), with every
+`MULTIRUNTIME_*` flag unset. Production containers and networks were unchanged.
+
+| Case                                                   | Result                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `static`, `express`                                    | HEALTHY, probe 200                                                       |
+| `rollback-marker`: baseline, candidate, rollback       | HEALTHY each; markers `baseline-v1`, `candidate-v2`, `baseline-v1`       |
+| `health-failure` candidate                             | `HEALTH_CHECK_FAILED` (HTTP 503); baseline kept serving                  |
+| Project document without any new fields                | HEALTHY, probe 200                                                       |
+| `dockerfile_v1` project deployed from the web service  | Refused: "The selected deployment mode is not enabled for this project." |
+| `dockerfile_v1` job queued directly with a v2 snapshot | `BUILD_STRATEGY_DISABLED`, no build started                              |
 
 ## External evidence still required
 

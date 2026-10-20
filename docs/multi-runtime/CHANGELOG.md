@@ -20,6 +20,16 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### #119 merged; first CodeQL run on #120 (2026-10-20)
+
+- #119 merged to `main` and autodeployed to production (`9572051`) with every pilot
+  off; the installer's checks passed, and the dashboard and live apps answered 200.
+- #120 now targets `main`, so CI and CodeQL run on it. CodeQL flagged two owner-image
+  checks it could not recognize as guards: the registry allowlist `includes` (read as a
+  URL substring test) and the credential filter built from form input. Both now use
+  `isApprovedImageRegistry`: a string that is an own key of `IMAGE_REGISTRIES`. Deleting a
+  credential checks it too.
+
 ### Pre-merge smoke run (2026-10-20)
 
 - Ran the branch with every flag off against a throwaway database and the local Docker
@@ -63,21 +73,47 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
 - The runbook requires a live GHCR manifest-deletion probe before any pilot. Whether
   GHCR accepts OCI manifest deletion through the registry API is unverified; the
   probe now chooses between that and the GitHub Packages fallback.
+- P4: a prebuilt-image deployment whose private Docker config cannot be written fails
+  with `IMAGE_SCAN_UNAVAILABLE` instead of throwing and leaving the deployment
+  `BUILDING`, which blocked every later deploy for the project.
+- P4: the isolated build Docker config keeps Docker contexts and `currentContext`, so a
+  builder defined on a context endpoint still resolves.
+- P4: registry API hosts, token hosts, and Docker auth keys live in one contracts table
+  (`IMAGE_REGISTRIES`) that defines `APPROVED_IMAGE_REGISTRIES`, so a registry cannot be
+  approved without them. `isolateRegistryCredentials` is now
+  `shouldIsolateRegistryCredentials`.
+- Declined: reusing `getRuntimePlatform` inside `pullAndVerifyImage`. That lookup predates
+  the branch and costs one `docker info` per activation.
 
 ### Fifth review (2026-10-20)
+
+Ten findings: nine confirmed and fixed with failing-first tests; one (shared build cache
+through `ONBUILD`) mitigated and recorded as a residual risk.
 
 - Remote builds export an OCI layout to the worker, which pushes the exact digest with
   ORAS. The builder never pushes, so a timed-out build can no longer leave an untracked
   image in the registry.
-- A committed `Dockerfile.dockerignore`, which BuildKit prefers over `.dockerignore`, is
-  removed so it cannot replace the platform exclusions.
+- Owner Dockerfile builds run with an isolated Docker config that holds no registry
+  credential, so `ONBUILD` triggers and quoted flags can only pull public images; the
+  policy normalizes quotes and escapes like BuildKit.
+- A committed `Dockerfile.dockerignore` is removed so it cannot replace the platform
+  exclusions.
+- Retention clears every record that shared a deleted digest; a scanner outage has its own
+  failure code; scans use the runtime platform; shared ownership and blocked-repository
+  helpers replace hand-copied checks.
 
 ### Fourth review (2026-10-19)
 
-- Rollbacks honor a turned-off pilot in the web service and the worker.
-- An already-deleted manifest counts as deleted.
-- A detection run that cannot reach the repository keeps earlier findings.
-- Retention and release cleanup share one image retirement helper.
+Ten findings, all confirmed and fixed with failing-first tests.
+
+- Base: rollbacks honor a turned-off pilot; an already-deleted manifest counts as deleted;
+  failed detection keeps earlier findings; retention and cleanup share one image
+  retirement helper.
+- P4: prebuilt-image pulls and scans never use the worker's own registry login; owner
+  images and Dockerfiles may not use the platform's image repository; cache mounts are
+  refused; owner `.dockerignore` rules keep negations and sit before the platform rules;
+  credential-load errors are logged; duplicate CVEs count once; release cleanup also
+  removes local copies of prebuilt images.
 
 ### Third review (2026-10-19)
 
@@ -105,6 +141,21 @@ symlinks that leave the application root for elsewhere in the repository.
   legacy payloads require a commit SHA; settings stay editable after a pilot is turned
   off; Spring Boot caps Tomcat at 40 threads.
 
+### P4 second-review fixes (2026-10-19, stacked PR)
+
+- Owner images must use a numeric non-zero uid; names (resolved through the image's own
+  `/etc/passwd`) and spellings such as `+0` are refused. A final stage may inherit its user
+  from an earlier stage or a base image, and the activation check decides.
+- The Dockerfile policy rejects custom `# escape` characters, images chosen by build
+  arguments the project environment can set, and `localhost` registries.
+- Rejected owner images are removed after the pull; fixed-port projects show the port
+  input when "Deploy from" is offered.
+
+### P4 review fixes (2026-10-18, stacked PR)
+
+- `USER 00` and other all-zero uids now count as root in both owner-image checks.
+- `COPY --from`, `ADD --from`, and `RUN --mount from=` follow the approved-registry rule.
+
 ### Code review fixes (2026-10-18)
 
 A full-branch review found ten defects; all ten were confirmed against the code and fixed
@@ -128,6 +179,23 @@ with regression tests (eight here, two on the P4 branch).
   formatting.
 - Browser and accessibility suite: 31/33; the two failing visual baselines fail identically
   on `main`, so they reflect local rendering, not this branch.
+
+### P5 design (2026-10-17)
+
+- Recorded the restricted Compose and entitlements ADR. Implementation is blocked at the
+  brief's P5 entry gate until P4 is proven live and host headroom is measured.
+
+### P4 owner images (2026-10-17, stacked PR)
+
+- Registry deletion is limited to `USER_IMAGE_REGISTRY`, and cleanup skips images the
+  platform does not own.
+- Added the `CONTAINER` runtime, `dockerfile_v1` and `oci_image_v1` pilots, the static
+  Dockerfile policy, contained owner build-file reads, and negation-free owner ignore
+  rules.
+- Added digest resolution over the registry API, encrypted per-project registry
+  credentials with a Settings screen, Trivy scanning, and the activation-time image policy.
+- Added the `dockerfile-node` and digest-pinned `oci-nginx` fixtures, threat model,
+  runbook, and user guide sections.
 
 ### Rollback fix (2026-10-17)
 

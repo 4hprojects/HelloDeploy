@@ -7,9 +7,10 @@ import {
   getReleaseKeepCount,
   isImageDigestInUse,
   isImageTagInUse,
+  removeOwnerImageCopy,
   retireRegistryImage,
 } from '../deployment/retention.js';
-import { deleteRegistryManifest } from '../deployment/registry.js';
+import { deleteRegistryManifest, isPlatformRegistryRelease } from '../deployment/registry.js';
 import { cleanupAbandonedBuildWorkspaces } from '../deployment/cleanup.js';
 import { env } from '../config/env.js';
 
@@ -112,11 +113,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
         }
       }
 
-      if (
-        dep.imageDigest &&
-        dep.imageRef?.includes('@sha256:') &&
-        !(await isImageDigestInUse(dep.imageDigest, excess))
-      ) {
+      if (isPlatformRegistryRelease(dep) && !(await isImageDigestInUse(dep.imageDigest, excess))) {
         try {
           await retireRegistryImage(dep, deps);
         } catch (err) {
@@ -127,6 +124,8 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
           });
         }
       }
+
+      await removeOwnerImageCopy(dep, excess, deps);
 
       await Deployment.updateOne({ _id: dep._id }, { $set: { activeContainerId: null } }).catch(
         () => {},
@@ -158,8 +157,7 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
       }
     }
     if (
-      dep.imageDigest &&
-      dep.imageRef?.includes('@sha256:') &&
+      isPlatformRegistryRelease(dep) &&
       !(await isImageDigestInUse(dep.imageDigest, abandonedIds))
     ) {
       try {
@@ -175,7 +173,9 @@ export async function handleCleanupReleases(job, deps = defaultDeps) {
     }
     const unset = { imageTag: 1 };
     // A local image ID has no registry manifest, so nothing is left to retry.
-    if (isRegistryDeleted || !dep.imageRef?.includes('@sha256:')) {
+    // Nothing is left for the platform to delete for a local image ID or an
+    // owner's prebuilt image, so neither should be rescanned.
+    if (isRegistryDeleted || !isPlatformRegistryRelease(dep)) {
       unset.imageRef = 1;
       unset.imageDigest = 1;
       unset.imageChildDigests = 1;

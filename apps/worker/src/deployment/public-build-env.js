@@ -1,3 +1,5 @@
+import { PUBLIC_BUILD_ENV_PREFIXES } from '@hellodeploy/contracts';
+
 /**
  * Selection of the environment variables a build is allowed to see.
  *
@@ -13,7 +15,6 @@
  * what makes them safe to pass as build arguments, which `docker history`
  * exposes. Nothing outside the list is eligible, whatever it is named.
  */
-const PUBLIC_PREFIXES = ['NEXT_PUBLIC_', 'VITE_', 'REACT_APP_', 'VUE_APP_'];
 
 /** Mirrors the EnvironmentSecret model's name validation. */
 const VALID_NAME = /^[A-Z_][A-Z0-9_]*$/;
@@ -35,7 +36,7 @@ export function selectPublicBuildEnv(envVars) {
     if (!VALID_NAME.test(name)) {
       continue;
     }
-    if (PUBLIC_PREFIXES.some((prefix) => name.startsWith(prefix))) {
+    if (PUBLIC_BUILD_ENV_PREFIXES.some((prefix) => name.startsWith(prefix))) {
       selected[name] = value;
     }
   }

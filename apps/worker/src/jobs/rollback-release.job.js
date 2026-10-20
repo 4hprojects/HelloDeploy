@@ -22,6 +22,7 @@ import {
   STARTUP_DELAY_MS,
 } from '../deployment/pipeline.js';
 import { resolveRuntimeSpec } from '../deployment/build-strategy.js';
+import { pullReleaseImage } from '../deployment/release-image.js';
 import { env } from '../config/env.js';
 
 const defaultDeps = {
@@ -149,13 +150,18 @@ export async function handleRollbackRelease(job, deps = defaultDeps) {
     : (sourceDeployment.imageTag ?? sourceDeployment.imageRef);
   if (isRegistryImage) {
     try {
-      await deps.pullAndVerifyImage(sourceImage);
+      await pullReleaseImage(
+        sourceImage,
+        { buildStrategy: rollbackSnapshot?.buildStrategy, projectId },
+        deps,
+      );
     } catch (error) {
       await updateStatus(
         deploymentId,
         DeploymentStatus.FAILED,
         {
-          failureCode: 'IMAGE_PULL_FAILED',
+          failureCode:
+            error.code === 'IMAGE_POLICY_FAILED' ? 'IMAGE_POLICY_FAILED' : 'IMAGE_PULL_FAILED',
           failureSummary: error.message,
           completedAt: new Date(),
         },

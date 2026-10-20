@@ -137,6 +137,23 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: "HelloDeploy's deployment system is temporarily unavailable.",
     action: TRY_AGAIN_ACTION,
   },
+  DOCKERFILE_POLICY_VIOLATION: {
+    message: 'Your Dockerfile uses something HelloDeploy does not allow.',
+    action: `The technical details list each line to change, such as a missing non-root USER or a VOLUME. ${ASK_BUILDER_ACTION}`,
+  },
+  IMAGE_RESOLUTION_FAILED: {
+    message: "HelloDeploy couldn't find the container image you entered.",
+    action:
+      'Check the image name, tag, or digest, and the registry credentials if the image is private.',
+  },
+  IMAGE_SCAN_UNAVAILABLE: {
+    message: "HelloDeploy's image scanner was unavailable, so your image was not checked.",
+    action: TRY_AGAIN_ACTION,
+  },
+  IMAGE_POLICY_FAILED: {
+    message: 'Your container image did not pass the platform safety checks.',
+    action: `The technical details explain which check failed, such as running as root, declaring volumes, being too large, or having critical vulnerabilities. ${ASK_BUILDER_ACTION}`,
+  },
 });
 
 const DEFAULT_FAILURE_COPY = Object.freeze({

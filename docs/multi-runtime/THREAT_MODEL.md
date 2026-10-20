@@ -37,6 +37,34 @@ Every new runtime keeps the existing container profile: `--cap-drop ALL`,
 `no-new-privileges`, memory, CPU, and PID limits, loopback-only publishing, and
 platform-generated Dockerfiles only.
 
+## Owner images (P4, pilot only)
+
+Owner Dockerfiles run owner code during the build, and prebuilt images run code the
+platform never built. Both are untrusted end to end.
+
+| Threat                                                                 | Control                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Build escapes to the host, the control plane, or other tenants' images | Dockerfile builds run only on the remote rootless BuildKit host; the job refuses a local executor even if flags were misconfigured. BuildKit grants no `security.insecure` or `network.host` entitlements. Owner builds run with an isolated Docker config that holds no registry credential, so every pull is anonymous, and the builder never pushes; the worker pushes the exported digest itself. The static policy is an early-error layer, not the boundary. |
+| Dockerfile requests privileged features                                | Static policy rejects custom `# syntax` frontends and `# escape` characters, `RUN --security=insecure`, `RUN --network=host`, SSH and secret mounts, `VOLUME`, and images outside docker.io and ghcr.io in `FROM`, `COPY --from`, and `RUN --mount from=`, including through global `ARG` defaults and `localhost`. An `ARG` the project environment can set may not choose an image.                                                                              |
+| Owner build files escape the repository                                | The Dockerfile and `.dockerignore` are read before sanitizing through a contained reader: no symlinked file, no path through a link outside the application root, 64 KB limit.                                                                                                                                                                                                                                                                                     |
+| Owner ignore rules re-include secrets                                  | Owner `.dockerignore` rules are written before the platform rules; later lines win, so a negation can never re-include `.env` or other platform exclusions.                                                                                                                                                                                                                                                                                                        |
+| Image runs as root or creates host storage                             | At every activation and rollback pull: a numeric non-zero `User` is required (names resolve through the owner's own `/etc/passwd`), declared volumes are rejected, size is capped by `CUSTOM_IMAGE_MAX_MB`, and a rejected image is removed. The container profile (`--cap-drop ALL`, `no-new-privileges`, limits, loopback publish) still applies.                                                                                                                |
+| Known-vulnerable images                                                | The container pilots require `IMAGE_SCANNER=trivy`; fixable critical findings fail the deploy, and a scanner that cannot run fails closed.                                                                                                                                                                                                                                                                                                                         |
+| Mutable tags or substituted images                                     | Tags are resolved to a manifest digest at deploy time; activation and rollback use only `name@sha256:digest`.                                                                                                                                                                                                                                                                                                                                                      |
+| Credential leakage to a registry or redirect                           | Pull tokens are encrypted per project and registry, sent only to the approved token host for that registry, never on redirects, and written only to a per-pull `DOCKER_CONFIG` directory that is removed afterwards. Prebuilt-image pulls and scans always use that private directory, empty without a credential, so the worker's own registry login is never used for owner images.                                                                              |
+| Platform deletes an owner's image                                      | Registry deletion is limited to `USER_IMAGE_REGISTRY`; prebuilt images are never removed locally on activation failure.                                                                                                                                                                                                                                                                                                                                            |
+
+Residual P4 risk, build cache: BuildKit's cache, including `RUN --mount=type=cache`
+state, is shared by every build on one builder. The policy refuses cache mounts in owner
+Dockerfiles (after the same quote and escape normalization BuildKit applies), but an
+`ONBUILD` trigger in a public base image can still use one. Before general availability,
+owner builds need a builder per tenant or an ephemeral builder per build.
+
+Residual P4 risks: an owner image may still mine cryptocurrency or scan outward within
+its CPU, memory, and network limits, and Trivy only reports known, fixable CVEs. Runtime
+egress filtering for app containers is not part of this pilot. Abuse handling is in the
+runbook.
+
 ## Residual risks and non-goals
 
 Package installation requires restricted outbound HTTPS to approved package endpoints:
@@ -49,5 +77,5 @@ consume resources inside the builder limit and can print data intentionally made
 available to the build. Therefore only public-prefixed values (`NEXT_PUBLIC_*`, `VITE_*`,
 `REACT_APP_*`, `VUE_APP_*`) enter a build; private build-time secrets are not supported.
 Server modes are single-instance, and container-local caches, sessions, and uploads are not
-durable. Custom Dockerfiles, arbitrary OCI sources, persistent volumes, background
-workers, databases, and Compose remain outside this release.
+durable. Owner Dockerfiles and prebuilt images exist only behind the P4 pilot described
+above. Persistent volumes, background workers, databases, and Compose remain out of scope.

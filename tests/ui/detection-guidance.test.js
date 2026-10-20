@@ -253,6 +253,33 @@ describe('guided detection inputs', () => {
     assert.match(html, /<option value="java_gradle_v1" selected>Gradle \(gradlew\)/);
   });
 
+  it('offers owner Dockerfiles and prebuilt images only on the container pilots', async () => {
+    const html = await renderDetection({
+      project: { _id: 'p5', runtimeType: 'EXPRESS', buildConfiguration: {} },
+      isStrategyEnabledFor: (strategy) => strategy === 'oci_image_v1',
+    });
+    assert.deepEqual(
+      [html.includes('A prebuilt image'), html.includes('My Dockerfile')],
+      [true, false],
+    );
+  });
+
+  it('offers the container port to a PHP project choosing its own image', async () => {
+    const html = await renderDetection({
+      project: { _id: 'p6', runtimeType: 'PHP', buildConfiguration: {} },
+      isStrategyEnabledFor: (strategy) => strategy === 'dockerfile_v1',
+    });
+    assert.match(html, /name="applicationPort"/);
+  });
+
+  it('shows no deployment source choice outside the container pilots', async () => {
+    const html = await renderDetection({
+      project: { _id: 'p5', runtimeType: 'EXPRESS', buildConfiguration: {} },
+      isStrategyEnabledFor: (strategy) => strategy === 'legacy_generated',
+    });
+    assert.equal(html.includes('name="deploymentSource"'), false);
+  });
+
   it('shares runtime-aware fields across detection and project settings', () => {
     assert.match(detection, /partials\/guided-build-fields/);
     assert.match(settings, /partials\/guided-build-fields/);
