@@ -19,23 +19,25 @@ Updated 2026-10-20. Production flags remain off.
 
 Local automated results belong in `EVIDENCE.md`. No external or supported-host gate is
 considered passed by mocks or unit tests. Six full-branch code reviews and a local
-registry run (2026-10-20, `EVIDENCE.md`) are complete; CI and CodeQL pass on #119.
+registry run (2026-10-20, `EVIDENCE.md`) are complete; CI and CodeQL pass on #119 and #120.
 
 ## Production readiness
 
-Merging #119 deploys its code to production through `main`'s autodeploy, with every
-pilot flag off. Enabling a pilot is a separate, later step.
+#119 is merged and running in production with every pilot flag off. Enabling a pilot
+is a separate, later step.
 
-Before merging #119:
+Merging #119:
 
 - [x] Pre-merge smoke run with flags off (2026-10-20, `EVIDENCE.md`): legacy fixtures,
       rollback, failure cases, a project document from before this branch, and a v1
       job from the previous web all behaved as expected.
 - [ ] Resolve the uncommitted `.env.example` change.
-- [ ] Owner review and merge decision.
-- [ ] Release procedure: `mongodump`, `upgrade.sh --ref`, then deploy and roll back one
-      existing project. Confirm every `MULTIRUNTIME_*` flag is unset and run
-      `config:check` on the server.
+- [x] Owner review and merge decision: #119 merged 2026-10-20 (`9572051`).
+- [x] Release: autodeploy ran `upgrade.sh` for `9572051` at 23:06 PST on 2026-10-20 with a
+      backup first; installer verification passed and the dashboard and live apps
+      answered 200.
+- [ ] Deploy and roll back one existing production project on the new code.
+- [ ] Confirm every `MULTIRUNTIME_*` flag is unset on the server and run `config:check`.
 
 Before enabling a P0–P3 pilot:
 
