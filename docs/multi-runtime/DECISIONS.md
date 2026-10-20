@@ -130,3 +130,8 @@
   cached rebuild reuses the image manifest, so the tag belongs to the child, not to one
   release. The `oci` mode now deletes children as well, because a tagged fallback index
   keeps the attestation alive and registry garbage collection never reclaims it.
+- 2026-10-21: The owner merged #120 with both P4 flags off, overriding the earlier rule that
+  P4 stays unmerged until its security review and live gates pass (brief file 09). Those
+  gates now apply to turning `MULTIRUNTIME_DOCKERFILE_V1_ENABLED` or
+  `MULTIRUNTIME_OCI_V1_ENABLED` on. A flags-off smoke run on the #120 head showed the web
+  service and the worker both refuse owner-image builds while the flags are off.

@@ -263,6 +263,20 @@ host were compared before and after: unchanged.
 existing production behavior, not a regression from this branch. The per-owner
 running-app quota (one by default) refused a second app for the same owner, as designed.
 
+## 2026-10-21 Pre-merge smoke run for #120, flags off
+
+The same isolated setup as the #119 run, on the #120 head (`2181331`), with every
+`MULTIRUNTIME_*` flag unset. Production containers and networks were unchanged.
+
+| Case                                                   | Result                                                                   |
+| ------------------------------------------------------ | ------------------------------------------------------------------------ |
+| `static`, `express`                                    | HEALTHY, probe 200                                                       |
+| `rollback-marker`: baseline, candidate, rollback       | HEALTHY each; markers `baseline-v1`, `candidate-v2`, `baseline-v1`       |
+| `health-failure` candidate                             | `HEALTH_CHECK_FAILED` (HTTP 503); baseline kept serving                  |
+| Project document without any new fields                | HEALTHY, probe 200                                                       |
+| `dockerfile_v1` project deployed from the web service  | Refused: "The selected deployment mode is not enabled for this project." |
+| `dockerfile_v1` job queued directly with a v2 snapshot | `BUILD_STRATEGY_DISABLED`, no build started                              |
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current
