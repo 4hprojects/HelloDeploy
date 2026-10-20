@@ -34,55 +34,59 @@ const profiles = [
   { name: 'mobile', flags: [] },
   { name: 'desktop', flags: ['--preset=desktop'] },
 ];
+// One lab run varies by a few percent on shared CI runners, enough to cross a
+// budget the page meets; Lighthouse recommends judging the median of several.
+const RUNS_PER_PROFILE = 3;
 const results = {};
 let failed = false;
 
 try {
   for (const profile of profiles) {
-    const outputPath = new URL(`lighthouse-${profile.name}.json`, outputDirectory).pathname;
-    const exitCode = await new Promise((resolve, reject) => {
-      const child = spawn(
-        lighthousePath,
-        [
-          'http://127.0.0.1:4173/',
-          '--quiet',
-          '--output=json',
-          `--output-path=${outputPath}`,
-          '--chrome-flags=--headless --no-sandbox',
-          '--only-categories=performance',
-          ...profile.flags,
-        ],
-        {
-          cwd: root,
-          stdio: 'inherit',
-          env: { ...process.env, CHROME_PATH: chromium.executablePath() },
-        },
-      );
-      child.once('error', reject);
-      child.once('close', resolve);
-    });
-    if (exitCode !== 0) {
-      process.exitCode = exitCode || 1;
+    const runs = [];
+    for (let run = 1; run <= RUNS_PER_PROFILE; run += 1) {
+      const outputPath = new URL(`lighthouse-${profile.name}-${run}.json`, outputDirectory)
+        .pathname;
+      const exitCode = await new Promise((resolve, reject) => {
+        const child = spawn(
+          lighthousePath,
+          [
+            'http://127.0.0.1:4173/',
+            '--quiet',
+            '--output=json',
+            `--output-path=${outputPath}`,
+            '--chrome-flags=--headless --no-sandbox',
+            '--only-categories=performance',
+            ...profile.flags,
+          ],
+          {
+            cwd: root,
+            stdio: 'inherit',
+            env: { ...process.env, CHROME_PATH: chromium.executablePath() },
+          },
+        );
+        child.once('error', reject);
+        child.once('close', resolve);
+      });
+      if (exitCode !== 0) {
+        process.exitCode = exitCode || 1;
+        failed = true;
+        break;
+      }
+      runs.push(toMetrics(JSON.parse(await readFile(outputPath, 'utf8'))));
+    }
+    if (runs.length < RUNS_PER_PROFILE) {
       break;
     }
-
-    const report = JSON.parse(await readFile(outputPath, 'utf8'));
-    const score = report.categories.performance.score;
-    const lcp = report.audits['largest-contentful-paint'].numericValue;
-    const cls = report.audits['cumulative-layout-shift'].numericValue;
-    const tbt = report.audits['total-blocking-time'].numericValue;
-    const total = report.audits['resource-summary'].details.items.find(
-      (item) => item.resourceType === 'total',
+    const median = Object.fromEntries(
+      Object.keys(runs[0]).map((key) => [key, medianOf(runs.map((metrics) => metrics[key]))]),
     );
-    results[profile.name] = {
-      score,
-      lcp,
-      cls,
-      tbt,
-      requests: total.requestCount,
-      transferBytes: total.transferSize,
-    };
-    failed ||= score < 0.7 || lcp > 2_500 || cls > 0.1 || tbt > 300 || total.requestCount > 30;
+    results[profile.name] = median;
+    failed ||=
+      median.score < 0.7 ||
+      median.lcp > 2_500 ||
+      median.cls > 0.1 ||
+      median.tbt > 300 ||
+      median.requests > 30;
   }
 } finally {
   fixture.kill('SIGTERM');
@@ -92,4 +96,23 @@ process.stdout.write(`${JSON.stringify(results, null, 2)}\n`);
 if (failed) {
   process.stderr.write('Lighthouse lab budget failed. Field Web Vitals remain authoritative.\n');
   process.exitCode = 1;
+}
+
+function toMetrics(report) {
+  const total = report.audits['resource-summary'].details.items.find(
+    (item) => item.resourceType === 'total',
+  );
+  return {
+    score: report.categories.performance.score,
+    lcp: report.audits['largest-contentful-paint'].numericValue,
+    cls: report.audits['cumulative-layout-shift'].numericValue,
+    tbt: report.audits['total-blocking-time'].numericValue,
+    requests: total.requestCount,
+    transferBytes: total.transferSize,
+  };
+}
+
+function medianOf(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)];
 }
