@@ -37,7 +37,9 @@ Merging #119:
       backup first; installer verification passed and the dashboard and live apps
       answered 200.
 - [ ] Deploy and roll back one existing production project on the new code.
-- [ ] Confirm every `MULTIRUNTIME_*` flag is unset on the server and run `config:check`.
+- [x] Confirmed on the server (2026-10-21): no `MULTIRUNTIME_*` flag is set in
+      `/opt/hellodeploy/.env`, and `config:check` reports the web and worker configurations
+      valid for production. #120 (`e54f99b`) and #121 (`f3576cd`) also deployed cleanly.
 
 Before enabling a P0–P3 pilot:
 
