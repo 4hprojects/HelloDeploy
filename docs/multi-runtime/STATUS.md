@@ -1,0 +1,51 @@
+# Multi-Runtime Status
+
+Updated 2026-10-20. Production flags remain off.
+
+| Gate                   | State               | Evidence / blocker                                                                                                                                                                                                      |
+| ---------------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P0A baseline           | Repository-complete | Baseline, readiness isolation, threat model, and runbook are recorded here                                                                                                                                              |
+| P0B contracts          | Repository-complete | Strategy/application-root contracts, snapshots, environment fencing, v1/v2 jobs, digest activation, remote executor, digest-aware retention, nonproduction database registration, and image platform checks implemented |
+| P0B live migration     | Blocked externally  | Dedicated rootless BuildKit host and private GHCR credentials were not supplied in this workspace                                                                                                                       |
+| P1 Next.js code        | Repository-complete | Detection/confirmation UI, three templates, route policy, flags, tests, docs; 2026-10-17 close-out audit fixed binding, telemetry, and failure warnings                                                                 |
+| Acceptance harness     | Repository-complete | Tracked fixture matrix, preflight-first coordinator, disruptive opt-ins, redacted evidence schema, and operator runbook implemented                                                                                     |
+| P2 Python code         | Repository-complete | Flask/FastAPI/Django strategies, detection, images, UI, flags, fixtures, docs; default-off and allowlisted                                                                                                              |
+| P3A PHP code           | Repository-complete | Plain PHP and Laravel strategies, detection, Apache images, UI, flags, fixtures, docs; default-off and allowlisted.                                                                                                     |
+| P3B Java code          | Repository-complete | Spring Boot Maven and Gradle strategies, detection, Temurin images, UI, flags, verified-wrapper fixtures, docs; default-off and allowlisted                                                                             |
+| P1–P3B live acceptance | Blocked externally  | Requires the nonproduction builder, registry, allowlisted projects, and real fixture matrix                                                                                                                             |
+| Production rollout     | Not authorized      | No merge, deploy, or production flag change performed                                                                                                                                                                   |
+
+Local automated results belong in `EVIDENCE.md`. No external or supported-host gate is
+considered passed by mocks or unit tests. Six full-branch code reviews and a local
+registry run (2026-10-20, `EVIDENCE.md`) are complete; CI and CodeQL pass on #119.
+
+## Production readiness
+
+Merging #119 deploys its code to production through `main`'s autodeploy, with every
+pilot flag off. Enabling a pilot is a separate, later step.
+
+Before merging #119:
+
+- [x] Pre-merge smoke run with flags off (2026-10-20, `EVIDENCE.md`): legacy fixtures,
+      rollback, failure cases, a project document from before this branch, and a v1
+      job from the previous web all behaved as expected.
+- [ ] Resolve the uncommitted `.env.example` change.
+- [ ] Owner review and merge decision.
+- [ ] Release procedure: `mongodump`, `upgrade.sh --ref`, then deploy and roll back one
+      existing project. Confirm every `MULTIRUNTIME_*` flag is unset and run
+      `config:check` on the server.
+
+Before enabling a P0–P3 pilot:
+
+- [ ] Rootless BuildKit host with mTLS, cgroup limits, and builder egress limited to the
+      package hosts; ORAS on the worker; private GHCR repository and token.
+- [ ] Runbook step 7: choose `REGISTRY_DELETE_API` from a live GHCR deletion probe and
+      confirm the referrers fallback tag is removed.
+- [ ] Full nonproduction acceptance run, disruptive cases included, with build time and
+      memory recorded per framework.
+- [ ] One allowlisted project per flag, `WORKER_CONCURRENCY=1`.
+
+Before the P4 owner-image pilot (#120): security review of the owner-image threat
+model, Trivy installed, every fail-closed case run live, and Docker Hub anonymous pull
+limits measured. Before general availability: a builder per tenant or per build, and
+runtime egress filtering. P5 stays behind its entry gate in `P5_COMPOSE_ADR.md`.

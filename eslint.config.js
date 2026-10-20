@@ -34,6 +34,13 @@ export default [
   {
     // Test files may use process.exit, console, etc.
     files: ['tests/**/*.js'],
+    languageOptions: {
+      parserOptions: {
+        ecmaFeatures: {
+          jsx: true,
+        },
+      },
+    },
     rules: {
       'no-console': 'off',
     },
@@ -46,6 +53,16 @@ export default [
     },
   },
   {
+    // The base ESLint preset does not associate JSX tag names with imports.
+    files: [
+      'tests/fixtures/multi-runtime/**/app/**/*.js',
+      'tests/fixtures/multi-runtime/**/pages/**/*.js',
+    ],
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
+  {
     files: ['apps/web/public/**/*.js'],
     languageOptions: {
       globals: {
@@ -54,6 +71,14 @@ export default [
     },
   },
   {
-    ignores: ['node_modules/', 'dist/', 'build/', 'coverage/', 'apps/web/public/assets-dist/'],
+    ignores: [
+      '**/node_modules/**',
+      '**/.next/**',
+      '**/dist/**',
+      '**/out/**',
+      'build/',
+      'coverage/',
+      'apps/web/public/assets-dist/',
+    ],
   },
 ];

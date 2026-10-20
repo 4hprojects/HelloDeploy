@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, it } from 'node:test';
 
 import {
   createDockerBuildArgs,
+  createRemoteDockerBuildArgs,
+  createOrasPushArgs,
   ensureBuildBuilder,
+  readLayoutChildDigests,
+  verifyRemoteBuildBuilder,
 } from '../../apps/worker/src/deployment/build.js';
 
 const baseOptions = {
@@ -63,6 +70,55 @@ describe('createDockerBuildArgs — dedicated builder', () => {
   });
 });
 
+describe('createRemoteDockerBuildArgs', () => {
+  const args = createRemoteDockerBuildArgs({
+    contextDir: '/builds/abc',
+    imageRef: 'ghcr.io/acme/hellodeploy:demo-1',
+    builderName: 'remote-builder',
+    metadataFile: '/tmp/build-metadata.json',
+    layoutDir: '/tmp/build-layout',
+    buildArgs: { NEXT_PUBLIC_ORIGIN: 'https://example.test' },
+  });
+
+  it('builds through the named builder with provenance and an SBOM', () => {
+    assert.deepEqual(
+      [args.slice(0, 4), args.includes('--provenance=true'), args.includes('--sbom=true')],
+      [['buildx', 'build', '--builder', 'remote-builder'], true, true],
+    );
+  });
+
+  // The builder never pushes: a killed build then leaves nothing in the
+  // registry, and the push needs no credential on the builder.
+  it('exports an OCI layout to the worker instead of pushing', () => {
+    assert.deepEqual(
+      [args.includes('--push'), args[args.indexOf('--output') + 1]],
+      [false, 'type=oci,dest=/tmp/build-layout,tar=false'],
+    );
+  });
+
+  it('records immutable metadata for the built image', () => {
+    assert.equal(args[args.indexOf('--metadata-file') + 1], '/tmp/build-metadata.json');
+  });
+});
+
+describe('createOrasPushArgs', () => {
+  it('copies exactly the built digest from the layout to the registry tag', () => {
+    assert.deepEqual(
+      createOrasPushArgs({
+        layoutDir: '/tmp/build-layout',
+        imageDigest: `sha256:${'a'.repeat(64)}`,
+        imageRef: 'ghcr.io/acme/hellodeploy:demo-1',
+      }),
+      [
+        'cp',
+        '--from-oci-layout',
+        `/tmp/build-layout@sha256:${'a'.repeat(64)}`,
+        'ghcr.io/acme/hellodeploy:demo-1',
+      ],
+    );
+  });
+});
+
 describe('ensureBuildBuilder', () => {
   it('leaves an existing builder untouched', async () => {
     const commands = [];
@@ -113,5 +169,44 @@ describe('ensureBuildBuilder', () => {
       ),
       /Could not create build builder hellodeploy-builder: invalid driver option memory/,
     );
+  });
+});
+
+describe('verifyRemoteBuildBuilder', () => {
+  it('bootstraps only the configured remote builder', async () => {
+    const commands = [];
+    assert.deepEqual(
+      await verifyRemoteBuildBuilder('remote-builder', {
+        run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
+      }),
+      { ready: true },
+    );
+    assert.deepEqual(commands, [['buildx', 'inspect', 'remote-builder', '--bootstrap']]);
+  });
+
+  it('does not create a local fallback when the remote builder is unavailable', async () => {
+    const commands = [];
+    await assert.rejects(
+      verifyRemoteBuildBuilder('remote-builder', {
+        run: async (args) => (commands.push(args), { code: 1, stderr: 'TLS handshake failed' }),
+      }),
+      /TLS handshake failed/,
+    );
+    assert.equal(commands.length, 1);
+  });
+});
+
+describe('readLayoutChildDigests', () => {
+  // GHCR keeps the platform image and each attestation as its own package version.
+  it('lists the manifests the exported image index names', async () => {
+    const layoutDir = await mkdtemp(join(tmpdir(), 'hellodeploy-layout-'));
+    const indexDigest = `sha256:${'a'.repeat(64)}`;
+    const children = [`sha256:${'b'.repeat(64)}`, `sha256:${'c'.repeat(64)}`];
+    await mkdir(join(layoutDir, 'blobs', 'sha256'), { recursive: true });
+    await writeFile(
+      join(layoutDir, 'blobs', 'sha256', 'a'.repeat(64)),
+      JSON.stringify({ manifests: children.map((digest) => ({ digest })) }),
+    );
+    assert.deepEqual(await readLayoutChildDigests(layoutDir, indexDigest), children);
   });
 });

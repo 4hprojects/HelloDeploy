@@ -232,6 +232,294 @@ describe('generateDockerfile — NEXTJS', () => {
   });
 });
 
+describe('generateDockerfile — versioned Next.js strategies', () => {
+  const base = {
+    runtimeType: 'NEXTJS',
+    buildCommand: 'npm run build',
+    applicationPort: 3000,
+  };
+
+  it('uses Debian Node 22, prunes dependencies, and starts standard mode with npm', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standard_v1' });
+    assert.match(dockerfile, /^FROM node:22-bookworm-slim AS builder/m);
+    assert.match(dockerfile, /RUN npm prune --omit=dev/);
+    assert.match(dockerfile, /CMD \["npm", "start"\]/);
+  });
+
+  it('copies the standalone server, static assets, and optional public directory', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standalone_v1' });
+    assert.match(dockerfile, /RUN mkdir -p \/app\/public/);
+    assert.match(dockerfile, /\/app\/\.next\/standalone/);
+    assert.match(dockerfile, /\/app\/\.next\/static/);
+    assert.match(dockerfile, /CMD \["node", "server\.js"\]/);
+  });
+
+  it('serves export output with the unprivileged static image', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_export_v1' });
+    assert.match(dockerfile, /FROM nginxinc\/nginx-unprivileged:1\.27-alpine/);
+    assert.match(dockerfile, /COPY --from=builder \/app\/out \/usr\/share\/nginx\/html/);
+    assert.match(dockerfile, /EXPOSE 8080/);
+  });
+
+  // Docker sets HOSTNAME to the container id, and Next servers bind to it,
+  // leaving them listening on one interface instead of all of them.
+  it('binds the standalone server to every container interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standalone_v1' });
+    assert.match(dockerfile, /ENV HOSTNAME=0\.0\.0\.0\nCMD \["node", "server\.js"\]/);
+  });
+
+  it('binds the standard server to every container interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'next_standard_v1' });
+    assert.match(dockerfile, /ENV HOSTNAME=0\.0\.0\.0\nCMD \["npm", "start"\]/);
+  });
+
+  it('disables Next.js telemetry in every versioned build stage', () => {
+    const builds = ['next_standard_v1', 'next_standalone_v1', 'next_export_v1'].map(
+      (buildStrategy) => generateDockerfile({ ...base, buildStrategy }),
+    );
+    assert.deepEqual(
+      builds.map((dockerfile) =>
+        /ENV NEXT_TELEMETRY_DISABLED=1\n.*RUN npm run build/s.test(dockerfile),
+      ),
+      [true, true, true],
+    );
+  });
+
+  it('leaves the legacy Next.js template without the versioned defaults', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      startCommand: null,
+      outputDirectory: '.next',
+    });
+    assert.doesNotMatch(dockerfile, /HOSTNAME|NEXT_TELEMETRY_DISABLED/);
+  });
+});
+
+describe('generateDockerfile — versioned Python strategies', () => {
+  const base = {
+    runtimeType: 'PYTHON',
+    buildCommand: null,
+    applicationPort: 8000,
+    applicationModule: 'mysite.wsgi:application',
+    pythonVersion: '3.12',
+  };
+
+  it('builds on the requested slim Debian Python image', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_django_v1' });
+    assert.match(dockerfile, /^FROM python:3\.12-slim-bookworm AS builder/m);
+  });
+
+  it('installs requirements into a virtual environment copied to the runtime stage', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_flask_v1' });
+    assert.match(
+      dockerfile,
+      /RUN pip install -r requirements\.txt[\s\S]*COPY --from=builder \/opt\/venv \/opt\/venv/,
+    );
+  });
+
+  it('runs as an unprivileged user', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_flask_v1' });
+    assert.match(dockerfile, /USER 10001\n/);
+  });
+
+  it('serves WSGI apps with gunicorn on every interface', () => {
+    const dockerfile = generateDockerfile({ ...base, buildStrategy: 'python_django_v1' });
+    assert.match(
+      dockerfile,
+      /CMD \["gunicorn","--bind","0\.0\.0\.0:8000",.*"mysite\.wsgi:application"\]/,
+    );
+  });
+
+  it('serves ASGI apps with uvicorn on every interface', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      applicationModule: 'app.main:api',
+      buildStrategy: 'python_fastapi_v1',
+    });
+    assert.match(
+      dockerfile,
+      /CMD \["uvicorn","app\.main:api","--host","0\.0\.0\.0","--port","8000"/,
+    );
+  });
+
+  it('runs the owner build command after installing dependencies', () => {
+    const dockerfile = generateDockerfile({
+      ...base,
+      buildCommand: 'python manage.py collectstatic --noinput',
+      buildStrategy: 'python_django_v1',
+    });
+    assert.match(
+      dockerfile,
+      /RUN pip install -r requirements\.txt\n(?:.*\n)*RUN python manage\.py collectstatic --noinput\n/,
+    );
+  });
+
+  it('rejects an application module that is not module:attribute', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({
+          ...base,
+          applicationModule: 'main:app --reload',
+          buildStrategy: 'python_fastapi_v1',
+        }),
+      /module:attribute/,
+    );
+  });
+
+  it('rejects an unapproved Python version', () => {
+    assert.throws(
+      () => generateDockerfile({ ...base, pythonVersion: '3.9', buildStrategy: 'python_flask_v1' }),
+      /Unsupported Python version/,
+    );
+  });
+
+  it('rejects a Python strategy on another runtime', () => {
+    assert.throws(
+      () =>
+        generateDockerfile({ ...base, runtimeType: 'EXPRESS', buildStrategy: 'python_flask_v1' }),
+      /PYTHON runtime/,
+    );
+  });
+});
+
+describe('generateDockerfile — versioned PHP strategies', () => {
+  const base = {
+    runtimeType: 'PHP',
+    buildCommand: null,
+    outputDirectory: '.',
+    phpVersion: '8.4',
+  };
+  const plain = (overrides = {}) =>
+    generateDockerfile({ ...base, buildStrategy: 'php_plain_v1', ...overrides });
+  const laravel = (overrides = {}) =>
+    generateDockerfile({
+      ...base,
+      outputDirectory: 'public',
+      buildStrategy: 'php_laravel_v1',
+      ...overrides,
+    });
+
+  it('runs the requested official Apache PHP image', () => {
+    assert.match(plain(), /^FROM php:8\.4-apache-bookworm$/m);
+  });
+
+  it('installs composer packages only from a committed lockfile', () => {
+    assert.match(plain(), /composer\.lock is required[\s\S]*composer install --no-dev/);
+  });
+
+  it('listens on the unprivileged port as www-data', () => {
+    assert.match(plain(), /Listen 8080[\s\S]*USER www-data\nEXPOSE 8080/);
+  });
+
+  it('caps Apache workers below the container process limit', () => {
+    assert.match(plain(), /MaxRequestWorkers 8/);
+  });
+
+  it('serves the repository root for a plain site', () => {
+    assert.match(plain(), /DocumentRoot \/var\/www\/html'/);
+  });
+
+  it('serves the public folder for Laravel', () => {
+    assert.match(laravel(), /DocumentRoot \/var\/www\/html\/public'/);
+  });
+
+  it('hides dotfiles, composer metadata, and vendor from the web', () => {
+    assert.match(plain(), /FilesMatch "\^\\\.".*composer\\\.\(json\|lock\).*RedirectMatch 404/s);
+  });
+
+  it('makes only Laravel storage and cache writable', () => {
+    assert.match(
+      laravel(),
+      /chown -R www-data:www-data storage bootstrap\/cache\nENV LOG_CHANNEL=stderr/,
+    );
+  });
+
+  it('builds Laravel assets in a Node stage and copies only the output', () => {
+    const dockerfile = laravel({ buildCommand: 'npm run build' });
+    assert.match(
+      dockerfile,
+      /FROM node:22-bookworm-slim AS assets[\s\S]*RUN npm run build[\s\S]*COPY --from=assets \/app\/public\/build \.\/public\/build/,
+    );
+  });
+
+  it('skips the asset stage without a build command', () => {
+    assert.doesNotMatch(laravel(), /AS assets/);
+  });
+
+  it('rejects an unapproved PHP version', () => {
+    assert.throws(() => plain({ phpVersion: '7.4' }), /Unsupported PHP version/);
+  });
+
+  it('rejects a document root outside the two layouts', () => {
+    assert.throws(() => plain({ outputDirectory: '../etc' }), /document root/);
+  });
+
+  it('rejects a Laravel image that does not serve public', () => {
+    assert.throws(() => laravel({ outputDirectory: '.' }), /Laravel serves its public folder/);
+  });
+});
+
+describe('generateDockerfile — versioned Java strategies', () => {
+  const maven = (overrides = {}) =>
+    generateDockerfile({
+      runtimeType: 'JAVA',
+      buildStrategy: 'java_maven_v1',
+      javaVersion: '21',
+      ...overrides,
+    });
+  const gradle = () => maven({ buildStrategy: 'java_gradle_v1', javaVersion: '17' });
+
+  it('builds with the matching Temurin JDK and runs on its JRE', () => {
+    assert.match(
+      maven(),
+      /^FROM eclipse-temurin:21-jdk AS builder[\s\S]*^FROM eclipse-temurin:21-jre$/m,
+    );
+  });
+
+  it('builds Maven projects with their wrapper and skips tests', () => {
+    assert.match(maven(), /RUN sh \.\/mvnw -B -ntp -DskipTests clean package/);
+  });
+
+  it('builds Gradle projects with their wrapper and skips tests', () => {
+    assert.match(gradle(), /RUN sh \.\/gradlew --no-daemon clean bootJar -x test/);
+  });
+
+  it('requires exactly one Spring Boot executable jar from the build output', () => {
+    assert.match(
+      maven(),
+      /find target -maxdepth 1[\s\S]*Expected one executable jar[\s\S]*BOOT-INF/,
+    );
+  });
+
+  it('looks for the Gradle jar in build/libs', () => {
+    assert.match(gradle(), /find build\/libs -maxdepth 1/);
+  });
+
+  it('runs the jar as an unprivileged user on the fixed port', () => {
+    assert.match(
+      maven(),
+      /USER 10001\n[\s\S]*SERVER_PORT=8080[\s\S]*CMD \["java","-jar","\/app\/application\.jar"\]/,
+    );
+  });
+
+  // Every JVM thread counts against the container's PID limit of 100.
+  it('caps Tomcat request threads below the container process limit', () => {
+    assert.match(maven(), /SERVER_TOMCAT_THREADS_MAX=40/);
+  });
+
+  it('caps the heap below the container memory limit', () => {
+    assert.match(maven(), /-XX:MaxRAMPercentage=60/);
+  });
+
+  it('rejects an unapproved Java version', () => {
+    assert.throws(() => maven({ javaVersion: '11' }), /Unsupported Java version/);
+  });
+
+  it('rejects a Java strategy on another runtime', () => {
+    assert.throws(() => maven({ runtimeType: 'NODEJS' }), /JAVA runtime/);
+  });
+});
+
 describe('generateDockerfile — EXPRESS', () => {
   it('uses node:22-alpine base with port exposure', () => {
     const df = generateDockerfile({

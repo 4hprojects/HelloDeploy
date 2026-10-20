@@ -17,7 +17,8 @@ Version 1 is intended for:
 - Express applications
 - React static builds
 - Vue static builds
-- Constrained Next.js applications
+- Legacy Next.js applications, plus allowlisted Next.js standard server, standalone,
+  and static-export projects during the new-mode pilot
 
 Version 1 does not support Python, PHP, Java, Docker Compose submitted by users, arbitrary container images, privileged containers, game servers, cryptocurrency mining, public proxies, VPNs, or large media workloads.
 
@@ -85,6 +86,10 @@ After connecting a repository:
 3. Select **Check my app**.
 4. Review the detected runtime, commands, output directory, port, and warnings.
 
+For an allowlisted Next.js project, detection also recommends Standard server,
+Standalone server, or Static export. Review and save that selection before deploying;
+dynamic configuration is called out rather than executed by HelloDeploy.
+
 Detection checks whether the project appears deployable. Unsupported runtimes, missing scripts, invalid package metadata, risky files, or unclear configuration can block deployment until corrected.
 
 ## Override Build Configuration
@@ -95,6 +100,125 @@ Detection fills in recommended values, which usually do not need changes. Owners
 - **Output directory**: For static builds, where the built files are produced.
 - **Application port**: The port your app listens on inside the container.
 - **Health check path**: The HTTP path HelloDeploy polls after each deploy to confirm the app is healthy. Defaults to `/`. If your app has a dedicated endpoint such as `/healthz`, set it here — a deployment is only marked healthy after this path responds successfully.
+- **Application root**: Use `.` for the repository root or a repository-relative POSIX
+  folder such as `apps/web` for a monorepo. Absolute paths, traversal, and escaping
+  symlinks are rejected.
+
+The Next.js pilot is npm-only and requires both `package.json` and
+`package-lock.json`. Only `NEXT_PUBLIC_*` environment values are available during
+`next build`; private values remain runtime-only. P1 is single-instance hosting, so
+ISR and cache data remain container-local and are not preserved across replacement or
+rollback. Static export cannot use server routes, Server Actions, ISR, middleware, or
+server-side image optimization.
+
+Detection warns about Next.js settings that would otherwise fail after the build:
+
+- **Standard server** runs `npm start`, so `package.json` needs `"start": "next start"`.
+  Development dependencies are removed after the build, so `next` must be listed under
+  `dependencies`, not `devDependencies`. Standalone and static export need neither.
+- **Custom `distDir`** is not supported. HelloDeploy expects the default `.next` build
+  folder and `out` export folder.
+
+### Python apps (pilot)
+
+Allowlisted projects can deploy Flask, FastAPI, and Django apps. Detection reads
+`requirements.txt` (and `pyproject.toml`, to recognize the framework) and recommends one
+of three modes:
+
+| Framework | Server HelloDeploy starts | Detected application module                                         |
+| --------- | ------------------------- | ------------------------------------------------------------------- |
+| Flask     | gunicorn                  | `app:app` from `app.py`, `wsgi.py`, `main.py`, or `app/__init__.py` |
+| FastAPI   | uvicorn                   | `main:app` from `main.py`, or `app.main:app` from `app/main.py`     |
+| Django    | gunicorn                  | `mysite.wsgi:application` from the settings module in `manage.py`   |
+
+Before the first Python deploy:
+
+- **Confirm the application module** under **Advanced build settings** and save. It uses
+  the `module:object` form; for an app factory, add a module-level object such as
+  `app = create_app()` in `wsgi.py`.
+- **Commit `requirements.txt`** with every package pinned with `==`, including `gunicorn`
+  (Flask, Django) or `uvicorn` (FastAPI). Projects that only have `pyproject.toml` can
+  export one with `uv export --format requirements-txt > requirements.txt` or
+  `poetry export -f requirements.txt > requirements.txt`.
+- **Choose the Python version** with a `.python-version` file containing `3.12` or `3.13`.
+  Without one, HelloDeploy uses 3.13.
+- **Packages must have Linux wheels.** The image has no compiler, so a package that has to
+  be built from source fails the build.
+
+The server listens on port 8000 inside the container and trusts the platform proxy's
+forwarded headers, so apps see the public `https` scheme. The **build command** is optional
+and runs after dependencies are installed.
+
+For Django, add your HelloDeploy address to `ALLOWED_HOSTS` and keep `SECRET_KEY` in a
+HelloDeploy environment variable. Use an external database; HelloDeploy never runs
+migrations during a deploy, so run them yourself before deploying code that needs them. To
+serve static files, add WhiteNoise and set the build command to
+`python manage.py collectstatic --noinput`.
+
+Background workers, schedulers, persistent disks, and Python versions other than 3.12 and
+3.13 are not supported in the pilot.
+
+### PHP and Laravel apps (pilot)
+
+Allowlisted projects can deploy plain PHP sites and Laravel apps. HelloDeploy serves them
+with the official PHP Apache image, so `.php` files run directly and FastCGI is never
+exposed.
+
+- **App type and document root.** Detection picks **Laravel** when `composer.json` requires
+  `laravel/framework` and `artisan` exists; Laravel always serves `public/`. Other sites are
+  **PHP site**, served from the repository root when `index.php` is there or from `public/`
+  when only `public/index.php` exists.
+- **PHP version.** HelloDeploy uses the newest supported version (8.3 or 8.4) that
+  `require.php` in `composer.json` allows, or 8.3 without a constraint.
+- **Composer.** A project with `composer.json` must commit `composer.lock`; packages
+  install with `composer install --no-dev`. The `pdo_mysql` extension is added to the
+  official image's built-in extensions.
+- **Public files.** With the repository root as the document root, every file is reachable
+  except dotfiles, `composer.json`, `composer.lock`, `auth.json`, and `vendor/`. Keep
+  private files out of the repository or use a `public/` folder. Directory listings are
+  off and `.htaccess` files are honored.
+- **Laravel assets.** When `package.json` has a build script, the build command
+  `npm run build` compiles them in a separate Node stage (it needs `package-lock.json`),
+  and only `public/build` is copied into the image.
+
+For Laravel, set `APP_KEY` (from `php artisan key:generate --show`) as a HelloDeploy
+environment variable and use an external MySQL or MariaDB database. HelloDeploy never runs
+migrations during a deploy, so run them yourself before deploying code that needs them.
+Logs go to the deployment log (`LOG_CHANNEL=stderr`); `storage/` and `bootstrap/cache` are
+writable but are reset on every deploy.
+
+WordPress, queues, the scheduler, persistent uploads, and extensions other than the
+official image's defaults plus `pdo_mysql` are not supported in the pilot. Apache runs at
+most eight PHP workers per container to stay inside the memory and process limits.
+
+### Java Spring Boot apps (pilot)
+
+Allowlisted projects can deploy Spring Boot web apps built with Maven or Gradle.
+
+- **Commit the build wrapper.** HelloDeploy builds with `mvnw` (and the `.mvn` folder) or
+  `gradlew` (and `gradle/wrapper`), so every build uses the same tool version. Spring
+  Initializr projects already include them.
+- **Java version.** HelloDeploy reads `<java.version>` or `<maven.compiler.release>` from
+  `pom.xml`, or the toolchain `languageVersion` or `sourceCompatibility` from the Gradle
+  build, and supports 17, 21, and 25. Without one it uses 21.
+- **One executable jar.** The build runs `clean package` (Maven) or `clean bootJar` (Gradle)
+  with tests skipped and must produce exactly one Spring Boot executable jar. Multi-module
+  builds are not supported yet.
+- **Port and proxy.** The app listens on 8080 (`SERVER_PORT` overrides
+  `application.properties`) and trusts the platform proxy's forwarded headers.
+- **Health check.** With Spring Boot Actuator on the classpath, detection sets the health
+  check to `/actuator/health`. Otherwise `/` must answer with a success status, or set a
+  different path.
+- **Memory.** The JVM heap is capped at 60% of the container memory. Spring Boot apps
+  usually need at least 512 MB, so ask an administrator to raise the project quota when the
+  default is lower.
+
+Databases must be external. Application servers, WAR/EAR deployments, and background job
+runners are not supported in the pilot.
+
+The new Next.js modes remain a nonproduction, allowlisted pilot until the real
+BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
+does not make a mode generally available.
 
 Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 

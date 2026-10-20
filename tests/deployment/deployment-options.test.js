@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { buildDeploymentJobPayload, parseNoCacheFlag } =
+const { buildDeploymentJobPayload, createConfigurationSnapshot, parseNoCacheFlag } =
   await import('../../apps/web/src/services/deployment.service.js');
 
 function id(value) {
@@ -30,21 +30,17 @@ describe('deployment option payloads', () => {
     });
 
     assert.deepEqual(payload, {
-      version: 1,
+      version: 2,
       correlationId: 'corr-1',
       actorId: 'user-1',
       actorRole: 'USER',
       projectId: 'project-1',
       deploymentId: 'deployment-1',
-      commitSha: 'abcdef1234567890abcdef1234567890abcdef12',
-      repositoryId: 'repo-1',
-      runtimeType: 'NODE',
-      imageTag: 'hello-app-abcdef1-7',
       noCache: true,
     });
   });
 
-  it('builds retry/current-commit payloads with the original commit and cache enabled', () => {
+  it('keeps mutable configuration out of retry/current-commit job payloads', () => {
     const payload = buildDeploymentJobPayload({
       project: { _id: id('project-1') },
       deployment: { _id: id('deployment-2') },
@@ -57,8 +53,49 @@ describe('deployment option payloads', () => {
       correlationId: 'corr-2',
     });
 
-    assert.equal(payload.commitSha, '1111111234567890abcdef1234567890abcdef12');
+    assert.equal(payload.commitSha, undefined);
+    assert.equal(payload.repositoryId, undefined);
+    assert.equal(payload.runtimeType, undefined);
+    assert.equal(payload.imageTag, undefined);
     assert.equal(payload.noCache, false);
     assert.equal(payload.deploymentId, 'deployment-2');
+  });
+
+  it('captures an immutable deployment configuration snapshot', () => {
+    const snapshot = createConfigurationSnapshot(
+      {
+        runtimeType: 'NEXTJS',
+        buildStrategy: 'next_standard_v1',
+        configurationVersion: 7,
+        environmentVersion: 4,
+        buildConfiguration: {
+          applicationRoot: 'apps/web',
+          buildCommand: 'npm run build',
+          startCommand: 'npm start',
+          outputDirectory: '.next',
+          applicationPort: 3000,
+          healthCheckPath: '/health',
+        },
+      },
+      'abcdef1234567890abcdef1234567890abcdef12',
+    );
+    assert.deepEqual(snapshot, {
+      schemaVersion: 1,
+      buildStrategy: 'next_standard_v1',
+      runtimeType: 'NEXTJS',
+      buildConfiguration: {
+        buildCommand: 'npm run build',
+        startCommand: 'npm start',
+        outputDirectory: '.next',
+        applicationPort: 3000,
+        healthCheckPath: '/health',
+        applicationRoot: 'apps/web',
+        applicationModule: null,
+      },
+      projectConfigurationVersion: 7,
+      environmentVersion: 4,
+      sourceCommit: 'abcdef1234567890abcdef1234567890abcdef12',
+      sourceRepositoryId: null,
+    });
   });
 });

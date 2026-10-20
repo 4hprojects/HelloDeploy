@@ -1,6 +1,16 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { mkdtemp, writeFile, symlink, readdir, rm, mkdir, readFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdtemp,
+  writeFile,
+  symlink,
+  readdir,
+  rm,
+  mkdir,
+  readFile,
+  open,
+} from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 
@@ -9,6 +19,15 @@ const { prepareBuildContext, writePlatformDockerignore, listRootEnvFiles } =
 
 async function makeContext() {
   return mkdtemp(join(tmpdir(), 'hellodeploy-bc-'));
+}
+
+async function makeDeepDirectory(root, depth) {
+  let directory = root;
+  for (let index = 0; index < depth; index += 1) {
+    directory = join(directory, `d${index}`);
+  }
+  await mkdir(directory, { recursive: true });
+  return directory;
 }
 
 // ─── Forbidden file removal ───────────────────────────────────────────────────
@@ -81,6 +100,16 @@ describe('prepareBuildContext — forbidden file removal', () => {
 
 // ─── Symlink containment (path traversal via symlink) ────────────────────────
 
+describe('prepareBuildContext — Dockerfile-specific ignore file', () => {
+  it('removes a committed Dockerfile.dockerignore that would replace the platform rules', async () => {
+    const dir = await makeContext();
+    await writeFile(join(dir, 'Dockerfile.dockerignore'), '');
+    await prepareBuildContext(dir);
+    assert.deepEqual(await readdir(dir), []);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
 describe('prepareBuildContext — symlink containment', () => {
   it('removes a top-level symlink whose real target is outside the build context', async () => {
     const dir = await makeContext();
@@ -133,6 +162,15 @@ describe('prepareBuildContext — symlink containment', () => {
     );
     await rm(dir, { recursive: true, force: true });
   });
+
+  it('removes an escaping symlink nested beyond the former depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 45);
+    await symlink('/etc', join(deep, 'escape'));
+    await prepareBuildContext(dir);
+    assert.ok(!(await readdir(deep)).includes('escape'));
+    await rm(dir, { recursive: true, force: true });
+  });
 });
 
 // ─── Return value ─────────────────────────────────────────────────────────────
@@ -144,6 +182,81 @@ describe('prepareBuildContext — return value', () => {
     const result = await prepareBuildContext(dir);
     assert.ok(typeof result.sizeBytes === 'number', 'sizeBytes must be a number');
     assert.ok(result.sizeBytes >= 1024, 'sizeBytes must reflect written content');
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('counts a valid file nested beyond the former size depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 25);
+    await writeFile(join(deep, 'payload.bin'), 'deep-content');
+    const result = await prepareBuildContext(dir);
+    assert.equal(result.sizeBytes, Buffer.byteLength('deep-content'));
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('rejects an oversized sparse file nested beyond the former size depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 25);
+    const handle = await open(join(deep, 'oversized.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await assert.rejects(() => prepareBuildContext(dir), /Build context is too large/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('handles a valid context nested beyond the former symlink depth limit', async () => {
+    const dir = await makeContext();
+    const deep = await makeDeepDirectory(dir, 60);
+    await writeFile(join(deep, 'app.js'), 'export default true;');
+    await assert.doesNotReject(() => prepareBuildContext(dir));
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('prepareBuildContext — size of skipped folders', () => {
+  // Legacy builds send node_modules and .git to the daemon, so they count.
+  it('counts node_modules toward the context size limit', async () => {
+    const dir = await makeContext();
+    await mkdir(join(dir, 'node_modules'));
+    const handle = await open(join(dir, 'node_modules', 'big.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await assert.rejects(() => prepareBuildContext(dir), /Build context is too large/);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  it('leaves symlinks inside node_modules alone', async () => {
+    const dir = await makeContext();
+    await mkdir(join(dir, 'node_modules', '.bin'), { recursive: true });
+    await symlink('/etc/hostname', join(dir, 'node_modules', '.bin', 'tool'));
+    await prepareBuildContext(dir);
+    assert.deepEqual(await readdir(join(dir, 'node_modules', '.bin')), ['tool']);
+    await rm(dir, { recursive: true, force: true });
+  });
+});
+
+describe('prepareBuildContext — application-root pass', () => {
+  // The repository pass already counted every file; the application-root pass
+  // only tightens symlink containment and removes forbidden files.
+  it('scrubs links leaving the root without recounting file sizes', async () => {
+    const dir = await makeContext();
+    const handle = await open(join(dir, 'big.bin'), 'w');
+    await handle.truncate(501 * 1024 * 1024);
+    await handle.close();
+    await symlink('/etc/hostname', join(dir, 'escape'));
+    await prepareBuildContext(dir, { countSize: false });
+    assert.deepEqual((await readdir(dir)).sort(), ['big.bin']);
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  // An unreadable folder fails the pass only if the pass walks into it.
+  it('does not walk dependency folders it neither scrubs nor counts', async () => {
+    const dir = await makeContext();
+    const sealed = join(dir, 'node_modules', 'sealed');
+    await mkdir(sealed, { recursive: true });
+    await chmod(sealed, 0o000);
+    await assert.doesNotReject(prepareBuildContext(dir, { countSize: false }));
+    await chmod(sealed, 0o700);
     await rm(dir, { recursive: true, force: true });
   });
 });

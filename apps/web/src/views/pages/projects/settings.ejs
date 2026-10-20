@@ -535,6 +535,10 @@
                 <input type="hidden" name="startCommand" value="<%= startCommandValue %>">
                 <input type="hidden" name="outputDirectory" value="<%= outputDirectoryValue %>">
                 <input type="hidden" name="applicationPort" value="<%= applicationPortValue %>">
+                <%# This form saves the whole build configuration; unedited settings ride along. %>
+                <input type="hidden" name="applicationRoot" value="<%= bc.applicationRoot || '.' %>">
+                <input type="hidden" name="applicationModule" value="<%= bc.applicationModule ?? '' %>">
+                <input type="hidden" name="buildStrategy" value="<%= project.buildStrategy || 'legacy_generated' %>">
                 <%- include('../../partials/form-errors', { errors: bcErrors }) %>
                 <div class="settings-field-row">
                   <div>

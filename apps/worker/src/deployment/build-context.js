@@ -1,6 +1,7 @@
-import { readdir, stat, unlink, realpath, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, unlink, realpath, writeFile } from 'node:fs/promises';
 import { join, resolve, relative, sep } from 'node:path';
 import { logger } from '@hellodeploy/observability';
+import { normalizeApplicationRoot } from '@hellodeploy/contracts';
 
 const MAX_CONTEXT_BYTES = 500 * 1024 * 1024; // 500 MB
 
@@ -9,6 +10,9 @@ const FORBIDDEN_FILENAMES = [
   'Dockerfile',
   'dockerfile',
   '.dockerignore',
+  // BuildKit prefers <Dockerfile>.dockerignore over .dockerignore, so a committed
+  // one would replace the platform exclusions.
+  'Dockerfile.dockerignore',
   'docker-compose.yml',
   'docker-compose.yaml',
   'docker-compose.override.yml',
@@ -35,6 +39,10 @@ docker-compose*.yml
 docker-compose*.yaml
 Dockerfile
 .dockerignore
+.venv
+**/.venv
+**/__pycache__
+**/*.pyc
 `;
 
 // ─── Path traversal guard ──────────────────────────────────────────────────────
@@ -52,67 +60,81 @@ function assertInsideRoot(rootDir, targetPath) {
   }
 }
 
-// ─── Recursive symlink scrub ───────────────────────────────────────────────────
+export async function resolveApplicationRoot(contextDir, requestedRoot = '.') {
+  const applicationRoot = normalizeApplicationRoot(requestedRoot);
+  const repositoryRoot = await realpath(resolve(contextDir));
+  const candidate = resolve(repositoryRoot, applicationRoot);
+  const resolvedCandidate = await realpath(candidate).catch((error) => {
+    if (error.code === 'ENOENT') {
+      throw new Error(`Application root ${applicationRoot} does not exist at this commit.`);
+    }
+    throw error;
+  });
+  const rel = relative(repositoryRoot, resolvedCandidate);
+  if (rel.startsWith('..') || rel.startsWith(sep + '..')) {
+    throw new Error('Application root resolves outside the checked-out repository.');
+  }
+  const candidateStat = await stat(resolvedCandidate);
+  if (!candidateStat.isDirectory()) {
+    throw new Error('Application root must identify a directory.');
+  }
+  return resolvedCandidate;
+}
 
-// Directories docker build never reads from and that can grow huge (deps,
-// version control) — skip descending into them.
+// ─── Build context traversal ───────────────────────────────────────────────────
+
+// Dependency and version-control folders hold many legitimate links; they are
+// not scrubbed for escaping symlinks, but their size still counts.
 const SKIP_DIR_NAMES = new Set(['node_modules', '.git']);
 
-/**
- * Walk the full context tree (not just the top level) and remove any symlink
- * that resolves outside the context root. path.resolve() at the top-level
- * only guards top-level names — a symlink several directories deep pointing
- * at, e.g., `/etc` would otherwise slip through unscrubbed.
- */
-async function scrubEscapingSymlinks(rootDir, dir, depth = 0) {
-  if (depth > 40) {
-    return;
-  }
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const entryPath = join(dir, entry.name);
+async function inspectBuildContext(rootDir, { countSize = true } = {}) {
+  let total = 0;
+  // Every folder counts toward the size limit, because legacy builds send the
+  // whole tree; dependency and version-control folders skip the symlink scrub.
+  const pendingDirectories = [{ directory: rootDir, scrub: true }];
 
-    if (entry.isSymbolicLink()) {
-      try {
-        const realTarget = await realpath(entryPath);
-        const rel = relative(rootDir, realTarget);
-        if (rel.startsWith('..')) {
+  while (pendingDirectories.length > 0) {
+    const { directory, scrub } = pendingDirectories.pop();
+    const entries = await readdir(directory, { withFileTypes: true });
+    for (const entry of entries) {
+      const entryPath = join(directory, entry.name);
+      if (entry.isSymbolicLink() && !scrub) {
+        continue;
+      }
+      if (entry.isSymbolicLink()) {
+        try {
+          const realTarget = await realpath(entryPath);
+          const rel = relative(rootDir, realTarget);
+          if (rel === '..' || rel.startsWith(`..${sep}`)) {
+            await unlink(entryPath);
+            logger.warn('BuildContext: removed symlink escaping context root', {
+              path: relative(rootDir, entryPath),
+            });
+          }
+        } catch {
           await unlink(entryPath);
-          logger.warn('BuildContext: removed symlink escaping context root', {
+          logger.warn('BuildContext: removed broken symlink', {
             path: relative(rootDir, entryPath),
           });
         }
-      } catch {
-        // Broken (dangling) symlink — remove it
-        await unlink(entryPath);
-        logger.warn('BuildContext: removed broken symlink', {
-          path: relative(rootDir, entryPath),
-        });
+        continue;
       }
-      continue;
-    }
-
-    if (entry.isDirectory() && !SKIP_DIR_NAMES.has(entry.name)) {
-      await scrubEscapingSymlinks(rootDir, entryPath, depth + 1);
-    }
-  }
-}
-
-// ─── Directory size ────────────────────────────────────────────────────────────
-
-async function getDirectorySize(dir, depth = 0) {
-  if (depth > 20) {
-    return 0;
-  }
-  let total = 0;
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const p = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      total += await getDirectorySize(p, depth + 1);
-    } else if (entry.isFile()) {
-      const s = await stat(p);
-      total += s.size;
+      if (entry.isDirectory()) {
+        const shouldScrub = scrub && !SKIP_DIR_NAMES.has(entry.name);
+        // Without the scrub or the size count, a walk of the folder does nothing.
+        if (shouldScrub || countSize) {
+          pendingDirectories.push({ directory: entryPath, scrub: shouldScrub });
+        }
+        continue;
+      }
+      if (countSize && entry.isFile()) {
+        total += (await stat(entryPath)).size;
+        if (total > MAX_CONTEXT_BYTES) {
+          throw new Error(
+            `Build context is too large: ${Math.round(total / 1024 / 1024)} MB (max 500 MB)`,
+          );
+        }
+      }
     }
   }
   return total;
@@ -131,7 +153,7 @@ async function getDirectorySize(dir, depth = 0) {
  * @param {string} contextDir - Absolute path to the cloned source directory
  * @returns {Promise<{ sizeBytes: number }>}
  */
-export async function prepareBuildContext(contextDir) {
+export async function prepareBuildContext(contextDir, { countSize = true } = {}) {
   const resolvedRoot = resolve(contextDir);
 
   // ── Validate all top-level filenames ──────────────────────────────────────
@@ -139,11 +161,6 @@ export async function prepareBuildContext(contextDir) {
   for (const entry of topEntries) {
     assertInsideRoot(resolvedRoot, entry.name);
   }
-
-  // path.resolve() does not follow symlinks — walk the whole tree and verify
-  // every symlink's real target is inside the root, so a symlink pointing to
-  // /etc (or similar), at any depth, cannot expose host files to the build.
-  await scrubEscapingSymlinks(resolvedRoot, resolvedRoot);
 
   // ── Remove forbidden files ─────────────────────────────────────────────────
   for (const name of FORBIDDEN_FILENAMES) {
@@ -156,13 +173,10 @@ export async function prepareBuildContext(contextDir) {
     }
   }
 
-  // ── Size check ─────────────────────────────────────────────────────────────
-  const sizeBytes = await getDirectorySize(resolvedRoot);
-  if (sizeBytes > MAX_CONTEXT_BYTES) {
-    throw new Error(
-      `Build context is too large: ${Math.round(sizeBytes / 1024 / 1024)} MB (max 500 MB)`,
-    );
-  }
+  // Iteratively inspect every included directory without a depth cutoff. This
+  // avoids call-stack limits while ensuring deeply nested symlinks and files
+  // cannot bypass containment or the context-size ceiling.
+  const sizeBytes = await inspectBuildContext(resolvedRoot, { countSize });
 
   logger.info('BuildContext: prepared', {
     sizeBytes,
@@ -177,6 +191,27 @@ export async function writePlatformDockerignore(contextDir) {
   const path = join(resolve(contextDir), '.dockerignore');
   await writeFile(path, PLATFORM_DOCKERIGNORE, { encoding: 'utf8', mode: 0o600 });
   return path;
+}
+
+/**
+ * Read a small file from the context root, or null when there is none. Escaping
+ * symlinks were already removed by prepareBuildContext.
+ */
+export async function readOptionalContextFile(contextDir, name, maxBytes) {
+  const path = join(resolve(contextDir), name);
+  let size;
+  try {
+    ({ size } = await stat(path));
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      return null;
+    }
+    throw error;
+  }
+  if (size > maxBytes) {
+    throw new Error(`${name} is larger than ${Math.round(maxBytes / 1024)} KB.`);
+  }
+  return readFile(path, 'utf8');
 }
 
 /**

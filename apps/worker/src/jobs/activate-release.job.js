@@ -8,6 +8,7 @@ import {
   inspectContainer,
   getContainerLogs,
   stopAndRemoveContainer,
+  pullAndVerifyImage,
 } from '../deployment/container.js';
 import { httpHealthCheck } from '../deployment/health-check.js';
 import { removeDockerImage } from '../deployment/build.js';
@@ -29,6 +30,7 @@ const defaultDeps = {
   inspectContainer,
   getContainerLogs,
   stopAndRemoveContainer,
+  pullAndVerifyImage,
   httpHealthCheck,
   removeDockerImage,
   getProjectEnvVars,
@@ -81,19 +83,74 @@ export async function handleActivateRelease(job, deps = defaultDeps) {
     return;
   }
 
+  const snapshot =
+    deployment.configurationSnapshot?.toObject?.() ?? deployment.configurationSnapshot ?? null;
+  if (job.data.version >= 2) {
+    if (
+      !snapshot ||
+      deployment.imageDigest !== job.data.imageDigest ||
+      deployment.imageRef !== job.data.imageId ||
+      !/^(?:[^\s@]+@)?sha256:[a-f0-9]{64}$/.test(deployment.imageRef ?? '') ||
+      !deployment.imageRef.endsWith(deployment.imageDigest)
+    ) {
+      await updateStatus(
+        deploymentId,
+        DeploymentStatus.FAILED,
+        {
+          failureCode: 'DEPLOYMENT_SNAPSHOT_INVALID',
+          failureSummary: 'Built image identity does not match the deployment snapshot.',
+          completedAt: new Date(),
+        },
+        { project, deps, removeImageOnFailure: true },
+      );
+      return;
+    }
+    if ((project.environmentVersion ?? 1) !== job.data.environmentVersion) {
+      await updateStatus(
+        deploymentId,
+        DeploymentStatus.FAILED,
+        {
+          failureCode: 'CONFIGURATION_CHANGED',
+          failureSummary: 'Environment variables changed before release activation.',
+          completedAt: new Date(),
+        },
+        { project, deps, removeImageOnFailure: true },
+      );
+      return;
+    }
+    if (deployment.imageRef.includes('@sha256:')) {
+      try {
+        await deps.pullAndVerifyImage(deployment.imageRef);
+      } catch (error) {
+        await updateStatus(
+          deploymentId,
+          DeploymentStatus.FAILED,
+          {
+            failureCode: 'IMAGE_PULL_FAILED',
+            failureSummary: error.message,
+            completedAt: new Date(),
+          },
+          { project, deps, removeImageOnFailure: true },
+        );
+        return;
+      }
+    }
+  }
+
   const result = await runReleasePipeline({
     project,
     deploymentId,
-    imageTag: deployment.imageTag,
+    imageTag: deployment.imageRef ?? deployment.imageTag,
     correlationId,
     deps,
     resourceLimits: job.data.resourceLimits,
+    runtimeSpec: job.data.runtimeSpec,
+    configurationSnapshot: snapshot,
     opts: {
       removeImageOnFailure: true,
       failOnInvalidSubdomain: true,
       persistSubdomain: true,
       markPreviousRolledBack: false,
-      recordImageTagOnStart: false,
       logLabel: 'Container',
     },
   });

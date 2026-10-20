@@ -1,12 +1,33 @@
-import { RuntimeType } from '@hellodeploy/contracts';
+import {
+  APPROVED_JAVA_VERSIONS,
+  APPROVED_PHP_VERSIONS,
+  APPROVED_PYTHON_VERSIONS,
+  BuildStrategy,
+  JAVA_PORT,
+  PHP_PORT,
+  RuntimeType,
+  isJavaBuildStrategy,
+  isPhpBuildStrategy,
+  isPythonBuildStrategy,
+  validateApplicationModule,
+  validatePhpDocumentRoot,
+} from '@hellodeploy/contracts';
 import { assertNoControlChars } from '@hellodeploy/security';
 import { ImageTemplateVersion } from './template-policy.js';
 
 // Node.js LTS version pinned to avoid drift between builds
 const NODE_IMAGE = 'node:22-alpine';
+// Versioned Next.js images set HOSTNAME because Docker defaults it to the
+// container id, and Next servers bind to it instead of every interface.
+const NEXT_NODE_IMAGE = 'node:22-bookworm-slim';
 // Unprivileged variant: runs as uid 101 and listens on STATIC_PORT instead of 80,
 // so static containers never run nginx as root.
 const NGINX_IMAGE = 'nginxinc/nginx-unprivileged:1.27-alpine';
+
+// Fixed unprivileged uid for the Python and Java images, which ship no
+// suitable non-root user.
+const APP_UID = 10001;
+const COMPOSER_IMAGE = 'composer:2.8';
 
 /** Container-internal port nginx-unprivileged listens on for static runtimes. */
 export const STATIC_PORT = 8080;
@@ -48,6 +69,11 @@ export function generateDockerfile(config) {
     applicationPort,
     buildArgNames = [],
     templateVersion = ImageTemplateVersion.LEGACY,
+    buildStrategy = BuildStrategy.LEGACY_GENERATED,
+    applicationModule = null,
+    pythonVersion = null,
+    phpVersion = null,
+    javaVersion = null,
   } = config;
 
   if (!Object.values(ImageTemplateVersion).includes(templateVersion)) {
@@ -78,6 +104,60 @@ export function generateDockerfile(config) {
     assertNoControlChars(outputDirectory, 'Output directory');
   }
 
+  if (isPythonBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.PYTHON) {
+      throw new Error(`The ${buildStrategy} build strategy requires the PYTHON runtime.`);
+    }
+    // Re-checked here because the module is templated into CMD and the version
+    // into FROM; the web validator and the job are not the only write paths.
+    const moduleError = validateApplicationModule(applicationModule);
+    if (moduleError) {
+      throw new Error(moduleError);
+    }
+    if (!APPROVED_PYTHON_VERSIONS.includes(pythonVersion)) {
+      throw new Error(`Unsupported Python version: ${pythonVersion}`);
+    }
+    return generatePython({
+      buildStrategy,
+      buildCommand,
+      buildArgNames,
+      applicationModule,
+      applicationPort: applicationPort ?? 8000,
+      pythonVersion,
+    });
+  }
+
+  if (isPhpBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.PHP) {
+      throw new Error(`The ${buildStrategy} build strategy requires the PHP runtime.`);
+    }
+    // The version is templated into FROM and the document root into the web
+    // server configuration, so both are re-checked against their allowlists.
+    if (!APPROVED_PHP_VERSIONS.includes(phpVersion)) {
+      throw new Error(`Unsupported PHP version: ${phpVersion}`);
+    }
+    const documentRoot = outputDirectory ?? '.';
+    const documentRootError = validatePhpDocumentRoot(documentRoot);
+    if (documentRootError) {
+      throw new Error(documentRootError);
+    }
+    if (buildStrategy === BuildStrategy.PHP_LARAVEL_V1 && documentRoot !== 'public') {
+      throw new Error('Laravel serves its public folder; set the document root to public.');
+    }
+    return generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion });
+  }
+
+  if (isJavaBuildStrategy(buildStrategy)) {
+    if (runtimeType !== RuntimeType.JAVA) {
+      throw new Error(`The ${buildStrategy} build strategy requires the JAVA runtime.`);
+    }
+    // Templated into both FROM lines, so re-checked against the allowlist.
+    if (!APPROVED_JAVA_VERSIONS.includes(javaVersion)) {
+      throw new Error(`Unsupported Java version: ${javaVersion}`);
+    }
+    return generateJava({ buildStrategy, javaVersion });
+  }
+
   switch (runtimeType) {
     case RuntimeType.STATIC:
       return generateStatic();
@@ -91,6 +171,26 @@ export function generateDockerfile(config) {
       });
 
     case RuntimeType.NEXTJS:
+      if (buildStrategy === BuildStrategy.NEXT_STANDARD_V1) {
+        return generateNextStandard({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+          applicationPort: applicationPort ?? 3000,
+        });
+      }
+      if (buildStrategy === BuildStrategy.NEXT_STANDALONE_V1) {
+        return generateNextStandaloneV1({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+          applicationPort: applicationPort ?? 3000,
+        });
+      }
+      if (buildStrategy === BuildStrategy.NEXT_EXPORT_V1) {
+        return generateNextExport({
+          buildCommand: buildCommand ?? 'npm run build',
+          buildArgNames,
+        });
+      }
       return generateNextjs({
         buildCommand: buildCommand ?? 'npm run build',
         buildArgNames,
@@ -109,6 +209,255 @@ export function generateDockerfile(config) {
     default:
       throw new Error(`Cannot generate Dockerfile for unsupported runtime: ${runtimeType}`);
   }
+}
+
+function generateNextStandard({ buildCommand, buildArgNames, applicationPort }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN ${buildCommand}
+RUN npm prune --omit=dev
+
+FROM ${NEXT_NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=node:node /app ./
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+ENV HOSTNAME=0.0.0.0
+CMD ["npm", "start"]
+`;
+}
+
+function generateNextStandaloneV1({ buildCommand, buildArgNames, applicationPort }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS deps
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+
+FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN ${buildCommand}
+RUN mkdir -p /app/public
+
+FROM ${NEXT_NODE_IMAGE}
+WORKDIR /app
+ENV NODE_ENV=production
+COPY --from=builder --chown=node:node /app/.next/standalone ./
+COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/public ./public
+USER node
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+ENV HOSTNAME=0.0.0.0
+CMD ["node", "server.js"]
+`;
+}
+
+function generateNextExport({ buildCommand, buildArgNames }) {
+  return `FROM ${NEXT_NODE_IMAGE} AS builder
+WORKDIR /app
+COPY package*.json ./
+RUN npm ci --prefer-offline
+COPY . .
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+ENV NEXT_TELEMETRY_DISABLED=1
+RUN ${buildCommand}
+
+FROM ${NGINX_IMAGE}
+COPY --from=builder /app/out /usr/share/nginx/html
+EXPOSE ${STATIC_PORT}
+CMD ["nginx", "-g", "daemon off;"]
+`;
+}
+
+function generatePython({
+  buildStrategy,
+  buildCommand,
+  buildArgNames,
+  applicationModule,
+  applicationPort,
+  pythonVersion,
+}) {
+  const image = `python:${pythonVersion}-slim-bookworm`;
+  // The proxy is the only client that can reach the loopback-published port, so
+  // trusting its forwarded headers lets apps see the public https scheme.
+  const command =
+    buildStrategy === BuildStrategy.PYTHON_FASTAPI_V1
+      ? [
+          'uvicorn',
+          applicationModule,
+          '--host',
+          '0.0.0.0',
+          '--port',
+          String(applicationPort),
+          '--proxy-headers',
+          '--forwarded-allow-ips',
+          '*',
+        ]
+      : [
+          'gunicorn',
+          '--bind',
+          `0.0.0.0:${applicationPort}`,
+          '--workers',
+          '2',
+          '--forwarded-allow-ips',
+          '*',
+          '--access-logfile',
+          '-',
+          applicationModule,
+        ];
+  return `FROM ${image} AS builder
+ENV PYTHONDONTWRITEBYTECODE=1 PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+WORKDIR /app
+COPY . .
+RUN pip install -r requirements.txt
+${buildArgDeclarations(buildArgNames)}${buildCommand ? `RUN ${buildCommand}\n` : ''}
+FROM ${image}
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PATH=/opt/venv/bin:$PATH
+RUN useradd --system --uid ${APP_UID} --no-create-home --shell /usr/sbin/nologin app
+WORKDIR /app
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=builder /app ./
+USER ${APP_UID}
+EXPOSE ${applicationPort}
+ENV PORT=${applicationPort}
+CMD ${JSON.stringify(command)}
+`;
+}
+
+function generateJava({ buildStrategy, javaVersion }) {
+  const isMaven = buildStrategy === BuildStrategy.JAVA_MAVEN_V1;
+  const build = isMaven
+    ? 'sh ./mvnw -B -ntp -DskipTests clean package'
+    : 'sh ./gradlew --no-daemon clean bootJar -x test';
+  const outputDir = isMaven ? 'target' : 'build/libs';
+  // Spring Boot also leaves plain, sources, javadoc, and original jars beside
+  // the executable one; exactly one candidate must remain, and it must carry
+  // the BOOT-INF layout that `java -jar` needs.
+  return `FROM eclipse-temurin:${javaVersion}-jdk AS builder
+WORKDIR /app
+COPY . .
+ENV MAVEN_OPTS="-Xmx512m" GRADLE_OPTS="-Xmx512m -Dorg.gradle.daemon=false"
+RUN ${build}
+RUN set -e; \\
+    jars=$(find ${outputDir} -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' ! -name '*-sources.jar' ! -name '*-javadoc.jar' ! -name 'original-*.jar'); \\
+    count=$(printf '%s\\n' "$jars" | grep -c . || true); \\
+    if [ "$count" -ne 1 ]; then echo "Expected one executable jar in ${outputDir}, found $count: $jars" >&2; exit 1; fi; \\
+    jar tf "$jars" | grep -q '^BOOT-INF/' || { echo "$jars is not a Spring Boot executable jar." >&2; exit 1; }; \\
+    cp "$jars" /app/application.jar
+
+FROM eclipse-temurin:${javaVersion}-jre
+RUN useradd --system --uid ${APP_UID} --no-create-home --shell /usr/sbin/nologin app
+WORKDIR /app
+COPY --from=builder /app/application.jar ./application.jar
+USER ${APP_UID}
+# The environment overrides application.properties, so the app listens where
+# the platform routes. The heap cap leaves room for metaspace and threads, and
+# Tomcat's request threads stay well under the container's PID limit.
+ENV SERVER_PORT=${JAVA_PORT} SERVER_FORWARD_HEADERS_STRATEGY=native SERVER_TOMCAT_THREADS_MAX=40 \\
+    JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=60 -XX:+ExitOnOutOfMemoryError -Xss512k"
+EXPOSE ${JAVA_PORT}
+ENV PORT=${JAVA_PORT}
+CMD ["java","-jar","/app/application.jar"]
+`;
+}
+
+function generatePhp({ buildStrategy, buildCommand, buildArgNames, documentRoot, phpVersion }) {
+  const image = `php:${phpVersion}-apache-bookworm`;
+  const isLaravel = buildStrategy === BuildStrategy.PHP_LARAVEL_V1;
+  const shouldBuildAssets = isLaravel && Boolean(buildCommand);
+  const webRoot = documentRoot === 'public' ? '/var/www/html/public' : '/var/www/html';
+  const site = [
+    `<VirtualHost *:${PHP_PORT}>`,
+    `DocumentRoot ${webRoot}`,
+    '<Directory /var/www/html>',
+    'Options -Indexes +FollowSymLinks',
+    'AllowOverride All',
+    'Require all granted',
+    '</Directory>',
+    '<FilesMatch "^\\.">',
+    'Require all denied',
+    '</FilesMatch>',
+    '<FilesMatch "^(composer\\.(json|lock)|auth\\.json)$">',
+    'Require all denied',
+    '</FilesMatch>',
+    'RedirectMatch 404 "^/(vendor|\\.git)(/|$)"',
+    // eslint-disable-next-line no-template-curly-in-string -- Apache expands this, not JavaScript.
+    'CustomLog ${APACHE_LOG_DIR}/access.log combined',
+    '</VirtualHost>',
+  ];
+  // Apache's defaults allow 150 workers, far past the container's PID limit and
+  // memory; each mod_php worker holds a full interpreter.
+  const prefork = [
+    '<IfModule mpm_prefork_module>',
+    'StartServers 2',
+    'MinSpareServers 1',
+    'MaxSpareServers 3',
+    'MaxRequestWorkers 8',
+    'MaxConnectionsPerChild 1000',
+    '</IfModule>',
+  ];
+  const quoted = (lines) => lines.map((line) => `'${line}'`).join(' ');
+  const assetsStage = shouldBuildAssets
+    ? `
+FROM ${NEXT_NODE_IMAGE} AS assets
+WORKDIR /app
+COPY --from=vendor /app ./
+RUN npm ci --prefer-offline
+${buildArgDeclarations(buildArgNames)}ENV PATH=${LOCAL_BIN_PATH}
+RUN ${buildCommand}
+`
+    : '';
+  const laravelRuntime = isLaravel
+    ? `RUN mkdir -p storage/framework/cache storage/framework/sessions storage/framework/views storage/logs bootstrap/cache \\
+ && chown -R www-data:www-data storage bootstrap/cache
+ENV LOG_CHANNEL=stderr
+`
+    : '';
+  return `FROM ${image} AS vendor
+RUN apt-get update \\
+ && apt-get install -y --no-install-recommends git unzip \\
+ && apt-get clean
+RUN docker-php-ext-install pdo_mysql
+COPY --from=${COMPOSER_IMAGE} /usr/bin/composer /usr/bin/composer
+ENV COMPOSER_ALLOW_SUPERUSER=1 COMPOSER_NO_INTERACTION=1
+WORKDIR /app
+COPY . .
+RUN if [ -f composer.json ]; then \\
+      if [ ! -f composer.lock ]; then echo "composer.lock is required. Commit it and deploy again." >&2; exit 1; fi; \\
+      composer install --no-dev --prefer-dist --no-progress --optimize-autoloader; \\
+    fi
+${assetsStage}
+FROM ${image}
+RUN docker-php-ext-install pdo_mysql \\
+ && cp "$PHP_INI_DIR/php.ini-production" "$PHP_INI_DIR/php.ini" \\
+ && printf 'expose_php = Off\\n' > "$PHP_INI_DIR/conf.d/hellodeploy.ini" \\
+ && a2enmod rewrite \\
+ && printf '%s\\n' 'Listen ${PHP_PORT}' > /etc/apache2/ports.conf \\
+ && printf '%s\\n' ${quoted(site)} > /etc/apache2/sites-available/000-default.conf \\
+ && printf '%s\\n' ${quoted(prefork)} > /etc/apache2/mods-available/mpm_prefork.conf \\
+ && printf '%s\\n' 'ServerTokens Prod' 'ServerSignature Off' 'ServerName localhost' > /etc/apache2/conf-available/hellodeploy.conf \\
+ && a2enconf hellodeploy \\
+ && chown -R www-data:www-data /var/run/apache2 /var/lock/apache2
+WORKDIR /var/www/html
+COPY --from=vendor /app ./
+${shouldBuildAssets ? 'COPY --from=assets /app/public/build ./public/build\n' : ''}${laravelRuntime}USER www-data
+EXPOSE ${PHP_PORT}
+ENV PORT=${PHP_PORT}
+CMD ["apache2-foreground"]
+`;
 }
 
 // ─── Per-runtime templates ─────────────────────────────────────────────────────

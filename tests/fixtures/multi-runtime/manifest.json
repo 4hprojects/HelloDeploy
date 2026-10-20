@@ -1,0 +1,198 @@
+{
+  "schemaVersion": 1,
+  "fixtures": [
+    {
+      "id": "static",
+      "applicationRoot": "tests/fixtures/multi-runtime/static",
+      "runtimeType": "STATIC",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/"
+    },
+    {
+      "id": "react-vite",
+      "applicationRoot": "tests/fixtures/multi-runtime/react-vite",
+      "runtimeType": "REACT",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/"
+    },
+    {
+      "id": "vue-vite",
+      "applicationRoot": "tests/fixtures/multi-runtime/vue-vite",
+      "runtimeType": "VUE",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/"
+    },
+    {
+      "id": "express",
+      "applicationRoot": "tests/fixtures/multi-runtime/express",
+      "runtimeType": "EXPRESS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "node",
+      "applicationRoot": "tests/fixtures/multi-runtime/node",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "next14-legacy",
+      "applicationRoot": "tests/fixtures/multi-runtime/next14-legacy",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "next15-standard-app",
+      "applicationRoot": "tests/fixtures/multi-runtime/next15-standard-app",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "next_standard_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "next15-export-pages",
+      "applicationRoot": "tests/fixtures/multi-runtime/next15-export-pages",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "next_export_v1",
+      "probePath": "/acceptance.html"
+    },
+    {
+      "id": "next16-standalone-app",
+      "applicationRoot": "tests/fixtures/multi-runtime/next16-standalone-app",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "next_standalone_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "next16-standard-pages",
+      "applicationRoot": "tests/fixtures/multi-runtime/next16-standard-pages",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "next_standard_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "python-flask",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-flask",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_flask_v1",
+      "applicationModule": "app:app",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "python-fastapi",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-fastapi",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_fastapi_v1",
+      "applicationModule": "app.main:api",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "python-django",
+      "applicationRoot": "tests/fixtures/multi-runtime/python-django",
+      "runtimeType": "PYTHON",
+      "buildStrategy": "python_django_v1",
+      "applicationModule": "mysite.wsgi:application",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "php-plain",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-plain",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_plain_v1",
+      "probePath": "/acceptance.php"
+    },
+    {
+      "id": "php-composer",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-composer",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_plain_v1",
+      "probePath": "/acceptance.php"
+    },
+    {
+      "id": "php-laravel",
+      "applicationRoot": "tests/fixtures/multi-runtime/php-laravel",
+      "runtimeType": "PHP",
+      "buildStrategy": "php_laravel_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "java-maven",
+      "applicationRoot": "tests/fixtures/multi-runtime/java-maven",
+      "runtimeType": "JAVA",
+      "buildStrategy": "java_maven_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "java-gradle",
+      "applicationRoot": "tests/fixtures/multi-runtime/java-gradle",
+      "runtimeType": "JAVA",
+      "buildStrategy": "java_gradle_v1",
+      "probePath": "/acceptance"
+    },
+    {
+      "id": "rollback-marker",
+      "applicationRoot": "tests/fixtures/multi-runtime/rollback-marker",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "rollback"
+    },
+    {
+      "id": "registry-cleanup",
+      "applicationRoot": "tests/fixtures/multi-runtime/registry-cleanup",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "registry-cleanup"
+    },
+    {
+      "id": "build-failure",
+      "applicationRoot": "tests/fixtures/multi-runtime/build-failure",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "build-failure"
+    },
+    {
+      "id": "health-failure",
+      "applicationRoot": "tests/fixtures/multi-runtime/health-failure",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "health-failure"
+    },
+    {
+      "id": "slow-build",
+      "applicationRoot": "tests/fixtures/multi-runtime/slow-build",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "slow-build"
+    },
+    {
+      "id": "resource-pressure",
+      "applicationRoot": "tests/fixtures/multi-runtime/resource-pressure",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "resource-pressure"
+    },
+    {
+      "id": "isolation-probe",
+      "applicationRoot": "tests/fixtures/multi-runtime/isolation-probe",
+      "runtimeType": "NODEJS",
+      "buildStrategy": "legacy_generated",
+      "probePath": "/acceptance",
+      "scenario": "isolation"
+    },
+    {
+      "id": "private-secret-probe",
+      "applicationRoot": "tests/fixtures/multi-runtime/private-secret-probe",
+      "runtimeType": "NEXTJS",
+      "buildStrategy": "next_standard_v1",
+      "probePath": "/acceptance",
+      "scenario": "private-secret"
+    }
+  ]
+}

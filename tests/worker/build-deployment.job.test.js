@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Deployment, DeploymentEvent, Quota } from '@hellodeploy/database';
+import { Deployment, DeploymentEvent, Project, Quota } from '@hellodeploy/database';
 import { DeploymentStatus, QuotaScope, RepositorySourceType } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb } from '../helpers/worker-db.js';
 import { createProject, createDeployment, createRepository } from '../helpers/worker-fixtures.js';
@@ -105,6 +105,99 @@ describe('build-deployment job', () => {
     const { deps, calls } = makeDeps();
     await handleBuildDeployment(makeJob(project, repo, deployment), deps);
     assert.equal(calls.enqueued[0]?.jobId, `activate-${deployment._id}`);
+  });
+
+  // Registry cleanup must not delete a child manifest another release still lists.
+  it('records the manifests the pushed image index lists', async () => {
+    const { project, repo, deployment: originalDeployment } = await seed();
+    await Project.updateOne({ _id: project._id }, { $set: { repositoryId: repo._id } });
+    await originalDeployment.deleteOne();
+    const deployment = await createDeployment(project._id, {
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'legacy_generated',
+        runtimeType: 'NODEJS',
+        buildConfiguration: { applicationRoot: '.', applicationPort: 3000, healthCheckPath: '/' },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: originalDeployment.commitSha,
+      },
+    });
+    const digest = `sha256:${'b'.repeat(64)}`;
+    const children = [`sha256:${'c'.repeat(64)}`];
+    const { deps } = makeDeps({
+      resolveApplicationRoot: async (workDir) => workDir,
+      buildExecutor: {
+        build: async () => ({ imageRef: digest, imageDigest: digest, childDigests: children }),
+      },
+    });
+    await handleBuildDeployment(
+      {
+        data: {
+          version: 2,
+          projectId: project._id.toString(),
+          deploymentId: deployment._id.toString(),
+          correlationId: 'v2-children-test',
+        },
+      },
+      deps,
+    );
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.deepEqual(fresh.imageChildDigests, children);
+  });
+
+  it('builds a v2 job only from its stored snapshot and records immutable image identity', async () => {
+    const { project, repo, deployment: originalDeployment } = await seed();
+    await Project.updateOne(
+      { _id: project._id },
+      { $set: { repositoryId: repo._id, environmentVersion: 3 } },
+    );
+    await originalDeployment.deleteOne();
+    const deployment = await createDeployment(project._id, {
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'legacy_generated',
+        runtimeType: 'NODEJS',
+        buildConfiguration: {
+          applicationRoot: 'apps/web',
+          buildCommand: null,
+          startCommand: 'node server.js',
+          outputDirectory: null,
+          applicationPort: 3000,
+          healthCheckPath: '/',
+        },
+        projectConfigurationVersion: 1,
+        environmentVersion: 3,
+        sourceCommit: originalDeployment.commitSha,
+      },
+    });
+    const digest = `sha256:${'b'.repeat(64)}`;
+    const { deps, calls } = makeDeps({
+      resolveApplicationRoot: async (workDir, root) => {
+        assert.equal(root, 'apps/web');
+        return `${workDir}/apps/web`;
+      },
+      buildExecutor: {
+        build: async () => ({ imageRef: digest, imageDigest: digest, durationMs: 10 }),
+      },
+    });
+    await handleBuildDeployment(
+      {
+        data: {
+          version: 2,
+          projectId: project._id.toString(),
+          deploymentId: deployment._id.toString(),
+          correlationId: 'v2-test',
+        },
+      },
+      deps,
+    );
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.imageRef, digest);
+    assert.equal(fresh.imageDigest, digest);
+    assert.equal(calls.enqueued[0].payload.version, 2);
+    assert.equal(calls.enqueued[0].payload.imageId, digest);
+    assert.equal(calls.enqueued[0].payload.environmentVersion, 3);
   });
 
   it('cleans up the build workspace on success', async () => {
@@ -391,6 +484,58 @@ describe('build-deployment job', () => {
     assert.equal(calls.tokenRequests, 0);
     assert.equal(calls.publicClones.length, 1);
     assert.equal(calls.publicClones[0].repoName, 'repo');
+  });
+
+  it('clones the repository recorded in the snapshot, not one connected later', async () => {
+    const { project, deployment: originalDeployment } = await seed();
+    await originalDeployment.deleteOne();
+    const publicRepo = (projectId, name) =>
+      createRepository(projectId, {
+        sourceType: RepositorySourceType.PUBLIC_GIT,
+        provider: 'GITHUB',
+        installationId: null,
+        githubRepoId: null,
+        nodeId: null,
+        name,
+        fullName: `owner/${name}`,
+        canonicalCloneUrl: `https://github.com/owner/${name}.git`,
+        visibility: 'public',
+      });
+    const queuedRepo = await publicRepo(project._id, 'queued-repo');
+    const laterRepo = await publicRepo(project._id, 'later-repo');
+    await Project.updateOne({ _id: project._id }, { $set: { repositoryId: laterRepo._id } });
+    const deployment = await createDeployment(project._id, {
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'legacy_generated',
+        runtimeType: 'NODEJS',
+        buildConfiguration: { applicationRoot: '.', startCommand: 'node server.js' },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+        sourceRepositoryId: queuedRepo._id,
+      },
+    });
+    const { deps, calls } = makeDeps({
+      buildExecutor: {
+        build: async () => ({
+          imageRef: `sha256:${'d'.repeat(64)}`,
+          imageDigest: `sha256:${'d'.repeat(64)}`,
+        }),
+      },
+    });
+    await handleBuildDeployment(
+      {
+        data: {
+          version: 2,
+          projectId: project._id.toString(),
+          deploymentId: deployment._id.toString(),
+          correlationId: 'repo-identity',
+        },
+      },
+      deps,
+    );
+    assert.equal(calls.publicClones[0]?.repoName, 'queued-repo');
   });
 
   it('marks REPO_ACCESS_REVOKED when the repository is revoked', async () => {

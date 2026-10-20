@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { logger } from '@hellodeploy/observability';
+import { env } from '../config/env.js';
 import { processOutputLines } from './log-capture.js';
 
 /**
@@ -154,6 +155,153 @@ export function createDockerBuildArgs({
   ];
 }
 
+export function createRemoteDockerBuildArgs({
+  contextDir,
+  imageRef,
+  builderName,
+  metadataFile,
+  layoutDir,
+  noCache = false,
+  buildArgs = {},
+}) {
+  // The builder exports to the worker and never pushes: a killed build then
+  // leaves nothing in the registry, and the builder needs no push credential.
+  return [
+    'buildx',
+    'build',
+    '--builder',
+    builderName,
+    '--output',
+    `type=oci,dest=${layoutDir},tar=false`,
+    '--provenance=true',
+    '--sbom=true',
+    '--metadata-file',
+    metadataFile,
+    '--tag',
+    imageRef,
+    '--file',
+    join(contextDir, 'Dockerfile'),
+    '--network',
+    'default',
+    ...Object.entries(buildArgs).flatMap(([name, value]) => ['--build-arg', `${name}=${value}`]),
+    ...(noCache ? ['--no-cache'] : []),
+    contextDir,
+  ];
+}
+
+const IMAGE_DIGEST_PATTERN = /^sha256:[a-f0-9]{64}$/;
+
+/** Push exactly the built digest from a local OCI layout to its registry tag. */
+export function createOrasPushArgs({ layoutDir, imageDigest, imageRef }) {
+  return ['cp', '--from-oci-layout', `${layoutDir}@${imageDigest}`, imageRef];
+}
+
+function runTimedProcess(command, args, timeoutMs, { onLogLine, label }) {
+  return new Promise((resolve, reject) => {
+    const proc = spawn(command, args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    const timeout = setTimeout(() => {
+      proc.kill('SIGKILL');
+      reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`));
+    }, timeoutMs);
+    for (const [stream, output] of [
+      ['stdout', proc.stdout],
+      ['stderr', proc.stderr],
+    ]) {
+      output.on('data', (chunk) => {
+        processOutputLines(chunk).forEach((line) => onLogLine?.(line, stream));
+      });
+    }
+    proc.on('close', (code) => {
+      clearTimeout(timeout);
+      code === 0 ? resolve() : reject(new Error(`${label} exited with code ${code}`));
+    });
+    proc.on('error', (error) => {
+      clearTimeout(timeout);
+      reject(new Error(`${label} could not start: ${error.message}`));
+    });
+  });
+}
+
+export async function buildAndPushDockerImage({
+  contextDir,
+  imageRef,
+  builderName,
+  buildTimeoutMs,
+  noCache = false,
+  buildArgs = {},
+  onLogLine,
+}) {
+  if (!builderName) {
+    throw new Error('Remote BuildKit builder is not configured.');
+  }
+  // The exported layout can be gigabytes, so it lives on the build volume
+  // beside the clones rather than in a possibly small system temp directory.
+  const metadataDir = await mkdtemp(join(env.BUILD_WORKSPACE_ROOT, '.export-'));
+  const metadataFile = join(metadataDir, 'metadata.json');
+  const layoutDir = join(metadataDir, 'layout');
+  const args = createRemoteDockerBuildArgs({
+    contextDir,
+    imageRef,
+    builderName,
+    metadataFile,
+    layoutDir,
+    noCache,
+    buildArgs,
+  });
+  const startedAt = Date.now();
+  try {
+    await runTimedProcess('docker', args, buildTimeoutMs, {
+      onLogLine,
+      label: 'Remote Docker build',
+    });
+    const metadata = JSON.parse(await readFile(metadataFile, 'utf8'));
+    const imageDigest = metadata['containerimage.digest'];
+    if (!IMAGE_DIGEST_PATTERN.test(imageDigest ?? '')) {
+      throw new Error('Remote builder did not return a valid immutable image digest.');
+    }
+    // The push gets whatever build time is left; the manifest is written last,
+    // so an interrupted push never leaves a usable tag behind.
+    await runTimedProcess(
+      'oras',
+      createOrasPushArgs({ layoutDir, imageDigest, imageRef }),
+      Math.max(buildTimeoutMs - (Date.now() - startedAt), 60_000),
+      { onLogLine, label: 'Image push' },
+    );
+    return {
+      imageRef: `${imageRef.split('@')[0]}@${imageDigest}`,
+      imageDigest,
+      childDigests: await readLayoutChildDigests(layoutDir, imageDigest),
+      durationMs: Date.now() - startedAt,
+    };
+  } finally {
+    await rm(metadataDir, { recursive: true, force: true }).catch(() => {});
+  }
+}
+
+/**
+ * The manifests an exported image index lists: the platform image and its
+ * provenance and SBOM attestations. Registry cleanup needs them because GHCR
+ * keeps each as its own package version.
+ */
+export async function readLayoutChildDigests(layoutDir, imageDigest) {
+  const blob = await readFile(
+    join(layoutDir, 'blobs', 'sha256', imageDigest.slice('sha256:'.length)),
+    'utf8',
+  );
+  return (JSON.parse(blob).manifests ?? [])
+    .map((descriptor) => descriptor.digest)
+    .filter((digest) => IMAGE_DIGEST_PATTERN.test(digest ?? ''));
+}
+
+export async function inspectLocalImageDigest(imageTag) {
+  const result = await runDocker(['image', 'inspect', '--format', '{{.Id}}', imageTag]);
+  const imageDigest = result.stdout.trim();
+  if (result.code !== 0 || !IMAGE_DIGEST_PATTERN.test(imageDigest)) {
+    throw new Error('Docker did not return a valid immutable image ID.');
+  }
+  return { imageRef: imageDigest, imageDigest };
+}
+
 /**
  * Create the dedicated memory-limited buildx builder when it does not exist.
  * Builder definitions live in the invoking user's Docker config, so the worker
@@ -191,13 +339,36 @@ export async function ensureBuildBuilder({ name, memoryMb }, deps = { run: runDo
   return { created: true };
 }
 
+/**
+ * Confirm that a pre-provisioned remote builder is reachable. Remote builders
+ * are infrastructure-owned: the runtime worker must never create or silently
+ * replace one with a local builder.
+ */
+export async function verifyRemoteBuildBuilder(name, deps = { run: runDocker }) {
+  const inspect = await deps.run(['buildx', 'inspect', name, '--bootstrap']);
+  if (inspect.code !== 0) {
+    throw new Error(
+      `Remote build builder ${name} is unavailable: ${inspect.stderr.trim().slice(0, 500)}`,
+    );
+  }
+  return { ready: true };
+}
+
 function runDocker(args) {
   return new Promise((resolve) => {
+    const stdout = [];
     const stderr = [];
-    const proc = spawn('docker', args, { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn('docker', args, { stdio: ['ignore', 'pipe', 'pipe'] });
+    proc.stdout.on('data', (chunk) => stdout.push(chunk));
     proc.stderr.on('data', (chunk) => stderr.push(chunk));
-    proc.on('close', (code) => resolve({ code, stderr: Buffer.concat(stderr).toString('utf8') }));
-    proc.on('error', (err) => resolve({ code: -1, stderr: err.message }));
+    proc.on('close', (code) =>
+      resolve({
+        code,
+        stdout: Buffer.concat(stdout).toString('utf8'),
+        stderr: Buffer.concat(stderr).toString('utf8'),
+      }),
+    );
+    proc.on('error', (err) => resolve({ code: -1, stdout: '', stderr: err.message }));
   });
 }
 
@@ -205,6 +376,15 @@ function runDocker(args) {
  * Remove a Docker image by tag and report whether Docker confirmed removal.
  * SECURITY: command array.
  */
+/**
+ * The reference to remove a failed build's image by. A bare image ID is shared
+ * by every identical build, including retained releases kept for rollback, so
+ * removal falls back to the deployment's unique tag.
+ */
+export function removableImageReference({ imageRef, imageTag }) {
+  return imageRef && !imageRef.startsWith('sha256:') ? imageRef : imageTag;
+}
+
 export async function removeDockerImage(imageTag) {
   return new Promise((resolve) => {
     const proc = spawn('docker', ['rmi', '--force', imageTag], {

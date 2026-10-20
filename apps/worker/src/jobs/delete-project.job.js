@@ -2,6 +2,7 @@ import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { networkName, removeNetwork, stopAndRemoveContainer } from '../deployment/container.js';
 import { removeDockerImage } from '../deployment/build.js';
+import { deleteRegistryManifest } from '../deployment/registry.js';
 import { removeRoute } from '../nginx/helper-client.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
@@ -19,12 +20,19 @@ import { env } from '../config/env.js';
  * etc.) is handled synchronously by the web app before this job is enqueued —
  * this job only tears down infrastructure the web app cannot reach directly.
  */
-const defaultDeps = { stopAndRemoveContainer, removeDockerImage, removeNetwork, removeRoute };
+const defaultDeps = {
+  stopAndRemoveContainer,
+  removeDockerImage,
+  deleteRegistryManifest,
+  removeNetwork,
+  removeRoute,
+};
 
 export async function handleDeleteProject(job, deps = defaultDeps) {
   const { projectId, subdomain, projectSlug } = job.data;
   const containerIds = job.data.containerIds ?? [job.data.activeContainerId].filter(Boolean);
   const imageTags = job.data.imageTags ?? [];
+  const registryImageRefs = job.data.registryImageRefs ?? [];
   const failures = [];
 
   for (const containerId of [...new Set(containerIds)]) {
@@ -58,6 +66,20 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
       logger.warn('DeleteProject: failed to remove image', {
         projectId,
         imageTag,
+        error: err.message,
+      });
+    }
+  }
+
+  for (const imageRef of [...new Set(registryImageRefs)]) {
+    try {
+      await deps.deleteRegistryManifest(imageRef);
+      logger.info('DeleteProject: removed registry manifest', { projectId, imageRef });
+    } catch (err) {
+      failures.push(`registry-image:${imageRef}`);
+      logger.warn('DeleteProject: failed to remove registry manifest', {
+        projectId,
+        imageRef,
         error: err.message,
       });
     }

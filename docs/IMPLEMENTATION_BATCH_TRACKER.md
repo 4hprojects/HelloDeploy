@@ -1,6 +1,6 @@
 # Implementation Batch Tracker
 
-Updated: 2026-10-09
+Updated: 2026-10-16
 
 > **2026-10-15 note:** the status table below was last refreshed on 2026-10-09. Since then, production has hosted customer apps through the worker, received releases through the automatic deploy, and shipped PRs #92–#109 (deploy-failure diagnosis, Cloudflare for SaaS custom domains, member invitations, app uptime). Confirm the current pilot and GO/NO-GO state before relying on the table.
 
@@ -15,6 +15,27 @@ This is the authoritative monitor for current HelloDeploy production-readiness w
 | Current batch    | Phase 2 dashboard recovery and archived drift are complete; production normalization continues through the P3/P4 pilot build lane    |
 | Next action      | Merge and install the Nginx WebSocket map correction, then deploy the healthy HelloUniversity candidate                              |
 | Release state    | NO-GO for customer application hosting                                                                                               |
+
+### P0-P1 multi-runtime foundation — repository lane
+
+On 2026-10-16, implementation began on `feat/multi-runtime-deployments` from
+`0234139a7a173edd9ecfbff8f50b60ca8027f5ba`. The repository now contains the
+default-off versioned build contracts, deployment snapshots/environment fencing,
+remote Buildx/GHCR digest flow, digest-aware retention, configurable application
+roots, and allowlisted Next.js standard/standalone/export behavior. The dedicated
+status, threat model, runbook, and evidence are under [`docs/multi-runtime`](multi-runtime/STATUS.md).
+
+This does not alter the table's production NO-GO state. Live migration and P1
+acceptance remain blocked on a separate rootless BuildKit host, private GHCR
+credentials, and nonproduction fixture projects. No production flag, deployment,
+merge, or rollout is authorized by the repository-local work.
+
+The repository now also contains the nonproduction acceptance lane: 18 pinned fixture
+roots, a protected-config preflight coordinator, safe and separately gated disruptive
+suites, and sanitized evidence contracts. Repository-local harness tests do not clear
+the external gate. The next action in this lane is operator provisioning followed by a
+preflight-only run; mutation remains prohibited until its exact nonproduction
+confirmation ID and evidence destination are supplied.
 
 ### UI/UX improvement program — repository-local lane
 

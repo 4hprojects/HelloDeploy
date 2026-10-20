@@ -1,12 +1,13 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { AuditEvent, EnvironmentSecret } from '@hellodeploy/database';
+import { AuditEvent, EnvironmentSecret, Project } from '@hellodeploy/database';
 import { configureAuditService } from '@hellodeploy/observability';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 import {
   bulkUpdateSecrets,
   deleteAllSecrets,
+  deleteSecret,
   MAX_ENV_FILE_BYTES,
   MAX_ENV_FILE_SECRETS,
   getDecryptedSecrets,
@@ -155,6 +156,21 @@ describe('.env file import', () => {
 
     const stored = await EnvironmentSecret.findOne({ projectId, name: 'API_KEY' }).lean();
     assert.notEqual(stored.ciphertext, 'rotated');
+  });
+
+  it('advances the project environment revision once per import and mutation', async () => {
+    const project = await Project.create({
+      name: 'Environment Revision',
+      slug: `environment-revision-${Date.now()}`,
+      ownerId: objectId(),
+    });
+    const actorId = objectId();
+    await importEnvFile(project._id, 'FIRST=one\nSECOND=two', actorId);
+    assert.equal((await Project.findById(project._id).lean()).environmentVersion, 2);
+    await setSecret(project._id, 'FIRST', 'updated', actorId);
+    assert.equal((await Project.findById(project._id).lean()).environmentVersion, 3);
+    await deleteSecret(project._id, 'SECOND', actorId);
+    assert.equal((await Project.findById(project._id).lean()).environmentVersion, 4);
   });
 
   it('writes nothing when any assignment fails validation', async () => {

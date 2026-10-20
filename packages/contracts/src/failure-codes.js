@@ -109,6 +109,22 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: 'Your app failed to build.',
     action: `This usually means there's an error in the code. ${ASK_BUILDER_ACTION}`,
   },
+  BUILD_STRATEGY_DISABLED: {
+    message: 'This deployment mode is not enabled for the project.',
+    action: 'Choose the legacy mode or ask an administrator to enable the project pilot.',
+  },
+  CONFIGURATION_CHANGED: {
+    message: 'The project configuration changed while this deployment was running.',
+    action: 'Start a new deployment so it uses the latest environment settings.',
+  },
+  DEPLOYMENT_SNAPSHOT_INVALID: {
+    message: "HelloDeploy couldn't verify the saved settings for this deployment.",
+    action: TRY_AGAIN_ACTION,
+  },
+  IMAGE_PULL_FAILED: {
+    message: "HelloDeploy built the app but couldn't retrieve its verified image.",
+    action: TRY_AGAIN_ACTION,
+  },
   ACTIVATION_ENQUEUE_FAILED: {
     message: "Your app was built, but HelloDeploy couldn't start the next step.",
     action: TRY_AGAIN_ACTION,

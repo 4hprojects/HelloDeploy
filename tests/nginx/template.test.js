@@ -148,6 +148,18 @@ describe('generateServerBlock', () => {
     // Should still contain a valid ISO timestamp
     assert.ok(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(config));
   });
+
+  it('disables response buffering only for streaming server runtimes', () => {
+    const base = {
+      subdomain: 'app',
+      domain: 'example.com',
+      port: 10000,
+      deploymentId: 'streaming',
+      generatedAt: FIXED_DATE,
+    };
+    assert.match(generateServerBlock({ ...base, isStreaming: true }), /proxy_buffering off;/);
+    assert.match(generateServerBlock(base), /proxy_buffering on;/);
+  });
 });
 
 describe('generateMaintenanceBlock', () => {

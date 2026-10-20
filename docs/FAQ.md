@@ -20,7 +20,7 @@ No. Use external database providers such as MongoDB Atlas or Supabase. Store dat
 
 ### What applications are supported?
 
-Version 1 targets static sites, Node.js, Express, React, Vue, and constrained Next.js applications.
+Version 1 targets static sites, Node.js, Express, React, Vue, and constrained Next.js applications. Versioned Next.js standard, standalone, and static-export modes remain a default-off, allowlisted pilot until separate-host BuildKit/GHCR acceptance passes.
 
 ### What applications are not supported?
 

@@ -1,0 +1,15 @@
+{
+  "name": "hellodeploy-fixture-private-secret-probe",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "next build",
+    "start": "next start",
+    "prebuild": "node check-build-env.js"
+  },
+  "dependencies": {
+    "next": "15.5.28",
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  }
+}

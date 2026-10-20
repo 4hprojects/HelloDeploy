@@ -11,11 +11,14 @@ const { handleCleanupReleases } =
 
 function makeDeps() {
   const removedImages = [];
+  const removedManifests = [];
   return {
     removedImages,
+    removedManifests,
     deps: {
       stopAndRemoveContainer: async () => {},
       removeDockerImage: async (tag) => removedImages.push(tag),
+      deleteRegistryManifest: async (ref) => (removedManifests.push(ref), true),
       cleanupAbandonedBuildWorkspaces: async () => 0,
       pruneDanglingImages: async () => 0,
     },
@@ -62,5 +65,22 @@ describe('cleanup-releases job — HEALTHY release trimming', () => {
     const { deps, removedImages } = makeDeps();
     await handleCleanupReleases({ data: {} }, deps);
     assert.deepEqual(removedImages, [`img-${orphanProjectId}-1`]);
+  });
+
+  it('deletes a trimmed release manifest once across sweeps', async () => {
+    const project = await createProject();
+    for (let seq = 1; seq <= 4; seq++) {
+      await createDeployment(project._id, {
+        sequenceNumber: seq,
+        status: DeploymentStatus.HEALTHY,
+        imageTag: `img-${seq}`,
+        imageRef: `ghcr.io/example/apps:release-${seq}@sha256:${String(seq).repeat(64)}`,
+        imageDigest: `sha256:${String(seq).repeat(64)}`,
+      });
+    }
+    const { deps, removedManifests } = makeDeps();
+    await handleCleanupReleases({ data: {} }, deps);
+    await handleCleanupReleases({ data: {} }, deps);
+    assert.equal(removedManifests.length, 1);
   });
 });

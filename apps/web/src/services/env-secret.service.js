@@ -1,4 +1,4 @@
-import { EnvironmentSecret } from '@hellodeploy/database';
+import { EnvironmentSecret, Project } from '@hellodeploy/database';
 import { buildSecretAad, encrypt, decrypt } from '@hellodeploy/security';
 import { AuditOutcome, PLATFORM_MANAGED_ENV_NAMES } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
@@ -10,6 +10,15 @@ export const MAX_ENV_FILE_SECRETS = 100;
 
 export const PLATFORM_MANAGED_NAME_ERROR =
   'HelloDeploy sets PORT for your app automatically from the application port in Settings. Change it there instead.';
+
+// Projects stored before environment versions existed read as version 1, so a
+// missing field is treated as 1; a plain $inc would set it to 1 and the first
+// change after the upgrade would look like no change.
+async function bumpEnvironmentVersion(projectId) {
+  await Project.updateOne({ _id: projectId }, [
+    { $set: { environmentVersion: { $add: [{ $ifNull: ['$environmentVersion', 1] }, 1] } } },
+  ]);
+}
 
 export function validateSecretName(name) {
   if (!name || typeof name !== 'string') {
@@ -290,8 +299,14 @@ export async function importEnvFile(projectId, content, actorId, opts = {}) {
     };
   }
 
+  if (writes.length > 0) {
+    await bumpEnvironmentVersion(projectId);
+  }
   for (const [name, value] of writes) {
-    const result = await setSecret(projectId, name, value, actorId, opts);
+    const result = await setSecret(projectId, name, value, actorId, {
+      ...opts,
+      skipEnvironmentVersionBump: true,
+    });
     if (!result.success) {
       return result;
     }
@@ -398,6 +413,12 @@ export async function setSecret(projectId, name, value, actorId, opts = {}) {
     buildSecretAad({ projectId, name }),
   );
 
+  // Fence queued deployments before mutating the value. If the secret write
+  // fails afterward, the conservative revision bump only forces a redeploy.
+  if (!opts.skipEnvironmentVersionBump) {
+    await bumpEnvironmentVersion(projectId);
+  }
+
   await EnvironmentSecret.findOneAndUpdate(
     { projectId, name },
     {
@@ -450,6 +471,10 @@ export async function listSecretNames(projectId) {
  * @returns {{ success: boolean, error?: string }}
  */
 export async function deleteSecret(projectId, name, actorId, opts = {}) {
+  if (!(await EnvironmentSecret.exists({ projectId, name }))) {
+    return { success: false, error: `Secret "${name}" not found.` };
+  }
+  await bumpEnvironmentVersion(projectId);
   const result = await EnvironmentSecret.deleteOne({ projectId, name });
   if (result.deletedCount === 0) {
     return { success: false, error: `Secret "${name}" not found.` };
@@ -480,6 +505,7 @@ export async function deleteAllSecrets(projectId, actorId, opts = {}) {
     return { success: false, error: 'There are no secrets to delete.' };
   }
 
+  await bumpEnvironmentVersion(projectId);
   const result = await EnvironmentSecret.deleteMany({ projectId });
 
   await writeAuditEvent({

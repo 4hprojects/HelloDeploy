@@ -52,6 +52,47 @@ describe('verify domain job', () => {
     assert.ok(updates[0].update.$set.verifiedAt instanceof Date);
   });
 
+  it('keeps a streaming Next.js release unbuffered on its custom domain', async () => {
+    const DomainModel = modelReturning(
+      { _id: 'domain-1', status: DomainStatus.PENDING_ADMIN_APPROVAL, approvedAt: new Date() },
+      [],
+    );
+    const ProjectModel = modelReturning({ _id: 'project-1', activeDeploymentId: 'deployment-1' });
+    const DeploymentModel = modelReturning({
+      _id: 'deployment-1',
+      containerPort: 43123,
+      configurationSnapshot: {
+        buildStrategy: 'next_standard_v1',
+        runtimeType: 'NEXTJS',
+        buildConfiguration: { applicationRoot: '.', applicationPort: 3000 },
+      },
+    });
+    const activations = [];
+    await handleVerifyDomainWithDependencies(
+      {
+        data: {
+          domainId: 'domain-1',
+          projectId: 'project-1',
+          hostname: 'app.example.com',
+          activateRoute: true,
+        },
+      },
+      {
+        DomainModel,
+        ProjectModel,
+        DeploymentModel,
+        routeActivator: async (opts) => activations.push(opts),
+        workerEnv: {
+          NGINX_ENABLED: true,
+          NGINX_HELLODEPLOY_CONFIG_DIR: '/tmp/hellodeploy-nginx',
+          NGINX_BINARY_PATH: 'nginx',
+          PLATFORM_DOMAIN: 'hellodeploy.online',
+        },
+      },
+    );
+    assert.match(activations[0].configContent, /proxy_buffering off;/);
+  });
+
   it('marks a custom domain active only after nginx route activation succeeds', async () => {
     const updates = [];
     const DomainModel = modelReturning(

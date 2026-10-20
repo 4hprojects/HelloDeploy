@@ -1,7 +1,45 @@
 import mongoose from 'mongoose';
-import { DeploymentStatus, DeploymentTrigger } from '@hellodeploy/contracts';
+import {
+  DeploymentStatus,
+  DeploymentTrigger,
+  RuntimeType,
+  BuildStrategy,
+} from '@hellodeploy/contracts';
 
 const { Schema } = mongoose;
+
+const deploymentBuildConfigurationSchema = new Schema(
+  {
+    buildCommand: { type: String, default: null },
+    startCommand: { type: String, default: null },
+    outputDirectory: { type: String, default: null },
+    applicationPort: { type: Number, default: null, min: 1, max: 65535 },
+    healthCheckPath: { type: String, default: '/' },
+    applicationRoot: { type: String, default: '.', maxlength: 255 },
+    // WSGI/ASGI entry point (`module:attribute`) for Python strategies only.
+    applicationModule: { type: String, default: null, maxlength: 200 },
+  },
+  { _id: false },
+);
+
+const configurationSnapshotSchema = new Schema(
+  {
+    schemaVersion: { type: Number, required: true, default: 1 },
+    buildStrategy: {
+      type: String,
+      enum: Object.values(BuildStrategy),
+      required: true,
+    },
+    runtimeType: { type: String, enum: Object.values(RuntimeType), required: true },
+    buildConfiguration: { type: deploymentBuildConfigurationSchema, required: true },
+    projectConfigurationVersion: { type: Number, required: true },
+    environmentVersion: { type: Number, required: true },
+    sourceCommit: { type: String, required: true, maxlength: 40 },
+    // The repository the commit belongs to, fixed at enqueue like the commit.
+    sourceRepositoryId: { type: Schema.Types.ObjectId, ref: 'Repository', default: null },
+  },
+  { _id: false },
+);
 
 const deploymentSchema = new Schema(
   {
@@ -24,7 +62,23 @@ const deploymentSchema = new Schema(
     },
     currentStage: { type: String, default: null },
     imageTag: { type: String, default: null },
-    imageDigest: { type: String, default: null },
+    imageRef: { type: String, default: null, maxlength: 1000 },
+    imageDigest: {
+      type: String,
+      default: null,
+      match: /^sha256:[a-f0-9]{64}$/,
+    },
+    // Manifests the image index lists. Registry cleanup keeps any that another
+    // retained release also lists.
+    imageChildDigests: {
+      type: [{ type: String, match: /^sha256:[a-f0-9]{64}$/ }],
+      default: undefined,
+    },
+    configurationSnapshot: {
+      type: configurationSnapshotSchema,
+      default: null,
+      immutable: true,
+    },
     candidateContainerId: { type: String, default: null },
     activeContainerId: { type: String, default: null },
     startedAt: { type: Date, default: null },

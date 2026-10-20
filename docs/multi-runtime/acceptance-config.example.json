@@ -1,0 +1,162 @@
+{
+  "schemaVersion": 1,
+  "environmentClass": "nonproduction",
+  "confirmationId": "replace-with-unique-nonproduction-id",
+  "platformBaseUrl": "https://platform.acceptance.example",
+  "fixtureRepository": "4hprojects/HelloDeploy",
+  "baselineSha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "candidateSha": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "builderName": "hellodeploy-nonproduction",
+  "ghcrRepository": "ghcr.io/example/hellodeploy-acceptance",
+  "privateCanary": "replace-with-a-random-private-canary",
+  "controlPlaneTargets": [
+    { "name": "production-database", "url": "https://database.internal.example" },
+    { "name": "cloud-metadata", "url": "https://metadata.internal.example" }
+  ],
+  "projects": [
+    {
+      "fixtureId": "static",
+      "projectId": "000000000000000000000001",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000001/replace-token",
+      "routeUrl": "https://static.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/static"
+    },
+    {
+      "fixtureId": "react-vite",
+      "projectId": "000000000000000000000002",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000002/replace-token",
+      "routeUrl": "https://react.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/react-vite"
+    },
+    {
+      "fixtureId": "vue-vite",
+      "projectId": "000000000000000000000003",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000003/replace-token",
+      "routeUrl": "https://vue.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/vue-vite"
+    },
+    {
+      "fixtureId": "express",
+      "projectId": "000000000000000000000004",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000004/replace-token",
+      "routeUrl": "https://express.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/express"
+    },
+    {
+      "fixtureId": "node",
+      "projectId": "000000000000000000000005",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000005/replace-token",
+      "routeUrl": "https://node.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/node"
+    },
+    {
+      "fixtureId": "next14-legacy",
+      "projectId": "000000000000000000000006",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000006/replace-token",
+      "routeUrl": "https://next14.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/next14-legacy"
+    },
+    {
+      "fixtureId": "next15-standard-app",
+      "projectId": "000000000000000000000007",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000007/replace-token",
+      "routeUrl": "https://next15-standard.acceptance.example",
+      "expectedStrategy": "next_standard_v1",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/next15-standard-app"
+    },
+    {
+      "fixtureId": "next15-export-pages",
+      "projectId": "000000000000000000000008",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000008/replace-token",
+      "routeUrl": "https://next15-export.acceptance.example",
+      "expectedStrategy": "next_export_v1",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/next15-export-pages"
+    },
+    {
+      "fixtureId": "next16-standalone-app",
+      "projectId": "000000000000000000000009",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000009/replace-token",
+      "routeUrl": "https://next16-standalone.acceptance.example",
+      "expectedStrategy": "next_standalone_v1",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/next16-standalone-app"
+    },
+    {
+      "fixtureId": "next16-standard-pages",
+      "projectId": "00000000000000000000000a",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000a/replace-token",
+      "routeUrl": "https://next16-standard.acceptance.example",
+      "expectedStrategy": "next_standard_v1",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/next16-standard-pages"
+    },
+    {
+      "fixtureId": "rollback-marker",
+      "projectId": "00000000000000000000000b",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000b/replace-token",
+      "routeUrl": "https://rollback.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/rollback-marker"
+    },
+    {
+      "fixtureId": "registry-cleanup",
+      "projectId": "000000000000000000000012",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000012/replace-token",
+      "routeUrl": "https://registry-cleanup.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/registry-cleanup"
+    },
+    {
+      "fixtureId": "build-failure",
+      "projectId": "00000000000000000000000c",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000c/replace-token",
+      "routeUrl": "https://build-failure.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/build-failure"
+    },
+    {
+      "fixtureId": "health-failure",
+      "projectId": "00000000000000000000000d",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000d/replace-token",
+      "routeUrl": "https://health-failure.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/health-failure"
+    },
+    {
+      "fixtureId": "slow-build",
+      "projectId": "00000000000000000000000e",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000e/replace-token",
+      "routeUrl": "https://slow-build.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/slow-build"
+    },
+    {
+      "fixtureId": "resource-pressure",
+      "projectId": "00000000000000000000000f",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/00000000000000000000000f/replace-token",
+      "routeUrl": "https://resource-pressure.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/resource-pressure"
+    },
+    {
+      "fixtureId": "isolation-probe",
+      "projectId": "000000000000000000000010",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000010/replace-token",
+      "routeUrl": "https://isolation.acceptance.example",
+      "expectedStrategy": "legacy_generated",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/isolation-probe"
+    },
+    {
+      "fixtureId": "private-secret-probe",
+      "projectId": "000000000000000000000011",
+      "deployHookUrl": "https://platform.acceptance.example/api/deploy-hooks/000000000000000000000011/replace-token",
+      "routeUrl": "https://private-secret.acceptance.example",
+      "expectedStrategy": "next_standard_v1",
+      "expectedApplicationRoot": "tests/fixtures/multi-runtime/private-secret-probe"
+    }
+  ]
+}

@@ -21,6 +21,7 @@ import {
 import { isReservedSubdomain, isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { withProjectRouteLock } from '../nginx/project-route-lock.js';
 import { env } from '../config/env.js';
+import { removableImageReference } from './build.js';
 
 /**
  * Shared release pipeline for ACTIVATE_RELEASE and ROLLBACK_RELEASE:
@@ -161,15 +162,16 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   }
 
   // A failed activation leaves behind a freshly built image that will never
-  // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal
-  // cannot affect other releases. Fire-and-forget — cleanup must not block.
+  // serve traffic. Tags are unique per deployment (slug-sha-seq), so removal by
+  // tag cannot affect other releases; a bare image ID could. Fire-and-forget —
+  // cleanup must not block.
   if (
     toStatus === DeploymentStatus.FAILED &&
     removeImageOnFailure &&
     deps?.removeDockerImage &&
-    freshDeployment?.imageTag
+    (freshDeployment?.imageRef || freshDeployment?.imageTag)
   ) {
-    deps.removeDockerImage(freshDeployment.imageTag);
+    deps.removeDockerImage(removableImageReference(freshDeployment));
   }
 
   writeAuditEvent({
@@ -228,7 +230,6 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
  *     failOnInvalidSubdomain: boolean, // activate: fail the deploy; rollback: skip nginx silently
  *     persistSubdomain: boolean,       // activate assigns platformSubdomain on first deploy
  *     markPreviousRolledBack: boolean, // rollback marks the replaced release ROLLED_BACK
- *     recordImageTagOnStart: boolean,  // rollback stamps the source imageTag on its record
  *     logLabel: string,                // 'Container' | 'Rollback container' — event log wording
  *   },
  * }} params
@@ -241,6 +242,8 @@ export async function runReleasePipeline({
   correlationId,
   deps,
   resourceLimits,
+  runtimeSpec,
+  configurationSnapshot,
   opts,
 }) {
   const projectId = project._id;
@@ -259,8 +262,12 @@ export async function runReleasePipeline({
     return { ok: false };
   };
 
-  const runtimeType = project.runtimeType ?? RuntimeType.NODEJS;
-  const appPort = resolveAppPort(project);
+  const runtimeType =
+    configurationSnapshot?.runtimeType ?? project.runtimeType ?? RuntimeType.NODEJS;
+  const snapshotProject = configurationSnapshot
+    ? { runtimeType, buildConfiguration: configurationSnapshot.buildConfiguration }
+    : project;
+  const appPort = runtimeSpec?.appPort ?? resolveAppPort(snapshotProject);
   const netName = networkName(project.slug);
   const cName = containerName(project.slug, deploymentId);
 
@@ -354,15 +361,13 @@ export async function runReleasePipeline({
       pidsLimit: resourceLimits?.pidsLimit ?? DEFAULT_PIDS_LIMIT,
       projectId: projectId.toString(),
       deploymentId: deploymentId.toString(),
+      isStatic: runtimeSpec?.isStatic,
     });
 
     await Deployment.updateOne(
       { _id: deploymentId },
       {
-        $set: {
-          candidateContainerId: containerId,
-          ...(opts.recordImageTagOnStart ? { imageTag } : {}),
-        },
+        $set: { candidateContainerId: containerId },
       },
     );
 
@@ -416,7 +421,10 @@ export async function runReleasePipeline({
   }
 
   // ── HTTP health check ───────────────────────────────────────────────────────
-  const rawHealthCheckPath = project.buildConfiguration?.healthCheckPath || '/';
+  const rawHealthCheckPath =
+    configurationSnapshot?.buildConfiguration?.healthCheckPath ||
+    project.buildConfiguration?.healthCheckPath ||
+    '/';
   const healthCheckPath = rawHealthCheckPath.startsWith('/')
     ? rawHealthCheckPath
     : `/${rawHealthCheckPath}`;
@@ -533,6 +541,7 @@ export async function runReleasePipeline({
                 domain: env.DEPLOYMENT_DOMAIN,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
+                isStreaming: runtimeSpec?.isStreaming === true,
               }),
             },
             ...customDomains.map((domain) => ({
@@ -541,6 +550,7 @@ export async function runReleasePipeline({
                 hostname: domain.hostnameNormalized,
                 port: hostPort,
                 deploymentId: deploymentId.toString(),
+                isStreaming: runtimeSpec?.isStreaming === true,
               }),
             })),
           ];

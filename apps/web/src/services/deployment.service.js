@@ -9,14 +9,20 @@ import {
   ProjectStatus,
   RepositorySourceType,
   PLATFORM_MANAGED_ENV_NAMES,
+  BuildStrategy,
+  RuntimeType,
+  getBuildStrategyRuntime,
+  isPythonBuildStrategy,
+  validateApplicationModule,
 } from '@hellodeploy/contracts';
-import { isActive, nextSequenceNumber, buildImageTag } from '@hellodeploy/deployment-core';
+import { isActive, nextSequenceNumber } from '@hellodeploy/deployment-core';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
 import { getDeploymentQueue } from '../queue/client.js';
 import { getLatestCommit, getPublicGithubLatestCommit } from './github.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
 import { checkDeploymentQuota } from './quota.service.js';
+import { env } from '../config/env.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
@@ -57,26 +63,83 @@ export function validateProjectDeploymentEligibility(project) {
 export function buildDeploymentJobPayload({
   project,
   deployment,
-  commitSha,
-  repositoryId,
-  runtimeType,
-  imageTag,
   actorId,
   noCache = false,
   correlationId,
 }) {
   return {
-    version: 1,
+    version: 2,
     correlationId,
     actorId,
     actorRole: 'USER',
     projectId: project._id.toString(),
     deploymentId: deployment._id.toString(),
-    commitSha,
-    repositoryId: repositoryId.toString(),
-    runtimeType,
-    imageTag,
     noCache,
+  };
+}
+
+/**
+ * Check that a project's saved build strategy can be built. Returns an
+ * owner-facing message, or null when the strategy is ready.
+ *
+ * @param {{ _id: unknown, runtimeType: string, buildStrategy?: string|null,
+ *   buildConfiguration?: { applicationModule?: string|null } }} project
+ * @param {(strategy: string|null|undefined, projectId: unknown) => boolean} isStrategyEnabledFor
+ */
+const PILOT_RUNTIMES = Object.freeze({
+  [RuntimeType.PYTHON]: {
+    label: 'Python',
+    choice: 'Python framework',
+    strategy: BuildStrategy.PYTHON_FLASK_V1,
+  },
+  [RuntimeType.PHP]: { label: 'PHP', choice: 'PHP app type', strategy: BuildStrategy.PHP_PLAIN_V1 },
+  [RuntimeType.JAVA]: {
+    label: 'Java',
+    choice: 'Java build tool',
+    strategy: BuildStrategy.JAVA_MAVEN_V1,
+  },
+});
+
+export function validateBuildStrategyReadiness(project, isStrategyEnabledFor) {
+  if (!isStrategyEnabledFor(project.buildStrategy, project._id)) {
+    return 'The selected deployment mode is not enabled for this project.';
+  }
+  // The generated legacy images cover only the original Node-family runtimes,
+  // so these runtimes need a saved strategy of their own.
+  const pilotRuntime = PILOT_RUNTIMES[project.runtimeType];
+  if (pilotRuntime && getBuildStrategyRuntime(project.buildStrategy) !== project.runtimeType) {
+    return isStrategyEnabledFor(pilotRuntime.strategy, project._id)
+      ? `Choose the ${pilotRuntime.choice} in the build settings and save them before deploying.`
+      : `${pilotRuntime.label} apps are in a limited pilot that is not enabled for this project yet.`;
+  }
+  if (
+    isPythonBuildStrategy(project.buildStrategy) &&
+    validateApplicationModule(project.buildConfiguration?.applicationModule)
+  ) {
+    return 'Confirm the application module in the build settings before deploying.';
+  }
+  return null;
+}
+
+export function createConfigurationSnapshot(project, commitSha) {
+  const config = project.buildConfiguration ?? {};
+  return {
+    schemaVersion: 1,
+    buildStrategy: project.buildStrategy ?? BuildStrategy.LEGACY_GENERATED,
+    runtimeType: project.runtimeType,
+    buildConfiguration: {
+      buildCommand: config.buildCommand ?? null,
+      startCommand: config.startCommand ?? null,
+      outputDirectory: config.outputDirectory ?? null,
+      applicationPort: config.applicationPort ?? null,
+      healthCheckPath: config.healthCheckPath ?? '/',
+      applicationRoot: config.applicationRoot ?? '.',
+      applicationModule: config.applicationModule ?? null,
+    },
+    projectConfigurationVersion: project.configurationVersion,
+    environmentVersion: project.environmentVersion ?? 1,
+    sourceCommit: commitSha,
+    sourceRepositoryId: project.repositoryId ?? null,
   };
 }
 
@@ -93,7 +156,10 @@ export function isRollbackTargetEligible(targetDeployment, projectId, activeDepl
     return false;
   }
 
-  if (targetDeployment.status !== DeploymentStatus.HEALTHY || !targetDeployment.imageTag) {
+  if (
+    targetDeployment.status !== DeploymentStatus.HEALTHY ||
+    (!targetDeployment.imageRef && !targetDeployment.imageTag)
+  ) {
     return false;
   }
 
@@ -177,6 +243,11 @@ export async function createDeployment({
 
   if (!project.runtimeType) {
     return { success: false, error: 'Run project detection before deploying.' };
+  }
+
+  const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
+  if (strategyError) {
+    return { success: false, error: strategyError };
   }
 
   const quotaRefusal = await checkDeploymentQuota(project);
@@ -265,6 +336,7 @@ export async function createDeployment({
     commitMessage: commitShaOverride ? null : repo.lastCommitMessage,
     branch: project.productionBranch,
     configurationVersion: project.configurationVersion,
+    configurationSnapshot: createConfigurationSnapshot(project, targetCommitSha),
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
   });
@@ -290,18 +362,12 @@ export async function createDeployment({
     return { success: false, error: DEPLOYMENT_QUEUE_UNAVAILABLE_COPY };
   }
 
-  const imageTag = buildImageTag(project.slug, targetCommitSha, seqNum);
-
   await enqueueJob(
     queue,
     JobType.BUILD_DEPLOYMENT,
     buildDeploymentJobPayload({
       project,
       deployment,
-      commitSha: targetCommitSha,
-      repositoryId: project.repositoryId,
-      runtimeType: project.runtimeType,
-      imageTag,
       actorId,
       noCache,
       correlationId,
@@ -395,6 +461,13 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     return { success: false, error: `Cannot retry a deployment with status ${original.status}.` };
   }
 
+  // A retry builds from the current settings, so it needs the same readiness
+  // check as a new deployment.
+  const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
+  if (strategyError) {
+    return { success: false, error: strategyError };
+  }
+
   const repo = await Repository.findById(project.repositoryId).lean();
   if (!repo || repo.accessStatus !== 'ACTIVE') {
     return { success: false, error: REPOSITORY_ACCESS_INACTIVE_COPY };
@@ -437,8 +510,6 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   }
 
   const seqNum = await nextSequenceNumber(Deployment, original.projectId);
-  const imageTag = buildImageTag(project.slug, commitSha, seqNum);
-
   const deployment = await Deployment.create({
     projectId: original.projectId,
     sequenceNumber: seqNum,
@@ -448,6 +519,7 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     commitMessage,
     branch: project.productionBranch,
     configurationVersion: project.configurationVersion,
+    configurationSnapshot: createConfigurationSnapshot(project, commitSha),
     status: DeploymentStatus.QUEUED,
     startedAt: new Date(),
   });
@@ -473,10 +545,6 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     buildDeploymentJobPayload({
       project: { ...project, _id: original.projectId },
       deployment,
-      commitSha,
-      repositoryId: project.repositoryId,
-      runtimeType: project.runtimeType,
-      imageTag,
       actorId,
       noCache: false,
       correlationId: opts.correlationId,
@@ -532,13 +600,33 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     return { success: false, error: 'Can only roll back to a HEALTHY deployment.' };
   }
 
-  if (!targetDeployment.imageTag) {
+  if (!targetDeployment.imageRef && !targetDeployment.imageTag) {
     return { success: false, error: 'Target deployment image is no longer available.' };
   }
 
   // Cannot rollback to the currently active deployment
   if (!isRollbackTargetEligible(targetDeployment, projectId, project.activeDeploymentId)) {
     return { success: false, error: 'Target deployment is already active.' };
+  }
+
+  if (!env.isStrategyEnabledFor(targetDeployment.configurationSnapshot?.buildStrategy, projectId)) {
+    return {
+      success: false,
+      error: 'That release uses a deployment mode that is not enabled for this project.',
+    };
+  }
+
+  // Releases from before snapshots recorded nothing about how they were built,
+  // so they can only roll back under the generated build they were made with.
+  if (
+    !targetDeployment.configurationSnapshot &&
+    (project.buildStrategy ?? BuildStrategy.LEGACY_GENERATED) !== BuildStrategy.LEGACY_GENERATED
+  ) {
+    return {
+      success: false,
+      error:
+        'This release was built before HelloDeploy recorded deployment settings, and the project now uses a different deployment mode. Deploy again instead of rolling back.',
+    };
   }
 
   // One-active-deployment check
@@ -558,6 +646,15 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
     commitMessage: targetDeployment.commitMessage,
     branch: targetDeployment.branch ?? project.productionBranch,
     configurationVersion: project.configurationVersion,
+    configurationSnapshot: targetDeployment.configurationSnapshot
+      ? {
+          ...targetDeployment.configurationSnapshot,
+          environmentVersion: project.environmentVersion ?? 1,
+        }
+      : createConfigurationSnapshot(project, targetDeployment.commitSha),
+    imageTag: targetDeployment.imageTag,
+    imageRef: targetDeployment.imageRef,
+    imageDigest: targetDeployment.imageDigest,
     status: DeploymentStatus.DEPLOYING,
     sourceDeploymentId: targetDeploymentId,
     replacedDeploymentId: project.activeDeploymentId ?? null,

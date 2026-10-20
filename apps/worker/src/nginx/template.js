@@ -30,6 +30,7 @@ export function generateServerBlock({
   deploymentId,
   generatedAt = new Date(),
   routeHost,
+  isStreaming = false,
 }) {
   const fqdn = `${subdomain}.${domain}`;
   const ts = generatedAt.toISOString();
@@ -82,7 +83,7 @@ server {
         proxy_set_header Connection $connection_upgrade;
 
         # Do not buffer large responses
-        proxy_buffering on;
+        proxy_buffering ${isStreaming ? 'off' : 'on'};
         proxy_buffers 16 16k;
         proxy_buffer_size 32k;
     }
@@ -95,7 +96,13 @@ export function customDomainRouteSlug(hostname) {
   return `custom-${hash}`;
 }
 
-export function generateCustomDomainServerBlock({ hostname, port, deploymentId, generatedAt }) {
+export function generateCustomDomainServerBlock({
+  hostname,
+  port,
+  deploymentId,
+  generatedAt,
+  isStreaming = false,
+}) {
   return generateServerBlock({
     subdomain: hostname,
     domain: '',
@@ -103,6 +110,7 @@ export function generateCustomDomainServerBlock({ hostname, port, deploymentId, 
     deploymentId,
     generatedAt,
     routeHost: hostname,
+    isStreaming,
   }).replace(/server_name .+;/, `server_name ${hostname};`);
 }
 

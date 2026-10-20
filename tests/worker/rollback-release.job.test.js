@@ -9,6 +9,17 @@ import { createProject, createDeployment } from '../helpers/worker-fixtures.js';
 // These cases cover rollback bookkeeping, not routing; env is read when the
 // pipeline loads, so release without an Nginx route before importing it.
 process.env.ALLOW_UNROUTED_RELEASES = 'true';
+// Only this project is on the Python pilot; the values just satisfy validation.
+const PYTHON_PILOT_PROJECT_ID = '507f1f77bcf86cd799439099';
+Object.assign(process.env, {
+  BUILD_EXECUTOR: 'remote-buildkit',
+  BUILD_BUILDER_NAME: 'hellodeploy-test',
+  USER_IMAGE_REGISTRY: 'ghcr.io/example/hellodeploy-apps',
+  REGISTRY_MANIFEST_DELETE_ENABLED: 'true',
+  WORKER_CONCURRENCY: '1',
+  MULTIRUNTIME_PYTHON_V1_ENABLED: 'true',
+  MULTIRUNTIME_PYTHON_V1_PROJECT_IDS: PYTHON_PILOT_PROJECT_ID,
+});
 
 const { handleRollbackRelease } =
   await import('../../apps/worker/src/jobs/rollback-release.job.js');
@@ -102,6 +113,37 @@ describe('rollback-release job', () => {
     assert.equal(fresh.imageTag, 'img-v1');
   });
 
+  it('rolls a Python release back on its own port without rebuilding it', async () => {
+    const project = await createProject({ _id: PYTHON_PILOT_PROJECT_ID, runtimeType: 'PYTHON' });
+    const sourceDeployment = await createDeployment(project._id, {
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-python-v1',
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'python_flask_v1',
+        runtimeType: 'PYTHON',
+        buildConfiguration: {
+          applicationRoot: '.',
+          applicationPort: 8000,
+          healthCheckPath: '/',
+          applicationModule: 'app:app',
+        },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+      },
+    });
+    const rollbackDeployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      triggerType: DeploymentTrigger.ROLLBACK,
+      status: DeploymentStatus.DEPLOYING,
+    });
+    const { deps, calls } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    assert.equal(calls.startedContainers[0]?.appPort, 8000);
+  });
+
   it('marks the previously active deployment ROLLED_BACK and stops its container', async () => {
     const { project, sourceDeployment, rollbackDeployment } = await seed();
     const previousActive = await createDeployment(project._id, {
@@ -184,5 +226,58 @@ describe('rollback-release job', () => {
     const { deps, calls } = makeDeps();
     await handleRollbackRelease(makeJob(project, finished, sourceDeployment), deps);
     assert.equal(calls.startedContainers.length, 0);
+  });
+
+  // Local builds record their image ID as imageRef; it is shared by identical
+  // builds, so the rollback must run and record the source's unique tag.
+  it('runs a local rollback from the source tag and records its image identity', async () => {
+    const project = await createProject();
+    const imageId = `sha256:${'c'.repeat(64)}`;
+    const sourceDeployment = await createDeployment(project._id, {
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-local-1',
+      imageRef: imageId,
+      imageDigest: imageId,
+    });
+    const rollbackDeployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      triggerType: DeploymentTrigger.ROLLBACK,
+      status: DeploymentStatus.DEPLOYING,
+    });
+    const { deps, calls } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    const fresh = await Deployment.findById(rollbackDeployment._id).lean();
+    assert.deepEqual(
+      [calls.startedContainers[0]?.imageTag, fresh.imageTag, fresh.imageDigest],
+      ['img-local-1', 'img-local-1', imageId],
+    );
+  });
+
+  it('refuses to reactivate a release whose pilot has been turned off', async () => {
+    const project = await createProject({ runtimeType: 'NEXTJS' });
+    const sourceDeployment = await createDeployment(project._id, {
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      imageTag: 'img-next-1',
+      configurationSnapshot: {
+        schemaVersion: 1,
+        buildStrategy: 'next_standard_v1',
+        runtimeType: 'NEXTJS',
+        buildConfiguration: { applicationRoot: '.', applicationPort: 3000, healthCheckPath: '/' },
+        projectConfigurationVersion: 1,
+        environmentVersion: 1,
+        sourceCommit: 'a'.repeat(40),
+      },
+    });
+    const rollbackDeployment = await createDeployment(project._id, {
+      sequenceNumber: 2,
+      triggerType: DeploymentTrigger.ROLLBACK,
+      status: DeploymentStatus.DEPLOYING,
+    });
+    const { deps } = makeDeps();
+    await handleRollbackRelease(makeJob(project, rollbackDeployment, sourceDeployment), deps);
+    const fresh = await Deployment.findById(rollbackDeployment._id).lean();
+    assert.equal(fresh.failureCode, 'BUILD_STRATEGY_DISABLED');
   });
 });
