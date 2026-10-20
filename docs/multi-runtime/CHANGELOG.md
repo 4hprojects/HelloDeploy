@@ -20,6 +20,16 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Local registry verification (2026-10-20)
+
+- Registry cleanup also deletes the referrers fallback tag (`sha256-<child digest>`) that
+  ORAS writes for an attestation when the registry has no Referrers API. Without this,
+  every build left one tagged index behind. A shared child keeps its fallback tag.
+- In `oci` mode, cleanup now deletes the child manifests too, not only the index. Both
+  modes run one plan: fallback tags, then children, then the index.
+- The ORAS push, child-digest reading, and both cleanup cases were run against a local
+  registry; see `EVIDENCE.md`.
+
 ### GHCR deletion fallback (2026-10-20)
 
 - New `REGISTRY_DELETE_API=github-packages` mode deletes platform images through the

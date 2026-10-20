@@ -58,11 +58,13 @@ export async function verifyRegistryAccess(repository, deps = {}) {
 }
 
 /**
- * Delete one immutable GHCR image, by digest. The default `oci` mode sends the
- * OCI manifest DELETE through ORAS. `github-packages` mode exists because GHCR
- * may refuse that call: it deletes the image's package versions through the
- * GitHub REST API instead, child manifests (platform image, attestations)
- * first and the index last.
+ * Delete one immutable GHCR image, by digest, with everything it pushed: the
+ * index, its child manifests (platform image, provenance and SBOM
+ * attestation), and the referrers fallback tag ORAS writes for an attestation
+ * when the registry has no Referrers API. Children another retained release
+ * lists stay, with their fallback tags. The default `oci` mode deletes through
+ * ORAS; `github-packages` mode deletes package versions through the GitHub
+ * REST API, for a registry that refuses the OCI manifest DELETE.
  *
  * @returns {Promise<boolean>} true when the image is gone, false when
  *   deletion is turned off.
@@ -78,44 +80,52 @@ export async function deleteRegistryManifest(imageRef, deps = {}) {
   if (!isDeletionEnabled) {
     return false;
   }
-  if (deleteApi === 'github-packages') {
-    return deletePackageVersions(imageRef, { ...deps, run });
-  }
-  const result = await run(['manifest', 'delete', '--force', imageRef]);
-  if (result.code !== 0) {
-    // Already gone (another sweep or a rollback record sharing the digest got
-    // there first): that is the state cleanup wants, so later sweeps stop.
-    if (NOT_FOUND.test(result.stderr)) {
-      return true;
-    }
-    throw new Error(`Registry manifest deletion failed: ${result.stderr.trim().slice(0, 500)}`);
-  }
-  return true;
-}
-
-async function deletePackageVersions(imageRef, deps) {
   const [repositoryWithTag, digest] = imageRef.split('@');
   const repository = repositoryWithTag.replace(/:[a-z0-9_.-]+$/, '');
-  const childDigests = await fetchChildDigests(imageRef, deps.run);
+  // Already gone (another sweep or a rollback record sharing the digest got
+  // there first): that is the state cleanup wants, so later sweeps stop.
+  const childDigests = await fetchChildDigests(`${repository}@${digest}`, run);
   if (childDigests === null) {
     return true;
   }
-  // A fully cached rebuild can reuse an image manifest under a new index, so a
+  // A fully cached rebuild reuses the image manifest under a new index, so a
   // child that another kept release lists must stay.
   const sharedDigests = await (deps.findSharedChildDigests ?? findSharedChildDigests)(
     digest,
     childDigests,
   );
-  const targets = [...childDigests.filter((child) => !sharedDigests.has(child)), digest];
-  const api = createPackagesApi(repository, deps);
-  const versionIds = await api.findVersionIds(new Set(targets));
-  for (const target of targets) {
-    const versionId = versionIds.get(target);
-    if (versionId !== undefined) {
-      await api.deleteVersion(versionId);
-    }
-  }
+  const children = childDigests.filter((child) => !sharedDigests.has(child));
+  // The fallback index is named after the attestation's subject and rewritten
+  // by each push that reuses it, so it goes only with that child.
+  const plan = {
+    referrerTags: children.map((child) => child.replace(':', '-')),
+    digests: [...children, digest],
+  };
+  const remover =
+    deleteApi === 'github-packages'
+      ? createPackagesApi(repository, deps)
+      : createOrasRemover(repository, run);
+  await remover.remove(plan);
   return true;
+}
+
+function createOrasRemover(repository, run) {
+  const remove = async (reference) => {
+    const result = await run(['manifest', 'delete', '--force', reference]);
+    if (result.code !== 0 && !NOT_FOUND.test(result.stderr)) {
+      throw new Error(`Registry manifest deletion failed: ${result.stderr.trim().slice(0, 500)}`);
+    }
+  };
+  return {
+    async remove({ referrerTags, digests }) {
+      for (const tag of referrerTags) {
+        await remove(`${repository}:${tag}`);
+      }
+      for (const digest of digests) {
+        await remove(`${repository}@${digest}`);
+      }
+    },
+  };
 }
 
 /** The digests an image index lists, [] for a single manifest, null when gone. */
@@ -184,28 +194,45 @@ function createPackagesApi(repository, deps) {
     }
     return res.json();
   };
-  return {
-    listVersions,
-    async findVersionIds(targets) {
-      const found = new Map();
-      for (let page = 1; page <= MAX_VERSION_PAGES && found.size < targets.size; page += 1) {
-        const versions = await listVersions(page);
-        for (const version of versions) {
-          if (targets.has(version.name)) {
-            found.set(version.name, version.id);
+
+  // A version is found by its digest name, or by a tag for a referrers fallback index.
+  const findVersionIds = async (tags, names) => {
+    const found = new Map();
+    const wanted = tags.size + names.size;
+    for (let page = 1; page <= MAX_VERSION_PAGES && found.size < wanted; page += 1) {
+      const versions = await listVersions(page);
+      for (const version of versions) {
+        if (names.has(version.name)) {
+          found.set(version.name, version.id);
+        }
+        for (const tag of version.metadata?.container?.tags ?? []) {
+          if (tags.has(tag)) {
+            found.set(tag, version.id);
           }
         }
-        if (versions.length < VERSIONS_PER_PAGE) {
-          break;
-        }
       }
-      return found;
-    },
-    async deleteVersion(versionId) {
-      const res = await request(`${versionsUrl}/${encodeURIComponent(versionId)}`, 'DELETE');
-      // 404: another sweep deleted it first, which is the state cleanup wants.
-      if (!res.ok && res.status !== 404) {
-        throw await failure('version deletion', res);
+      if (versions.length < VERSIONS_PER_PAGE) {
+        break;
+      }
+    }
+    return found;
+  };
+  const deleteVersion = async (versionId) => {
+    const res = await request(`${versionsUrl}/${encodeURIComponent(versionId)}`, 'DELETE');
+    // 404: another sweep deleted it first, which is the state cleanup wants.
+    if (!res.ok && res.status !== 404) {
+      throw await failure('version deletion', res);
+    }
+  };
+  return {
+    listVersions,
+    async remove({ referrerTags, digests }) {
+      const versionIds = await findVersionIds(new Set(referrerTags), new Set(digests));
+      for (const target of [...referrerTags, ...digests]) {
+        const versionId = versionIds.get(target);
+        if (versionId !== undefined) {
+          await deleteVersion(versionId);
+        }
       }
     },
   };

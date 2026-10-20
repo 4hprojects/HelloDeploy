@@ -29,14 +29,29 @@ describe('registry operations', () => {
     ]);
   });
 
-  it('deletes only a digest-pinned GHCR manifest', async () => {
-    const imageRef = `ghcr.io/example/hellodeploy-apps:release-1@sha256:${'a'.repeat(64)}`;
+  // ORAS writes a referrers fallback tag for each attestation when the registry
+  // has no Referrers API; it must go with the image, or every build leaks one.
+  it('deletes the fallback tags, then the child manifests, then the index', async () => {
     const commands = [];
-    await deleteRegistryManifest(imageRef, {
+    await deleteRegistryManifest(IMAGE_REF, {
       isDeletionEnabled: true,
-      run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
+      findSharedChildDigests: async () => new Set(),
+      run: orasWithIndex({ commands }),
     });
-    assert.deepEqual(commands, [['manifest', 'delete', '--force', imageRef]]);
+    const repository = 'ghcr.io/example/hellodeploy-apps';
+    assert.deepEqual(
+      commands.filter((args) => args[1] === 'delete').map((args) => args[3]),
+      [
+        `${repository}:${IMAGE.replace(':', '-')}`,
+        `${repository}:${ATTESTATION.replace(':', '-')}`,
+        `${repository}@${IMAGE}`,
+        `${repository}@${ATTESTATION}`,
+        `${repository}@${INDEX}`,
+      ],
+    );
+  });
+
+  it('refuses to delete an image that is not pinned to a digest', async () => {
     await assert.rejects(
       deleteRegistryManifest('ghcr.io/example/hellodeploy-apps:latest'),
       /digest-pinned/,
@@ -69,17 +84,18 @@ describe('registry operations', () => {
 });
 
 /** ORAS that serves an index listing the image and its attestation. */
-function orasWithIndex({ isGone = false } = {}) {
-  return async () =>
-    isGone
-      ? { code: 1, stdout: '', stderr: 'Error: MANIFEST_UNKNOWN: manifest unknown' }
-      : {
-          code: 0,
-          stdout: JSON.stringify({
-            manifests: [{ digest: IMAGE }, { digest: ATTESTATION }],
-          }),
-          stderr: '',
-        };
+function orasWithIndex({ isGone = false, commands = [] } = {}) {
+  return async (args) => {
+    commands.push(args);
+    if (isGone) {
+      return { code: 1, stdout: '', stderr: 'Error: MANIFEST_UNKNOWN: manifest unknown' };
+    }
+    return {
+      code: 0,
+      stdout: JSON.stringify({ manifests: [{ digest: IMAGE }, { digest: ATTESTATION }] }),
+      stderr: '',
+    };
+  };
 }
 
 /** A GitHub Packages API listing the three versions; records each request. */
@@ -97,6 +113,11 @@ function fakePackagesApi({ deleteStatus = 204 } = {}) {
         { id: 1, name: INDEX },
         { id: 2, name: IMAGE },
         { id: 3, name: ATTESTATION },
+        {
+          id: 4,
+          name: `sha256:${'e'.repeat(64)}`,
+          metadata: { container: { tags: [IMAGE.replace(':', '-')] } },
+        },
       ]),
       { status: 200 },
     );
@@ -135,15 +156,21 @@ describe('registry deletion through GitHub Packages', () => {
     ...overrides,
   });
 
-  it('deletes the child manifests before the index', async () => {
+  it('deletes the fallback tag version, then the child manifests, then the index', async () => {
     const { fetchImpl, requests } = fakePackagesApi();
     await deleteRegistryManifest(IMAGE_REF, packagesDeps({ fetchImpl }));
     assert.deepEqual(
       requests.filter((request) => request.startsWith('DELETE')),
-      [`DELETE ${VERSIONS_URL}/2`, `DELETE ${VERSIONS_URL}/3`, `DELETE ${VERSIONS_URL}/1`],
+      [
+        `DELETE ${VERSIONS_URL}/4`,
+        `DELETE ${VERSIONS_URL}/2`,
+        `DELETE ${VERSIONS_URL}/3`,
+        `DELETE ${VERSIONS_URL}/1`,
+      ],
     );
   });
 
+  // The fallback index is rewritten by the push that reused the child, so it stays too.
   it('keeps a child manifest that another retained release lists', async () => {
     const project = await createProject();
     await createDeployment(project._id, {

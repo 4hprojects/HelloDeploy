@@ -32,7 +32,8 @@ production host while the acceptance record remains incomplete.
      platform and attestation manifests and then its index, and keeps any manifest
      another retained release still lists.
    - In either mode, push a second throwaway image and confirm one cleanup sweep removes
-     it from the package's version list.
+     it from the package's version list, including its `sha256-…` referrers fallback
+     tag if GHCR created one (`oras repo tags` lists it).
 
 Set the shared protected environment only after the probes below pass:
 

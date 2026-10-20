@@ -106,3 +106,8 @@
   record of its children. The token is read from a worker-only file, not the
   environment that build child processes inherit. Alternative rejected: turning off
   attestations to make each image one manifest, which drops supply-chain evidence.
+- 2026-10-20: Cleanup deletes the referrers fallback tag `sha256-<child digest>` only
+  together with that child. A local registry run showed ORAS rewriting the tag when a
+  cached rebuild reuses the image manifest, so the tag belongs to the child, not to one
+  release. The `oci` mode now deletes children as well, because a tagged fallback index
+  keeps the attestation alive and registry garbage collection never reclaims it.

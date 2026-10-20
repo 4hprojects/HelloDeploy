@@ -121,6 +121,33 @@ a test that failed before the fix (including a pre-upgrade project document with
 genuinely absent). Changed-area suites after the fixes: 183 files plus API and contract
 suites, 1,751/1,751; lint and format clean.
 
+## 2026-10-20 Local registry verification
+
+Run on the development machine against a throwaway `registry:2` (deletion enabled,
+bound to `127.0.0.1`) and a `docker-container` BuildKit builder, with ORAS 1.2.3
+(release checksum verified). The worker's own `buildAndPushDockerImage` and
+`deleteRegistryManifest` were called; only the registry host differed from GHCR.
+
+- **Push:** the build exported an OCI layout with provenance and SBOM, and the ORAS push
+  produced an image index whose digest matched the build metadata. The index listed
+  the `linux/amd64` image and one attestation manifest; `readLayoutChildDigests` read
+  the same two digests from the layout. The image pulled by digest, ran, and reported
+  user `10001`.
+- **Referrers fallback:** the attestation names the image manifest as its `subject`. With
+  no Referrers API, ORAS wrote an extra tagged index, `sha256-<image digest>`. Deleting the
+  attestation with ORAS left that tag in place, so cleanup now deletes it explicitly.
+- **Cached rebuild:** rebuilding the same context reused the image manifest under a new
+  index, and ORAS rewrote the fallback tag to the new attestation. This confirms the
+  shared-child rule.
+- **Cleanup:** deleting the first index while the second release still listed the shared
+  image manifest removed only the old index and attestation, and the second image still
+  pulled and ran. Deleting the second index then left the repository with no tags or
+  manifests. A repeat deletion returned success.
+
+Not covered: GHCR itself, the GitHub Packages API mode, the remote TLS builder, and
+registry authentication. The test stack, builder, pulled images, and registry volume
+were removed afterwards.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current
