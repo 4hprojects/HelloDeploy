@@ -96,6 +96,12 @@ Set `ACCEPTANCE_PRIVATE_CANARY` only on the `private-secret-probe` project. Give
 sessions and cache in a database the fixture does not have. Configure
 the `registry-cleanup` project's `maxRollbackReleases` quota to `1` before running the
 optional registry-cleanup scenario; the harness refuses that scenario otherwise.
+Set the build command `npm run build` on the `build-failure` and `slow-build` projects:
+Node.js projects run a build only when one is set, so without it neither scenario
+builds the failing or slow step. Add the `next14-legacy` project to
+`USER_IMAGE_OPTIMIZED_PROJECT_IDS`: the fixture has no `public/` directory, which the
+`legacy` Next.js template requires. Each owner may run one app by default, so give every
+fixture project its own owner or raise that quota.
 
 Create deploy hooks only for these nonproduction fixture projects. Copy
 `acceptance-config.example.json` to a path outside the checkout, replace every

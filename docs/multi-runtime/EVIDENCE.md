@@ -148,6 +148,30 @@ Not covered: GHCR itself, the GitHub Packages API mode, the remote TLS builder, 
 registry authentication. The test stack, builder, pulled images, and registry volume
 were removed afterwards.
 
+## 2026-10-20 Pre-merge smoke run, flags off
+
+The #119 branch head (`18c5251`) ran as web services plus the real worker against a
+throwaway MongoDB and Redis, the local Docker daemon, and code fetched from public
+GitHub at exact commits. Every `MULTIRUNTIME_*` flag was unset, `NGINX_ENABLED=false`
+with `ALLOW_UNROUTED_RELEASES=true`, and the worker used its own builder, port range
+29000–29099, and scratch workspace. Production containers and networks on the shared
+host were compared before and after: unchanged.
+
+| Case                                                         | Result                                                                     |
+| ------------------------------------------------------------ | -------------------------------------------------------------------------- |
+| `static`, `react-vite`, `vue-vite`, `express`, `node`        | HEALTHY, probe 200                                                         |
+| `rollback-marker`: baseline, candidate, rollback to baseline | HEALTHY each; markers `baseline-v1`, `candidate-v2`, `baseline-v1`         |
+| `build-failure` candidate (build command `npm run build`)    | `BUILD_FAILED`; baseline kept serving                                      |
+| `health-failure` candidate                                   | `HEALTH_CHECK_FAILED` (HTTP 503); baseline kept serving                    |
+| Project document without any of this branch's fields         | HEALTHY, probe 200                                                         |
+| v1 job in the previous web's payload shape, no snapshot      | HEALTHY, probe 200 (public root-level Express app at `8b8dec1`)            |
+| `next14-legacy`                                              | `BUILD_FAILED` on the default `legacy` template; HEALTHY on `optimized-v1` |
+
+`next14-legacy` has no `public/` directory, and the `legacy` Next.js template copies
+`/app/public`; only `optimized-v1` creates it. `main` has the same template, so this is
+existing production behavior, not a regression from this branch. The per-owner
+running-app quota (one by default) refused a second app for the same owner, as designed.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

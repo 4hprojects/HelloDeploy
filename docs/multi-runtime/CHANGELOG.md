@@ -20,6 +20,14 @@
   devDependencies, and when a custom `distDir` is configured. The user guide explains
   each warning.
 
+### Pre-merge smoke run (2026-10-20)
+
+- Ran the branch with every flag off against a throwaway database and the local Docker
+  daemon: legacy fixtures, rollback, build and health failures, a pre-branch project
+  document, and a v1 job all behaved as expected. See `EVIDENCE.md`.
+- Runbook fixture setup now names the build command for `build-failure` and
+  `slow-build`, the optimized template for `next14-legacy`, and one owner per project.
+
 ### Local registry verification (2026-10-20)
 
 - Registry cleanup also deletes the referrers fallback tag (`sha256-<child digest>`) that
