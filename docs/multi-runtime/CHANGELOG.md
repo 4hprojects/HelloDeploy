@@ -43,8 +43,8 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
   `isAmbiguous`. The unused `applicationRoot` field is gone from the
   build strategy result.
 - The runbook requires a live GHCR manifest-deletion probe before any pilot. Whether
-  GHCR accepts OCI manifest deletion through the registry API is unverified; if it
-  does not, retention cannot work and pilots stay off.
+  GHCR accepts OCI manifest deletion through the registry API is unverified; the
+  probe now chooses between that and the GitHub Packages fallback.
 
 ### Fifth review (2026-10-20)
 
