@@ -102,7 +102,8 @@ export async function deleteRegistryManifest(imageRef, deps = {}) {
   if (!isDeletionEnabled) {
     return false;
   }
-  const digest = imageRef.split('@')[1];
+  const [repositoryWithTag, digest] = imageRef.split('@');
+  const repository = repositoryWithTag.replace(/:[a-z0-9_.-]+$/, '');
   // Already gone (another sweep or a rollback record sharing the digest got
   // there first): that is the state cleanup wants, so later sweeps stop.
   const childDigests = await fetchChildDigests(`${repository}@${digest}`, run);
