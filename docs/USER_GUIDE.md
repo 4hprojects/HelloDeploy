@@ -125,6 +125,8 @@ Detection warns about Next.js settings that would otherwise fail after the build
 - **Standard server** runs `npm start`, so `package.json` needs `"start": "next start"`.
   Development dependencies are removed after the build, so `next` must be listed under
   `dependencies`, not `devDependencies`. Standalone and static export need neither.
+- **A `public/` folder** is required by the default Next.js build. If your app has none, add
+  one (an empty `public/.gitkeep` is enough); detection warns when it is missing.
 - **Custom `distDir`** is not supported. HelloDeploy expects the default `.next` build
   folder and `out` export folder.
 

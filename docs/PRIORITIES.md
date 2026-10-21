@@ -65,6 +65,10 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- **Default image template — keep `legacy`.** Changing the production default would alter every
+  existing build at once, against the docker-optimization plan's per-project canary first.
+  Instead, detection now warns when a Next.js repository has no `public/` folder (the one
+  `legacy` limitation users hit), and the runbook explains per-project opt-in to `optimized-v1`.
 - Landing-page performance headroom was a measurement artefact: the Lighthouse lab served the
   110 KB stylesheet uncompressed, while production serves it Brotli-compressed (18 KB). The lab
   fixture now compresses like production; the mobile median LCP is 1.42 s against the 2.5 s
@@ -82,10 +86,6 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Product decisions
 
-- **Default image template.** Production builds use the `legacy` template, which fails Next.js
-  apps that have no `public/` folder; `optimized-v1` handles them. Decide when to make
-  `optimized-v1` the default, or roll it out per project with
-  `USER_IMAGE_OPTIMIZED_PROJECT_IDS` ([docker-optimization](docker-optimization/README.md)).
 - **P5 restricted Compose.** Answer the three open questions in
   [P5_COMPOSE_ADR.md](multi-runtime/P5_COMPOSE_ADR.md): how the public service is chosen, the
   service ceiling, and outbound access for private services.

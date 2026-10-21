@@ -636,6 +636,13 @@ function detectNodeRuntime(files) {
         });
       }
     }
+    if (files['public/'] === false) {
+      issues.push({
+        level: 'WARNING',
+        message:
+          'No public/ folder was found. The default Next.js build copies it, so the build fails without one. Add a public/ folder (an empty public/.gitkeep is enough) or ask an administrator to enable the optimized build for this project.',
+      });
+    }
     if (nextStrategy.hasCustomDistDir) {
       issues.push({
         level: 'WARNING',
@@ -916,7 +923,42 @@ export async function fetchProjectFilesForRepository(repository, ref, applicatio
   };
   const contents = await Promise.all(FILES_TO_FETCH.map(fetchFile));
   const files = Object.fromEntries(FILES_TO_FETCH.map((path, index) => [path, contents[index]]));
+  // Only Next.js needs it: the default image copies public/ into the runtime stage.
+  if (/"next"\s*:/.test(files['package.json'] ?? '')) {
+    files['public/'] = await githubPathExists(
+      token,
+      owner,
+      repo,
+      fileAtApplicationRoot(applicationRoot, 'public'),
+      ref,
+    );
+  }
   return addBackendEntryFiles(files, fetchFile);
+}
+
+/** True when a file or folder exists at the path; GitHub answers 404 otherwise. */
+async function githubPathExists(token, owner, repo, path, ref) {
+  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`;
+  const res = await fetch(url, {
+    method: 'GET',
+    redirect: 'error',
+    signal: AbortSignal.timeout(DETECTION_REQUEST_TIMEOUT_MS),
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      Accept: 'application/vnd.github+json',
+      'X-GitHub-Api-Version': '2022-11-28',
+      'User-Agent': 'hellodeploy',
+    },
+  });
+  await res.body?.cancel();
+  if (res.status === 404) {
+    return false;
+  }
+  if (!res.ok) {
+    throw new Error(`GitHub API error checking ${path}: ${res.status}`);
+  }
+  return true;
 }
 
 // Entry-point candidates are fetched only for repositories with backend
