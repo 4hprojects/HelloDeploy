@@ -10,6 +10,25 @@ import { getStatusPresentation } from '@hellodeploy/contracts';
 import { publicPageMetadata } from '../config/public-pages.js';
 import { assetPath } from '../utils/assets.js';
 
+/**
+ * Locals every page render needs that do not depend on the request. Set on
+ * `app.locals` so pages rendered before this middleware runs (a CSRF or other
+ * early rejection) still render instead of failing with a 500.
+ */
+export function applicationLocals() {
+  return { assetPath, csrfToken: '', pageMetadata: defaultPageMetadata() };
+}
+
+function defaultPageMetadata() {
+  return {
+    title: null,
+    description: 'Manage application deployments with HelloDeploy.',
+    canonicalUrl: null,
+    imageUrl: `https://${env.PLATFORM_DOMAIN}/assets/social/hellodeploy-og-image.png`,
+    robots: 'noindex,nofollow',
+  };
+}
+
 export function localsMiddleware(req, res, next) {
   res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
   res.locals.user = req.session?.user ?? null;
@@ -20,13 +39,8 @@ export function localsMiddleware(req, res, next) {
   res.locals.isStrategyEnabledFor = env.isStrategyEnabledFor;
   res.locals.statusPresentation = getStatusPresentation;
   res.locals.assetPath = assetPath;
-  res.locals.pageMetadata = publicPageMetadata(req.path, env.PLATFORM_DOMAIN) ?? {
-    title: null,
-    description: 'Manage application deployments with HelloDeploy.',
-    canonicalUrl: null,
-    imageUrl: `https://${env.PLATFORM_DOMAIN}/assets/social/hellodeploy-og-image.png`,
-    robots: 'noindex,nofollow',
-  };
+  res.locals.pageMetadata =
+    publicPageMetadata(req.path, env.PLATFORM_DOMAIN) ?? defaultPageMetadata();
 
   // Consume flash messages — read once and clear
   res.locals.flash = req.session?.flash ?? {};

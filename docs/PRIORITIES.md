@@ -59,9 +59,6 @@ Keep this file short. Put evidence in the worklog, not here.
   repositories download an exact-commit archive and private ones fetch only that commit
   (`--depth 1`), and a shared cache needs lock-safe concurrency on the most critical path.
   Revisit only with evidence that fetch time matters.
-- **Error page crashes for unrouted POSTs.** Bot probes such as `POST /xmlrpc.php` get a 500
-  because rendering the error page fails with `assetPath is not defined` (53 times since
-  2026-10-14). The error path runs before the view locals are set.
 - **Assistive-technology pass** of the dashboard with a real screen reader (automated axe checks
   pass).
 - **Landing-page performance headroom.** The mobile Lighthouse lab median LCP is about
@@ -69,6 +66,8 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- Bot probes such as `POST /xmlrpc.php` now get a 403 page instead of a 500: request-independent
+  view locals are set on `app.locals`, so pages rendered before the locals middleware work.
 - The deployment log "● Live" indicator is now a polite status region with the dot hidden from
   screen readers.
 - `getUserProjects` was unused outside its own test and has been removed rather than optimized.
