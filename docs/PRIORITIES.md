@@ -24,14 +24,7 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-1. **Rotate the GitHub webhook secret (owner action).** Every GitHub delivery to production
-   has been rejected since at least 2026-07-31, so push-to-deploy and repository access updates
-   never arrive. The cause is a mismatch between `GITHUB_WEBHOOK_SECRET` on the server and the
-   GitHub App's secret; the code is correct. Follow
-   [Operations Runbooks › GitHub webhooks rejected](OPERATIONS_RUNBOOKS.md#github-webhooks-rejected-rotate-the-webhook-secret).
-   The admin Server page now shows webhook health, so this cannot go unnoticed again.
-
-2. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
+1. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
    `anything.hellodeploy.online` get nginx's "Welcome to nginx!" page with HTTP 200 from
    `/etc/nginx/sites-enabled/default`. Replace its `server` body with `return 404;` (keep
    `listen 80 default_server; server_name _;`), then `sudo nginx -t && sudo systemctl reload nginx`.
@@ -40,17 +33,17 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Next — to turn on the multi-runtime pilots
 
-3. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
+2. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
    resource limits, builder egress limited to package hosts, ORAS on the worker, and a private
    GHCR repository with a least-privilege token
    ([runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md)).
-4. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
+3. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
    live GHCR deletion probe, including the referrers fallback tag.
-5. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
+4. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
    disruptive cases, and record build time and memory per framework.
-6. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
+5. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
    stop procedure in the runbook.
-7. **Before the owner-image pilots (P4):** a human security review of the
+6. **Before the owner-image pilots (P4):** a human security review of the
    [owner-image threat model](multi-runtime/THREAT_MODEL.md), Trivy installed with its database,
    every fail-closed case run live, and Docker Hub anonymous pull limits measured.
 
@@ -69,6 +62,10 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- **GitHub webhooks work again** (2026-10-22). The owner rotated `GITHUB_WEBHOOK_SECRET` on the
+  server and in the GitHub App and restarted the web service at 07:47. A redelivered push
+  returned 200 at 07:48, the first accepted delivery since at least 2026-07-31. Pushes made
+  before then were not replayed, so deploy any project that should be on its latest commit.
 - **Post-merge deploy and rollback check passed** (2026-10-22). HelloEventHub deployed release 25
   at 00:13 and release 26 at 00:34, then rolled back to release 25 at 07:28 using its retained
   image, without a rebuild. Each run passed its health check, swapped containers, and sent the
