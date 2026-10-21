@@ -58,8 +58,6 @@ Keep this file short. Put evidence in the worklog, not here.
 - **E2 — per-repository clone cache.** Deliberately deferred: clones are already shallow, and a
   shared cache needs lock-safe concurrency on the most critical path. Revisit only with
   evidence that clone time matters.
-- **U5 — webhook-triggered deploy failures are invisible.** Errors after the fast webhook
-  response are only logged; persist the last trigger failure on the project and show it.
 - **Small fixes:** the deployment detail "● Live" indicator has no accessible label;
   `getUserProjects` sorts in JavaScript without a limit; `requireProjectRole` runs two
   sequential queries per request.

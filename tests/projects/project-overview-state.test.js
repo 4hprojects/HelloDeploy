@@ -455,4 +455,21 @@ describe('live app uptime', () => {
     });
     assert.equal(state.uptime.state, 'running');
   });
+
+  it('reports the last push that did not start a deployment', () => {
+    const state = fixture({
+      project: {
+        lastTriggerFailure: {
+          at: new Date('2026-10-21T00:00:00Z'),
+          commitSha: COMMIT,
+          reason: 'Quota reached.',
+        },
+      },
+    });
+    assert.deepEqual(state.triggerFailure, {
+      at: new Date('2026-10-21T00:00:00Z'),
+      commitSha: COMMIT,
+      reason: 'Quota reached.',
+    });
+  });
 });

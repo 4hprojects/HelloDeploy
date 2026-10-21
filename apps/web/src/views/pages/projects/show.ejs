@@ -122,6 +122,27 @@
 </section>
 <% } %>
 
+<% if (overviewState.triggerFailure) { %>
+<section class="project-home-section" aria-labelledby="trigger-failure-title">
+  <div class="project-home-section__heading">
+    <div>
+      <h2 id="trigger-failure-title">Last push did not deploy</h2>
+      <p class="text-sm text-muted">
+        <% if (overviewState.triggerFailure.commitSha) { %>Commit <code class="code-inline"><%= overviewState.triggerFailure.commitSha.slice(0, 7) %></code>, pushed<% } else { %>A push<% } %>
+        <%= new Date(overviewState.triggerFailure.at).toLocaleString('en-GB') %>, did not start an automatic deployment.
+      </p>
+    </div>
+  </div>
+  <ul class="approval-findings">
+    <li class="approval-finding approval-finding--warning">
+      <strong>Why it did not deploy</strong>
+      <span><%= overviewState.triggerFailure.reason %></span>
+    </li>
+  </ul>
+  <p class="text-sm mt-4"><a href="/projects/<%= project.slug %>/deployments">Deploy it manually from Deployments</a> once the cause is resolved. This notice clears on the next push that deploys.</p>
+</section>
+<% } %>
+
 <% if (overviewState.attentionFindings.length > 0 && ['SETUP', 'NEEDS_ATTENTION'].includes(overviewState.phase)) { %>
 <section class="project-home-section" aria-labelledby="attention-title">
   <div class="project-home-section__heading">

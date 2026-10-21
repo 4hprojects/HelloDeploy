@@ -229,4 +229,27 @@ describe('guided project overview', () => {
     assert.match(componentsCss, /@media \(max-width: 48rem\)[\s\S]*\.project-milestones/);
     assert.match(componentsCss, /@media \(max-width: 30rem\)[\s\S]*\.project-activity/);
   });
+
+  it('explains when a push did not start a deployment', async () => {
+    const html = await renderOverview({
+      overviewState: {
+        phase: 'LIVE',
+        tone: 'ready',
+        eyebrow: 'Live',
+        title: 'Your app is live',
+        description: '',
+        primaryAction: null,
+        milestones,
+        attentionFindings: [],
+        appLive: true,
+        appUrl: null,
+        triggerFailure: {
+          at: new Date('2026-10-21T00:00:00Z'),
+          commitSha: 'b'.repeat(40),
+          reason: 'The project owner already has 1 of 1 running apps.',
+        },
+      },
+    });
+    assert.match(html, /Last push did not deploy[\s\S]*bbbbbbb[\s\S]*1 of 1 running apps/);
+  });
 });
