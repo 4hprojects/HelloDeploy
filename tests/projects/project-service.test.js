@@ -5,7 +5,7 @@ import { Project, ProjectMembership, Quota } from '@hellodeploy/database';
 import { ProjectStatus, ProjectRole, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
-const { createProject, deleteProject, getUserProjects, updateProject } =
+const { createProject, deleteProject, updateProject } =
   await import('../../apps/web/src/services/project.service.js');
 
 describe('project.service — createProject', () => {
@@ -59,34 +59,6 @@ describe('project.service — createProject', () => {
     await createProject({ name: 'First', ownerId });
     const result = await createProject({ name: 'Second', ownerId });
     assert.equal(result.success, true);
-  });
-});
-
-describe('project.service — getUserProjects', () => {
-  before(async () => {
-    await startTestDb();
-  });
-  after(async () => {
-    await stopTestDb();
-  });
-  beforeEach(async () => {
-    await clearTestDb();
-  });
-
-  it('returns only projects the user is a member of', async () => {
-    const userId = objectId();
-    await createProject({ name: 'Mine', ownerId: userId });
-    await createProject({ name: 'Not Mine', ownerId: objectId() });
-    const projects = await getUserProjects(userId);
-    assert.equal(projects.length, 1);
-    assert.equal(projects[0].project.name, 'Mine');
-  });
-
-  it('includes the membership role with each project', async () => {
-    const userId = objectId();
-    await createProject({ name: 'Mine', ownerId: userId });
-    const projects = await getUserProjects(userId);
-    assert.equal(projects[0].role, ProjectRole.OWNER);
   });
 });
 

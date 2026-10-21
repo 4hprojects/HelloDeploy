@@ -55,12 +55,10 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Before owner images are generally available:** a builder per tenant or per build (the
   shared BuildKit cache is reachable through `ONBUILD`), and runtime egress filtering for app
   containers.
-- **E2 — per-repository clone cache.** Deliberately deferred: clones are already shallow, and a
-  shared cache needs lock-safe concurrency on the most critical path. Revisit only with
-  evidence that clone time matters.
-- **Small fixes:** the deployment detail "● Live" indicator has no accessible label;
-  `getUserProjects` sorts in JavaScript without a limit; `requireProjectRole` runs two
-  sequential queries per request.
+- **E2 — per-repository clone cache.** Deliberately deferred (re-checked 2026-10-21): public
+  repositories download an exact-commit archive and private ones fetch only that commit
+  (`--depth 1`), and a shared cache needs lock-safe concurrency on the most critical path.
+  Revisit only with evidence that fetch time matters.
 - **Error page crashes for unrouted POSTs.** Bot probes such as `POST /xmlrpc.php` get a 500
   because rendering the error page fails with `assetPath is not defined` (53 times since
   2026-10-14). The error path runs before the view locals are set.
@@ -68,6 +66,14 @@ Keep this file short. Put evidence in the worklog, not here.
   pass).
 - **Landing-page performance headroom.** The mobile Lighthouse lab median LCP is about
   2.25–2.4 s against a 2.5 s budget.
+
+## Decided and closed (2026-10-21)
+
+- The deployment log "● Live" indicator is now a polite status region with the dot hidden from
+  screen readers.
+- `getUserProjects` was unused outside its own test and has been removed rather than optimized.
+- `requireProjectRole` keeps its two queries: the membership lookup needs the project id first,
+  and both are indexed single-document reads, so an aggregation would save about a millisecond.
 
 ## Product decisions
 

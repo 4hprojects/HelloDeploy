@@ -118,17 +118,6 @@ export async function createProject({
   return { success: true, project };
 }
 
-export async function getUserProjects(userId) {
-  const memberships = await ProjectMembership.find({ userId })
-    .populate({ path: 'projectId', model: 'Project' })
-    .lean();
-
-  return memberships
-    .filter((m) => m.projectId)
-    .map((m) => ({ project: m.projectId, role: m.role }))
-    .sort((a, b) => new Date(b.project.createdAt) - new Date(a.project.createdAt));
-}
-
 export async function getProjectBySlug(slug) {
   return Project.findOne({ slug }).lean();
 }
