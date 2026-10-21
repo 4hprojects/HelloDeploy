@@ -2449,3 +2449,10 @@ recovery remain unexecuted until their declared operational preconditions pass.
   rebuild, the health check passed on attempt 4, the old container was removed, and the email was
   sent. `helloeventhub.hellodeploy.online` answered 200. This closes the post-merge check for #119
   and #120.
+
+## 2026-10-22 — GitHub Webhook Secret Rotated
+
+- The owner set a new `GITHUB_WEBHOOK_SECRET` in `/opt/hellodeploy/.env` and in the GitHub App,
+  then restarted `hellodeploy-web` (07:47:20). A redelivered push (`395ac182…`) returned 200 at
+  07:48:37 in both GitHub and nginx, with no rejection logged since. Push-to-deploy and
+  installation events reach production again.
