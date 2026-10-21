@@ -1,6 +1,7 @@
 import express, { Router } from 'express';
 import { handleGithubWebhook } from '../../controllers/webhook.controller.js';
 import { handleResendWebhook } from '../../controllers/resend-webhook.controller.js';
+import { githubWebhookLimiter } from '../../middleware/rate-limit.js';
 
 const router = Router();
 
@@ -12,6 +13,7 @@ const router = Router();
 const GITHUB_WEBHOOK_MAX_BODY = '25mb';
 router.post(
   '/github',
+  githubWebhookLimiter,
   express.raw({ type: 'application/json', limit: GITHUB_WEBHOOK_MAX_BODY }),
   (req, res) => handleGithubWebhook(req, res),
 );
