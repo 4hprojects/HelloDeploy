@@ -136,3 +136,7 @@
   gates now apply to turning `MULTIRUNTIME_DOCKERFILE_V1_ENABLED` or
   `MULTIRUNTIME_OCI_V1_ENABLED` on. A flags-off smoke run on the #120 head showed the web
   service and the worker both refuse owner-image builds while the flags are off.
+- 2026-10-22: P5's three open questions were decided under the owner's delegation (see
+  [P5_COMPOSE_ADR.md](P5_COMPOSE_ADR.md#decisions-on-the-open-questions-2026-10-22)): the public
+  service is the one declaring `ports`, the ceiling is three services (configurable, confirmed
+  by the headroom measurement), and private services get no outbound access by default.

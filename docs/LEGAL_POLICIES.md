@@ -78,6 +78,24 @@ The Acceptable Use Policy should prohibit:
 - Copyright infringement.
 - Public proxy, VPN, game server, video encoding, and large-file workloads when outside V1 scope.
 
+## Owner-Supplied Images Coverage
+
+Applies when the Dockerfile and prebuilt-image pilots open to users; until then the public
+policy pages stay unchanged. Drafted 2026-10-22 under the owner's delegation; have counsel review
+it with the rest of this file. The Terms of Service and Acceptable Use Policy should add:
+
+- The project owner is responsible for everything in an image they build or supply: its code,
+  dependencies, base images, and their licences.
+- HelloDeploy scans each image for known, fixable critical vulnerabilities and checks that it runs
+  as a non-root user without volumes, and may refuse to run an image that fails. Passing these
+  checks is not a security guarantee.
+- Images may only come from the approved registries (Docker Hub and GitHub Container Registry).
+  Registry credentials saved for private images are stored encrypted, used only to pull that
+  project's images, and deleted with the project.
+- Every Acceptable Use rule above applies to supplied images. HelloDeploy may stop a container,
+  remove the project from the pilot, and keep the image digest for investigation when an image
+  breaks these rules or endangers other projects.
+
 ## Data Processing Coverage
 
 HelloDeploy should distinguish between:
