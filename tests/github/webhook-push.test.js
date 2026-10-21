@@ -172,4 +172,39 @@ describe('GitHub push webhook deployment behavior', () => {
 
     assert.equal(deps.sendProjectPausedEmailCalls[0].to, 'ada@example.com');
   });
+
+  // Failures happen after the fast webhook response, so the owner would otherwise never see them.
+  it('records why an automatic deployment was not started', async () => {
+    const deps = makeDeps({
+      deploymentResult: {
+        success: false,
+        error: 'The project owner already has 1 of 1 running apps.',
+      },
+    });
+    await handlePushEvent(makePayload(), 'corr-1', deps);
+    assert.equal(
+      deps.projectUpdateCalls.at(-1).update.$set.lastTriggerFailure.reason,
+      'The project owner already has 1 of 1 running apps.',
+    );
+  });
+
+  it('records a failure when starting the automatic deployment throws', async () => {
+    const deps = makeDeps();
+    deps.createDeployment = async () => {
+      throw new Error('queue unavailable');
+    };
+    await handlePushEvent(makePayload(), 'corr-1', deps);
+    assert.match(
+      deps.projectUpdateCalls.at(-1).update.$set.lastTriggerFailure.reason,
+      /could not start/,
+    );
+  });
+
+  it('clears a recorded failure once a push deploys again', async () => {
+    const deps = makeDeps({
+      project: makeProject({ lastTriggerFailure: { at: new Date(), reason: 'earlier failure' } }),
+    });
+    await handlePushEvent(makePayload(), 'corr-1', deps);
+    assert.deepEqual(deps.projectUpdateCalls.at(-1).update, { $set: { lastTriggerFailure: null } });
+  });
 });

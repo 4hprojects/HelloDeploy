@@ -44,6 +44,17 @@ const maintenanceModeSchema = new Schema(
   { _id: false },
 );
 
+// The last push that should have deployed but did not. It is written after the
+// webhook has already answered GitHub, so the project page is where it surfaces.
+const triggerFailureSchema = new Schema(
+  {
+    at: { type: Date, required: true },
+    commitSha: { type: String, default: null, maxlength: 40 },
+    reason: { type: String, required: true, maxlength: 500 },
+  },
+  { _id: false },
+);
+
 const reviewFlagSchema = new Schema(
   {
     active: { type: Boolean, default: false },
@@ -151,6 +162,7 @@ const projectSchema = new Schema(
     },
     maintenanceMode: { type: maintenanceModeSchema, default: () => ({}) },
     reviewFlag: { type: reviewFlagSchema, default: () => ({}) },
+    lastTriggerFailure: { type: triggerFailureSchema, default: null },
     archivedAt: { type: Date, default: null },
     suspendedAt: { type: Date, default: null },
     suspensionReason: { type: String, default: null, maxlength: 500 },

@@ -264,12 +264,25 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
   }
 
   if (project.deploymentMode === DeploymentMode.AUTOMATIC) {
-    const result = await deps.createDeployment({
-      projectId: project._id,
-      actorId: project.ownerId,
-      triggerType: DeploymentTrigger.AUTOMATIC,
-      correlationId,
-    });
+    let result;
+    try {
+      result = await deps.createDeployment({
+        projectId: project._id,
+        actorId: project.ownerId,
+        triggerType: DeploymentTrigger.AUTOMATIC,
+        correlationId,
+      });
+    } catch (err) {
+      logger.error('Webhook: automatic deployment could not be started', {
+        projectId: project._id.toString(),
+        commitSha: newSha.slice(0, 7),
+        error: err.message,
+      });
+      result = {
+        success: false,
+        error: 'HelloDeploy could not start the deployment. Deploy it from the Deployments page.',
+      };
+    }
 
     if (!result.success) {
       logger.warn('Webhook: automatic deployment was not queued', {
@@ -277,6 +290,18 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
         commitSha: newSha.slice(0, 7),
         error: result.error,
       });
+      await deps.Project.updateOne(
+        { _id: project._id },
+        {
+          $set: {
+            lastTriggerFailure: {
+              at: new Date(),
+              commitSha: newSha,
+              reason: String(result.error).slice(0, 500),
+            },
+          },
+        },
+      );
       return;
     }
 
@@ -285,6 +310,9 @@ export async function handlePushEvent(payload, correlationId, deps = defaultPush
       commitSha: newSha.slice(0, 7),
       deploymentId: result.deployment?._id?.toString(),
     });
+    if (project.lastTriggerFailure) {
+      await deps.Project.updateOne({ _id: project._id }, { $set: { lastTriggerFailure: null } });
+    }
   }
   // MANUAL mode: commit indicator already updated via repoRecord.lastCommitSha
 }

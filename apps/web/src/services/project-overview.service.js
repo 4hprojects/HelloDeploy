@@ -167,6 +167,13 @@ export function buildProjectOverviewState({
     reviewFlag: project.reviewFlag?.active
       ? { reason: project.reviewFlag.reason, flaggedAt: project.reviewFlag.flaggedAt }
       : null,
+    triggerFailure: project.lastTriggerFailure?.at
+      ? {
+          at: project.lastTriggerFailure.at,
+          commitSha: project.lastTriggerFailure.commitSha ?? null,
+          reason: project.lastTriggerFailure.reason,
+        }
+      : null,
     latestDeployment,
     inFlightDeployment,
     appLive,
