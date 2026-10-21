@@ -7,7 +7,7 @@ import { randomBytes } from 'crypto';
 import { correlationIdMiddleware } from './middleware/correlation-id.js';
 import { createSessionMiddleware } from './middleware/session.js';
 import { csrfMiddleware } from './middleware/csrf.js';
-import { localsMiddleware } from './middleware/locals.js';
+import { applicationLocals, localsMiddleware } from './middleware/locals.js';
 import { maintenanceModeMiddleware } from './middleware/maintenance-mode.js';
 import { generalLimiter } from './middleware/rate-limit.js';
 import { requireAuth } from './middleware/require-auth.js';
@@ -119,6 +119,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.set('views', join(__dirname, 'views'));
   app.use(expressEjsLayouts);
   app.set('layout', 'layouts/main');
+  Object.assign(app.locals, applicationLocals());
 
   // Static assets (served before rate limiting to avoid counting static hits).
   // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.
