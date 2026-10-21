@@ -2439,3 +2439,13 @@ recovery remain unexecuted until their declared operational preconditions pass.
 - Rejections now log at error level and are recorded in Redis, and the admin Server page shows a
   GitHub Webhooks card ("Rejecting" / "Healthy"). The secret rotation needs owner access; see
   Operations Runbooks › GitHub webhooks rejected.
+
+## 2026-10-22 — First Production Deploy and Rollback on the Multi-Runtime Code
+
+- HelloEventHub (`a8eeeaa`) deployed release 25 at 00:13: the public archive was fetched, the build
+  succeeded, the health check passed, containers were swapped, retention kept 3 releases, and the
+  result email was accepted. Release 26 from the same commit deployed at 00:34 (cached build, 7 s).
+- At 07:28 the owner rolled back to release 25. The worker reused the retained image without a
+  rebuild, the health check passed on attempt 4, the old container was removed, and the email was
+  sent. `helloeventhub.hellodeploy.online` answered 200. This closes the post-merge check for #119
+  and #120.
