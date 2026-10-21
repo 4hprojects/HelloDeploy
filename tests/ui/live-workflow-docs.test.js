@@ -3,11 +3,11 @@ import { readFile } from 'node:fs/promises';
 import { describe, it } from 'node:test';
 
 const checklist = await readFile(
-  new URL('../../docs/LIVE_WORKFLOW_ACCEPTANCE.md', import.meta.url),
+  new URL('../../docs/archive/LIVE_WORKFLOW_ACCEPTANCE.md', import.meta.url),
   'utf8',
 );
 const tracker = await readFile(
-  new URL('../../docs/IMPLEMENTATION_BATCH_TRACKER.md', import.meta.url),
+  new URL('../../docs/archive/IMPLEMENTATION_BATCH_TRACKER.md', import.meta.url),
   'utf8',
 );
 const runbook = await readFile(

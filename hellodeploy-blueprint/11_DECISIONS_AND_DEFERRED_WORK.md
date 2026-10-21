@@ -97,7 +97,7 @@ The quota model should remain plan-ready even though V1 is free.
 
 Accepted ADR-006 adds a second `PUBLIC_GIT` source mode for public GitHub HTTPS repositories. It allows manual or approval-required deployment from a pasted public URL without a GitHub App installation while retaining the GitHub App requirement for private repositories and automatic deployments.
 
-The repository implementation includes URL normalization, public metadata inspection, conditional source persistence, detection, exact-commit worker cloning, deployment-mode enforcement, UX states, and focused tests. Real Docker-backed worker deployment remains an acceptance blocker and must not be inferred from local tests. The full contract is defined in the [Public Git Repository Connection Specification](../docs/PUBLIC_GIT_REPOSITORY_SPEC.md) and [ADR-006](../infrastructure/decisions/ADR-006-public-git-sources.md).
+The repository implementation includes URL normalization, public metadata inspection, conditional source persistence, detection, exact-commit worker cloning, deployment-mode enforcement, UX states, and focused tests. Real Docker-backed worker deployment remains an acceptance blocker and must not be inferred from local tests. The full contract is defined in the [Public Git Repository Connection Specification](../docs/archive/PUBLIC_GIT_REPOSITORY_SPEC.md) and [ADR-006](../infrastructure/decisions/ADR-006-public-git-sources.md).
 
 ## Change-Control Rule
 

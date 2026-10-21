@@ -1,5 +1,8 @@
 # Full-System Analysis
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-13
 
 ## Purpose
@@ -13,7 +16,7 @@ holds together as one consistent product (accessibility, responsiveness,
 form-validation patterns, design system). Companion to
 [`docs/ADMIN_UX_AUDIT.md`](ADMIN_UX_AUDIT.md) and
 [`docs/GUEST_EXPERIENCE_AUDIT.md`](GUEST_EXPERIENCE_AUDIT.md). The backlog
-this produced lives in [`PRIORITIES.md`](PRIORITIES.md) under Track F — this
+this produced lives in [`PRIORITIES.md`](PRIORITIES_2026-10-15.md) under Track F — this
 file is the evidence behind that list.
 
 ## What's already strong
@@ -192,5 +195,5 @@ compilation and verified against the relevant test suites (151 tests across
 `tests/ui`, `tests/domain`, `tests/deployment/rollback-flow.test.js`, and
 `tests/security/domain-validation.test.js`, all passing), plus a clean
 full-repo `npm run lint` and `npm run format:check`. See
-[`WORKLOG.md`](../WORKLOG.md) for the full record. `docs/PRIORITIES.md`
+[`WORKLOG.md`](../../WORKLOG.md) for the full record. `docs/PRIORITIES.md`
 Track F reflects this as complete.

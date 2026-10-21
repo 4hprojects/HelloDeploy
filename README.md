@@ -14,7 +14,7 @@ HelloDeploy is a self-hosted web application deployment platform. It lets users 
 - Self-service custom domains with DNS verification and automatic activation, per-project maintenance mode, and notification preferences
 - Encrypted environment secrets, per-project quotas, role-based project membership with email invitations, and full audit logging
 
-See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [IMPROVEMENTS.md](docs/IMPROVEMENTS.md) for the current engineering backlog.
+See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [Priorities](docs/PRIORITIES.md) for what is being worked on.
 
 ## Documentation
 
@@ -22,7 +22,8 @@ See the [User Guide](docs/USER_GUIDE.md) for how each feature works, and [IMPROV
 - [Product and Platform Architecture](docs/PLATFORM_ARCHITECTURE.md)
 - [User Guide](docs/USER_GUIDE.md)
 - [Blueprint](hellodeploy-blueprint/00_MASTER_INDEX.md)
-- [Priorities](docs/PRIORITIES.md) - what's next, across every open track
+- [Priorities](docs/PRIORITIES.md) - the single current list of what to work on
+- [Multi-Runtime Deployments](docs/multi-runtime/README.md) - Next.js modes, Python, PHP, Java, and owner images (pilots, off by default)
 
 ## Local Development
 

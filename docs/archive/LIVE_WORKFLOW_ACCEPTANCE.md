@@ -1,11 +1,14 @@
 # Live Workflow Acceptance Checklist
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-08T20:12:45+08:00 (rows below spot-corrected 2026-08-18 where
 directly evidenced — not a full re-verification pass)
 
 For current live release-gate status, see
 [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
-and [Priorities](PRIORITIES.md) Track A — both are more current than this matrix.
+and [Priorities](PRIORITIES_2026-10-15.md) Track A — both are more current than this matrix.
 Dashboard traffic cutover (2026-08-09) and queue resume (2026-08-10) both passed
 live since this file's last full pass; the two rows below directly affected by
 those events are corrected. The rest of this matrix was not re-verified row by

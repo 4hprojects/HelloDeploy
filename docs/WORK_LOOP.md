@@ -1,8 +1,8 @@
 # HelloDeploy Autonomous Work Loop
 
-Updated: 2026-08-14
+Updated: 2026-10-21
 
-This document defines how Codex continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
+This document defines how a coding agent (Codex, Claude Code, or similar) continues HelloDeploy work across implementation tasks and sessions. It complements `AGENTS.md`: the agent instructions govern engineering behavior, while this loop governs task selection, continuation, evidence, and stopping.
 
 ## Sources of Truth
 
@@ -10,12 +10,12 @@ Use the following precedence when deciding what to do:
 
 1. The user's current explicit request.
 2. Repository-wide instructions in `AGENTS.md`.
-3. Current execution status in `IMPLEMENTATION_BATCH_TRACKER.md`.
-4. Acceptance and release gates in `DEPLOYMENT_READINESS_ROADMAP.md`.
+3. Current priorities in [`PRIORITIES.md`](PRIORITIES.md).
+4. Initiative status and gates, such as [`multi-runtime/STATUS.md`](multi-runtime/STATUS.md).
 5. Applicable blueprints, phase specifications, and operational documentation.
 6. The behavior demonstrated by the implementation and tests.
 
-The batch tracker owns status. The roadmap owns release requirements. `WORKLOG.md` owns detailed historical evidence. `archive/FULL_IMPLEMENTATION_OVERVIEW.md` is a historical phase-map snapshot, superseded by the batch tracker. This document owns the execution protocol and must not duplicate detailed status.
+`PRIORITIES.md` owns what to do next. Each initiative's status file owns its gates. `WORKLOG.md` owns detailed historical evidence. Earlier trackers, including the batch tracker and readiness roadmap, are in [`archive/`](archive/README.md). This document owns the execution protocol and must not duplicate detailed status.
 
 When documentation and implementation disagree, investigate the difference. Update stale documentation when it is in scope; never silently choose the more convenient interpretation.
 
@@ -23,7 +23,7 @@ When documentation and implementation disagree, investigate the difference. Upda
 
 At the beginning of a continuous work run:
 
-1. Read `AGENTS.md`, `CLAUDE.md`, this document, the current section of the batch tracker, and the applicable specifications.
+1. Read `AGENTS.md`, `CLAUDE.md`, this document, `PRIORITIES.md`, the relevant initiative status file, and the applicable specifications.
 2. Inspect `git status --short`, the related implementation and tests, the available runtime and services, and the most recent recorded evidence.
 3. Preserve the starting worktree. Treat pre-existing modifications and untracked files as user work unless the current task clearly owns them.
 4. Select the next task using the rules below and state a short plan before editing.
@@ -64,7 +64,7 @@ Targeted success is not a stopping point when another safe, authorized tracker i
 
 After meaningful work:
 
-- Update `IMPLEMENTATION_BATCH_TRACKER.md` with task state, concise evidence, blockers, and the next action when readiness status changed.
+- Update `PRIORITIES.md` (and the initiative's status file) with task state, blockers, and the next action when readiness status changed; put concise evidence in `WORKLOG.md` or the initiative's evidence file.
 - Update `WORKLOG.md` with affected behavior, exact commands and results, test counts, and limitations when implementation or verification evidence was produced.
 - Update the relevant specification or runbook when behavior, operator steps, or acceptance criteria changed.
 - Mark a task or batch complete only when its full completion gate is satisfied.
@@ -77,7 +77,7 @@ Continuous authorization covers safe repository-local inspection, editing, depen
 
 It does not authorize committing, pushing, opening pull requests, deploying, changing production systems, using or exposing secrets, modifying DNS or cloud resources, or performing destructive or privileged host operations unless the user explicitly requests them.
 
-Codex may continue through multiple tasks during an active run, but it cannot start a new chat turn by itself after returning control to the user. This document makes the next run resumable without requiring the user to restate project context.
+The agent may continue through multiple tasks during an active run, but it cannot start a new chat turn by itself after returning control to the user. This document makes the next run resumable without requiring the user to restate project context.
 
 ## Stop Conditions
 
@@ -92,7 +92,5 @@ Before stopping, record the blocker, evidence already collected, and the exact i
 
 ## Current Handoff
 
-Current handoff status lives in [`IMPLEMENTATION_BATCH_TRACKER.md`](IMPLEMENTATION_BATCH_TRACKER.md)'s
-"Current Status" section — that narrative was kept in sync with this one by
-hand, which is exactly the drift risk this pointer avoids. Do not duplicate
-the handoff narrative here again; update the tracker instead.
+Current handoff status lives in [`PRIORITIES.md`](PRIORITIES.md) and each initiative's status
+file. Do not duplicate the handoff narrative here; update those instead.

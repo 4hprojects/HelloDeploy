@@ -1,5 +1,8 @@
 # Admin UX Audit
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-13
 
 ## Purpose
@@ -12,7 +15,7 @@ steps as needed, with clear feedback and appropriate warnings before
 high-impact actions? Companion to the earlier onboarding UX audit that
 produced the deployment-failure plain-language translation
 (`packages/contracts/src/failure-codes.js`). The prioritized backlog this
-audit produced lives in [`PRIORITIES.md`](PRIORITIES.md) under Track D — this
+audit produced lives in [`PRIORITIES.md`](PRIORITIES_2026-10-15.md) under Track D — this
 file is the evidence behind that list.
 
 ## What's already strong
@@ -238,6 +241,6 @@ evidence without touching the secret at all.
 ## Tracking
 
 All 10 items resolved 2026-08-13. Each shipped with a real fix, its own
-focused test, and a clean lint/format pass — see [`WORKLOG.md`](../WORKLOG.md)
+focused test, and a clean lint/format pass — see [`WORKLOG.md`](../../WORKLOG.md)
 for the full record. `docs/PRIORITIES.md` Track D reflects this as complete;
 nothing here is currently open.

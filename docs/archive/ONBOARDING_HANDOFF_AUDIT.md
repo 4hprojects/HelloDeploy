@@ -1,5 +1,8 @@
 # Guest-to-User Onboarding Handoff Audit
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-13
 
 ## Purpose
@@ -12,7 +15,7 @@ email verification, first login, and password reset. Two parallel research
 passes covered this independently: one traced the signup form and
 verification code paths, the other traced the first-login handoff and
 password reset UX. Both converged on the same top finding from different
-angles. The backlog this produced lives in [`PRIORITIES.md`](PRIORITIES.md)
+angles. The backlog this produced lives in [`PRIORITIES.md`](PRIORITIES_2026-10-15.md)
 under Track G — this file is the evidence behind that list.
 
 ## What's already strong

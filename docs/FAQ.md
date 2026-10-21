@@ -20,11 +20,30 @@ No. Use external database providers such as MongoDB Atlas or Supabase. Store dat
 
 ### What applications are supported?
 
-Version 1 targets static sites, Node.js, Express, React, Vue, and constrained Next.js applications. Versioned Next.js standard, standalone, and static-export modes remain a default-off, allowlisted pilot until separate-host BuildKit/GHCR acceptance passes.
+Every project can deploy static sites, React and Vue static builds, Node.js and Express
+applications, and Next.js apps that use `output: 'standalone'`. Pilots add the newer Next.js
+modes, Python (Flask, FastAPI, Django), PHP (plain and Laravel), Java (Spring Boot), your own
+Dockerfile, and prebuilt container images. The full list is in the
+[User Guide](USER_GUIDE.md#supported-applications).
+
+### What is a pilot, and can I join one?
+
+A pilot is a deployment mode that an administrator turns on for specific projects only. Pilots
+are off by default; as of 2026-10-21 every pilot is switched off in production while the
+isolated build service they need is set up. Ask your administrator if you want a project
+included once they open.
+
+### Can I deploy my own Dockerfile or a container image?
+
+Only in the Dockerfile and prebuilt-image pilots. Images must come from docker.io or ghcr.io,
+run as a numeric non-root user, declare no volumes, stay under the size limit, and pass a scan
+for fixable critical vulnerabilities. See
+[the User Guide](USER_GUIDE.md#your-own-dockerfile-or-a-prebuilt-image-pilot).
 
 ### What applications are not supported?
 
-Version 1 does not support Python, PHP, Java, Docker Compose submitted by users, arbitrary container images, privileged containers, game servers, public proxies, VPNs, cryptocurrency mining, or large media workloads.
+User-submitted Docker Compose, privileged containers, game servers, public proxies, VPNs,
+cryptocurrency mining, and large media workloads.
 
 ## Accounts
 

@@ -19,7 +19,7 @@ The statuses below reflect the historical phase-based tracker as last updated on
 
 - Update `Status`, `Acceptance Evidence`, and `Updated` whenever a tracker item changes.
 - Link to supporting docs, commits, test output summaries, or reports where applicable.
-- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md), [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md), and [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).
+- Keep related documents aligned: [WORKLOG.md](../../WORKLOG.md), [Documentation Index](README.md), [P9-P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md), [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md), and [Implementation Phases](../../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).
 - Do not mark host-level validation `Done` unless it was run against the target host or an equivalent explicitly documented environment.
 
 ## Phase 8: Deployment Experience and Rollback
@@ -76,10 +76,10 @@ The statuses below reflect the historical phase-based tracker as last updated on
 
 ## Cross-Cutting Maintenance
 
-| ID   | Status  | Task                                         | Acceptance Evidence                                                                                                             | Updated                   |
-| ---- | ------- | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| X-01 | Pending | Keep tracker updated during implementation.  | Each future implementation commit updates changed tracker rows.                                                                 | 2026-07-01T18:50:24+08:00 |
-| X-02 | Done    | Keep documentation index aligned.            | [UI/UX Accessibility Pass](UI_UX_ACCESSIBILITY_PASS.md) is linked from [Documentation Index](README.md).                        | 2026-07-02T00:01:30+08:00 |
-| X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).            | 2026-07-01T18:50:24+08:00 |
-| X-04 | Done    | Keep worklog entries timestamped.            | P8-01 local verification pass recorded in [WORKLOG.md](../WORKLOG.md).                                                          | 2026-07-02T00:05:17+08:00 |
-| X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 through UX-13 implementations updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence. | 2026-07-02T00:01:30+08:00 |
+| ID   | Status  | Task                                         | Acceptance Evidence                                                                                                                                                                                | Updated                   |
+| ---- | ------- | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| X-01 | Pending | Keep tracker updated during implementation.  | Each future implementation commit updates changed tracker rows.                                                                                                                                    | 2026-07-01T18:50:24+08:00 |
+| X-02 | Done    | Keep documentation index aligned.            | UI/UX Accessibility Pass (since folded into [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md#ux-13-evidence-accessibility-pass-findings)) is linked from [Documentation Index](README.md). | 2026-07-02T00:01:30+08:00 |
+| X-03 | Pending | Keep implementation phase blueprint aligned. | Phase status changes are reflected in [Implementation Phases](../../hellodeploy-blueprint/07_IMPLEMENTATION_PHASES.md).                                                                            | 2026-07-01T18:50:24+08:00 |
+| X-04 | Done    | Keep worklog entries timestamped.            | P8-01 local verification pass recorded in [WORKLOG.md](../../WORKLOG.md).                                                                                                                          | 2026-07-02T00:05:17+08:00 |
+| X-05 | Done    | Keep UI/UX backlog aligned.                  | UX-01 through UX-13 implementations updated [UI/UX Improvement Backlog](UI_UX_IMPROVEMENT_BACKLOG.md) with status and evidence.                                                                    | 2026-07-02T00:01:30+08:00 |

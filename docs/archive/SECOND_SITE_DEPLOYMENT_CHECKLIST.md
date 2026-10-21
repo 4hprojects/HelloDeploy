@@ -1,5 +1,8 @@
 # Second-Site Deployment Checklist
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-31
 
 ## Purpose
@@ -8,9 +11,9 @@ This is a narrow, practical checklist for one specific question: **is HelloDeplo
 ready to onboard and deploy a second real site through it right now?** It is not a
 replacement for the full production-readiness system already tracked in
 [`DEPLOYMENT_READINESS_ROADMAP.md`](DEPLOYMENT_READINESS_ROADMAP.md) (8-phase
-release gate), [`PRIORITIES.md`](PRIORITIES.md) (current sequencing),
+release gate), [`PRIORITIES.md`](PRIORITIES_2026-10-15.md) (current sequencing),
 [`HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md`](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
-(the P0–P6 live-cutover plan), and [`WORKLOG.md`](../WORKLOG.md) (evidence log).
+(the P0–P6 live-cutover plan), and [`WORKLOG.md`](../../WORKLOG.md) (evidence log).
 Those remain the source of truth for sequencing and history — this file extracts
 only what matters for the onboarding question and gives a place to record the
 attempt when it happens.

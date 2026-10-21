@@ -94,7 +94,8 @@
   matches the official checksum for Gradle 8.14 to 8.14.5, so the fixture pins Gradle
   8.14.5. Distribution SHA-256 sums are set so the wrappers verify their own downloads.
 - 2026-10-17: P4 ships on a separate draft PR stacked on the P0–P3 branch and stays
-  unmergeable until its security review and live gates pass (brief file 09).
+  unmergeable until its security review and live gates pass (brief file 09). _Superseded
+  2026-10-21: merged with its flags off; see the last entry._
 - 2026-10-17: Owner images use a `CONTAINER` runtime with `dockerfile_v1` and
   `oci_image_v1`. Detection never selects them; an allowlisted owner chooses "Deploy from".
   Detection keeps recording its findings, and `detectedRuntimeType` lets a project switch

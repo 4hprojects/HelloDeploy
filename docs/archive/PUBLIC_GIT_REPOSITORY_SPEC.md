@@ -1,8 +1,16 @@
 # Public Git Repository Connection Specification
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-07-14T14:41:55+08:00
 
 Status: **Implemented in the repository — live worker deployment validation pending**
+
+_Closed 2026-10-21: implemented and in production use. Public repositories deploy through the
+exact-commit tarball path (`apps/worker/src/git/clone.js`); the 2026-10-20 pre-merge smoke runs
+deployed every fixture this way. [ADR-006](../../infrastructure/decisions/ADR-006-public-git-sources.md)
+is Accepted._
 
 ## Purpose
 

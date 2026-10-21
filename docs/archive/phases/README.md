@@ -1,5 +1,8 @@
 # Improvement Phases Tracker
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../../PRIORITIES.md); the archive index is [archive/README.md](../../archive/README.md).
+
 Phased execution of the remaining items in [IMPROVEMENTS.md](../IMPROVEMENTS.md), started 2026-07-03. Each phase has its own file with timestamps, working notes, and verification evidence. Update the status here whenever a phase file changes.
 
 **Disambiguation:** this "Phase" numbering (1-18) is specific to

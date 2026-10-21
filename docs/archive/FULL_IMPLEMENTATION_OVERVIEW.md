@@ -3,7 +3,7 @@
 **Historical snapshot — superseded by
 [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).** Retained for
 historical record; the phase statuses below predate the P1/P2 work recorded in
-[Worklog](../WORKLOG.md).
+[Worklog](../../WORKLOG.md).
 
 Updated: 2026-07-13T18:12:00+08:00
 

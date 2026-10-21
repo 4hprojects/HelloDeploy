@@ -1,6 +1,11 @@
 # HelloDeploy Self-Hosted Install Guide
 
-Updated: 2026-07-13T20:37:26+08:00
+Updated: 2026-10-21 (pilot build tier note; install steps last revised 2026-07-13)
+
+The optional multi-runtime pilots (Next.js modes, Python, PHP, Java, owner Dockerfiles and
+prebuilt images) need a separate build tier, a remote BuildKit host and a private GHCR
+repository, that this guide does not install. They stay off until it exists; see the
+[BuildKit and GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 HelloDeploy supports Ubuntu 22.04 and 24.04 for the V1 self-hosted edition.
 

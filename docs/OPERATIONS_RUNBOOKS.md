@@ -104,7 +104,7 @@ are separate later P2 gates.
 
 ## Ordered Production Workflow
 
-Run these stages in order and record each in the [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md):
+Run these stages in order and record each in the [Live Workflow Acceptance Checklist](archive/LIVE_WORKFLOW_ACCEPTANCE.md):
 
 1. **Preflight:** run the supported-host preflight. Stop on unsupported software, missing capacity/tools, or unsafe permissions.
 2. **Configuration:** complete `.env`, enable the constrained local Nginx routing path, run web and worker validation with `--require-production` under their service identities, and resolve every `non-production`, `incomplete`, or invalid result.
@@ -126,7 +126,7 @@ Run this after pulling any release that touches the build/deploy pipeline —
 step 5 of the Ordered Production Workflow above ("Deploy: ... confirm
 routing, non-root identity, loopback binding, ... healthy-release
 continuity") in concrete commands. Originally written for the non-root
-container change (`docs/phases/phase-2-non-root-containers.md`), which
+container change (`docs/archive/phases/phase-2-non-root-containers.md`), which
 could not be exercised in the development environment (no Docker socket
 access) — keep running it on every pipeline-touching release, not just
 that one.
@@ -339,6 +339,21 @@ The installer pins GitHub's SSH host key, creates a read-only deploy key and pri
 | Retry a failed commit            | Remove it from `failedShas` in `/var/lib/hellodeploy/autodeploy-state.json` |
 
 Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
+
+## Multi-runtime pilots
+
+Next.js modes, Python, PHP, Java, owner Dockerfiles, and prebuilt images are merged but every
+pilot is **off** in production (checked 2026-10-21: no `MULTIRUNTIME_*` variable is set, and
+`config:check` passes). Do not set a pilot flag on the production host until its gates in
+[multi-runtime/STATUS.md](multi-runtime/STATUS.md) pass.
+
+- Check the flags without printing other values:
+  `sudo grep -E '^MULTIRUNTIME_' /opt/hellodeploy/.env || echo "no pilot flags set"`.
+- Provisioning the build tier, the GHCR deletion probe, acceptance runs, and the stop procedure
+  are in the [BuildKit and GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md); the variables
+  are in [ENVIRONMENT.md](ENVIRONMENT.md).
+- To stop a pilot: remove its project from the allowlist (or set the flag to `false`) and
+  restart web and worker. Retained releases keep running; nothing is deleted.
 
 ## Audit event retention
 

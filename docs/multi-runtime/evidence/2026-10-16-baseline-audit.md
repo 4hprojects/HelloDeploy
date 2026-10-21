@@ -8,6 +8,7 @@ Recorded 2026-10-16 before changing production build execution.
 - Feature branch: `feat/multi-runtime-deployments`.
 - The prior `feat/explain-app-crashes` branch remains intact.
 - The untracked planning package under `docs/to do/hellodeploy-multiruntime-codex-plan/`
+  (archived on 2026-10-21 as [docs/archive/multiruntime-brief-2026-10-16/](../../archive/multiruntime-brief-2026-10-16/00_START_HERE.md))
   was preserved and is not part of this implementation's owned diff.
 
 ## Host and tools

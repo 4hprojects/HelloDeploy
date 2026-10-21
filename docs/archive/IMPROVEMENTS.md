@@ -1,5 +1,8 @@
 # HelloDeploy Improvements Backlog
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Full-codebase analysis covering security, efficiency, user experience, and documentation.
 
 - **Analyzed at:** commit `1b19028`, 2026-07-02

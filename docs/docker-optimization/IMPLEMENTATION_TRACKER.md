@@ -10,14 +10,15 @@ repository-wide tracker limited to summary status and a link here.
 
 ## Current Status
 
-| Field            | Value                                                                                                                                                                           |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P0 complete; P1 exit gate met; H1, H6, F7 and F8 resolved. All pre-push gates green (lint, format, 1362/1362 tests, audit). Ready to commit and push, pending operator go-ahead |
-| Current phase    | P1 — Safe Templates and Build Context (Ready for Review; uncommitted)                                                                                                           |
-| Current task     | Operator go-ahead to commit the Docker changes separately from the UI/UX work and push                                                                                          |
-| Next action      | Commit, push, upgrade per the release procedure; then set `BUILD_BUILDER_NAME=hellodeploy-builder` on the worker (`OPERATOR_RUNBOOK.md`); then the P2 benchmarks / canary       |
-| Rollout state    | Disabled; default `USER_IMAGE_TEMPLATE_VERSION=legacy` and empty `USER_IMAGE_OPTIMIZED_PROJECT_IDS`; `optimized-v1` never built on a real daemon                                |
-| Production state | Push-ready at safe defaults (optimized-v1 off, builder opt-in). STATIC exclusions, npm-only detection and `.env` warnings take effect on deploy                                 |
+Updated 2026-10-21.
+
+| Field            | Value                                                                                                                                                                                         |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Overall status   | P0 and P1 complete; P1 merged in `cb47147` (2026-10-10) and in production. P2–P5 not started                                                                                                  |
+| Current phase    | None active. The next phase is P2 — Cache Evaluation                                                                                                                                          |
+| Next action      | Product decision on making `optimized-v1` the default (see [PRIORITIES.md](../PRIORITIES.md)); then P2 benchmarks and a per-project canary                                                    |
+| Rollout state    | Production default `USER_IMAGE_TEMPLATE_VERSION=legacy`; the dedicated `hellodeploy-builder` is in use. `optimized-v1` passed real-daemon builds on 2026-10-10                                |
+| Production state | `optimized-v1` off except for projects listed in `USER_IMAGE_OPTIMIZED_PROJECT_IDS`. The multi-runtime work added digest-aware registry retention, which overlaps P4 for registry images only |
 
 ## Status Model and Evidence Contract
 
@@ -38,14 +39,14 @@ for real Docker build, activation, routing, rollback, or supported-host evidence
 
 ## Phase Overview
 
-| Phase                                 | Status                         | Outcome                                                                               | Entry gate                                             | Completion gate                                                                                               |
-| ------------------------------------- | ------------------------------ | ------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
-| P0 — Audit and Decisions              | Complete                       | Verified baseline, gap report, and approved design decisions                          | Current repository and host can be inspected read-only | Operator reviews `AUDIT_REPORT.md` and approves the opt-in design                                             |
-| P1 — Safe Templates and Build Context | Ready for Review (uncommitted) | Exact legacy path plus guarded `optimized-v1` templates and platform-owned exclusions | P0 decisions approved                                  | Generator, context, lifecycle, and security tests pass; changed runtimes build in isolated Docker             |
-| P2 — Cache Evaluation                 | Not Started                    | Evidence-based layer-cache and optional BuildKit cache policy                         | P1 fixtures build reliably                             | Cold/warm/change benchmarks demonstrate value without isolation, quota, or resource regression                |
-| P3 — Build Metrics                    | Not Started                    | Optional trustworthy build and image measurements                                     | Structured inspection contract approved                | Old records remain readable; telemetry failures cannot fail deployments; labels are accurate                  |
-| P4 — Retention and Cleanup Safety     | Not Started                    | Dry-run, locked, bounded, rollback-safe cleanup                                       | P3 image identity is reliable                          | Active, retained, rollback, queued, building, and Docker-referenced images are protected in tests and staging |
-| P5 — Validation and Rollout           | Not Started                    | Supported-runtime proof, canary, rollback, and rollout decision                       | Legacy end-to-end gate and P1–P4 review gates pass     | Representative runtimes pass real build/serve/rollback checks and owner approves default expansion            |
+| Phase                                 | Status               | Outcome                                                                               | Entry gate                                             | Completion gate                                                                                               |
+| ------------------------------------- | -------------------- | ------------------------------------------------------------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| P0 — Audit and Decisions              | Complete             | Verified baseline, gap report, and approved design decisions                          | Current repository and host can be inspected read-only | Operator reviews `AUDIT_REPORT.md` and approves the opt-in design                                             |
+| P1 — Safe Templates and Build Context | Complete (`cb47147`) | Exact legacy path plus guarded `optimized-v1` templates and platform-owned exclusions | P0 decisions approved                                  | Generator, context, lifecycle, and security tests pass; changed runtimes build in isolated Docker             |
+| P2 — Cache Evaluation                 | Not Started          | Evidence-based layer-cache and optional BuildKit cache policy                         | P1 fixtures build reliably                             | Cold/warm/change benchmarks demonstrate value without isolation, quota, or resource regression                |
+| P3 — Build Metrics                    | Not Started          | Optional trustworthy build and image measurements                                     | Structured inspection contract approved                | Old records remain readable; telemetry failures cannot fail deployments; labels are accurate                  |
+| P4 — Retention and Cleanup Safety     | Not Started          | Dry-run, locked, bounded, rollback-safe cleanup                                       | P3 image identity is reliable                          | Active, retained, rollback, queued, building, and Docker-referenced images are protected in tests and staging |
+| P5 — Validation and Rollout           | Not Started          | Supported-runtime proof, canary, rollback, and rollout decision                       | Legacy end-to-end gate and P1–P4 review gates pass     | Representative runtimes pass real build/serve/rollback checks and owner approves default expansion            |
 
 ## P0 — Audit and Decisions
 
@@ -154,7 +155,7 @@ Remaining before P1 can be Ready for Review:
 - [x] F8 decided (accept plus warning) and H6 (STATIC exclusions) and H1 (opt-in
       memory-limited builder) implemented and verified on a real daemon; see
       `BENCHMARK_RESULTS.md` → H6 / H1 / F8 Fix Verification.
-- [ ] Split the Docker optimization files from the unrelated UI/UX worktree changes
+- [x] Split the Docker optimization files from the unrelated UI/UX worktree changes (committed separately as `cb47147`)
       into their own reviewable commit or PR.
 
 ### Operator decisions

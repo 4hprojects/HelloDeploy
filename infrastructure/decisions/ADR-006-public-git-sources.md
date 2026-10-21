@@ -21,7 +21,7 @@ Add a second repository source mode named `PUBLIC_GIT` alongside the existing `G
 - Existing GitHub App records and workflows remain backward compatible.
 - GitLab, Bitbucket, arbitrary Git hosts, SSH, embedded credentials, polling, pull-request previews, submodules, and Git LFS credentials remain deferred.
 
-Detailed behavior and acceptance gates are defined in the [Public Git Repository Connection Specification](../../docs/PUBLIC_GIT_REPOSITORY_SPEC.md).
+Detailed behavior and acceptance gates are defined in the [Public Git Repository Connection Specification](../../docs/archive/PUBLIC_GIT_REPOSITORY_SPEC.md).
 
 ## Rationale
 

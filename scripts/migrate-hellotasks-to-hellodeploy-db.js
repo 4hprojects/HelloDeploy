@@ -6,8 +6,9 @@
  *
  * Background: production's MONGODB_URI has pointed at `hellotasks` (shared
  * with an unrelated app's 6 foreign collections) instead of `hellodeploy_db`
- * since early setup — see docs/PRIORITIES.md's "HIGH — production database
- * is shared with an unrelated application" entry for the full history.
+ * since early setup — see docs/archive/PRIORITIES_2026-10-15.md's "HIGH —
+ * production database is shared with an unrelated application" entry for the
+ * full history. The migration ran on 2026-09-02 (WORKLOG.md).
  *
  * Deliberately excludes `sessions` — fully connect-mongo-managed with
  * app-level expiry (apps/web/src/middleware/session.js), not app data, and
