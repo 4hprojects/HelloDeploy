@@ -1363,7 +1363,10 @@
 
       setReconnectVisible(false);
       if (indicator) {
-        indicator.textContent = '● Live';
+        const dot = document.createElement('span');
+        dot.setAttribute('aria-hidden', 'true');
+        dot.textContent = '●';
+        indicator.replaceChildren(dot, ' Live');
       }
 
       source = new EventSource(output.dataset.streamUrl);

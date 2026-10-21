@@ -246,7 +246,7 @@
     </div>
     <span data-deployment-refresh="log-status">
       <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
-      <span class="badge badge--building text-xs" id="live-indicator">● Live</span>
+      <span class="badge badge--building text-xs" id="live-indicator" role="status"><span aria-hidden="true">●</span> Live</span>
       <button type="button" class="button button--ghost button--sm d-none" id="log-reconnect-button">Reconnect</button>
       <% } %>
     </span>
