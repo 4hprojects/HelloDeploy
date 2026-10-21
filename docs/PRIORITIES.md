@@ -24,9 +24,11 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-1. **Deploy and roll back one real project on the new code.** From the dashboard, deploy a
-   low-risk app, then roll back to its previous release; confirm both runs in the worker log.
-   This is the last post-merge check for #119/#120.
+1. **Roll back one real project on the new code (owner action).** The deploy half is done:
+   HelloEventHub deployed on 2026-10-22 at 00:13 (`a8eeeaa`). It built, passed its health check,
+   swapped containers, kept three releases, and sent the result email. From its **Deployments**
+   page, roll back to the previous release and check the app loads; the worker log confirms the
+   rest. This is the last post-merge check for #119 and #120.
 2. **Rotate the GitHub webhook secret (owner action).** Every GitHub delivery to production
    has been rejected since at least 2026-07-31, so push-to-deploy and repository access updates
    never arrive. The cause is a mismatch between `GITHUB_WEBHOOK_SECRET` on the server and the
@@ -34,19 +36,26 @@ Keep this file short. Put evidence in the worklog, not here.
    [Operations Runbooks › GitHub webhooks rejected](OPERATIONS_RUNBOOKS.md#github-webhooks-rejected-rotate-the-webhook-secret).
    The admin Server page now shows webhook health, so this cannot go unnoticed again.
 
+3. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
+   `anything.hellodeploy.online` get nginx's "Welcome to nginx!" page with HTTP 200 from
+   `/etc/nginx/sites-enabled/default`. Replace its `server` body with `return 404;` (keep
+   `listen 80 default_server; server_name _;`), then `sudo nginx -t && sudo systemctl reload nginx`.
+   While there, check whether the older `sites-enabled/hellorun` and `hellotasks` sites from
+   before HelloDeploy are still needed.
+
 ## Next — to turn on the multi-runtime pilots
 
-3. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
+4. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
    resource limits, builder egress limited to package hosts, ORAS on the worker, and a private
    GHCR repository with a least-privilege token
    ([runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md)).
-4. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
+5. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
    live GHCR deletion probe, including the referrers fallback tag.
-5. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
+6. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
    disruptive cases, and record build time and memory per framework.
-6. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
+7. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
    stop procedure in the runbook.
-7. **Before the owner-image pilots (P4):** a human security review of the
+8. **Before the owner-image pilots (P4):** a human security review of the
    [owner-image threat model](multi-runtime/THREAT_MODEL.md), Trivy installed with its database,
    every fail-closed case run live, and Docker Hub anonymous pull limits measured.
 
@@ -65,6 +74,17 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- **P5 open questions decided** (recorded in
+  [P5_COMPOSE_ADR.md](multi-runtime/P5_COMPOSE_ADR.md#decisions-on-the-open-questions-2026-10-22)):
+  the public service is the one declaring `ports`; three services, configurable; private
+  services get no outbound access by default. P5 stays behind its entry gate.
+- **Legal copy for owner images drafted** in
+  [LEGAL_POLICIES.md](LEGAL_POLICIES.md#owner-supplied-images-coverage), to go onto the public
+  policy pages when the Dockerfile and prebuilt-image pilots open; counsel review still applies.
+- **HelloUniversity custom domain confirmed.** `hellouniversity.online` serves the same app as its
+  platform address `hellouniversity-4e6a.hellodeploy.online`, through HelloDeploy's custom-domain
+  route; the HelloDeploy container is the only HelloUniversity process on the host, so there is
+  no old host to retire.
 - **Default image template — keep `legacy`.** Changing the production default would alter every
   existing build at once, against the docker-optimization plan's per-project canary first.
   Instead, detection now warns when a Next.js repository has no `public/` folder (the one
@@ -86,12 +106,5 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Product decisions
 
-- **P5 restricted Compose.** Answer the three open questions in
-  [P5_COMPOSE_ADR.md](multi-runtime/P5_COMPOSE_ADR.md): how the public service is chosen, the
-  service ceiling, and outbound access for private services.
-- **Legal copy for owner images.** Review the acceptable-use and security sections of
-  [LEGAL_POLICIES.md](LEGAL_POLICIES.md) before the Dockerfile and prebuilt-image pilots open to
-  users.
-- **HelloUniversity custom domain.** `hellouniversity.online` and its platform subdomain both
-  answer 200; confirm the custom domain is routed through HelloDeploy and retire the old
-  host if so.
+None open. The decisions made on 2026-10-22 under delegation are listed under "Decided and
+closed".

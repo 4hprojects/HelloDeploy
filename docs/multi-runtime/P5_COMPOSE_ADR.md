@@ -126,10 +126,17 @@ owner action.
 - [ ] A fixture plan: public API plus private Redis-compatible service (no volume), and
       adversarial Compose files for each rejected key.
 
-## Open questions
+## Decisions on the open questions (2026-10-22)
 
-1. Should the public service be chosen by the only published port or an explicit
-   `x-hellodeploy-public` marker (which would mean allowing one extension key)?
-2. Is three services the right first ceiling for the 8 GB host?
-3. Should a private service be allowed to make outbound connections by default, or only
-   when the owner opts in?
+Decided by the assistant under the owner's delegation, choosing the conservative option that
+fits the rest of this ADR. Each can be revisited during the entry-gate review.
+
+1. **Public service: the one service that declares `ports`.** No marker key: `x-*` extensions
+   are already rejected, and only the public service may use `ports`. A file in which more than
+   one service publishes ports is rejected, with a message to remove `ports` from the private
+   services.
+2. **Service ceiling: three, configurable.** The entry gate's headroom measurement on the target
+   host confirms it or lowers it before any set is enabled.
+3. **Private services: no outbound access by default.** Private services join an internal-only
+   Docker network (`internal: true`); only the public service also joins the routed network. An
+   opt-in for egress, if needed later, is a project setting, not a Compose key.
