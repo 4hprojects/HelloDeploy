@@ -37,13 +37,17 @@ const profiles = [
 // One lab run varies by a few percent on shared CI runners, enough to cross a
 // budget the page meets; Lighthouse recommends judging the median of several.
 const RUNS_PER_PROFILE = 3;
+// Lighthouse occasionally fails to record a trace (NO_NAVSTART) and measures
+// nothing. Such a run is replaced; it never counts toward or against a budget.
+const MAX_CRASHED_RUNS = 2;
 const results = {};
 let failed = false;
 
 try {
   for (const profile of profiles) {
     const runs = [];
-    for (let run = 1; run <= RUNS_PER_PROFILE; run += 1) {
+    let crashedRuns = 0;
+    for (let run = 1; runs.length < RUNS_PER_PROFILE; run += 1) {
       const outputPath = new URL(`lighthouse-${profile.name}-${run}.json`, outputDirectory)
         .pathname;
       const exitCode = await new Promise((resolve, reject) => {
@@ -68,9 +72,14 @@ try {
         child.once('close', resolve);
       });
       if (exitCode !== 0) {
-        process.exitCode = exitCode || 1;
-        failed = true;
-        break;
+        crashedRuns += 1;
+        process.stderr.write(`Lighthouse ${profile.name} run ${run} produced no measurement.\n`);
+        if (crashedRuns > MAX_CRASHED_RUNS) {
+          process.exitCode = exitCode || 1;
+          failed = true;
+          break;
+        }
+        continue;
       }
       runs.push(toMetrics(JSON.parse(await readFile(outputPath, 'utf8'))));
     }
