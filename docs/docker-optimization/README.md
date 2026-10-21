@@ -1,12 +1,16 @@
 # HelloDeploy Docker Optimization Implementation Pack
 
+Status 2026-10-21: P0 and P1 are complete and in production (`optimized-v1` is opt-in per
+project); P2–P5 are not started. Current state is in
+[IMPLEMENTATION_TRACKER.md](IMPLEMENTATION_TRACKER.md#current-status).
+
 ## Sources of truth and deliverables
 
 - `00_MASTER_IMPLEMENTATION_PLAN.md` is the requirements, boundaries, and acceptance-gate source of truth.
 - `IMPLEMENTATION_TRACKER.md` is the execution plan and current progress monitor. Update it after every meaningful implementation or verification step.
 - `AUDIT_REPORT.md` contains the P0 repository gap report, proposed decisions, and the remaining live-host evidence gate.
-- `BENCHMARK_RESULTS.md` will record controlled before/after build and storage evidence from P2 and P5.
-- `OPERATOR_RUNBOOK.md` will document feature flags, readiness checks, cleanup, canary operation, and rollback before rollout.
+- `BENCHMARK_RESULTS.md` records controlled before/after build and storage evidence from P2 and P5.
+- `OPERATOR_RUNBOOK.md` documents feature flags, readiness checks, cleanup, canary operation, and rollback.
 
 Read the implementation specifications in order:
 

@@ -1,5 +1,8 @@
 # Implementation Batch Tracker
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-10-16
 
 > **2026-10-15 note:** the status table below was last refreshed on 2026-10-09. Since then, production has hosted customer apps through the worker, received releases through the automatic deploy, and shipped PRs #92–#109 (deploy-failure diagnosis, Cloudflare for SaaS custom domains, member invitations, app uptime). Confirm the current pilot and GO/NO-GO state before relying on the table.

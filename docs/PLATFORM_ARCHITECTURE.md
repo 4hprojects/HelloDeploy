@@ -1,6 +1,6 @@
 # HelloDeploy Product and Platform Architecture
 
-Updated: 2026-07-13T16:04:00+08:00
+Updated: 2026-10-21 (scope and build tier; the rest dates from 2026-07-13)
 
 ## Purpose
 
@@ -111,9 +111,11 @@ The 2026-07-13 inspection that predates this hardening (dashboard-only pilot, no
 
 ## Supported and Deferred Scope
 
-V1 supports Static, React, Vue, Express, generic Node.js, and constrained Next.js applications. It includes GitHub integration, manual and eligible automatic deployments, environment secrets, live logs, health checks, project subdomains, verified custom domains, maintenance, rollback, quotas, project roles, and administrative review.
+V1 supports Static, React, Vue, Express, generic Node.js, and constrained Next.js applications for every project. Allowlisted pilots, all off by default and off in production as of 2026-10-21, add Next.js standard, standalone and export modes; Python (Flask, FastAPI, Django); PHP (plain, Laravel); Java (Spring Boot); owner Dockerfiles; and prebuilt images. The [User Guide](USER_GUIDE.md#supported-applications) keeps the canonical list, and [multi-runtime/](multi-runtime/README.md) covers the design. V1 includes GitHub integration, manual and eligible automatic deployments, environment secrets, live logs, health checks, project subdomains, verified custom domains, maintenance, rollback, quotas, project roles, and administrative review.
 
-V1 does not include remote deployment agents, multiple deployment nodes, vendor-managed application deployments, Kubernetes, autoscaling, billing, user database hosting, arbitrary Docker Compose, privileged containers, or the deferred runtimes listed in the blueprint.
+V1 does not include remote deployment agents, multiple deployment nodes, vendor-managed application deployments, Kubernetes, autoscaling, billing, user database hosting, arbitrary Docker Compose, or privileged containers. Restricted Compose is a proposal only ([P5 ADR](multi-runtime/P5_COMPOSE_ADR.md)).
+
+The pilot runtimes add an optional **build tier**, not a deployment node: a remote rootless BuildKit host that only builds images, and a private GHCR repository that stores them by digest. The worker still runs every container on the single production host, pulls each image by digest, checks it (non-root user, no volumes, size, platform, and a Trivy scan for owner images) before activation, and keeps routing, secrets and scheduling local. Without that tier configured, the pilots cannot be enabled and the legacy local build path is unchanged.
 
 Separating the dashboard onto a vendor and running the worker on another host is a multi-node control-plane design. It is not an approved V1 topology. If remote workers are proposed later, they require an ADR covering authenticated control-plane communication, job ownership, network trust, secret distribution, routing ownership, failure recovery, and multi-node scheduling.
 

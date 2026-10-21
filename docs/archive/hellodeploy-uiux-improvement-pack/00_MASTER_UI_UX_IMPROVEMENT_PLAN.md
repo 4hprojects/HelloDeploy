@@ -1,5 +1,9 @@
 # HelloDeploy UI/UX Improvement Master Plan
 
+> **Archived 2026-10-21. Programme complete** (evidence in
+> [IMPLEMENTATION_EVIDENCE.md](IMPLEMENTATION_EVIDENCE.md)). Current priorities are in
+> [PRIORITIES.md](../../PRIORITIES.md).
+
 > Repository implementation evidence and remaining external gates are tracked in
 > [IMPLEMENTATION_EVIDENCE.md](IMPLEMENTATION_EVIDENCE.md). The original requirements
 > below remain the acceptance source of truth.

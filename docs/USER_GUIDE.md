@@ -10,17 +10,26 @@ HelloDeploy does not host user databases. If your application needs a database, 
 
 ## Supported Applications
 
-Version 1 is intended for:
+This is the canonical list of what HelloDeploy can deploy.
 
-- Static sites
-- Node.js applications
-- Express applications
-- React static builds
-- Vue static builds
-- Legacy Next.js applications, plus allowlisted Next.js standard server, standalone,
-  and static-export projects during the new-mode pilot
+| Application                                                                                | Availability                |
+| ------------------------------------------------------------------------------------------ | --------------------------- |
+| Static sites                                                                               | Available to every project  |
+| React and Vue static builds                                                                | Available to every project  |
+| Node.js and Express applications                                                           | Available to every project  |
+| Next.js with `output: 'standalone'` (the original build)                                   | Available to every project  |
+| Next.js standard server, standalone and static export                                      | Pilot: allowlisted projects |
+| [Python: Flask, FastAPI, Django](#python-apps-pilot)                                       | Pilot: allowlisted projects |
+| [PHP: plain PHP and Laravel](#php-and-laravel-apps-pilot)                                  | Pilot: allowlisted projects |
+| [Java: Spring Boot on Maven or Gradle](#java-spring-boot-apps-pilot)                       | Pilot: allowlisted projects |
+| [Your own Dockerfile, or a prebuilt image](#your-own-dockerfile-or-a-prebuilt-image-pilot) | Pilot: allowlisted projects |
 
-Version 1 does not support Python, PHP, Java, Docker Compose submitted by users, arbitrary container images, privileged containers, game servers, cryptocurrency mining, public proxies, VPNs, or large media workloads.
+**Pilots are off by default.** An administrator turns each one on for specific projects only;
+until then that mode cannot be selected or deployed. As of 2026-10-21 every pilot is switched off in
+production while the isolated build service they need is being set up.
+
+HelloDeploy does not support user-submitted Docker Compose, privileged containers, game
+servers, cryptocurrency mining, public proxies, VPNs, or large media workloads.
 
 ## Account Setup
 
@@ -246,9 +255,8 @@ Your `.dockerignore` works as usual, including allowlist rules such as `*` follo
 Images from HelloDeploy's own image repository cannot be used as a base or a prebuilt image. Private build-time secrets are not passed to the
 build.
 
-The new Next.js modes remain a nonproduction, allowlisted pilot until the real
-BuildKit/GHCR acceptance matrix passes. A repository-local fixture or unit-test result
-does not make a mode generally available.
+Every mode in this section is an allowlisted pilot. Each opens more widely only after it has
+passed acceptance testing on the isolated build service.
 
 Leave a field blank to use the detected recommendation. Values cannot contain line breaks.
 

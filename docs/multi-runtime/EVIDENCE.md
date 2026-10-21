@@ -113,15 +113,7 @@ with Composer's algorithm (sorted relevant keys, PHP-style JSON escaping).
 Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 181 files plus API and
 contract suites, 1,727/1,727; lint, format, and config checks clean.
 
-## 2026-10-18 Code review
-
-A full-branch code review (`main...feat/multi-runtime-p4`) reported ten findings. Each was
-verified against the code before any change; all ten were real. Eight base fixes each have
-a test that failed before the fix (including a pre-upgrade project document with the field
-genuinely absent). Changed-area suites after the fixes: 183 files plus API and contract
-suites, 1,751/1,751; lint and format clean.
-
-## 2026-10-17 P4 owner images (stacked branch)
+## 2026-10-17 P4 owner images (then a stacked branch)
 
 | Requirement (`06_PHASE_4_DOCKERFILE_REGISTRY.md`)                            | State                       | Evidence                                                           |
 | ---------------------------------------------------------------------------- | --------------------------- | ------------------------------------------------------------------ |
@@ -141,9 +133,18 @@ Phase gate with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test`: 186 files plus API
 contract suites, 1,820/1,820; lint, format, and config checks clean. The digest resolver completed Docker Hub's anonymous token flow during fixture creation and
 resolved `nginxinc/nginx-unprivileged:1.27-alpine` to the pinned `oci-nginx` digest.
 
+## 2026-10-18 Code review
+
+A full-branch code review (`main...feat/multi-runtime-p4`) reported ten findings. Each was
+verified against the code before any change; all ten were real. Eight base fixes each have
+a test that failed before the fix (including a pre-upgrade project document with the field
+genuinely absent). Changed-area suites after the fixes: 183 files plus API and contract
+suites, 1,751/1,751; lint and format clean.
+
 ## 2026-10-18 P4 branch full suite
 
-CI and CodeQL run only on pull requests to `main`, so stacked PR #120 has no automated
+_Superseded 2026-10-20: #120 was retargeted to `main`, and CI and CodeQL ran on it from
+then on._ At the time: CI and CodeQL ran only on pull requests to `main`, so stacked PR #120 had no automated
 run. After rebasing onto the close-out commits, the full suite on `feat/multi-runtime-p4`
 passed 2,118/2,118 with `DOTENV_CONFIG_PATH=/dev/null`; lint, format, and config checks
 are clean. The P4 policy regexes for `RUN --mount` and parser directives were rewritten as

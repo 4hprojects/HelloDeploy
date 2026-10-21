@@ -1,5 +1,8 @@
 # Deployment Readiness Roadmap
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-06T12:57:27+08:00 (Current Readiness Summary table
 spot-corrected 2026-08-14 where directly evidenced — the per-phase checklists
 below were not re-verified)

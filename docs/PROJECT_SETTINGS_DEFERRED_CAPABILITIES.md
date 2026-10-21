@@ -1,5 +1,9 @@
 # Project Settings Deferred Capability Evaluations
 
+Re-checked 2026-10-21 against the multi-runtime work (#119, #120): every row below is still
+deferred. The restricted-Compose proposal ([P5 ADR](multi-runtime/P5_COMPOSE_ADR.md)) would be
+the first change to touch advanced networking.
+
 Updated: 2026-07-13
 
 ## Purpose and Decision Boundary

@@ -340,6 +340,21 @@ The installer pins GitHub's SSH host key, creates a read-only deploy key and pri
 
 Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
 
+## Multi-runtime pilots
+
+Next.js modes, Python, PHP, Java, owner Dockerfiles, and prebuilt images are merged but every
+pilot is **off** in production (checked 2026-10-21: no `MULTIRUNTIME_*` variable is set, and
+`config:check` passes). Do not set a pilot flag on the production host until its gates in
+[multi-runtime/STATUS.md](multi-runtime/STATUS.md) pass.
+
+- Check the flags without printing other values:
+  `sudo grep -E '^MULTIRUNTIME_' /opt/hellodeploy/.env || echo "no pilot flags set"`.
+- Provisioning the build tier, the GHCR deletion probe, acceptance runs, and the stop procedure
+  are in the [BuildKit and GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md); the variables
+  are in [ENVIRONMENT.md](ENVIRONMENT.md).
+- To stop a pilot: remove its project from the allowlist (or set the flag to `false`) and
+  restart web and worker. Retained releases keep running; nothing is deleted.
+
 ## Audit event retention
 
 Audit events are kept for 90 days, as the Privacy Policy states, and each event names its project in `projectId`. Mongoose never changes an existing TTL index, so a host that ran a release from before 2026-10-15 still deletes audit events after 7 days until this one-off repair runs. The same script links older events to their project. Auto-deploy does not run it. Run it once by hand after that release is live, dry run first:

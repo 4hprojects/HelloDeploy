@@ -1,6 +1,7 @@
 # Multi-Runtime Status
 
-Updated 2026-10-20. Production flags remain off.
+Updated 2026-10-21. All code is merged and deployed; every pilot flag remains off in production.
+The overview is in [README.md](README.md).
 
 | Gate                   | State                | Evidence / blocker                                                                                                                                                                                                      |
 | ---------------------- | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -13,9 +14,9 @@ Updated 2026-10-20. Production flags remain off.
 | P3A PHP code           | Repository-complete  | Plain PHP and Laravel strategies, detection, Apache images, UI, flags, fixtures, docs; default-off and allowlisted.                                                                                                     |
 | P3B Java code          | Repository-complete  | Spring Boot Maven and Gradle strategies, detection, Temurin images, UI, flags, verified-wrapper fixtures, docs; default-off and allowlisted                                                                             |
 | P4 owner images code   | Merged, pilots off   | Dockerfile and prebuilt-image pilots, policy, scanning, credentials, fixtures, docs; merged with both flags off by owner decision (2026-10-21); the flags stay off until security review and live gates pass            |
-| P5 restricted Compose  | Blocked (entry gate) | Requires live-proven P4 controls and measured headroom; design in `P5_COMPOSE_ADR.md`                                                                                                                                   |
+| P5 restricted Compose  | Blocked (entry gate) | Requires live-proven P4 controls and measured headroom; design in [P5_COMPOSE_ADR.md](P5_COMPOSE_ADR.md)                                                                                                                |
 | P1–P3B live acceptance | Blocked externally   | Requires the nonproduction builder, registry, allowlisted projects, and real fixture matrix                                                                                                                             |
-| Production rollout     | Not authorized       | No merge, deploy, or production flag change performed                                                                                                                                                                   |
+| Production rollout     | Deployed, pilots off | #119 and #120 merged and autodeployed with every flag off; enabling any pilot is not yet authorized                                                                                                                     |
 
 Local automated results belong in `EVIDENCE.md`. No external or supported-host gate is
 considered passed by mocks or unit tests. Six full-branch code reviews and a local
@@ -23,23 +24,24 @@ registry run (2026-10-20, `EVIDENCE.md`) are complete; CI and CodeQL pass on #11
 
 ## Production readiness
 
-#119 is merged and running in production with every pilot flag off. Enabling a pilot
-is a separate, later step.
+#119 and #120 are merged and running in production with every pilot flag off. Enabling a
+pilot is a separate, later step.
 
-Merging #119:
+Merge and release (done unless marked):
 
-- [x] Pre-merge smoke run with flags off (2026-10-20, `EVIDENCE.md`): legacy fixtures,
-      rollback, failure cases, a project document from before this branch, and a v1
-      job from the previous web all behaved as expected.
-- [ ] Resolve the uncommitted `.env.example` change.
-- [x] Owner review and merge decision: #119 merged 2026-10-20 (`9572051`).
-- [x] Release: autodeploy ran `upgrade.sh` for `9572051` at 23:06 PST on 2026-10-20 with a
-      backup first; installer verification passed and the dashboard and live apps
-      answered 200.
+- [x] Pre-merge smoke runs with flags off: #119 on 2026-10-20 and #120 on 2026-10-21
+      (`EVIDENCE.md`). Legacy fixtures, rollback, failure cases, a project document from
+      before this work, a v1 job from the previous web, and owner-image refusal all behaved
+      as expected.
+- [x] #119 merged 2026-10-20 (`9572051`); #120 merged 2026-10-21 (`e54f99b`) by owner
+      decision, with its flags off.
+- [x] Releases: autodeploy ran `upgrade.sh` for each merge with a backup first; installer
+      verification passed and the dashboard and live apps answered 200.
+- [x] The pending `.env.example` change was committed unread in #121 (`f3576cd`) at the
+      owner's request; its diff still needs a human look.
+- [x] Server check (2026-10-21): no `MULTIRUNTIME_*` flag is set in `/opt/hellodeploy/.env`,
+      and `config:check` reports the web and worker configurations valid for production.
 - [ ] Deploy and roll back one existing production project on the new code.
-- [x] Confirmed on the server (2026-10-21): no `MULTIRUNTIME_*` flag is set in
-      `/opt/hellodeploy/.env`, and `config:check` reports the web and worker configurations
-      valid for production. #120 (`e54f99b`) and #121 (`f3576cd`) also deployed cleanly.
 
 Before enabling a P0–P3 pilot:
 
@@ -51,7 +53,7 @@ Before enabling a P0–P3 pilot:
       memory recorded per framework.
 - [ ] One allowlisted project per flag, `WORKER_CONCURRENCY=1`.
 
-Before turning on the P4 owner-image pilot (#120, merged with its flags off): security review of the owner-image threat
+Before turning on the P4 owner-image pilots: a security review of the owner-image threat
 model, Trivy installed, every fail-closed case run live, and Docker Hub anonymous pull
 limits measured. Before general availability: a builder per tenant or per build, and
 runtime egress filtering. P5 stays behind its entry gate in `P5_COMPOSE_ADR.md`.

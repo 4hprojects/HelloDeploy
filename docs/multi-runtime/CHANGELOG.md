@@ -1,26 +1,23 @@
 # Multi-Runtime Changelog
 
-## 2026-10-17
+## 2026-10-21
 
-- Registered nonproduction pilot databases with a structured
-  `deployment-environment` marker (`HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID`).
-  Production now registers only an unmarked database and refuses any other marker.
-  A development worker refuses every marked database, with or without Nginx routing.
-- Rejected a nonproduction environment id on a `NODE_ENV=production` worker.
-- The acceptance coordinator refuses production databases and mismatched environment
-  ids, and decrypts the private canary to compare it in constant time.
-- Build context inspection is one iterative walk with no depth cutoff, so deeply
-  nested symlinks and files can no longer bypass containment or the 500 MB ceiling;
-  names such as `..cache` are no longer mistaken for escapes.
-- Pulled digest images must match the runtime Docker daemon's OS and architecture.
-- Fixed the canary-probe test spawning a `file://` URL instead of a path.
-- P1 close-out: versioned Next.js server images bind every container interface and
-  versioned builds disable Next.js telemetry.
-- Detection warns when standard mode lacks a start script or lists `next` only in
-  devDependencies, and when a custom `distDir` is configured. The user guide explains
-  each warning.
+- #120 (P4 owner images) merged at the owner's request and autodeployed (`e54f99b`) with
+  both P4 flags off, after a flags-off smoke run showed the web service and the worker
+  refuse owner-image builds. The security review and live gates now apply to turning the
+  flags on.
+- #121 committed the pending `.env.example` change, unread, at the owner's request.
+- #122 recorded the production check: no `MULTIRUNTIME_*` flag is set and `config:check`
+  passes for web and worker.
+- #123 judges the Lighthouse lab budgets on the median of three runs; a single run had
+  missed the mobile LCP budget by 0.8 ms on a docs-only change.
+- Documentation consolidated: this folder gained an overview ([README.md](README.md)), the
+  baseline audit moved to `evidence/`, and the original brief is archived at
+  `docs/archive/multiruntime-brief-2026-10-16/`.
 
-### #119 merged; first CodeQL run on #120 (2026-10-20)
+## 2026-10-20
+
+### #119 merged; first CodeQL run on #120
 
 - #119 merged to `main` and autodeployed to production (`9572051`) with every pilot
   off; the installer's checks passed, and the dashboard and live apps answered 200.
@@ -30,7 +27,7 @@
   `isApprovedImageRegistry`: a string that is an own key of `IMAGE_REGISTRIES`. Deleting a
   credential checks it too.
 
-### Pre-merge smoke run (2026-10-20)
+### Pre-merge smoke run
 
 - Ran the branch with every flag off against a throwaway database and the local Docker
   daemon: legacy fixtures, rollback, build and health failures, a pre-branch project
@@ -38,7 +35,7 @@
 - Runbook fixture setup now names the build command for `build-failure` and
   `slow-build`, the optimized template for `next14-legacy`, and one owner per project.
 
-### Local registry verification (2026-10-20)
+### Local registry verification
 
 - Registry cleanup also deletes the referrers fallback tag (`sha256-<child digest>`) that
   ORAS writes for an attestation when the registry has no Referrers API. Without this,
@@ -48,7 +45,7 @@
 - The ORAS push, child-digest reading, and both cleanup cases were run against a local
   registry; see `EVIDENCE.md`.
 
-### GHCR deletion fallback (2026-10-20)
+### GHCR deletion fallback
 
 - New `REGISTRY_DELETE_API=github-packages` mode deletes platform images through the
   GitHub Packages REST API: child manifests first, then the index, skipping any child
@@ -58,7 +55,7 @@
   rollbacks copy them and cleanup clears them with the rest of the image identity.
 - Runbook step 7 now chooses the deletion mode from a live probe instead of stopping.
 
-### Sixth review (2026-10-20)
+### Sixth review
 
 - A lockfile (`package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`, `composer.lock`)
   larger than the detection response cap counts as present. Detection only checks that
@@ -85,7 +82,7 @@ commit.` instead of a raw `ENOENT` that named the worker's workspace path.
 - Declined: reusing `getRuntimePlatform` inside `pullAndVerifyImage`. That lookup predates
   the branch and costs one `docker info` per activation.
 
-### Fifth review (2026-10-20)
+### Fifth review
 
 Ten findings: nine confirmed and fixed with failing-first tests; one (shared build cache
 through `ONBUILD`) mitigated and recorded as a residual risk.
@@ -102,7 +99,9 @@ through `ONBUILD`) mitigated and recorded as a residual risk.
   failure code; scans use the runtime platform; shared ownership and blocked-repository
   helpers replace hand-copied checks.
 
-### Fourth review (2026-10-19)
+## 2026-10-19
+
+### Fourth review
 
 Ten findings, all confirmed and fixed with failing-first tests.
 
@@ -115,7 +114,7 @@ Ten findings, all confirmed and fixed with failing-first tests.
   credential-load errors are logged; duplicate CVEs count once; release cleanup also
   removes local copies of prebuilt images.
 
-### Third review (2026-10-19)
+### Third review
 
 Ten findings; all ten confirmed. Base-branch fixes, each with a failing-first test:
 
@@ -128,7 +127,7 @@ Ten findings; all ten confirmed. Base-branch fixes, each with a failing-first te
 - GitHub errors fail detection instead of reading as missing files.
 - The application-root pass skips duplicate size accounting.
 
-### Second review (2026-10-19)
+### Second review
 
 A deeper review reported fifteen findings; fourteen were confirmed and fixed with
 failing-first tests (seven here, the rest on the P4 branch). One was declined: the second
@@ -141,7 +140,7 @@ symlinks that leave the application root for elsewhere in the repository.
   legacy payloads require a commit SHA; settings stay editable after a pilot is turned
   off; Spring Boot caps Tomcat at 40 threads.
 
-### P4 second-review fixes (2026-10-19, stacked PR)
+### P4 second-review fixes (on the then-stacked #120 branch)
 
 - Owner images must use a numeric non-zero uid; names (resolved through the image's own
   `/etc/passwd`) and spellings such as `+0` are refused. A final stage may inherit its user
@@ -151,12 +150,14 @@ symlinks that leave the application root for elsewhere in the repository.
 - Rejected owner images are removed after the pull; fixed-port projects show the port
   input when "Deploy from" is offered.
 
-### P4 review fixes (2026-10-18, stacked PR)
+## 2026-10-18
+
+### P4 review fixes (on the then-stacked #120 branch)
 
 - `USER 00` and other all-zero uids now count as root in both owner-image checks.
 - `COPY --from`, `ADD --from`, and `RUN --mount from=` follow the approved-registry rule.
 
-### Code review fixes (2026-10-18)
+### Code review fixes
 
 A full-branch review found ten defects; all ten were confirmed against the code and fixed
 with regression tests (eight here, two on the P4 branch).
@@ -171,7 +172,7 @@ with regression tests (eight here, two on the P4 branch).
   repeating finished registry work; `node_modules` and `.git` count toward the context
   size limit again; manifest-delete failures are logged.
 
-### Close-out (2026-10-18)
+### Close-out
 
 - Replaced two regexes CodeQL flagged as polynomial ReDoS (requirements comments and
   Composer hyphen ranges) with linear parsing.
@@ -180,12 +181,32 @@ with regression tests (eight here, two on the P4 branch).
 - Browser and accessibility suite: 31/33; the two failing visual baselines fail identically
   on `main`, so they reflect local rendering, not this branch.
 
-### P5 design (2026-10-17)
+## 2026-10-17
+
+- Registered nonproduction pilot databases with a structured
+  `deployment-environment` marker (`HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID`).
+  Production now registers only an unmarked database and refuses any other marker.
+  A development worker refuses every marked database, with or without Nginx routing.
+- Rejected a nonproduction environment id on a `NODE_ENV=production` worker.
+- The acceptance coordinator refuses production databases and mismatched environment
+  ids, and decrypts the private canary to compare it in constant time.
+- Build context inspection is one iterative walk with no depth cutoff, so deeply
+  nested symlinks and files can no longer bypass containment or the 500 MB ceiling;
+  names such as `..cache` are no longer mistaken for escapes.
+- Pulled digest images must match the runtime Docker daemon's OS and architecture.
+- Fixed the canary-probe test spawning a `file://` URL instead of a path.
+- P1 close-out: versioned Next.js server images bind every container interface and
+  versioned builds disable Next.js telemetry.
+- Detection warns when standard mode lacks a start script or lists `next` only in
+  devDependencies, and when a custom `distDir` is configured. The user guide explains
+  each warning.
+
+### P5 design
 
 - Recorded the restricted Compose and entitlements ADR. Implementation is blocked at the
   brief's P5 entry gate until P4 is proven live and host headroom is measured.
 
-### P4 owner images (2026-10-17, stacked PR)
+### P4 owner images (on the then-stacked #120 branch)
 
 - Registry deletion is limited to `USER_IMAGE_REGISTRY`, and cleanup skips images the
   platform does not own.
@@ -197,13 +218,13 @@ with regression tests (eight here, two on the P4 branch).
 - Added the `dockerfile-node` and digest-pinned `oci-nginx` fixtures, threat model,
   runbook, and user guide sections.
 
-### Rollback fix (2026-10-17)
+### Rollback fix
 
 - Rollback now resolves only the runtime spec from the source snapshot. It used to
   regenerate the Dockerfile, which requires the interpreter version read from the build
   context, so rolling back any Python, PHP, or Java release threw before starting.
 
-### P3B Java (2026-10-17)
+### P3B Java
 
 - Added the `JAVA` runtime, `java_maven_v1` and `java_gradle_v1` strategies, Java 17/21/25
   selection from the build file, and the `MULTIRUNTIME_JAVA_V1_*` pilot flag.
@@ -216,7 +237,7 @@ with regression tests (eight here, two on the P4 branch).
   path.
 - Added Maven and Gradle Spring Boot fixtures with checksum-verified wrappers.
 
-### P3A PHP (2026-10-17)
+### P3A PHP
 
 - Detection lets a recognized backend framework own repositories where Node found only a
   frontend build, a static site, or nothing.
@@ -232,7 +253,7 @@ with regression tests (eight here, two on the P4 branch).
 - Added plain PHP and Composer-autoload fixtures. A Laravel fixture is still pending (see
   STATUS).
 
-### P2 Python (2026-10-17)
+### P2 Python
 
 - Added the `PYTHON` runtime, Flask/FastAPI/Django strategies, the `applicationModule`
   build setting, the approved Python version list, and the `MULTIRUNTIME_PYTHON_V1_*`

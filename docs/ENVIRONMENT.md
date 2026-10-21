@@ -1,5 +1,7 @@
 # Environment Variable Reference
 
+Updated 2026-10-21.
+
 All configuration is read from the process environment (a `.env` file at the repo root is loaded via `dotenv` by both apps). "Required (prod)" means startup fails without it when `NODE_ENV=production`; in development a safe default applies.
 
 Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and [apps/worker/src/config/env.js](../apps/worker/src/config/env.js).
@@ -81,6 +83,11 @@ The platform can start without a GitHub App, but repository connection, webhooks
 | `GITHUB_WEBHOOK_SECRET`       | web         | HMAC secret validating `X-Hub-Signature-256` on `/api/webhooks/github`   |
 
 ## Worker build/deploy
+
+Every `MULTIRUNTIME_*` pilot flag below is off by default, and none is set in production
+(checked 2026-10-21). Enabling one needs the build tier described in the
+[BuildKit and GHCR runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md) and the gates in
+[multi-runtime/STATUS.md](multi-runtime/STATUS.md).
 
 | Variable                                   | Required (prod)        | Default                         | Purpose                                                                                                                                                                                                |
 | ------------------------------------------ | ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |

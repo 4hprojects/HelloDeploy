@@ -1,5 +1,9 @@
 # HelloDeploy Multi-Runtime Expansion: Codex Master Instructions
 
+> **Archived 2026-10-21. Superseded.** This is the original planning brief, kept for
+> history and because later docs cite its files (for example "brief file 09"). The work
+> it describes was built and merged; see [docs/multi-runtime](../../multi-runtime/README.md).
+
 Status: PROPOSED / NOT IMPLEMENTED  
 Baseline: public `4hprojects/hellodeploy`, inspect `main` at execution time  
 Date prepared: 2026-10-16

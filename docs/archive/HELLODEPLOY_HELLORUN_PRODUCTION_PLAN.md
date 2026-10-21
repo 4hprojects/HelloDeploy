@@ -1,5 +1,8 @@
 # HelloDeploy and HelloUniversity Production Plan
 
+> **Archived 2026-10-21.** Historical record, no longer maintained. Current priorities are in
+> [PRIORITIES.md](../PRIORITIES.md); the archive index is [archive/README.md](../archive/README.md).
+
 Updated: 2026-08-18
 
 ## Primary Goal

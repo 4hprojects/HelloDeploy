@@ -1,11 +1,20 @@
 # HelloDeploy Release Policy
 
+Updated 2026-10-21.
+
 ## Release source
 
-- `main` is the release branch. Changes reach `main` through reviewed pull requests with required CI checks passing.
-- Production releases use annotated semantic-version tags in the form `vMAJOR.MINOR.PATCH` (for example, `v1.2.3`).
+- `main` is the release branch. Changes reach `main` through reviewed pull requests with CI passing.
+- Production ships in one of two ways:
+  - **Automatic deploy (the normal path).** The `hellodeploy-autodeploy` timer deploys each new
+    `main` commit whose `ci.yml` run passed, by full SHA, through `infrastructure/upgrade.sh`
+    (backup, drain, verify, automatic rollback). A commit whose upgrade failed is never retried.
+    See [Operations Runbooks › Automatic deploys](OPERATIONS_RUNBOOKS.md#automatic-deploys).
+  - **Tagged release (manual).** Annotated semantic-version tags `vMAJOR.MINOR.PATCH` (for
+    example, `v1.2.3`) mark a reviewed commit on `main` for a deliberate manual upgrade.
 - A release tag must point to one reviewed commit on `main`. Do not move or reuse a published tag.
-- Production checkout, deployment records, and operator logs must record the tag and its full 40-character commit SHA.
+- Production checkout, deployment records, and operator logs must record the full 40-character
+  commit SHA, and the tag when one was used.
 
 ## Release gate
 
@@ -25,10 +34,10 @@ git status --short
 
 ## Upgrade and rollback references
 
-- Upgrade by fetching the intended annotated tag, verifying its full commit SHA, and checking out that immutable commit. Do not deploy the current tip of a moving branch by default.
+- A manual upgrade fetches the intended tag or full commit SHA, verifies the full SHA, and checks out that immutable commit (`sudo bash infrastructure/upgrade.sh --ref <full-sha>`). Never deploy a moving branch name.
 - Before changing the checkout, record the current full commit SHA as the rollback reference and create the required backup.
 - If upgrade verification fails, restore the exact recorded commit using its full SHA, restore compatible dependencies with `npm ci --omit=dev`, and verify service health and routing.
 - Never use an abbreviated SHA as the authoritative rollback reference.
 - Keep the failed release and rollback outcome in operational logs for incident review.
 
-The lifecycle scripts must enforce these rules before production release readiness can be marked complete. Until then, operators must supply and verify immutable references explicitly.
+`infrastructure/upgrade.sh` enforces the immutable reference, backup, verification, and rollback steps for both paths.

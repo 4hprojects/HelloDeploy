@@ -1,8 +1,8 @@
 # Multi-Runtime Status
 
 > **Superseded 2026-10-17.** This package is the original brief only. Live status,
-> decisions, and evidence are tracked in `docs/multi-runtime/STATUS.md` on
-> `feat/multi-runtime-deployments`. The table below is the historical starting point.
+> decisions, and evidence are tracked in [docs/multi-runtime/STATUS.md](../../multi-runtime/STATUS.md)
+> on `main` (the feature branches merged as #119 and #120). The table below is the historical starting point.
 
 Planning only at authoring time (2026-10-16).
 
