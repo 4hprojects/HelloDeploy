@@ -373,6 +373,15 @@ The installer pins GitHub's SSH host key, creates a read-only deploy key and pri
 
 Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
 
+## Image templates
+
+Production builds use the `legacy` image template (`USER_IMAGE_TEMPLATE_VERSION=legacy`). The
+`optimized-v1` template adds safer build-context exclusions and builds Next.js apps that have no
+`public/` folder, which `legacy` cannot. Enable it for chosen projects only, by adding their
+project ids to `USER_IMAGE_OPTIMIZED_PROJECT_IDS` in `/opt/hellodeploy/.env` and restarting the
+worker; their next deploy uses it. Making it the default is a separate rollout decision (see the
+[docker-optimization plan](docker-optimization/README.md)).
+
 ## Multi-runtime pilots
 
 Next.js modes, Python, PHP, Java, owner Dockerfiles, and prebuilt images are merged but every

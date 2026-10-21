@@ -941,3 +941,58 @@ describe('strategyAfterDetection', () => {
     assert.equal(strategyAfterDetection(null, 'EXPRESS'), null);
   });
 });
+
+// The default (legacy) Next.js image copies public/; without one the build fails
+// late with an opaque Docker error, so detection says so up front.
+describe('detectRuntime — Next.js public folder', () => {
+  const nextFiles = (hasPublicDir) =>
+    files({
+      'package.json': pkg({
+        dependencies: { next: '^14.0.0', react: '*', 'react-dom': '*' },
+        scripts: { build: 'next build', start: 'next start' },
+      }),
+      'package-lock.json': '{}',
+      'public/': hasPublicDir,
+    });
+
+  it('warns when the repository has no public folder', () => {
+    const result = detectRuntime(nextFiles(false));
+    assert.ok(result.issues.some((issue) => /public\/ folder/.test(issue.message)));
+  });
+
+  it('does not warn when the public folder exists', () => {
+    const result = detectRuntime(nextFiles(true));
+    assert.equal(
+      result.issues.some((issue) => /public\/ folder/.test(issue.message)),
+      false,
+    );
+  });
+});
+
+describe('fetchProjectFilesForRepository — Next.js public folder', () => {
+  it('records whether a Next.js repository has a public folder', async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
+      if (path === 'package.json') {
+        const content = Buffer.from(JSON.stringify({ dependencies: { next: '15' } })).toString(
+          'base64',
+        );
+        return new Response(JSON.stringify({ encoding: 'base64', content }), { status: 200 });
+      }
+      if (path === 'public') {
+        return new Response(JSON.stringify([{ name: 'favicon.ico' }]), { status: 200 });
+      }
+      return new Response('', { status: 404 });
+    };
+    try {
+      const fetched = await fetchProjectFilesForRepository(
+        { sourceType: 'PUBLIC_GIT', fullName: 'owner/repo' },
+        'main',
+      );
+      assert.equal(fetched['public/'], true);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+});
