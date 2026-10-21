@@ -2,6 +2,7 @@ import { Repository, Project, User } from '@hellodeploy/database';
 import { DeploymentMode, ProjectStatus, DeploymentTrigger } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { verifyWebhookSignature } from '../services/github.service.js';
+import { recordWebhookOutcome } from '../services/webhook-health.service.js';
 import { createDeployment } from '../services/deployment.service.js';
 import { sendProjectPausedEmail } from '../services/email.service.js';
 import { getRedisConnection } from '../queue/client.js';
@@ -341,9 +342,18 @@ export async function handleGithubWebhook(req, res, deps = defaultWebhookDeps) {
 
   // req.body is a Buffer — raw bytes from express.raw()
   if (!verifyWebhookSignature(req.body, signature)) {
-    logger.warn('Webhook: invalid signature rejected', { correlationId });
+    // Real GitHub deliveries failing here mean the server's GITHUB_WEBHOOK_SECRET
+    // differs from the GitHub App's; nothing else surfaces it.
+    logger.error('Webhook: invalid signature rejected', {
+      correlationId,
+      event,
+      fromGithub: String(req.headers['user-agent'] ?? '').startsWith('GitHub-Hookshot/'),
+      hint: 'If GitHub sent this, rotate the webhook secret (OPERATIONS_RUNBOOKS.md).',
+    });
+    await recordWebhookOutcome(deps.getRedisConnection(), 'rejected');
     return res.status(401).json({ error: 'Invalid signature' });
   }
+  await recordWebhookOutcome(deps.getRedisConnection(), 'accepted');
 
   // Replay prevention
   if (deliveryId && (await isDuplicateDelivery(deliveryId, deps.getRedisConnection()))) {
