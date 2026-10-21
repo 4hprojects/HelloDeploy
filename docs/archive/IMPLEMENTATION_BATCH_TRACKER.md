@@ -7,7 +7,7 @@ Updated: 2026-10-16
 
 > **2026-10-15 note:** the status table below was last refreshed on 2026-10-09. Since then, production has hosted customer apps through the worker, received releases through the automatic deploy, and shipped PRs #92–#109 (deploy-failure diagnosis, Cloudflare for SaaS custom domains, member invitations, app uptime). Confirm the current pilot and GO/NO-GO state before relying on the table.
 
-This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../WORKLOG.md) preserves detailed completion and verification history.
+This is the authoritative monitor for current HelloDeploy production-readiness work. The [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md) defines release requirements and strategy, this tracker records execution status, the [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) provides the goal-specific P0-P6 sequence for the controlled HelloUniversity pilot, the [Autonomous Work Loop](../WORK_LOOP.md) defines how Codex selects and continues work, and the [Worklog](../../WORKLOG.md) preserves detailed completion and verification history.
 
 ## Current Status
 
@@ -26,7 +26,7 @@ On 2026-10-16, implementation began on `feat/multi-runtime-deployments` from
 default-off versioned build contracts, deployment snapshots/environment fencing,
 remote Buildx/GHCR digest flow, digest-aware retention, configurable application
 roots, and allowlisted Next.js standard/standalone/export behavior. The dedicated
-status, threat model, runbook, and evidence are under [`docs/multi-runtime`](multi-runtime/STATUS.md).
+status, threat model, runbook, and evidence are under [`docs/multi-runtime`](../multi-runtime/STATUS.md).
 
 This does not alter the table's production NO-GO state. Live migration and P1
 acceptance remain blocked on a separate rootless BuildKit host, private GHCR
@@ -55,7 +55,7 @@ real-device, crawler, and five-user usability evidence remains outstanding.
 
 The opt-in Docker optimization initiative has completed its repository-side P0 gap
 report and is awaiting design review plus an authorized read-only Docker-host audit. Its
-dedicated [`IMPLEMENTATION_TRACKER.md`](to%20do/hellodeploy-docker-optimization/IMPLEMENTATION_TRACKER.md)
+dedicated [`IMPLEMENTATION_TRACKER.md`](../docker-optimization/IMPLEMENTATION_TRACKER.md)
 owns detailed phase status, decisions, blockers, evidence, and next actions. The
 Docker CLI/Buildx are installed, but the current user cannot access the Docker daemon,
 so image/cache footprint and real-build evidence remain unavailable. As of 2026-10-10,
@@ -758,6 +758,6 @@ this pilot host has a live listener on `10001`; with the test's database claim o
 
 - Update the timestamp, current batch, summary row, batch status, dates, blockers, and evidence whenever work advances.
 - Set `Started` when a batch first becomes `In Progress`; set `Completed` only when its completion gate is met.
-- Link concise evidence here and keep detailed implementation and verification notes in the [Worklog](../WORKLOG.md).
+- Link concise evidence here and keep detailed implementation and verification notes in the [Worklog](../../WORKLOG.md).
 - Do not mark target-host work complete based only on mocks or local source-level tests.
 - Keep roadmap requirements mapped to the batch summary; add tasks here if the roadmap gains a new release blocker.

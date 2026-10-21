@@ -85,7 +85,7 @@ The dashboard domain and application wildcard are separated to avoid collisions 
 
 The Ubuntu 26.04 pilot host has been hardened in place. HelloDeploy now runs from a reviewed release at `/opt/hellodeploy` under the separate systemd web, worker, and Nginx-helper services, with Docker and Nginx serving hosted applications. Inbound ports stay closed: all public traffic, including the application wildcard and custom domains, arrives through Cloudflare Tunnel. New releases reach the host through the pull-based automatic deploy described in [Operations Runbooks](OPERATIONS_RUNBOOKS.md#automatic-deploys).
 
-The 2026-07-13 inspection that predates this hardening (dashboard-only pilot, no Docker, no wildcard route) is kept in [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md#current-local-pilot-evidence-snapshot) as history.
+The 2026-07-13 inspection that predates this hardening (dashboard-only pilot, no Docker, no wildcard route) is kept in [Deployment Readiness Roadmap](archive/DEPLOYMENT_READINESS_ROADMAP.md#current-local-pilot-evidence-snapshot) as history.
 
 ## Deployment Lifecycle
 

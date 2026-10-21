@@ -7,7 +7,7 @@ A quick-scan punch list of what's next, across both active tracks. This is a
 human-readable pointer, not a source of truth — for status detail, evidence, and
 command history, see [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md),
 [HelloDeploy/HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md), and
-[Worklog](../WORKLOG.md). For the full analysis behind this list — architecture,
+[Worklog](../../WORKLOG.md). For the full analysis behind this list — architecture,
 test/code-quality posture, direction check, completion estimate — see
 [Project Status Review](PROJECT_STATUS_REVIEW.md). For second-site onboarding
 readiness detail and live-pilot tracking, see
@@ -233,7 +233,7 @@ this track.
   has since been run against the live host, and a pull-based automatic deploy
   (`scripts/autodeploy.js`, installed by `infrastructure/install-autodeploy.sh`)
   now deploys `main` at an exact, CI-passed commit; see
-  [Operations Runbooks › Automatic deploys](OPERATIONS_RUNBOOKS.md#automatic-deploys).
+  [Operations Runbooks › Automatic deploys](../OPERATIONS_RUNBOOKS.md#automatic-deploys).
   The original finding is kept below for history.
 - **HelloDeploy's own production dashboard is running older code than this
   repo, discovered 2026-08-14.** Confirmed via two direct live checks:
@@ -459,7 +459,7 @@ fetch`'s specific pack-transfer mechanism (the HTTP response body piped
 - **2026-08-14 `WORKLOG.md` split executed**: the proposed date-based split
   was carried out — 100 of 117 entries (2026-07-02 through 2026-07-31, the
   initial hardening/UX phase and P0-P2 production-cutover work) moved to
-  [`docs/archive/WORKLOG_2026-07.md`](archive/WORKLOG_2026-07.md);
+  [`docs/archive/WORKLOG_2026-07.md`](WORKLOG_2026-07.md);
   `WORKLOG.md` now holds the 17 entries from 2026-08-01 onward (1,048
   lines, down from 3,510) plus a pointer to the archive. Verified
   byte-exact via line-count reconciliation before formatting; confirmed no

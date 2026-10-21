@@ -13,7 +13,7 @@ accurate. Companion to the earlier onboarding UX audit (which produced the
 deployment-failure plain-language translation,
 `packages/contracts/src/failure-codes.js`) and the admin UX audit
 (`docs/ADMIN_UX_AUDIT.md`). The backlog this audit produced lives in
-[`PRIORITIES.md`](PRIORITIES.md) under Track E — this file is the evidence
+[`PRIORITIES.md`](PRIORITIES_2026-10-15.md) under Track E — this file is the evidence
 behind that list.
 
 The entire unauthenticated surface is: `/` (landing), `/auth/sign-in`,
@@ -116,5 +116,5 @@ compilation, cross-checked against its source of truth
 already true and documented elsewhere, and verified against the existing
 `tests/ui/icon-consistency.test.js` (which asserts on landing-page icon
 usage) plus a full `tests/ui/*.test.js` sweep (119/119 passing). See
-[`WORKLOG.md`](../WORKLOG.md) for the full record. `docs/PRIORITIES.md`
+[`WORKLOG.md`](../../WORKLOG.md) for the full record. `docs/PRIORITIES.md`
 Track E reflects this as complete.

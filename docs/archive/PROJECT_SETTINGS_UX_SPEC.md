@@ -188,7 +188,7 @@ Implementation status: Phases 1–3 completed locally on 2026-07-13. Phase 4 eva
 
 ### Phase 4: Deferred Capability Evaluation
 
-- [x] Evaluate each deferred capability across product need, architecture, security, operations, acceptance evidence, and approval gates in the [Deferred Capability Evaluations](PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md).
+- [x] Evaluate each deferred capability across product need, architecture, security, operations, acceptance evidence, and approval gates in the [Deferred Capability Evaluations](../PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md).
 - Do not use placeholder controls or local substitutes to claim parity.
 
 ## Acceptance Criteria

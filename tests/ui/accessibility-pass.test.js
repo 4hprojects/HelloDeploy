@@ -30,7 +30,7 @@ const files = {
     'utf8',
   ),
   report: await readFile(
-    new URL('../../docs/UI_UX_IMPROVEMENT_BACKLOG.md', import.meta.url),
+    new URL('../../docs/archive/UI_UX_IMPROVEMENT_BACKLOG.md', import.meta.url),
     'utf8',
   ),
 };

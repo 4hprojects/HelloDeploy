@@ -9,7 +9,7 @@ below were not re-verified)
 
 For current live release-gate status, see
 [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
-and [Priorities](PRIORITIES.md) Track A — both are more current than the
+and [Priorities](PRIORITIES_2026-10-15.md) Track A — both are more current than the
 phase checklists in this file.
 
 ## Purpose
@@ -378,7 +378,7 @@ The initial audit observed the following results. These are a baseline, not subs
 
 Observed directly on 2026-07-13. This replaces assumptions about where the public dashboard runs but does not replace the historical audit or prove production readiness.
 
-**This snapshot is now superseded** — Docker, the isolated identities/units, the Nginx helper, wildcard tunnel ingress, and a `Secure` session cookie have all since passed live (see the Current Readiness Summary above and [Worklog](../WORKLOG.md) for evidence). The table below is left unchanged as the historical record of the 2026-07-13 observation, not a current status.
+**This snapshot is now superseded** — Docker, the isolated identities/units, the Nginx helper, wildcard tunnel ingress, and a `Secure` session cookie have all since passed live (see the Current Readiness Summary above and [Worklog](../../WORKLOG.md) for evidence). The table below is left unchanged as the historical record of the 2026-07-13 observation, not a current status.
 
 | Check                         | Result                                                                    |
 | ----------------------------- | ------------------------------------------------------------------------- |
@@ -393,4 +393,4 @@ Observed directly on 2026-07-13. This replaces assumptions about where the publi
 | HelloDeploy identities/units  | Absent                                                                    |
 | Nginx/helper application path | Dashboard upstream inactive; helper, route directory, and wildcard absent |
 
-The in-place migration described above is now well underway on this host: the installer, Docker plane, and isolation gates have passed, and routing (helper plus wildcard ingress) has passed live. Remaining before Ubuntu 26.04 is supported: the wildcard DNS record, dashboard traffic cutover, real deployment validation, rollback, interruption, and cross-host recovery gates — see [Priorities](PRIORITIES.md) for the current ordering.
+The in-place migration described above is now well underway on this host: the installer, Docker plane, and isolation gates have passed, and routing (helper plus wildcard ingress) has passed live. Remaining before Ubuntu 26.04 is supported: the wildcard DNS record, dashboard traffic cutover, real deployment validation, rollback, interruption, and cross-host recovery gates — see [Priorities](PRIORITIES_2026-10-15.md) for the current ordering.

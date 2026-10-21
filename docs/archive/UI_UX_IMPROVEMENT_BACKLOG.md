@@ -28,7 +28,7 @@ This backlog tracks planned UI/UX improvements for HelloDeploy. The goal is to m
 
 - Update `Status`, `Acceptance Evidence`, and `Updated` whenever a backlog item changes.
 - Add implementation notes or links to supporting commits, screenshots, tests, or reports where useful.
-- Keep related documents aligned: [WORKLOG.md](../WORKLOG.md), [Documentation Index](README.md), and [Phase Task Tracker](archive/PHASE_TASK_TRACKER.md) (archived, historical reference).
+- Keep related documents aligned: [WORKLOG.md](../../WORKLOG.md), [Documentation Index](README.md), and [Phase Task Tracker](PHASE_TASK_TRACKER.md) (archived, historical reference).
 - Do not mark browser-facing work `Done` without checking desktop and mobile behavior.
 
 ## Priority Roadmap

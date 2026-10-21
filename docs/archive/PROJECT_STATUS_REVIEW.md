@@ -5,7 +5,7 @@
 
 Updated: 2026-08-18
 
-> **Snapshot.** This review reflects the project as of 2026-08-18 and is not kept current. For what is open now, see [Priorities](PRIORITIES.md) and [Improvements](IMPROVEMENTS.md); for release status, see the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
+> **Snapshot.** This review reflects the project as of 2026-08-18 and is not kept current. For what is open now, see [Priorities](PRIORITIES_2026-10-15.md) and [Improvements](IMPROVEMENTS.md); for release status, see the [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
 
 This is a synthesized snapshot — architecture, test/code-quality posture, whether the
 project is still heading toward its original goal, and an estimated completion
@@ -13,8 +13,8 @@ percentage. It is not a live-updating source of truth: for current execution sta
 see [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md), for the
 HelloUniversity-hosting goal see
 [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md),
-for what to work on next see [Priorities](PRIORITIES.md), and for detailed evidence
-see [Worklog](../WORKLOG.md). Refresh this review at major milestones (a phase or
+for what to work on next see [Priorities](PRIORITIES_2026-10-15.md), and for detailed evidence
+see [Worklog](../../WORKLOG.md). Refresh this review at major milestones (a phase or
 priority completing), not on every small change.
 
 ## 1. Web App Architecture Snapshot
@@ -141,7 +141,7 @@ more than the qualitative picture already states.
 
 ## 6. What This Means for Priorities
 
-See [Priorities](PRIORITIES.md) for the actionable list. In short: P2 is down to
+See [Priorities](PRIORITIES_2026-10-15.md) for the actionable list. In short: P2 is down to
 two concrete items (revert-script exercise, real-routing verification); P3/P4 has
 started but has not passed clone — completing it and P5/P6 is the dominant gap
 between where the project is and a formal production GO; the quality/security

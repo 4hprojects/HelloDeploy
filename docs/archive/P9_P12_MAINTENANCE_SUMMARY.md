@@ -1,6 +1,6 @@
 # P9-P12 Maintenance Summary
 
-**Historical snapshot — superseded by [Worklog](../WORKLOG.md).** Retained for
+**Historical snapshot — superseded by [Worklog](../../WORKLOG.md).** Retained for
 historical record as the P9-P12 implementation handoff notes; current status and
 evidence are recorded in the Worklog and
 [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md).
@@ -39,7 +39,7 @@ This summary records the completed P9-P12 implementation work for future mainten
 
 Reference:
 
-- [`docs/OPERATIONS_RUNBOOKS.md`](OPERATIONS_RUNBOOKS.md)
+- [`docs/OPERATIONS_RUNBOOKS.md`](../OPERATIONS_RUNBOOKS.md)
 
 ## P11 Hardening And Pilot
 
@@ -55,7 +55,7 @@ Reference:
 Reference:
 
 - [`docs/HARDENING_AND_PILOT_REPORT.md`](HARDENING_AND_PILOT_REPORT.md)
-- [`scripts/measure-capacity.js`](../scripts/measure-capacity.js)
+- [`scripts/measure-capacity.js`](../../scripts/measure-capacity.js)
 
 ## P12 Self-Hosted Edition
 
@@ -70,9 +70,9 @@ Reference:
 
 Reference:
 
-- [`docs/SELF_HOSTED_INSTALL.md`](SELF_HOSTED_INSTALL.md)
-- [`scripts/self-hosted-checklist.js`](../scripts/self-hosted-checklist.js)
-- [`LICENSE`](../LICENSE)
+- [`docs/SELF_HOSTED_INSTALL.md`](../SELF_HOSTED_INSTALL.md)
+- [`scripts/self-hosted-checklist.js`](../../scripts/self-hosted-checklist.js)
+- [`LICENSE`](../../LICENSE)
 
 ## Verification
 

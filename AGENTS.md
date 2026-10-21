@@ -7,8 +7,8 @@ HelloDeploy is a Node.js monorepo using npm workspaces. It provides a self-hoste
 Before editing:
 
 1. Read `CLAUDE.md` for the current architecture, repository conventions, and command reference.
-2. Read `docs/WORK_LOOP.md` and the current section of `docs/IMPLEMENTATION_BATCH_TRACKER.md` when continuing production-readiness or multi-task work.
-3. Read the relevant documents in `hellodeploy-blueprint/` and any applicable specification in `docs/phases/`.
+2. Read `docs/WORK_LOOP.md`, `docs/PRIORITIES.md`, and the relevant initiative status file (for example `docs/multi-runtime/STATUS.md`) when continuing production-readiness or multi-task work.
+3. Read the relevant documents in `hellodeploy-blueprint/` and any applicable specification in the initiative's folder under `docs/`.
 4. Inspect the related implementation and tests. Do not infer existing behavior from documentation alone.
 
 ## Continuous work loop

@@ -8,7 +8,7 @@ directly evidenced — not a full re-verification pass)
 
 For current live release-gate status, see
 [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md)
-and [Priorities](PRIORITIES.md) Track A — both are more current than this matrix.
+and [Priorities](PRIORITIES_2026-10-15.md) Track A — both are more current than this matrix.
 Dashboard traffic cutover (2026-08-09) and queue resume (2026-08-10) both passed
 live since this file's last full pass; the two rows below directly affected by
 those events are corrected. The rest of this matrix was not re-verified row by

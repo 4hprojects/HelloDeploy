@@ -126,7 +126,7 @@ Reviewed: `pipeline.js` (post-swap try/catch + audit event),
 Updated: 2026-08-13
 
 A follow-up, narrower review of the code that shipped as part of
-[Track G](PRIORITIES.md) (the onboarding-handoff backlog: auto-login
+[Track G](PRIORITIES_2026-10-15.md) (the onboarding-handoff backlog: auto-login
 after email verification, the resend-verification rate-limit redirect,
 and a copy-only reset-code expiry note). This code postdates the review
 above, so it wasn't covered by it. Scope: `auth.controller.js`'s
