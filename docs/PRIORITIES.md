@@ -27,9 +27,12 @@ Keep this file short. Put evidence in the worklog, not here.
 1. **Deploy and roll back one real project on the new code.** From the dashboard, deploy a
    low-risk app, then roll back to its previous release; confirm both runs in the worker log.
    This is the last post-merge check for #119/#120.
-2. **Check the GitHub webhook "invalid signature" warnings.** The web service rejects 10–50
-   webhook requests a day. Open the GitHub App's _Advanced › Recent Deliveries_: 401
-   responses there mean the webhook secret has drifted; otherwise it is outside noise.
+2. **Rotate the GitHub webhook secret (owner action).** Every GitHub delivery to production
+   has been rejected since at least 2026-07-31, so push-to-deploy and repository access updates
+   never arrive. The cause is a mismatch between `GITHUB_WEBHOOK_SECRET` on the server and the
+   GitHub App's secret; the code is correct. Follow
+   [Operations Runbooks › GitHub webhooks rejected](OPERATIONS_RUNBOOKS.md#github-webhooks-rejected-rotate-the-webhook-secret).
+   The admin Server page now shows webhook health, so this cannot go unnoticed again.
 
 ## Next — to turn on the multi-runtime pilots
 
@@ -60,6 +63,9 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Small fixes:** the deployment detail "● Live" indicator has no accessible label;
   `getUserProjects` sorts in JavaScript without a limit; `requireProjectRole` runs two
   sequential queries per request.
+- **Error page crashes for unrouted POSTs.** Bot probes such as `POST /xmlrpc.php` get a 500
+  because rendering the error page fails with `assetPath is not defined` (53 times since
+  2026-10-14). The error path runs before the view locals are set.
 - **Assistive-technology pass** of the dashboard with a real screen reader (automated axe checks
   pass).
 - **Landing-page performance headroom.** The mobile Lighthouse lab median LCP is about

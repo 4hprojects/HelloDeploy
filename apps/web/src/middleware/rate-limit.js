@@ -158,6 +158,20 @@ export const deployHookLimiter = rateLimit({
   handler: onLimitReached,
 });
 
+/**
+ * GitHub webhook deliveries, per source address. Generous: GitHub does not retry a
+ * rejected delivery, so a dropped push is a missed deploy. Fails open on a store
+ * error for the same reason; every delivery is still signature-checked.
+ */
+export const githubWebhookLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  limit: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: true,
+  store: makeStore('github-webhook'),
+});
+
 /** Dashboard deploy/rollback triggers — each enqueues a resource-heavy build job */
 export const deployActionLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes

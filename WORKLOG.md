@@ -2425,3 +2425,17 @@ recovery remain unexecuted until their declared operational preconditions pass.
   passes 1,834/1,834 with dotenv disabled. The first complete run also discovered 39
   dependency-owned tests under locally built fixture `node_modules`; normal test
   discovery now ignores generated dependency and framework output directories.
+
+## 2026-10-21 — GitHub Webhooks Rejected Since Isolated Cutover
+
+- nginx logs show every `GitHub-Hookshot` delivery to `/api/webhooks/github` rejected: 238 × 401 and
+  1 × 500 across the 14 retained days. The web journal, which starts 2026-07-31, has no accepted
+  delivery. `verifyWebhookSignature` and the raw-body route are correct, so the production
+  `GITHUB_WEBHOOK_SECRET` differs from the GitHub App's secret. Push-to-deploy and installation
+  events have not reached production since the isolated cutover.
+- The single 500 was the #119 merge push: its payload exceeded `express.raw`'s 100 kB default
+  ("request entity too large"). The GitHub route now accepts up to 25 MB, GitHub's maximum; the
+  platform nginx vhost still caps bodies at 10 MB.
+- Rejections now log at error level and are recorded in Redis, and the admin Server page shows a
+  GitHub Webhooks card ("Rejecting" / "Healthy"). The secret rotation needs owner access; see
+  Operations Runbooks › GitHub webhooks rejected.

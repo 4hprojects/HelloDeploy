@@ -239,6 +239,39 @@ The command drops only a single-field `emailVerificationExpiresAt: 1` index whos
 Then run `npm run config:check`, restart the web and worker services, and confirm
 readiness reports the notification queue healthy when email is enabled.
 
+### GitHub webhooks rejected (rotate the webhook secret)
+
+**Symptom:** pushes don't trigger deployments, repository access changes don't show up, and the
+admin **Server & Queue** page shows **GitHub Webhooks: Rejecting**. The web log has
+`Webhook: invalid signature rejected` errors, and nginx logs `401` for `GitHub-Hookshot`:
+
+```sh
+grep 'POST /api/webhooks/github' /var/log/nginx/access.log | tail -5
+```
+
+**Cause:** `GITHUB_WEBHOOK_SECRET` in `/opt/hellodeploy/.env` differs from the webhook secret saved in
+the GitHub App. The verification code is fine; the two copies have drifted. From 2026-07-31 to at
+least 2026-10-21, every delivery to production was rejected this way.
+
+**Fix** (needs sudo on the host and owner access to the GitHub App):
+
+1. Generate a new secret: `openssl rand -hex 32`.
+2. Set it on the server, replacing the old value, and restart the web service:
+
+   ```sh
+   sudoedit /opt/hellodeploy/.env        # GITHUB_WEBHOOK_SECRET=<new value>
+   sudo systemctl restart hellodeploy-web
+   ```
+
+3. In GitHub, open **Settings › Developer settings › GitHub Apps › (the HelloDeploy app) ›
+   General**, paste the same value into **Webhook secret**, and save.
+4. Under **Advanced › Recent Deliveries**, choose a recent delivery and select **Redeliver**.
+5. Confirm it arrived: the redelivery shows a `200` response in GitHub, nginx logs `200` for
+   `GitHub-Hookshot`, and the admin Server page shows **GitHub Webhooks: Healthy**.
+
+Pushes made while webhooks were failing are not replayed automatically. Deploy any project that
+should be on its latest commit from the dashboard.
+
 ### Resend delivery tracking
 
 Set `RESEND_API_KEY`, `EMAIL_FROM`, and `RESEND_WEBHOOK_SECRET` as one complete

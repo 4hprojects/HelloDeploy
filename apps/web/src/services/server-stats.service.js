@@ -2,9 +2,10 @@ import { cpus, totalmem, freemem, loadavg, uptime } from 'node:os';
 import { statfs } from 'node:fs/promises';
 import { Deployment, mongoose } from '@hellodeploy/database';
 import { DeploymentStatus } from '@hellodeploy/contracts';
-import { getDeploymentQueue } from '../queue/client.js';
+import { getDeploymentQueue, getRedisConnection } from '../queue/client.js';
 import { env } from '../config/env.js';
 import { checkWorkerReadiness } from './worker-readiness.service.js';
+import { getWebhookHealth } from './webhook-health.service.js';
 import { processStartedAt, releaseMetadata, releaseSha } from '../utils/release-sha.js';
 import { formatUptime } from '../utils/format-uptime.js';
 
@@ -34,13 +35,15 @@ async function getMongoStats() {
 export async function collectServerStats(deps = {}) {
   const queueClient =
     deps.queue === undefined ? (deps.getDeploymentQueue ?? getDeploymentQueue)() : deps.queue;
-  const [memory, disk, queue, worker, running, mongo] = await Promise.all([
+  const redis = deps.redis === undefined ? getRedisConnection() : deps.redis;
+  const [memory, disk, queue, worker, running, mongo, webhooks] = await Promise.all([
     getMemoryStats(),
     getDiskStats(),
     getQueueStats(queueClient),
     checkWorkerReadiness(queueClient),
     getRunningContainerCount(),
     getMongoStats(),
+    getWebhookHealth(redis),
   ]);
 
   const load = loadavg();
@@ -53,6 +56,7 @@ export async function collectServerStats(deps = {}) {
     worker,
     running,
     mongo,
+    webhooks,
     cpu: {
       cores: cpus().length,
       load1: load[0].toFixed(2),

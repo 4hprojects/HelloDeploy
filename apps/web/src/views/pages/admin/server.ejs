@@ -141,6 +141,35 @@
   </div>
 </div>
 
+<!-- GitHub webhooks -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">GitHub Webhooks</h2>
+    <% if (server.webhooks) { %>
+    <span class="badge <%= server.webhooks.isFailing ? 'badge--danger' : server.webhooks.lastAcceptedAt ? 'badge--success' : 'badge--neutral' %>">
+      <%= server.webhooks.isFailing ? 'Rejecting' : server.webhooks.lastAcceptedAt ? 'Healthy' : 'No deliveries yet' %>
+    </span>
+    <% } %>
+  </div>
+  <div class="card__body">
+    <% if (!server.webhooks) { %>
+    <p class="text-muted text-sm">Webhook health could not be read. Verify Redis availability.</p>
+    <% } else if (server.webhooks.isFailing) { %>
+    <p class="text-sm">
+      <%= server.webhooks.rejectedSinceAccepted %> deliveries rejected since
+      <%= server.webhooks.lastAcceptedAt ? 'the last accepted one (' + new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB') + ')' : 'this was first recorded; none accepted' %>.
+      Push-to-deploy and repository access updates are not arriving. This almost always means the
+      webhook secret on the server differs from the GitHub App's — rotate it as described in the
+      operations runbook.
+    </p>
+    <% } else if (server.webhooks.lastAcceptedAt) { %>
+    <p class="text-sm">Receiving deliveries. Last accepted <%= new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB') %>.</p>
+    <% } else { %>
+    <p class="text-muted text-sm">No GitHub deliveries recorded yet.</p>
+    <% } %>
+  </div>
+</div>
+
 <!-- Queue management -->
 <div class="card mb-6">
   <div class="card__header">
