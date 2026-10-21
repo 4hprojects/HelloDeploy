@@ -59,13 +59,19 @@ Keep this file short. Put evidence in the worklog, not here.
   repositories download an exact-commit archive and private ones fetch only that commit
   (`--depth 1`), and a shared cache needs lock-safe concurrency on the most critical path.
   Revisit only with evidence that fetch time matters.
-- **Assistive-technology pass** of the dashboard with a real screen reader (automated axe checks
-  pass).
-- **Landing-page performance headroom.** The mobile Lighthouse lab median LCP is about
-  2.25–2.4 s against a 2.5 s budget.
+- **Assistive-technology pass** of the dashboard with a real screen reader. The automated axe
+  and keyboard checks were re-run on 2026-10-22: all pass (`npm run test:browser`, 31 of 33;
+  the two failures are the screenshot baselines, which only match on the CI runner).
 
 ## Decided and closed (2026-10-21)
 
+- Landing-page performance headroom was a measurement artefact: the Lighthouse lab served the
+  110 KB stylesheet uncompressed, while production serves it Brotli-compressed (18 KB). The lab
+  fixture now compresses like production; the mobile median LCP is 1.42 s against the 2.5 s
+  budget.
+- About 5% of web-vitals beacons (36 of 764 in two weeks) are rejected by CSRF. They come from
+  pages whose session changes as they unload (signing in or out), so the beacon carries the old
+  page's token. Exempting telemetry from CSRF would let anyone forge metrics; accepted as is.
 - Bot probes such as `POST /xmlrpc.php` now get a 403 page instead of a 500: request-independent
   view locals are set on `app.locals`, so pages rendered before the locals middleware work.
 - The deployment log "● Live" indicator is now a polite status region with the dot hidden from

@@ -225,12 +225,21 @@ await Deployment.create({
 });
 
 const { createApp } = await import('../apps/web/src/app.js');
-const app = createApp({
-  readinessCheck: async () => ({
-    ready: true,
-    checks: { database: 'ok', queue: 'ok', worker: 'ok' },
+const { default: compression } = await import('compression');
+const { default: express } = await import('express');
+// Production responses are compressed at the Cloudflare edge; without the same
+// here, the Lighthouse lab measured the 110 KB stylesheet uncompressed (18 KB in
+// production) and reported far less headroom than real users get.
+const app = express();
+app.use(compression());
+app.use(
+  createApp({
+    readinessCheck: async () => ({
+      ready: true,
+      checks: { database: 'ok', queue: 'ok', worker: 'ok' },
+    }),
   }),
-});
+);
 const server = app.listen(Number(process.env.PORT), process.env.HOST, () => {
   process.stdout.write(
     `Browser fixture listening on http://${process.env.HOST}:${process.env.PORT}\n`,
