@@ -41,7 +41,8 @@ Merge and release (done unless marked):
       owner's request; its diff still needs a human look.
 - [x] Server check (2026-10-21): no `MULTIRUNTIME_*` flag is set in `/opt/hellodeploy/.env`,
       and `config:check` reports the web and worker configurations valid for production.
-- [ ] Deploy and roll back one existing production project on the new code.
+- [x] Deploy and roll back one existing production project on the new code: HelloEventHub,
+      2026-10-22 (deploys at 00:13 and 00:34, rollback at 07:28, all healthy).
 
 Before enabling a P0–P3 pilot:
 

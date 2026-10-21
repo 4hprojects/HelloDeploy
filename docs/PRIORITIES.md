@@ -24,19 +24,14 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-1. **Roll back one real project on the new code (owner action).** The deploy half is done:
-   HelloEventHub deployed on 2026-10-22 at 00:13 (`a8eeeaa`). It built, passed its health check,
-   swapped containers, kept three releases, and sent the result email. From its **Deployments**
-   page, roll back to the previous release and check the app loads; the worker log confirms the
-   rest. This is the last post-merge check for #119 and #120.
-2. **Rotate the GitHub webhook secret (owner action).** Every GitHub delivery to production
+1. **Rotate the GitHub webhook secret (owner action).** Every GitHub delivery to production
    has been rejected since at least 2026-07-31, so push-to-deploy and repository access updates
    never arrive. The cause is a mismatch between `GITHUB_WEBHOOK_SECRET` on the server and the
    GitHub App's secret; the code is correct. Follow
    [Operations Runbooks › GitHub webhooks rejected](OPERATIONS_RUNBOOKS.md#github-webhooks-rejected-rotate-the-webhook-secret).
    The admin Server page now shows webhook health, so this cannot go unnoticed again.
 
-3. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
+2. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
    `anything.hellodeploy.online` get nginx's "Welcome to nginx!" page with HTTP 200 from
    `/etc/nginx/sites-enabled/default`. Replace its `server` body with `return 404;` (keep
    `listen 80 default_server; server_name _;`), then `sudo nginx -t && sudo systemctl reload nginx`.
@@ -45,17 +40,17 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Next — to turn on the multi-runtime pilots
 
-4. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
+3. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
    resource limits, builder egress limited to package hosts, ORAS on the worker, and a private
    GHCR repository with a least-privilege token
    ([runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md)).
-5. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
+4. **Run runbook step 7** to choose `REGISTRY_DELETE_API` (`oci` or `github-packages`) from a
    live GHCR deletion probe, including the referrers fallback tag.
-6. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
+5. **Run the nonproduction acceptance harness** (`npm run acceptance:multi-runtime`) with the
    disruptive cases, and record build time and memory per framework.
-7. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
+6. **Enable one allowlisted project per runtime** with `WORKER_CONCURRENCY=1`, following the
    stop procedure in the runbook.
-8. **Before the owner-image pilots (P4):** a human security review of the
+7. **Before the owner-image pilots (P4):** a human security review of the
    [owner-image threat model](multi-runtime/THREAT_MODEL.md), Trivy installed with its database,
    every fail-closed case run live, and Docker Hub anonymous pull limits measured.
 
@@ -74,6 +69,10 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- **Post-merge deploy and rollback check passed** (2026-10-22). HelloEventHub deployed release 25
+  at 00:13 and release 26 at 00:34, then rolled back to release 25 at 07:28 using its retained
+  image, without a rebuild. Each run passed its health check, swapped containers, and sent the
+  result email, and the app answered 200 afterwards.
 - **P5 open questions decided** (recorded in
   [P5_COMPOSE_ADR.md](multi-runtime/P5_COMPOSE_ADR.md#decisions-on-the-open-questions-2026-10-22)):
   the public service is the one declaring `ports`; three services, configurable; private
