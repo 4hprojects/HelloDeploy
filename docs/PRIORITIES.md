@@ -30,6 +30,21 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Next — to turn on the multi-runtime pilots
 
+**Paused by owner decision (2026-10-22) until a build host exists; pilots stay off.**
+
+When you're ready:
+
+- **Recommended host:** a separate small VPS (2 vCPU / 4 GB, about $5–15 a month) used only for
+  builds. It is required before the owner-Dockerfile pilot, which runs untrusted code.
+  - A VM on this host was set aside: it would take most of the ~2 GB of memory free under
+    production load.
+  - Rootless BuildKit under a separate user here was set aside: it shares the kernel and memory
+    with production, so at most it would be acceptable for the generated-template pilots.
+- **You provide:** SSH access to the new host, and a classic GitHub token with `write:packages`,
+  `read:packages` and `delete:packages` for a private GHCR repository.
+- **Then:** runbook steps 1–7, the acceptance harness, and one allowlisted project per runtime,
+  as listed below.
+
 2. **Provision the nonproduction builder and registry**: rootless BuildKit with mTLS and
    resource limits, builder egress limited to package hosts, ORAS on the worker, and a private
    GHCR repository with a least-privilege token
