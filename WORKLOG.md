@@ -2469,3 +2469,14 @@ recovery remain unexecuted until their declared operational preconditions pass.
   through Cloudflare passed. One local 403 for `hellodeploy.online` during the run coincided with
   the 07:59 autodeploy restart and cleared on its own.
 - Still open: `hellotasks.online` returns 502 (its port-3000 app is not running).
+
+## 2026-10-22 — Branded Status Pages
+
+- Unknown hostnames now get a branded 404 page, `apps/web/public/site-not-found.html`. It shows the
+  logo, the requested hostname, likely causes, a dashboard link for owners, and a "Deploy your app
+  free" call to action. The platform outage page (`service-unavailable.html`, 503) uses the same
+  design.
+- Both pages are self-contained (inline CSS and logo, no external requests, absolute links), so
+  they work on any hostname and while the web app is down. They support light and dark mode and
+  pass axe in both. The catch-all is versioned as `infrastructure/nginx/default-site.conf` and was
+  verified on a throwaway nginx: 404 status, branded body, and the page itself internal-only.

@@ -379,8 +379,11 @@ HelloDeploy writes its own routes to `/etc/nginx/hellodeploy.d/` and the platfor
 `/etc/nginx/conf.d/hellodeploy-platform.conf`. Three host-managed sites sit alongside them, set up
 on 2026-10-22:
 
-- `sites-enabled/default`: the catch-all for hostnames no site claims. It returns `404`, not the
-  stock nginx page.
+- `sites-enabled/default`: the catch-all for hostnames no site claims. It returns `404` with the
+  branded "Site not found" page (`apps/web/public/site-not-found.html`, which explains the likely
+  causes and invites visitors to deploy their own app). Install or refresh it from the repository:
+  `sudo cp /opt/hellodeploy/infrastructure/nginx/default-site.conf /etc/nginx/sites-available/default`,
+  then `sudo nginx -t && sudo systemctl reload nginx`. The page itself updates with every deploy.
 - `sites-enabled/www-redirects`: redirects `www.hellopera.online`, `www.hellorun.online`, and
   `www.hellouniversity.online` to their apex domains. Add a domain's `www.` name here when a
   custom domain's `www.` should work and is not added in HelloDeploy itself.
