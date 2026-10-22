@@ -32,6 +32,13 @@ Keep this file short. Put evidence in the worklog, not here.
 
 **Paused by owner decision (2026-10-22) until a build host exists; pilots stay off.**
 
+**2026-10-23: the owner chose to plan an on-demand builder that administrators control, with no new
+VPS.** The Phase A design is in
+[BUILDER_CONTROL_DESIGN.md](multi-runtime/BUILDER_CONTROL_DESIGN.md). It recommends a
+restricted rootless builder on this host for generated templates only. Phase B (the admin interface,
+lifecycle controls and tests) waits for the owner's answers to its section 9 decisions. The
+host-option notes below predate that design.
+
 When you're ready:
 
 - **Recommended host:** a separate small VPS (2 vCPU / 4 GB, about $5–15 a month) used only for
