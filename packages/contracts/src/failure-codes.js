@@ -37,8 +37,9 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
       'This is often a configuration issue — check your build and start settings, or contact support.',
   },
   CONTAINER_CRASHED_ON_STARTUP: {
-    message: 'Your app started but immediately stopped running.',
-    action: `Check your start command — it may be wrong, or your app may be crashing on launch. ${ASK_BUILDER_ACTION}`,
+    message: 'Your app started, then stopped running.',
+    action:
+      'If your app said why, its message is shown below. When it mentions a setting, check that setting on the Environment page; otherwise share it with the person who built the app.',
   },
   HEALTH_CHECK_FAILED: {
     message: "Your app started, but didn't respond in time to confirm it's working.",
@@ -155,6 +156,25 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     action: `The technical details explain which check failed, such as running as root, declaring volumes, being too large, or having critical vulnerabilities. ${ASK_BUILDER_ACTION}`,
   },
 });
+
+/**
+ * The worker starts a failureSummary with this when it carries the app's own
+ * error message, so the deployment page can show that message to the owner.
+ */
+export const APP_REPORT_PREFIX = 'Your app reported: ';
+
+/**
+ * The app's own message from a failureSummary, or null when the summary is
+ * HelloDeploy's wording (for example a timeout) rather than the app's.
+ *
+ * @param {string|null|undefined} failureSummary
+ * @returns {string|null}
+ */
+export function getAppReport(failureSummary) {
+  return typeof failureSummary === 'string' && failureSummary.startsWith(APP_REPORT_PREFIX)
+    ? failureSummary.slice(APP_REPORT_PREFIX.length)
+    : null;
+}
 
 const DEFAULT_FAILURE_COPY = Object.freeze({
   message: 'Something went wrong during deployment.',
