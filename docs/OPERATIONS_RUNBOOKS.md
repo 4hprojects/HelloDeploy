@@ -383,7 +383,9 @@ on 2026-10-22:
   branded "Site not found" page (`apps/web/public/site-not-found.html`, which explains the likely
   causes and invites visitors to deploy their own app). Install or refresh it from the repository:
   `sudo cp /opt/hellodeploy/infrastructure/nginx/default-site.conf /etc/nginx/sites-available/default`,
-  then `sudo nginx -t && sudo systemctl reload nginx`. The page itself updates with every deploy.
+  then `sudo nginx -t && sudo systemctl reload nginx`. Every install and upgrade republishes
+  the page, together with the platform outage page, to `/var/www/hellodeploy-status/`. nginx runs as
+  `www-data` and cannot read the checkout, which holds the production `.env`.
 - `sites-enabled/www-redirects`: redirects `www.hellopera.online`, `www.hellorun.online`, and
   `www.hellouniversity.online` to their apex domains. Add a domain's `www.` name here when a
   custom domain's `www.` should work and is not added in HelloDeploy itself.

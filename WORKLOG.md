@@ -2480,3 +2480,15 @@ recovery remain unexecuted until their declared operational preconditions pass.
   they work on any hostname and while the web app is down. They support light and dark mode and
   pass axe in both. The catch-all is versioned as `infrastructure/nginx/default-site.conf` and was
   verified on a throwaway nginx: 404 status, branded body, and the page itself internal-only.
+
+## 2026-10-22 — Status Pages Unreadable by nginx
+
+- After the branded catch-all was installed, unknown hostnames returned `403 Forbidden`. The nginx
+  error log showed `open() ".../apps/web/public/site-not-found.html" failed (13: Permission
+denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-config 750`
+  because it holds the production `.env`.
+- The same applied to the existing platform outage page (`service-unavailable.html`), so a real
+  dashboard outage would also have shown a bare error instead of that page.
+- `configure-platform-ingress.sh`, which runs on every install and upgrade, now publishes both
+  pages to `/var/www/hellodeploy-status/` (0755/0644). The platform vhost and the default site
+  serve them from there; the checkout's permissions are unchanged.
