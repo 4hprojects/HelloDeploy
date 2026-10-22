@@ -3,41 +3,222 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <meta name="robots" content="noindex,nofollow" />
+    <meta name="robots" content="noindex" />
     <title>Service temporarily unavailable — HelloDeploy</title>
     <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #f8fafc;
+        --surface: #ffffff;
+        --text: #0f172a;
+        --muted: #475569;
+        --border: #e2e8f0;
+        --accent: #c9461a;
+        --accent-soft: #fde8e1;
+        --status-text: #9a3412;
+        --button: #c9461a;
+        --button-hover: #a83a15;
+        --link: #0369a1;
+        --glow-a: rgba(233, 84, 32, 0.18);
+        --glow-b: rgba(56, 189, 248, 0.22);
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0b1120;
+          --surface: #0f172a;
+          --text: #f1f5f9;
+          --muted: #94a3b8;
+          --border: #334155;
+          --accent: #e95420;
+          --accent-soft: rgba(233, 84, 32, 0.16);
+          --status-text: #fdba9d;
+          --button: #c9461a;
+          --button-hover: #b0401a;
+          --link: #7dd3fc;
+          --glow-a: rgba(233, 84, 32, 0.22);
+          --glow-b: rgba(56, 189, 248, 0.16);
+        }
+      }
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+      html {
+        -webkit-text-size-adjust: 100%;
+      }
       body {
-        font:
-          16px/1.5 system-ui,
-          sans-serif;
         margin: 0;
-        background: #f8fafc;
-        color: #172033;
+        min-height: 100vh;
+        display: grid;
+        place-items: center;
+        padding: 1.5rem 1rem;
+        font:
+          16px/1.6 system-ui,
+          -apple-system,
+          'Segoe UI',
+          Roboto,
+          sans-serif;
+        color: var(--text);
+        background:
+          radial-gradient(40rem 28rem at 10% -10%, var(--glow-a), transparent 70%),
+          radial-gradient(36rem 26rem at 110% 110%, var(--glow-b), transparent 70%), var(--bg);
       }
       main {
+        width: 100%;
         max-width: 38rem;
-        margin: 12vh auto;
-        padding: 2rem;
+        padding: 2rem 1.5rem;
+        border: 1px solid var(--border);
+        border-radius: 1rem;
+        background: var(--surface);
+        box-shadow: 0 20px 45px -25px rgba(15, 23, 42, 0.35);
+      }
+      @media (min-width: 40rem) {
+        main {
+          padding: 2.75rem 3rem;
+        }
+      }
+      .brand {
+        display: flex;
+        width: max-content;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--text);
+        font-weight: 700;
+        font-size: 1.125rem;
+        text-decoration: none;
+      }
+      .brand img {
+        border-radius: 0.5rem;
+      }
+      .status {
+        display: inline-block;
+        margin: 2rem 0 0.75rem;
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        background: var(--accent-soft);
+        color: var(--status-text);
+        font-size: 0.8125rem;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
       }
       h1 {
-        font-size: 2rem;
+        margin: 0 0 0.75rem;
+        font-size: clamp(1.5rem, 1.2rem + 1.6vw, 2.1rem);
+        line-height: 1.2;
+      }
+      .host {
+        display: block;
+        margin-top: 0.35rem;
+        color: var(--accent);
+        font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+        font-size: 0.85em;
+        overflow-wrap: anywhere;
+      }
+      p,
+      li {
+        color: var(--muted);
+      }
+      h2 {
+        margin: 1.75rem 0 0.5rem;
+        font-size: 1rem;
+      }
+      ul {
+        margin: 0;
+        padding-left: 1.25rem;
+      }
+      li + li {
+        margin-top: 0.25rem;
       }
       a {
-        color: #3157d5;
+        color: var(--link);
+        text-underline-offset: 0.15em;
+      }
+      a:focus-visible {
+        outline: 3px solid var(--link);
+        outline-offset: 3px;
+        border-radius: 0.25rem;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.75rem 1.25rem;
+        margin-top: 1.25rem;
+      }
+      .button {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0.65rem 1.25rem;
+        border-radius: 0.6rem;
+        background: var(--button);
+        color: #fff;
+        font-weight: 700;
+        text-decoration: none;
+        transition: background-color 150ms ease;
+      }
+      .button:hover {
+        background: var(--button-hover);
+      }
+      .text-link {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        font-weight: 600;
+      }
+      .pitch {
+        margin-top: 2rem;
+        padding-top: 1.5rem;
+        border-top: 1px solid var(--border);
+      }
+      .pitch h2 {
+        margin-top: 0;
+        font-size: 1.125rem;
+        color: var(--text);
+      }
+      footer {
+        margin-top: 2rem;
+        font-size: 0.875rem;
+        color: var(--muted);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .button {
+          transition: none;
+        }
       }
     </style>
   </head>
   <body>
     <main>
-      <h1>HelloDeploy is temporarily unavailable</h1>
+      <a class="brand" href="/">
+        <img
+          src="data:image/png;base64,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"
+          alt=""
+          width="36"
+          height="36"
+        />
+        <span>HelloDeploy</span>
+      </a>
+
+      <p class="status">503 · Temporarily unavailable</p>
+      <h1>HelloDeploy is taking a short break</h1>
       <p>
-        The service could not reach the application process. Your deployed applications may be
-        unaffected.
+        The dashboard could not reach its application process, usually for a moment during an
+        update. Your deployed applications are unaffected and keep serving their visitors.
       </p>
-      <p>
-        Please wait a moment and <a href="/">try the dashboard again</a>. Current readiness is also
-        available on the <a href="/status">status page</a>.
-      </p>
+
+      <h2>What you can do</h2>
+      <ul>
+        <li>Wait a moment, then try again.</li>
+        <li>Check current readiness on the <a href="/status">status page</a>.</li>
+      </ul>
+      <div class="actions">
+        <a class="button" href="/">Try the dashboard again</a>
+      </div>
+
+      <footer>HelloDeploy deploys web apps from GitHub to a live URL.</footer>
     </main>
   </body>
 </html>
