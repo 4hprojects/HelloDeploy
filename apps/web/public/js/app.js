@@ -1421,6 +1421,7 @@
 
   function initDeploymentListPolling() {
     const table = document.querySelector('[data-deployment-list-status-url]');
+    const listLive = document.querySelector('[data-deployment-list-live]');
     if (!table) {
       return;
     }
@@ -1492,6 +1493,10 @@
             duration.textContent = formatDuration(deployment.durationMs);
           }
           if (deployment.terminal) {
+            if (listLive && row.dataset.terminal !== 'true') {
+              const number = row.querySelector('[data-label="#"]')?.textContent.trim() || '';
+              listLive.textContent = `Deployment ${number}: ${deployment.presentation.label}`;
+            }
             refreshTerminalRow(row).catch(() => {});
           } else {
             row.dataset.terminal = 'false';

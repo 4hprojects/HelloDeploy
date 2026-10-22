@@ -68,9 +68,11 @@ When you're ready:
   repositories download an exact-commit archive and private ones fetch only that commit
   (`--depth 1`), and a shared cache needs lock-safe concurrency on the most critical path.
   Revisit only with evidence that fetch time matters.
-- **Assistive-technology pass** of the dashboard with a real screen reader. The automated axe
-  and keyboard checks were re-run on 2026-10-22: all pass (`npm run test:browser`, 31 of 33;
-  the two failures are the screenshot baselines, which only match on the CI runner).
+- **Screen-reader check by a person.** Follow [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md)
+  with Orca (about 15–20 minutes) and record the results in the worklog. The automated part was
+  done on 2026-10-22: the accessibility-tree review found and fixed repeated "Logs" and retry
+  labels, a log panel that read every streamed line aloud, and silent finishes on the
+  deployments list.
 
 ## Decided and closed (2026-10-21)
 
