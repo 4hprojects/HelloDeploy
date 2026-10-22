@@ -2507,3 +2507,10 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   Healthy").
 - Added `docs/SCREEN_READER_CHECK.md`, a 15–20 minute Orca script for the human part, which is
   still to be done.
+
+## 2026-10-22 — Screen-Reader Check (Manual, Orca)
+
+- The owner completed the guided check in `docs/SCREEN_READER_CHECK.md` with Orca on Ubuntu after
+  the #140 fixes were deployed. All eight checks were completed with no issues reported: sign-in,
+  dashboard, project overview, deployments list, live logs, confirmation dialogs,
+  settings/environment, and theme and navigation.

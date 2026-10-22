@@ -68,14 +68,14 @@ When you're ready:
   repositories download an exact-commit archive and private ones fetch only that commit
   (`--depth 1`), and a shared cache needs lock-safe concurrency on the most critical path.
   Revisit only with evidence that fetch time matters.
-- **Screen-reader check by a person.** Follow [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md)
-  with Orca (about 15–20 minutes) and record the results in the worklog. The automated part was
-  done on 2026-10-22: the accessibility-tree review found and fixed repeated "Logs" and retry
-  labels, a log panel that read every streamed line aloud, and silent finishes on the
-  deployments list.
 
 ## Decided and closed (2026-10-21)
 
+- **Screen-reader check done** (2026-10-22). The automated review fixed repeated row-action
+  labels, a log panel that read every streamed line aloud, and silent finishes on the deployments
+  list (#140). The owner then completed the Orca check in
+  [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) with no issues reported. Repeat it after large
+  UI changes.
 - **nginx default site and www addresses fixed** (2026-10-22, owner ran the prepared script).
   Unknown hostnames now get 404 instead of "Welcome to nginx!". `www.hellopera.online`,
   `www.hellorun.online` and `www.hellouniversity.online` redirect (301) to their apex domains;
