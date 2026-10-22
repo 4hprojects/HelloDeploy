@@ -14,6 +14,14 @@ const upgradeScript = await readFile(
   new URL('../../infrastructure/upgrade.sh', import.meta.url),
   'utf8',
 );
+const ingressScript = await readFile(
+  new URL('../../infrastructure/nginx/configure-platform-ingress.sh', import.meta.url),
+  'utf8',
+);
+const defaultSite = await readFile(
+  new URL('../../infrastructure/nginx/default-site.conf', import.meta.url),
+  'utf8',
+);
 
 describe('platform Nginx ingress', () => {
   it('proxies the configured platform host to the local web process', () => {
@@ -35,5 +43,27 @@ describe('platform Nginx ingress', () => {
   it('is configured for both fresh installs and upgrades', () => {
     assert.match(installScript, /configure-platform-ingress\.sh/);
     assert.match(upgradeScript, /configure-platform-ingress\.sh/);
+  });
+});
+
+// nginx runs as www-data and cannot enter /opt/hellodeploy (root:hellodeploy-config 750, which
+// holds the production .env), so the static status pages are published outside it.
+describe('static status pages for nginx', () => {
+  it('publishes both pages to a directory nginx can read', () => {
+    assert.match(
+      ingressScript,
+      /install -m 0644 [^\n]*site-not-found\.html[^\n]*service-unavailable\.html[^\n]*\/var\/www\/hellodeploy-status\//,
+    );
+  });
+
+  it('serves the outage page from the published directory', () => {
+    assert.match(
+      template,
+      /location = \/service-unavailable\.html \{\s*root \/var\/www\/hellodeploy-status;/,
+    );
+  });
+
+  it('serves the site-not-found page from the published directory', () => {
+    assert.match(defaultSite, /root \/var\/www\/hellodeploy-status;/);
   });
 });

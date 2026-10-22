@@ -19,7 +19,7 @@ server {
     error_page 502 503 504 =503 /service-unavailable.html;
 
     location = /service-unavailable.html {
-        root /opt/hellodeploy/apps/web/public;
+        root /var/www/hellodeploy-status;
         internal;
     }
 

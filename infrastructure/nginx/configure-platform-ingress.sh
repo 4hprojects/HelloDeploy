@@ -24,6 +24,12 @@ if [[ ! "$WEB_PORT" =~ ^[0-9]+$ ]] || (( WEB_PORT < 1 || WEB_PORT > 65535 )); th
   exit 1
 fi
 
+# nginx runs as www-data and cannot enter the checkout (it holds the production .env), so
+# the static status pages are published to a world-readable directory on every run.
+STATUS_PAGES="$SCRIPT_DIR/../../apps/web/public"
+install -d -m 0755 /var/www/hellodeploy-status
+install -m 0644 "$STATUS_PAGES/site-not-found.html" "$STATUS_PAGES/service-unavailable.html" /var/www/hellodeploy-status/
+
 sed \
   -e "s/{{PLATFORM_DOMAIN}}/$PLATFORM_DOMAIN/g" \
   -e "s/{{PORT}}/$WEB_PORT/g" \
