@@ -2456,3 +2456,16 @@ recovery remain unexecuted until their declared operational preconditions pass.
   then restarted `hellodeploy-web` (07:47:20). A redelivered push (`395ac182…`) returned 200 at
   07:48:37 in both GitHub and nginx, with no rejection logged since. Push-to-deploy and
   installation events reach production again.
+
+## 2026-10-22 — nginx Default Site and www Redirects
+
+- Unknown hostnames (e.g. `nosuchsite.hellodeploy.online`) were answered by nginx's stock default
+  site with "Welcome to nginx!" and HTTP 200. `www.hellopera.online` and
+  `www.hellouniversity.online` fell through to it, and `www.hellorun.online` hit the
+  pre-HelloDeploy `hellorun` site, which proxied to an empty port 3002 (502).
+- The owner ran a prepared script (backup at `/var/backups/nginx-default-404-20261022-075924`,
+  `nginx -t` before reload). The default site now returns 404, a `www-redirects` site sends those
+  three `www.` names to their apex with 301, and the dead `hellorun` site is disabled. Public checks
+  through Cloudflare passed. One local 403 for `hellodeploy.online` during the run coincided with
+  the 07:59 autodeploy restart and cleared on its own.
+- Still open: `hellotasks.online` returns 502 (its port-3000 app is not running).

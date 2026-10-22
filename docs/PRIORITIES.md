@@ -24,12 +24,9 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-1. **Replace nginx's stock default site (owner action, sudo).** Unknown hostnames such as
-   `anything.hellodeploy.online` get nginx's "Welcome to nginx!" page with HTTP 200 from
-   `/etc/nginx/sites-enabled/default`. Replace its `server` body with `return 404;` (keep
-   `listen 80 default_server; server_name _;`), then `sudo nginx -t && sudo systemctl reload nginx`.
-   While there, check whether the older `sites-enabled/hellorun` and `hellotasks` sites from
-   before HelloDeploy are still needed.
+1. **Decide on `hellotasks.online` (owner).** It returns 502: its pre-HelloDeploy nginx site
+   (`/etc/nginx/sites-enabled/hellotasks`) proxies to port 3000, where nothing runs. Either restart
+   that app or retire it by disabling the site.
 
 ## Next — to turn on the multi-runtime pilots
 
@@ -62,6 +59,11 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Decided and closed (2026-10-21)
 
+- **nginx default site and www addresses fixed** (2026-10-22, owner ran the prepared script).
+  Unknown hostnames now get 404 instead of "Welcome to nginx!". `www.hellopera.online`,
+  `www.hellorun.online` and `www.hellouniversity.online` redirect (301) to their apex domains;
+  before, two showed the nginx page and one gave 502. The dead pre-HelloDeploy `hellorun` site is
+  disabled. Backup: `/var/backups/nginx-default-404-20261022-075924`.
 - **GitHub webhooks work again** (2026-10-22). The owner rotated `GITHUB_WEBHOOK_SECRET` on the
   server and in the GitHub App and restarted the web service at 07:47. A redelivered push
   returned 200 at 07:48, the first accepted delivery since at least 2026-07-31. Pushes made
