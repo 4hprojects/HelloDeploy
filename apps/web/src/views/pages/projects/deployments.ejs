@@ -127,6 +127,7 @@
 <div class="card">
   <div class="card__body">
     <div class="table-wrapper table-responsive table-responsive--flush">
+    <p class="sr-only" aria-live="polite" data-deployment-list-live></p>
     <table class="table table--responsive" data-deployment-list-status-url="/projects/<%= project.slug %>/deployments/status">
       <thead>
         <tr>
@@ -170,7 +171,7 @@
           </td>
           <td class="text-right" data-label="Actions">
             <div class="button-group button-group--sm">
-              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="Open build and runtime logs for this deployment.">Logs</a>
+              <a href="/projects/<%= project.slug %>/deployments/<%= d._id %>" class="button button--ghost button--sm" data-tooltip="Open build and runtime logs for this deployment.">Logs<span class="sr-only"> for deployment #<%= d.sequenceNumber %></span></a>
               <% if (['QUEUED','VALIDATING','BUILDING','DEPLOYING'].includes(d.status) && canDeploy) { %>
               <form method="POST"
                     action="/projects/<%= project.slug %>/deployments/<%= d._id %>/cancel"
@@ -180,18 +181,18 @@
                     data-confirm-pending-label="Cancelling..."
                     data-confirm-variant="danger">
                 <%- include('../../partials/csrf-field') %>
-                <button type="submit" class="button button--danger button--sm" data-tooltip="Cancel this deployment before it completes.">Cancel</button>
+                <button type="submit" class="button button--danger button--sm" data-tooltip="Cancel this deployment before it completes.">Cancel<span class="sr-only"> for deployment #<%= d.sequenceNumber %></span></button>
               </form>
               <% } %>
               <% if (['FAILED','CANCELLED'].includes(d.status) && canDeploy) { %>
               <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry" data-confirm="Retry the recorded commit <%= d.commitSha.slice(0, 7) %> with the current project configuration? Build cache will be used.">
                 <%- include('../../partials/csrf-field') %>
                 <input type="hidden" name="source" value="same">
-                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying...">Retry same commit</button>
+                <button type="submit" class="button button--secondary button--sm" data-pending-label="Retrying...">Retry same commit<span class="sr-only"> for deployment #<%= d.sequenceNumber %></span></button>
               </form>
               <form method="POST" action="/projects/<%= project.slug %>/deployments/<%= d._id %>/retry" data-confirm="Resolve and deploy the latest production-branch commit with the current project configuration? Build cache will be used.">
                 <%- include('../../partials/csrf-field') %><input type="hidden" name="source" value="latest">
-                <button type="submit" class="button button--ghost button--sm" data-pending-label="Resolving...">Retry latest</button>
+                <button type="submit" class="button button--ghost button--sm" data-pending-label="Resolving...">Retry latest<span class="sr-only"> for deployment #<%= d.sequenceNumber %></span></button>
               </form>
               <% } %>
             </div>

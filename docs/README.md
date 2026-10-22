@@ -33,6 +33,8 @@ document. Status and "what's next" live in exactly one place: [Priorities](PRIOR
 
 - [Product and Platform Architecture](PLATFORM_ARCHITECTURE.md) - product definition, single-host
   topology, process boundaries, the optional build tier, and deferred scope.
+- [Screen-Reader Check](SCREEN_READER_CHECK.md) - a guided 15–20 minute manual check with Orca;
+  repeat after large UI changes.
 - [UI Design System](UI_DESIGN_SYSTEM.md) - canonical CSS and EJS patterns for the dashboard.
 - [Project Settings Deferred Capabilities](PROJECT_SETTINGS_DEFERRED_CAPABILITIES.md) - settings
   capabilities that stay deferred, and the gates that would unlock them.

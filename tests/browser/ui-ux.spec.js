@@ -110,7 +110,7 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: 'Northstar Notes' })).toBeVisible();
   await page.goto('/projects/northstar-notes/deployments');
   await expect(page.getByText('#7').first()).toBeVisible();
-  await page.getByRole('link', { name: '#6' }).click();
+  await page.getByRole('link', { name: '#6', exact: true }).click();
   await expect(page.getByText('Deployment did not go live.')).toBeVisible();
   const retry = page.getByRole('button', { name: 'Retry same commit' });
   await retry.click();
@@ -118,12 +118,12 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await page.keyboard.press('Escape');
   await expect(retry).toBeFocused();
   await page.goto('/projects/northstar-notes/deployments');
-  await page.getByRole('link', { name: '#5' }).click();
+  await page.getByRole('link', { name: '#5', exact: true }).click();
   await expect(page.locator('.card').filter({ hasText: 'Trigger' })).toContainText(
     'Replaced #3 (3333333) with target #4 (4444444).',
   );
   await page.goto('/projects/northstar-notes/deployments');
-  await page.getByRole('link', { name: '#7' }).click();
+  await page.getByRole('link', { name: '#7', exact: true }).click();
   await expect(page.getByText(/Deployment #7/)).toBeVisible();
   await page.goto('/projects/northstar-notes/settings');
   await expect(page.getByRole('heading', { name: /Settings/ })).toBeVisible();
@@ -480,7 +480,9 @@ test('stable deployment failure visual', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
   await page.goto('/projects/northstar-notes/deployments');
-  const failureHref = await page.getByRole('link', { name: '#6' }).getAttribute('href');
+  const failureHref = await page
+    .getByRole('link', { name: '#6', exact: true })
+    .getAttribute('href');
   await page.goto(failureHref);
   await expect(page.getByText('Deployment did not go live.')).toBeVisible();
   await expect(page).toHaveScreenshot('deployment-failure-390.png', {

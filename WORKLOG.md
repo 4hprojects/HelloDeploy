@@ -2492,3 +2492,18 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
 - `configure-platform-ingress.sh`, which runs on every install and upgrade, now publishes both
   pages to `/var/www/hellodeploy-status/` (0755/0644). The platform vhost and the default site
   serve them from there; the checkout's permissions are unchanged.
+
+## 2026-10-22 — Screen-Reader Pass (Automated Part)
+
+- Captured the accessibility tree (what a screen reader reads) for 11 pages in the browser
+  fixture: public, sign-in, dashboard, projects, overview, deployments, deployment detail,
+  settings, environment, domains, and members. All have banner, navigation, main, and footer
+  landmarks, a single page title, and no unnamed controls.
+- Fixed: the deployments list's per-row "Logs", "Cancel", "Retry same commit", and "Retry latest"
+  had identical names in every row; each now adds "for deployment #N" for screen readers. The
+  deployment log viewer was an `aria-live` region, so every streamed build line would be read
+  aloud; it is now a named, keyboard-scrollable region, and status changes are announced by the
+  "Live" status. Finished deployments on the deployments list are now announced ("Deployment #N:
+  Healthy").
+- Added `docs/SCREEN_READER_CHECK.md`, a 15–20 minute Orca script for the human part, which is
+  still to be done.

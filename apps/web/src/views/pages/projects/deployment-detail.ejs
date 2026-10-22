@@ -255,8 +255,9 @@
     <div
       class="log-viewer"
       id="log-output"
-      aria-live="polite"
+      role="region"
       aria-label="Deployment logs"
+      tabindex="0"
       <% if (!['FAILED','CANCELLED','HEALTHY','ROLLED_BACK'].includes(deployment.status)) { %>
       data-stream-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/logs"
       <% } %>
