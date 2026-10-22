@@ -373,6 +373,21 @@ The installer pins GitHub's SSH host key, creates a read-only deploy key and pri
 
 Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. Production `.env` changes are not in git and still need a manual edit and service restart.
 
+## Host nginx sites outside HelloDeploy
+
+HelloDeploy writes its own routes to `/etc/nginx/hellodeploy.d/` and the platform vhost to
+`/etc/nginx/conf.d/hellodeploy-platform.conf`. Three host-managed sites sit alongside them, set up
+on 2026-10-22:
+
+- `sites-enabled/default`: the catch-all for hostnames no site claims. It returns `404`, not the
+  stock nginx page.
+- `sites-enabled/www-redirects`: redirects `www.hellopera.online`, `www.hellorun.online`, and
+  `www.hellouniversity.online` to their apex domains. Add a domain's `www.` name here when a
+  custom domain's `www.` should work and is not added in HelloDeploy itself.
+- `sites-enabled/hellotasks`: a pre-HelloDeploy app on port 3000, outside HelloDeploy.
+
+After editing any of them: `sudo nginx -t && sudo systemctl reload nginx`.
+
 ## Image templates
 
 Production builds use the `legacy` image template (`USER_IMAGE_TEMPLATE_VERSION=legacy`). The
