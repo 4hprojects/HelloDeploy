@@ -140,3 +140,10 @@
   [P5_COMPOSE_ADR.md](P5_COMPOSE_ADR.md#decisions-on-the-open-questions-2026-10-22)): the public
   service is the one declaring `ports`, the ceiling is three services (configurable, confirmed
   by the headroom measurement), and private services get no outbound access by default.
+- 2026-10-22: The owner deferred the pilot build host, and the pilots stay off. Options weighed:
+  - a separate small VPS (recommended, and required before the owner-Dockerfile pilot);
+  - a KVM VM on the production host, which would take most of its ~2 GB of free memory;
+  - rootless BuildKit under a separate user on the production host, which shares its kernel and
+    memory.
+
+  No build infrastructure, GHCR repository or token was created.

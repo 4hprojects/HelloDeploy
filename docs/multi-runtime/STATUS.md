@@ -44,7 +44,7 @@ Merge and release (done unless marked):
 - [x] Deploy and roll back one existing production project on the new code: HelloEventHub,
       2026-10-22 (deploys at 00:13 and 00:34, rollback at 07:28, all healthy).
 
-Before enabling a P0–P3 pilot:
+Before enabling a P0–P3 pilot (paused by owner decision on 2026-10-22 until a build host exists):
 
 - [ ] Rootless BuildKit host with mTLS, cgroup limits, and builder egress limited to the
       package hosts; ORAS on the worker; private GHCR repository and token.
