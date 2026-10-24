@@ -1,7 +1,8 @@
 # Builder Control Design
 
-Status: Proposed (Phase A, 2026-10-23). Phase B starts only after the owner answers the
-decisions in section 9. Nothing here is implemented, and every pilot flag stays off.
+Status: Phase A approved with conditions (2026-10-23); Phase B implemented on
+`feat/builder-control` (section 11), not merged. Phase C (host install and isolated tests) waits
+for owner approval. Builder control and every pilot flag stay off in production.
 
 An on-demand build service that administrators start and stop, so the multi-runtime pilots
 can build without a paid VPS while the hosted apps (HelloRun, HelloUniversity, HelloPera,
@@ -55,7 +56,7 @@ every flag is off, and no build infrastructure exists.
 | Kernel and init        | Ubuntu 26.04.1, kernel 7.0; cgroup v2 with the cpu, memory, io and pids controllers; systemd 259; `systemd-oomd` active                                                                                                         |
 | Rootless prerequisites | `rootlesskit` present. **Missing:** `newuidmap`/`newgidmap` (package `uidmap`) and a subuid range for a builder user. **`kernel.apparmor_restrict_unprivileged_userns=1`**, so rootless BuildKit needs its own AppArmor profile |
 | Existing Node builder  | `buildx_buildkit_hellodeploy-builder0`: `docker-container` driver, **privileged=true**, memory 2 GiB, **no CPU limit, no PID limit, no cache GC limit**, restart unless-stopped                                                 |
-| Leftover               | `hellodeploy-dev-builder` from the 2026-10-20 smoke runs, still running (1 GiB limit)                                                                                                                                           |
+| Leftover               | `hellodeploy-dev-builder` (1 GiB limit, last used 2026-10-12, empty cache). **Removed 2026-10-23** with owner approval: available memory 1,215 → 1,284 MB; nothing else pruned; apps answered as before                         |
 
 **Changes that could affect existing deployments**
 
@@ -90,7 +91,7 @@ Key properties:
 
 - **Off by default.** `BUILDER_CONTROL_ENABLED=false` hides the UI and refuses the control jobs. The unit is installed `disabled` and never starts at boot. No pilot flag changes.
 - **No automatic start.** A versioned-strategy build while the builder is stopped fails at once with `BUILDER_OFFLINE`: "An administrator must start the build service". It never waits in the queue, so it can never block a Node deploy behind it in the one-job queue. Legacy Node builds never touch this builder.
-- **No fallback.** The executor stays `remote-buildkit`, pointed at the buildkitd socket with the `remote` driver. The S1 fix checks that the builder's driver is `remote` and that its endpoint is the configured socket, both when the worker starts and before every build.
+- **No fallback, and legacy builds untouched.** `BUILD_EXECUTOR=remote-buildkit` sends _every_ snapshot build to the remote executor, legacy Node builds included, so it cannot be used for an on-demand builder. Builder control therefore has its own settings (`BUILDER_CONTROL_BUILDX_NAME`, `BUILDER_CONTROL_ENDPOINT`), `BUILD_EXECUTOR` stays `local`, and only Next.js, Python, PHP and Java strategies use the builder. The S1 check requires the `remote` driver at the configured socket, never the Docker daemon socket, when the builder starts and before every build.
 - **A separate daemon.** buildkitd is not the production Docker daemon. Starting, stopping or killing it cannot restart dockerd or touch app containers, networks or nginx.
 - **Least-privilege control.** The web only enqueues control jobs. The worker manages exactly one systemd unit through a polkit rule. No new root daemon. The nginx-helper pattern is the alternative if polkit proves awkward.
 - **Secrets.** Only `public-build-env.js` values reach builds, as today. GHCR credentials stay in the worker's credential store. The builder user has no Docker group, no Mongo or Redis access, and no `/opt/hellodeploy` read.
@@ -98,9 +99,9 @@ Key properties:
 
 **Admin interface:** a new card on `/admin/server`, plus `/admin/builder`.
 
-- Status: Disabled, Stopped, Starting, Ready, Building, Stopping, Failed. Also health, the last error, uptime and the idle countdown.
-- **Start** and **Stop** (super-admin). **Emergency Stop** (any admin): it cancels the active build and SIGKILLs the unit.
-- Active and queued versioned builds, from BullMQ jobs whose strategy is not legacy.
+- Status: Stopped, Starting, Ready, Building, Stopping, Failed, or "Not reporting" when the worker's status is over a minute old. Also the last error, uptime and the idle countdown. With builder control off, the page and its routes do not exist.
+- **Start**, **Stop** and **Emergency Stop**: super-admins only. Stop refuses while a build runs; Emergency Stop cancels the build and SIGKILLs the unit. Ordinary admins may view the page and run the registry check.
+- Active and queued builder deployments.
 - Resource use: the builder cgroup's `memory.current` and `cpu.stat`, store disk use, and host MemAvailable, swap and PSI.
 - GHCR connectivity: the result and time of the last `verifyRegistryAccess` probe, plus a "Check now" button.
 - Permissions per runtime and per project. The env flag remains the operator's upper limit, and admins edit a DB allowlist within it. Every change is audited.
@@ -200,23 +201,23 @@ Enforced **during** the build, not only before it:
 2. A backup is taken (`infrastructure/backup.sh`); the leftover dev builder is removed.
 3. The host scripts are installed with the unit **disabled**, and `config:check` passes.
 4. Runbook step 7 has passed on the production GHCR repository; ORAS and the credentials are present for the worker.
-5. On the worker and web, set `BUILDER_CONTROL_ENABLED=true`, `BUILD_EXECUTOR=remote-buildkit` and the builder name. All pilot flags stay off.
+5. On the worker and web, set `BUILDER_CONTROL_ENABLED=true`; on the worker also `BUILDER_CONTROL_BUILDX_NAME`, `BUILDER_CONTROL_ENDPOINT`, `USER_IMAGE_REGISTRY=ghcr.io/4hprojects/hellodeploy-builds` and `REGISTRY_MANIFEST_DELETE_ENABLED=true`. `BUILD_EXECUTOR` stays `local`. All pilot flags stay off.
 6. Start the builder and stop it. Confirm the apps answered 200 throughout, with containers and networks unchanged.
 7. Enable `MULTIRUNTIME_NEXT_V1` for one allowlisted project. Deploy it and roll it back.
 8. Watch it for 7 days: idle shutdown works, and no admission or monitor events touch the apps.
 
 ## 8. Recovery and rollback
 
-| Scenario                               | Expected behavior (tested in Phase C)                                                                                                                                                                                           |
-| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| BuildKit fails to start                | State becomes Failed with the reason; builds are rejected with `BUILDER_OFFLINE`; apps untouched                                                                                                                                |
-| BuildKit crashes during a build        | The build fails (`BUILD_FAILED`); the live release stays; the unit is not restarted automatically                                                                                                                               |
-| GHCR unavailable                       | The push fails, so the build fails; the live release stays; the connectivity card shows the error; the abandoned sweep cleans up partial pushes                                                                                 |
-| Host memory pressure                   | Admission rejects, or the monitor cancels; oomd or the cgroup kills the builder, never an app                                                                                                                                   |
-| Disk near capacity                     | Admission rejects; GC runs; the store image caps growth; Emergency Stop plus "Prune cache"                                                                                                                                      |
-| Admin stops the builder during a build | Stop cancels the build (deployment FAILED, "stopped by an administrator"); Emergency Stop SIGKILLs the unit                                                                                                                     |
-| Worker restarts unexpectedly           | The client dies, so BuildKit cancels the solve. **New:** at startup the worker marks this worker's stale `BUILDING` deployments FAILED (`WORKER_INTERRUPTED`) and leaves releases alone. The idle timer stops the builder later |
-| Deploy fails after the image was built | The existing pipeline keeps the previous HEALTHY release; the abandoned-image sweep removes the unused digest                                                                                                                   |
+| Scenario                               | Expected behavior (tested in Phase C)                                                                                                                                                                                                                                          |
+| -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| BuildKit fails to start                | State becomes Failed with the reason; builds are rejected with `BUILDER_OFFLINE`; apps untouched                                                                                                                                                                               |
+| BuildKit crashes during a build        | The monitor sees the unit is not active and cancels the build (`BUILD_CANCELLED`), or the client fails first (`BUILD_FAILED`); state becomes Failed; the live release stays; the unit is not restarted automatically                                                           |
+| GHCR unavailable                       | The push fails, so the build fails; the live release stays; the connectivity card shows the error; the abandoned sweep cleans up partial pushes                                                                                                                                |
+| Host memory pressure                   | Admission rejects, or the monitor cancels; oomd or the cgroup kills the builder, never an app                                                                                                                                                                                  |
+| Disk near capacity                     | Admission rejects; GC runs; the store image caps growth; Emergency Stop plus "Prune cache"                                                                                                                                                                                     |
+| Admin stops the builder during a build | Stop is refused while a build runs. Emergency Stop cancels it (`BUILD_CANCELLED`, "Stopped by an administrator"), SIGKILLs the unit, and no activation is queued                                                                                                               |
+| Worker restarts unexpectedly           | The client dies, so BuildKit cancels the solve. At startup, when no other worker is connected, the worker fails builder deployments left `VALIDATING`/`BUILDING` (`WORKER_INTERRUPTED`; legacy ones untouched), adopts a still-running unit, and the idle timer stops it later |
+| Deploy fails after the image was built | The existing pipeline keeps the previous HEALTHY release; the abandoned-image sweep removes the unused digest                                                                                                                                                                  |
 
 **Rollback of every production-facing change:**
 
@@ -225,16 +226,108 @@ Enforced **during** the build, not only before it:
 - Config: unset `BUILDER_CONTROL_ENABLED` and `BUILD_EXECUTOR`, then restart the worker.
 - No step touches dockerd, app containers or nginx.
 
-## 9. Decisions for the owner (recommendation first)
+## 9. Owner decisions (2026-10-23)
 
-1. **Builder location:** same-host rootless for generated templates, with remote moved to later. _Recommend same-host._
-2. **Memory:** builds run only when admission passes, so close desktop apps or add RAM. _Recommend accepting rejections now and considering a RAM upgrade._
-3. **Caps:** 1.5 GiB memory, 2 cores, 30 GB store, 15 min timeout. _Recommend these._
-4. **Builder stopped:** reject at once, or wait in the queue. _Recommend rejecting at once, so Node deploys are never blocked._
-5. **Roles:** super-admin for Start and Stop; any admin for Emergency Stop. _Recommend this._
-6. **Permissions:** the env flag stays the upper limit and admins edit a DB allowlist within it. _Recommend this._
-7. **Idle shutdown default:** 30 min. _Recommend this._
-8. **Privilege mechanism:** a polkit rule for one unit, or a root helper like the nginx helper. _Recommend polkit._
-9. **GHCR:** the account or org and the private repository name. A classic PAT if step 7 needs the packages API.
-10. **The existing privileged Node builder** (no CPU, PID or GC limits; 18.7 GB cache): harden it in a separate, later change with its own rollback, or leave it. _Recommend later and separate. It is out of scope here._
-11. **Removing the leftover `hellodeploy-dev-builder`** container. _Recommend removing it._
+1. **Builder location:** approved conditionally. A dedicated rootless BuildKit service on this
+   host, for administrator-owned, trusted repositories using platform-generated templates only.
+   Public self-service builds stay disabled. Generated templates do not make arbitrary
+   repositories safe. Enforced: builds need a project owned by an `ADMIN` or `SUPER_ADMIN`.
+2. **Memory:** reject builds when admission fails; thresholds are never overridden; no hardware
+   purchase now. Enforced: the thresholds are code constants (`BUILDER_LIMITS`).
+3. **Limits:** 1.5 GiB memory, no swap, 2 cores, 30 GB storage, 15 minutes, provisionally, for
+   testing. They must be measured in Phase C and adjusted before activation.
+4. **Builder stopped:** reject new multi-runtime builds at once with a clear error, keeping the
+   Node.js workflow as it is.
+5. **Roles:** super-admins Start, Stop and Emergency Stop; ordinary admins view status and use
+   only the non-destructive registry check.
+6. **Permissions:** environment flags stay the upper limit; database allowlists only narrow them
+   and never override a disabled flag.
+7. **Idle shutdown:** 30 minutes by default, set by super-admins (5–240); it never stops an
+   active build.
+8. **Privilege mechanism:** a narrowly scoped polkit rule for the builder unit only, approved
+   conditionally: Phase C validates the authorization boundary, service identity and failure
+   behavior. No privileged command is exposed to the web.
+9. **GHCR:** proposed `ghcr.io/4hprojects/hellodeploy-builds`. Checked 2026-10-23: the prefix
+   passes `USER_IMAGE_REGISTRY` validation; `4hprojects` is a **personal account**, so the GitHub
+   Packages deletion mode needs `GHCR_PACKAGES_OWNER_TYPE=user`; whether the package name is free
+   is unverified (the local `gh` token lacks `read:packages`). No package or credential created.
+10. **Existing Node builder:** unchanged by this feature; see section 10.
+11. **Leftover development builder:** removed after confirming it was unused (section 1).
+
+## 10. Existing Node builder: risks and a separate hardening phase
+
+Recorded, not changed by this feature. `buildx_buildkit_hellodeploy-builder0` runs on the
+production Docker daemon with the `docker-container` driver, **privileged**, with a 2 GiB memory
+limit (no swap), **no CPU or PID limit**, no cache garbage-collection limit (18.7 GB of build
+cache, 14.6 GB reclaimable), and `--restart unless-stopped`. Owner build commands run in it.
+
+Proposed separate phase (its own branch, PR and rollback):
+
+- Add `--driver-opt cpu-quota`/`cpu-period` and a PID limit when `ensureBuildBuilder` creates the
+  builder, plus a `buildkitd.toml` GC policy; recreate the builder in a maintenance window.
+- Regression tests: the exact `buildx create` argument vector, and the flags-off smoke matrix
+  (static, React, Vue, Express, Node, rollback, failure cases) before and after.
+- Rollback: `docker buildx rm hellodeploy-builder`; the worker recreates it with the previous
+  options on its next start (`ensureBuildBuilder`).
+
+## 11. Phase B implementation (2026-10-23, `feat/builder-control`)
+
+Everything below is off unless `BUILDER_CONTROL_ENABLED=true`, which production does not set.
+No BuildKit was installed or started, no pilot flag was enabled, and no production
+configuration changed.
+
+**Shared rules** (`packages/contracts/src/builder-control.js`): builder states and control
+actions; `BUILDER_LIMITS` (the code-constant thresholds); `evaluateBuilderAdmission` and
+`evaluateBuilderPressure`, which fail closed on missing readings; `evaluateBuilderEligibility`
+(owner images refused, administrator-owned projects only, database allowlist required);
+`isIsolatedBuilderEndpoint`; settings normalization that defaults to every runtime off.
+
+**Worker** (`apps/worker/src/builder/`):
+
+- `builder-controller.js`: the state machine, admission before start and before every build, a
+  build lease with an abort signal, monitoring every 5 s (memory, memory pressure, disk, unit
+  health, a watchdog at timeout + 60 s), idle shutdown that never stops a running build, Stop
+  that refuses during a build, Emergency Stop that cancels and SIGKILLs, reconciliation after a
+  restart, and re-reading the requester's role from the database for every control job.
+- `unit-control.js`: `systemctl --no-ask-password start|stop|kill|is-active` for the one
+  configured unit. `host-resources.js`: `/proc/meminfo`, `/proc/pressure/memory`, `statfs`,
+  and the unit's cgroup `memory.current`. `interrupted-builds.js`: fails builder deployments
+  a crash left mid-build. `builder-runtime.js`: wiring, with 30 s timeouts on the builder and
+  registry probes.
+- `build.js`: the S1 check (`parseBuildxInspect`; `remote` driver at the configured,
+  isolated address) and cancellation of the build and push through an `AbortSignal`.
+- `build-deployment.job.js`: the builder gate runs before any clone, so a refused build frees
+  the deployment queue at once; only builder strategies take the on-demand path, with
+  `BUILDER_CONTROL_BUILDX_NAME`; legacy builds keep `BUILD_EXECUTOR` and `BUILD_BUILDER_NAME`.
+- `runtime.js`: a separate `builder-control` BullMQ consumer, a 15 s status tick that
+  publishes to Redis (`builder:status`, 120 s TTL), and startup reconciliation.
+- `config/env.js`: the `BUILDER_CONTROL_*` settings and their validation; pilot flags accept
+  builder control as their isolated build path.
+
+**Web:** `builder-control.service.js` (status read that fails closed when stale, settings
+capped by the environment, control requests, the deployment gate called before queueing in
+`createDeployment` and `retryDeployment`), `builder-control.controller.js`, `/admin/builder`
+routes (404 while disabled), the Build Service page, a Server-page card, and a sidebar link.
+
+**Failure codes:** `BUILDER_OFFLINE`, `BUILDER_INSUFFICIENT_RESOURCES`,
+`BUILDER_PROJECT_NOT_ALLOWED`, `BUILD_CANCELLED`, `WORKER_INTERRUPTED`, each with
+plain-language copy.
+
+**What Phase B cannot prove** (Phase C, live): that the systemd caps hold under a real build;
+that the polkit rule admits only this unit and only the worker; that the builder user cannot
+reach the Docker socket, Redis, MongoDB or the nginx helper; real `buildx inspect` output for a
+rootless remote builder; GHCR push, pull and deletion for `4hprojects/hellodeploy-builds`;
+and peak build memory per framework.
+
+### Updated resource estimates
+
+| Item                   | Estimate                                                          | Basis                                                   |
+| ---------------------- | ----------------------------------------------------------------- | ------------------------------------------------------- |
+| Builder idle           | about 60–100 MB (buildkitd, rootlesskit, slirp4netns)             | upstream rootless BuildKit; to be measured in Phase C   |
+| Builder during a build | capped at 1,536 MB, no swap                                       | systemd `MemoryMax`/`MemorySwapMax`                     |
+| Admission needs        | 2,560 MB available, 512 MB free swap, 20 GB disk, 5 GB cache free | `BUILDER_LIMITS`                                        |
+| Today's host           | 1,284 MB available, swap 0 MB free after the leftover removal     | measured 2026-10-23; **every start would be refused**   |
+| Practical prerequisite | about 1.3 GB more available memory, mostly the desktop session    | VS Code, Chrome and Claude hold about 3 GB              |
+| Next.js standard build | likely 700 MB–1.3 GB                                              | unmeasured; first Phase C measurement                   |
+| Java (Gradle/Maven)    | may exceed 1.5 GB                                                 | unmeasured; may need a higher cap or must stay disabled |
+| Disk                   | 30 GB fixed store image, out of 801 GB free                       | no effect on app storage                                |

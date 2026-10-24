@@ -172,12 +172,35 @@ describe('ensureBuildBuilder', () => {
   });
 });
 
+/** `docker buildx inspect` output for a builder with the given driver and node address. */
+function inspectOutput(driver, endpoint) {
+  return [
+    'Name:          remote-builder',
+    `Driver:        ${driver}`,
+    '',
+    'Nodes:',
+    'Name:                  remote-builder0',
+    `Endpoint:              ${endpoint}`,
+    'Driver Options:        memory="1024m"',
+    'Status:                running',
+  ].join('\n');
+}
+
+const BUILDER_SOCKET = 'unix:///run/hellodeploy-builder/buildkitd.sock';
+
+function inspectRun(driver, endpoint) {
+  return async () => ({ code: 0, stdout: inspectOutput(driver, endpoint), stderr: '' });
+}
+
 describe('verifyRemoteBuildBuilder', () => {
   it('bootstraps only the configured remote builder', async () => {
     const commands = [];
     assert.deepEqual(
       await verifyRemoteBuildBuilder('remote-builder', {
-        run: async (args) => (commands.push(args), { code: 0, stderr: '' }),
+        run: async (args) => (
+          commands.push(args),
+          { code: 0, stdout: inspectOutput('remote', BUILDER_SOCKET), stderr: '' }
+        ),
       }),
       { ready: true },
     );
@@ -193,6 +216,56 @@ describe('verifyRemoteBuildBuilder', () => {
       /TLS handshake failed/,
     );
     assert.equal(commands.length, 1);
+  });
+
+  // S1: a builder that merely has the configured name must not pass.
+  it('refuses a docker-container builder on the production Docker daemon', async () => {
+    await assert.rejects(
+      verifyRemoteBuildBuilder('remote-builder', {
+        run: inspectRun('docker-container', 'unix:///var/run/docker.sock'),
+      }),
+      /uses the docker-container driver; only a remote BuildKit builder is allowed/,
+    );
+  });
+
+  it('refuses a remote-driver builder pointed at the Docker daemon socket', async () => {
+    await assert.rejects(
+      verifyRemoteBuildBuilder('remote-builder', {
+        run: inspectRun('remote', 'unix:///var/run/docker.sock'),
+      }),
+      /does not point at an isolated BuildKit address/,
+    );
+  });
+
+  it('refuses a remote builder at a different address than configured', async () => {
+    await assert.rejects(
+      verifyRemoteBuildBuilder(
+        'remote-builder',
+        { run: inspectRun('remote', 'unix:///run/other/buildkitd.sock') },
+        { expectedEndpoint: BUILDER_SOCKET },
+      ),
+      /does not point at the configured BuildKit address/,
+    );
+  });
+
+  it('accepts the remote builder at the configured socket', async () => {
+    assert.deepEqual(
+      await verifyRemoteBuildBuilder(
+        'remote-builder',
+        { run: inspectRun('remote', BUILDER_SOCKET) },
+        { expectedEndpoint: BUILDER_SOCKET },
+      ),
+      { ready: true },
+    );
+  });
+
+  it('accepts a mutually authenticated TCP remote builder', async () => {
+    assert.deepEqual(
+      await verifyRemoteBuildBuilder('remote-builder', {
+        run: inspectRun('remote', 'tcp://builder.internal:1234'),
+      }),
+      { ready: true },
+    );
   });
 });
 

@@ -3,6 +3,7 @@ import {
   createRedisConnection,
   createDeploymentQueue,
   createNotificationQueue,
+  createBuilderControlQueue,
 } from '@hellodeploy/queue';
 import { env } from '../config/env.js';
 import { logger } from '@hellodeploy/observability';
@@ -10,6 +11,7 @@ import { logger } from '@hellodeploy/observability';
 let _redis = null;
 let _queue = null;
 let _notificationQueue = null;
+let _builderControlQueue = null;
 
 /**
  * Returns the shared web Redis connection, creating it lazily on first call.
@@ -82,10 +84,32 @@ export function getNotificationQueue() {
   }
 }
 
+/** The builder-control queue, or null without Redis or with builder control off. */
+export function getBuilderControlQueue() {
+  if (_builderControlQueue) {
+    return _builderControlQueue;
+  }
+  const redis = env.BUILDER_CONTROL_ENABLED ? getRedisConnection() : null;
+  if (!redis) {
+    return null;
+  }
+  try {
+    _builderControlQueue = createBuilderControlQueue(redis);
+    return _builderControlQueue;
+  } catch (err) {
+    logger.warn('Could not initialize builder control queue', { error: classifyRedisError(err) });
+    return null;
+  }
+}
+
 /**
  * Gracefully close the queue and Redis connection on shutdown.
  */
 export async function closeDeploymentQueue() {
+  if (_builderControlQueue) {
+    await _builderControlQueue.close();
+    _builderControlQueue = null;
+  }
   if (_notificationQueue) {
     await _notificationQueue.close();
     _notificationQueue = null;

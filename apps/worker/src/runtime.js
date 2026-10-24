@@ -11,9 +11,10 @@ import {
   createDeploymentWorker,
   createNotificationQueue,
   createNotificationWorker,
+  createBuilderControlWorker,
   classifyRedisError,
 } from '@hellodeploy/queue';
-import { JobType, validateJobPayload } from '@hellodeploy/contracts';
+import { BUILDER_STATUS_PUBLISH_MS, JobType, validateJobPayload } from '@hellodeploy/contracts';
 import { logger, configureAuditService } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { guardWorkerDatabase } from './config/database-guard.js';
@@ -41,6 +42,9 @@ import {
   CONTAINER_UPTIME_SWEEP_MS,
 } from './deployment/container-uptime-sweep.js';
 import { setNotificationQueue } from './queue/notification-queue.js';
+import { createBuilderRuntime } from './builder/builder-runtime.js';
+import { setBuilderController } from './builder/builder-registry.js';
+import { failInterruptedBuilderDeployments } from './builder/interrupted-builds.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
   nodeEnv: env.NODE_ENV,
@@ -171,6 +175,41 @@ async function processJob(job) {
   }
 }
 
+// ── On-demand builder (off unless BUILDER_CONTROL_ENABLED) ─────────────────────
+// Its control queue has its own consumer, so Start, Stop and Emergency Stop are
+// handled while the deployment worker is busy with a build.
+let builderControlWorker = null;
+let builderTickInterval = null;
+if (env.BUILDER_CONTROL_ENABLED) {
+  const builderController = createBuilderRuntime({ redis, logger });
+  setBuilderController(builderController);
+  // Counted before this worker connects: any worker found now may own a build.
+  if ((await queue.getWorkersCount()) === 0) {
+    const interrupted = await failInterruptedBuilderDeployments();
+    if (interrupted > 0) {
+      logger.warn('Worker: failed builds interrupted by a restart', { interrupted });
+    }
+  }
+  await builderController.reconcile();
+  builderTickInterval = setInterval(
+    () =>
+      builderController
+        .tick()
+        .catch((err) => logger.error('Worker: builder status tick failed', { error: err.message })),
+    BUILDER_STATUS_PUBLISH_MS,
+  );
+  builderTickInterval.unref();
+  builderControlWorker = createBuilderControlWorker(redis, async (job) => {
+    const result = await builderController.handleControlJob(job.data);
+    logger.info('Worker: builder control request handled', {
+      action: job.data?.action,
+      ok: result.ok,
+    });
+    return result;
+  });
+  logger.info('Worker: builder control enabled', { unit: env.BUILDER_CONTROL_UNIT });
+}
+
 const worker = createDeploymentWorker(redis, processJob, env.WORKER_CONCURRENCY);
 const notificationWorker = createNotificationWorker(
   redis,
@@ -244,8 +283,9 @@ logger.info('Worker: ready — listening for jobs');
 // ── Graceful shutdown ──────────────────────────────────────────────────────────
 
 const shutdown = createGracefulWorkerShutdown({
-  workers: [worker, notificationWorker],
+  workers: [worker, notificationWorker, ...(builderControlWorker ? [builderControlWorker] : [])],
   closeRedis: async () => {
+    clearInterval(builderTickInterval);
     clearInterval(notificationSweepInterval);
     clearInterval(studyArchiveInterval);
     clearInterval(containerUptimeInterval);
