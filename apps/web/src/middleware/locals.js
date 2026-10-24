@@ -37,6 +37,7 @@ export function localsMiddleware(req, res, next) {
   res.locals.turnstileSiteKey = env.TURNSTILE_SITE_KEY ?? '';
   res.locals.googleAuthEnabled = env.isGoogleAuthConfigured();
   res.locals.isStrategyEnabledFor = env.isStrategyEnabledFor;
+  res.locals.builderControlEnabled = env.BUILDER_CONTROL_ENABLED;
   res.locals.statusPresentation = getStatusPresentation;
   res.locals.assetPath = assetPath;
   res.locals.pageMetadata =

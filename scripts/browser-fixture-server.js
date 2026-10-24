@@ -14,6 +14,9 @@ process.env.SESSION_SECRET = 'browser-fixture-session-secret';
 // both values explicitly so dotenv cannot inherit configured developer keys.
 process.env.TURNSTILE_SITE_KEY = '';
 process.env.TURNSTILE_SECRET_KEY = '';
+// The admin Build Service page is checked for accessibility; with no Redis it
+// shows the builder as not reporting, and nothing can start one.
+process.env.BUILDER_CONTROL_ENABLED = 'true';
 
 const { mkdir, rm } = await import('node:fs/promises');
 const { join } = await import('node:path');

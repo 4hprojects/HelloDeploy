@@ -24,6 +24,7 @@ import { getLatestCommit, getPublicGithubLatestCommit } from './github.service.j
 import { recordProductEvent } from './product-analytics.service.js';
 import { checkDeploymentQuota } from './quota.service.js';
 import { env } from '../config/env.js';
+import { checkBuilderDeploymentGate } from './builder-control.service.js';
 
 const DEPLOYMENT_QUEUE_UNAVAILABLE_COPY =
   'Deployment queue is unavailable. Ask an administrator to check Redis and worker health, then try again.';
@@ -258,6 +259,10 @@ export async function createDeployment({
   if (strategyError) {
     return { success: false, error: strategyError };
   }
+  const builderError = await checkBuilderDeploymentGate(project);
+  if (builderError) {
+    return { success: false, error: builderError };
+  }
 
   const quotaRefusal = await checkDeploymentQuota(project);
   if (quotaRefusal) {
@@ -475,6 +480,10 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
   const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
   if (strategyError) {
     return { success: false, error: strategyError };
+  }
+  const builderError = await checkBuilderDeploymentGate(project);
+  if (builderError) {
+    return { success: false, error: builderError };
   }
 
   const repo = await Repository.findById(project.repositoryId).lean();

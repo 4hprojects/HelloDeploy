@@ -278,6 +278,31 @@ The same isolated setup as the #119 run, on the #120 head (`2181331`), with ever
 | `dockerfile_v1` project deployed from the web service  | Refused: "The selected deployment mode is not enabled for this project." |
 | `dockerfile_v1` job queued directly with a v2 snapshot | `BUILD_STRATEGY_DISABLED`, no build started                              |
 
+## 2026-10-24 Builder control, Phase B (`feat/builder-control`)
+
+All with `DOTENV_CONFIG_PATH=/dev/null NODE_ENV=test` and Cloudflare variables blank; every
+system boundary (systemd, BuildKit, registry, `/proc`, clock) was faked. Nothing was installed or
+started on the host.
+
+| Area                                                             | File                                           | Result |
+| ---------------------------------------------------------------- | ---------------------------------------------- | ------ |
+| Eligibility, admission boundaries, pressure, endpoints, settings | `tests/contracts/builder-control.test.js`      | 30/30  |
+| State machine, authorization, leases, monitor, watchdog, idle    | `tests/worker/builder-controller.test.js`      | 37/37  |
+| Resource readers, systemd wrapper, crash reconciliation          | `tests/worker/builder-host.test.js`            | 10/10  |
+| Build-job gate, legacy path unchanged, cancellation              | `tests/worker/builder-gated-build.job.test.js` | 13/13  |
+| S1 builder isolation check (with the updated existing tests)     | `tests/worker/build-args.test.js`              | 20/20  |
+| Configuration validation                                         | `tests/config/builder-control-env.test.js`     | 9/9    |
+| Web requests, settings ceiling, deployment gate, page            | `tests/admin/builder-control.test.js`          | 24/24  |
+
+- Changed-area suites (worker, deployment, admin, config, contracts, UI, security, projects):
+  1,757/1,757 with `--test-concurrency=3`. A first attempt at full concurrency failed with
+  "Disk quota exceeded": `/tmp` is a RAM-backed 3.6 GB tmpfs, and 10 stale
+  `mongo-mem-*` directories (1.7 GB) from earlier test runs had filled it. They were removed.
+- Playwright: the admin matrix, now including `/admin/builder` with an axe scan, passed twice
+  (35 s and 32 s) after its timeout was raised to 90 s; it had exceeded the 30 s default on this
+  memory-constrained host.
+- `npm run lint` and Prettier on the changed paths are clean.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

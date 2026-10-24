@@ -68,6 +68,14 @@ const phpPilot = parsePilotFlag('MULTIRUNTIME_PHP_V1');
 const javaPilot = parsePilotFlag('MULTIRUNTIME_JAVA_V1');
 const dockerfilePilot = parsePilotFlag('MULTIRUNTIME_DOCKERFILE_V1');
 const ociPilot = parsePilotFlag('MULTIRUNTIME_OCI_V1');
+// The on-demand builder that administrators start and stop. The web only reads
+// its status and queues requests; the worker owns it.
+const builderControlEnabled = optional('BUILDER_CONTROL_ENABLED', 'false') === 'true';
+if (builderControlEnabled && (dockerfilePilot.enabled || ociPilot.enabled)) {
+  throw new ConfigurationError(
+    'BUILDER_CONTROL_ENABLED must not be combined with MULTIRUNTIME_DOCKERFILE_V1_ENABLED or MULTIRUNTIME_OCI_V1_ENABLED.',
+  );
+}
 
 assertPairedEnvironment(
   'GOOGLE_CLIENT_ID',
@@ -216,6 +224,7 @@ export const env = {
   MULTIRUNTIME_DOCKERFILE_V1_PROJECT_IDS: dockerfilePilot.projectIds,
   MULTIRUNTIME_OCI_V1_ENABLED: ociPilot.enabled,
   MULTIRUNTIME_OCI_V1_PROJECT_IDS: ociPilot.projectIds,
+  BUILDER_CONTROL_ENABLED: builderControlEnabled,
   QUOTA_MAX_MEMORY_MB: quotaMaxMemoryMb,
   QUOTA_MAX_CPU_CORES: quotaMaxCpuCores,
 
@@ -234,6 +243,8 @@ export const env = {
       process.env.GITHUB_APP_NAME &&
       (process.env.GITHUB_APP_PRIVATE_KEY_PATH || process.env.GITHUB_APP_PRIVATE_KEY)
     ),
+  /** The environment ceiling for each on-demand builder runtime family. */
+  builderPilots: { next: nextPilot, python: pythonPilot, php: phpPilot, java: javaPilot },
   isStrategyEnabledFor: (strategy, projectId) =>
     isPilotStrategyEnabledFor(strategy, projectId, {
       next: nextPilot,
