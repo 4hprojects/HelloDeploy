@@ -113,6 +113,27 @@ export const DEPLOYMENT_FAILURE_COPY = Object.freeze({
     message: 'This deployment mode is not enabled for the project.',
     action: 'Choose the legacy mode or ask an administrator to enable the project pilot.',
   },
+  BUILDER_OFFLINE: {
+    message: 'The build service for this runtime is turned off.',
+    action: 'Ask a platform administrator to start the build service, then deploy again.',
+  },
+  BUILDER_INSUFFICIENT_RESOURCES: {
+    message:
+      'The server is too busy to build this app safely right now, so the build did not start.',
+    action: 'Try again later. Apps that are already running are not affected.',
+  },
+  BUILDER_PROJECT_NOT_ALLOWED: {
+    message: 'This project is not allowed to use the build service for its runtime.',
+    action: 'Ask a platform administrator to review the build service permissions.',
+  },
+  BUILD_CANCELLED: {
+    message: 'The build was stopped before it finished. Your running app was not changed.',
+    action: 'Deploy again when the build service is available.',
+  },
+  WORKER_INTERRUPTED: {
+    message: 'HelloDeploy restarted while this deployment was building.',
+    action: TRY_AGAIN_ACTION,
+  },
   CONFIGURATION_CHANGED: {
     message: 'The project configuration changed while this deployment was running.',
     action: 'Start a new deployment so it uses the latest environment settings.',

@@ -101,6 +101,10 @@ for (const width of [320, 1440]) {
 test('authentication, dashboard, project, deployment, settings, and admin matrices', async ({
   page,
 }) => {
+  // One signed-in walk through every main and admin page (sign-ins are rate
+  // limited across the spec), with several axe scans; it needs more than the
+  // default 30 s on a busy machine.
+  test.setTimeout(90_000);
   await signIn(page);
   await expect(page).toHaveURL(/\/dashboard$/);
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
@@ -163,6 +167,17 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByText('IP address').first()).toBeVisible();
   const auditAxe = await new AxeBuilder({ page }).analyze();
   expect(auditAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+
+  // Without a reporting worker the build service shows as not reporting; its
+  // controls stay reachable to a super administrator.
+  await page.goto('/admin/builder');
+  await expect(page.getByRole('heading', { name: 'Build Service', level: 1 })).toBeVisible();
+  await expect(page.getByText('Not reporting')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Emergency Stop' })).toBeVisible();
+  const builderAxe = await new AxeBuilder({ page }).analyze();
+  expect(builderAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+
+  await page.goto('/admin/audit-events');
   await page.setViewportSize({ width: 320, height: 900 });
   const auditOverflow = await page.evaluate(
     () =>

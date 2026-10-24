@@ -35,9 +35,11 @@ Keep this file short. Put evidence in the worklog, not here.
 **2026-10-23: the owner chose to plan an on-demand builder that administrators control, with no new
 VPS.** The Phase A design is in
 [BUILDER_CONTROL_DESIGN.md](multi-runtime/BUILDER_CONTROL_DESIGN.md). It recommends a
-restricted rootless builder on this host for generated templates only. Phase B (the admin interface,
-lifecycle controls and tests) waits for the owner's answers to its section 9 decisions. The
-host-option notes below predate that design.
+restricted rootless builder on this host for generated templates only. The owner approved it with
+conditions; Phase B (the admin interface, lifecycle controls and tests) is implemented on
+`feat/builder-control` (#142, not merged). **Next: owner approval for Phase C**, the host install
+and isolated tests. Today's host memory would refuse every build until about 1.3 GB more is free.
+The host-option notes below predate that design.
 
 When you're ready:
 

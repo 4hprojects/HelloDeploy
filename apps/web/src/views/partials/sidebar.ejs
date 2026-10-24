@@ -113,6 +113,18 @@
           <span>Server</span>
         </a>
       </li>
+      <% if (locals.builderControlEnabled) { %>
+      <li>
+        <a
+          href="/admin/builder"
+          class="sidebar__link"
+          <%- currentPath.startsWith('/admin/builder') ? 'aria-current="page"' : '' %>
+        >
+          <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
+          <span>Build Service</span>
+        </a>
+      </li>
+      <% } %>
       <li><a href="/admin/ux-metrics" class="sidebar__link" <%- currentPath.startsWith('/admin/ux-metrics') ? 'aria-current="page"' : '' %>><%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %><span>UX Metrics</span></a></li>
     </ul>
   </div>

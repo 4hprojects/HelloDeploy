@@ -170,6 +170,22 @@
   </div>
 </div>
 
+<% if (locals.builderControlEnabled) { %>
+<!-- On-demand build service -->
+<div class="card mb-6">
+  <div class="card__header">
+    <h2 class="card__title">Build Service</h2>
+  </div>
+  <div class="card__body">
+    <p class="text-sm">
+      The isolated builder for Next.js, Python, PHP and Java test projects starts only when a super
+      administrator starts it. Node.js deployments never use it.
+      <a href="/admin/builder">Open the Build Service page</a>.
+    </p>
+  </div>
+</div>
+<% } %>
+
 <!-- Queue management -->
 <div class="card mb-6">
   <div class="card__header">
