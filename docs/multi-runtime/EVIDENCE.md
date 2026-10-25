@@ -390,6 +390,12 @@ permitted`). It was removed (`a44aaef`); a build step now runs.
   misleading. This is existing remote-path wording; it is listed as a follow-up.
 - After cleanup, the package holds only `hellodeploy-anchor`.
 
+## 2026-10-25 Builder control, Phase C: final reinstall
+
+After the `SuccessExitStatus=1` and probe fixes, the owner reinstalled the unit and reran
+`verify-builder.sh`: **all 36 checks passed**, including a rootless build step and HTTPS
+egress. A normal Stop now leaves the unit `inactive` (`Result=success`), not `failed`.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

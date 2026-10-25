@@ -351,7 +351,8 @@ infrastructure. A failed start was covered by the unit tests and the S1 check, n
 
 1. ~~Fix the referrers fallback leak~~: done (cleanup deletes untagged indexes whose every
    listed manifest is gone; verified live on GHCR).
-2. Reinstall the unit once more for `SuccessExitStatus=1` and rerun `verify-builder.sh`.
+2. ~~Reinstall the unit for `SuccessExitStatus=1`~~: done; `verify-builder.sh` passed all
+   36 checks.
 3. The production worker gains the builder groups only at its next restart (polkit checks the
    process's own groups); activation therefore happens through a normal `upgrade.sh` restart.
 4. `REGISTRY_DELETE_API=github-packages`, `GHCR_PACKAGES_OWNER_TYPE=user`, a long-lived worker
