@@ -82,9 +82,11 @@ restore_env() {
     printf 'Restored %s from %s.\n' "$ENV_FILE" "$BACKUP" >&2
   fi
 }
-# Both service identities must still be able to read .env.
+# Both service identities must still be able to read .env. Run from HD_HOME:
+# the service users cannot enter the operator's home directory.
 services_can_read_env() {
-  sudo -u hellodeploy-web test -r "$ENV_FILE" && sudo -u "$WORKER_USER" test -r "$ENV_FILE"
+  (cd "$HD_HOME" && runuser -u hellodeploy-web -- test -r "$ENV_FILE" &&
+    runuser -u "$WORKER_USER" -- test -r "$ENV_FILE")
 }
 resume_queue() {
   if [[ -n "$QUEUE_STATE_FILE" && -f "$QUEUE_STATE_FILE" ]]; then
@@ -163,7 +165,8 @@ systemctl is-active --quiet hellodeploy-worker || CHECKS_OK=false
 systemctl is-active --quiet hellodeploy-web || CHECKS_OK=false
 # Read into variables first: under pipefail, `journalctl | grep -q` fails
 # whenever grep exits before journalctl finishes writing.
-WORKER_GROUPS="$(grep -E '^Groups:' "/proc/$WORKER_PID/status" 2>/dev/null || true)"
+# The numeric list after "Groups:" (a tab follows the label, so it is dropped).
+WORKER_GROUPS="$(awk '/^Groups:/ { $1 = ""; print }' "/proc/$WORKER_PID/status" 2>/dev/null || true)"
 [[ " $WORKER_GROUPS " == *" $CONTROL_GID "* ]] || CHECKS_OK=false
 WORKER_LOG="$(journalctl -u hellodeploy-worker --since "$RESTARTED_AT" --no-pager 2>/dev/null || true)"
 [[ "$WORKER_LOG" == *"builder control enabled"* ]] || CHECKS_OK=false

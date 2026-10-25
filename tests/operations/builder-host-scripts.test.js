@@ -253,11 +253,17 @@ describe('builder control activation recovery', () => {
     assert.match(activate, /journalctl -u hellodeploy-worker --since "\$RESTARTED_AT"/);
   });
 
-  it('confirms both services can still read .env after a restore', () => {
+  it('confirms both services can still read .env after a restore, from HD_HOME', () => {
     assert.match(
       activate,
-      /sudo -u hellodeploy-web test -r "\$ENV_FILE" && sudo -u "\$WORKER_USER" test -r "\$ENV_FILE"/,
+      /\(cd "\$HD_HOME" && runuser -u hellodeploy-web -- test -r "\$ENV_FILE"/,
     );
+  });
+
+  // Seen live 2026-10-26: "Groups:" is followed by a tab, so a space-delimited
+  // match missed the first group, which was the builder control group.
+  it('reads the worker groups without the tab after the label', () => {
+    assert.match(activate, /awk '\/\^Groups:\/ \{ \$1 = ""; print \}'/);
   });
 });
 
