@@ -72,6 +72,15 @@ check "BuildKit socket exists" test -S "$SOCKET"
 check "BuildKit answers on its socket" \
   runuser -u "$WORKER_USER" -g "$BUILDER_USER" -- /usr/local/lib/hellodeploy-builder/bin/buildctl \
   --addr "unix://$SOCKET" debug workers
+PROBE_DIR="$(mktemp -d /tmp/hellodeploy-builder-probe.XXXXXX)"
+chmod 0755 "$PROBE_DIR"
+printf 'FROM alpine:3.20\nRUN echo build-ok\n' >"$PROBE_DIR/Dockerfile"
+check "a build can run a command in a rootless container" \
+  runuser -u "$WORKER_USER" -g "$BUILDER_USER" -- timeout 180 \
+  /usr/local/lib/hellodeploy-builder/bin/buildctl --addr "unix://$SOCKET" build \
+  --frontend dockerfile.v0 --local "context=$PROBE_DIR" --local "dockerfile=$PROBE_DIR"
+rm "$PROBE_DIR/Dockerfile"
+rmdir "$PROBE_DIR"
 
 echo "== Resource caps (cgroup)"
 [[ "$(cat "$CGROUP/memory.max" 2>/dev/null)" == "$((1536 * 1024 * 1024))" ]] &&

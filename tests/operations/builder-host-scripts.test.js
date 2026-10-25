@@ -44,6 +44,11 @@ describe('builder unit', () => {
     assert.doesNotMatch(unit, /^\[Install\]/m);
   });
 
+  // Found live: the /proc mask stops rootless runc from starting any build step.
+  it('leaves kernel-log protection off so build containers can mount /proc', () => {
+    assert.doesNotMatch(unit, /^ProtectKernelLogs=yes$/m);
+  });
+
   it('runs as the unprivileged builder user', () => {
     assert.match(unit, /^User=hellodeploy-builder$/m);
   });

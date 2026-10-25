@@ -45,6 +45,7 @@ ReadWritePaths=/var/lib/hellodeploy-builder
 ProtectHome=yes
 PrivateTmp=yes
 ProtectKernelModules=yes
-ProtectKernelLogs=yes
+# ProtectKernelLogs stays off: it masks /proc/kmsg, and the kernel then refuses
+# the fresh /proc that rootless runc mounts in every build container.
 ProtectClock=yes
 LockPersonality=yes
