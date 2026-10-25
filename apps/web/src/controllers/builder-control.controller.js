@@ -9,7 +9,9 @@ import {
 
 import { env } from '../config/env.js';
 import {
+  getBuilderLiveStatus,
   getBuilderPageData,
+  presentBuilderStatus,
   requestBuilderAction,
   updateBuilderSettings,
 } from '../services/builder-control.service.js';
@@ -38,11 +40,22 @@ export const getAdminBuilder = asyncHandler(async (req, res) => {
   res.render('pages/admin/builder', {
     title: 'Build Service',
     ...data,
+    view: presentBuilderStatus({
+      status: data.status,
+      isFresh: data.isFresh,
+      idleMinutes: data.settings.idleMinutes,
+    }),
     runtimeFamilies: BUILDER_RUNTIME_FAMILIES,
     runtimeLabels: BUILDER_RUNTIME_LABELS,
     idleBounds: { min: MIN_BUILDER_IDLE_MINUTES, max: MAX_BUILDER_IDLE_MINUTES },
     isSuperAdmin: req.session.user.platformRole === PlatformRole.SUPER_ADMIN,
   });
+});
+
+/** The page's live status; it holds no credentials, only what the page shows. */
+export const getAdminBuilderStatus = asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  res.json(await getBuilderLiveStatus());
 });
 
 function createActionHandler(action) {

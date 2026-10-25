@@ -1,56 +1,37 @@
 <%
-  const state = isFresh ? status?.state : null;
-  const stateLabels = {
-    STOPPED: 'Stopped', STARTING: 'Starting', READY: 'Ready', BUILDING: 'Building',
-    STOPPING: 'Stopping', FAILED: 'Failed',
-  };
-  const stateBadges = {
-    STOPPED: 'badge--neutral', STARTING: 'badge--warning', READY: 'badge--success',
-    BUILDING: 'badge--warning', STOPPING: 'badge--warning', FAILED: 'badge--danger',
-  };
+  const f = view.fields;
+  const limits = view.limits;
   const formatTime = (value) => value ? new Date(value).toLocaleString('en-GB') : '—';
-  const resources = status?.resources;
-  const limits = status?.limits;
 %>
+<div data-builder-status-url="/admin/builder/status">
+<p class="sr-only" aria-live="polite" data-builder-live></p>
 <div class="page-header">
   <h1 class="page-header__title">Build Service</h1>
   <p class="page-header__subtitle text-muted text-sm">
     An isolated builder for administrator-owned Next.js, Python, PHP and Java test projects. It
     runs only while a super administrator has it started. Node.js deployments never use it.
+    This page updates itself every few seconds.
   </p>
 </div>
 
 <section class="card mb-6" aria-labelledby="builder-status-title">
   <div class="card__header">
     <h2 class="card__title" id="builder-status-title">Status</h2>
-    <span class="badge <%= state ? stateBadges[state] : 'badge--danger' %>">
-      <%= state ? stateLabels[state] : 'Not reporting' %>
-    </span>
+    <span class="badge <%= view.state.badge %>" data-builder-badge="state"><%= view.state.label %></span>
   </div>
   <div class="card__body">
-    <% if (!isFresh) { %>
-    <p class="text-sm mb-4">
+    <p class="text-sm mb-4" data-builder-show="notReporting" <%= view.show.notReporting ? '' : 'hidden' %>>
       The worker has not reported the build service's status in the last minute, so new builds
       are refused. Check that the deployment worker and Redis are running.
     </p>
-    <% } %>
-    <% if (status?.lastError) { %>
-    <p class="text-sm mb-4"><strong>Last problem:</strong> <%= status.lastError %></p>
-    <% } %>
+    <p class="text-sm mb-4" data-builder-show="lastError" <%= view.show.lastError ? '' : 'hidden' %>>
+      <strong>Last problem:</strong> <span data-builder-field="lastError"><%= f.lastError %></span>
+    </p>
     <dl class="detail-list">
-      <dt>Running since</dt><dd><%= formatTime(status?.startedAt) %></dd>
-      <dt>Idle shutdown</dt>
-      <dd>
-        After <%= settings.idleMinutes %> minutes without a build<%= status?.idleStopAt ? ' (next: ' + formatTime(status.idleStopAt) + ')' : '' %>.
-        A running build is never stopped by idle shutdown.
-      </dd>
-      <dt>Active build</dt>
-      <dd>
-        <% if (status?.activeBuild) { %>
-          Deployment <code class="code-inline"><%= status.activeBuild.deploymentId %></code>, started <%= formatTime(status.activeBuild.startedAt) %>
-        <% } else { %>None<% } %>
-      </dd>
-      <dt>Reported</dt><dd><%= formatTime(status?.updatedAt) %></dd>
+      <dt>Running since</dt><dd data-builder-field="runningSince"><%= f.runningSince %></dd>
+      <dt>Idle shutdown</dt><dd data-builder-field="idleShutdown"><%= f.idleShutdown %></dd>
+      <dt>Active build</dt><dd data-builder-field="activeBuild"><%= f.activeBuild %></dd>
+      <dt>Reported</dt><dd data-builder-field="reported"><%= f.reported %></dd>
     </dl>
   </div>
 </section>
@@ -106,39 +87,36 @@
     <h2 class="card__title" id="builder-resources-title">Resources</h2>
   </div>
   <div class="card__body">
-    <% if (!resources) { %>
-    <p class="text-muted text-sm">No resource reading yet.</p>
-    <% } else { %>
-    <dl class="detail-list">
-      <dt>Available memory</dt><dd><%= resources.memAvailableMb %> MB (a start or build needs <%= limits.memoryMaxMb + limits.hostReserveMb %> MB)</dd>
-      <dt>Free swap</dt><dd><%= resources.swapFreeMb %> of <%= resources.swapTotalMb %> MB (needs <%= limits.minSwapFreeMb %> MB)</dd>
-      <dt>Memory pressure (60 s)</dt><dd><%= resources.memoryPressureSome60 %>% (must be below <%= limits.maxMemoryPressureSome60 %>%)</dd>
-      <dt>Free disk</dt><dd><%= resources.diskFreeGb %> GB (needs <%= limits.minDiskFreeGb %> GB)</dd>
-      <dt>Build cache free</dt><dd><%= resources.storeFreeGb ?? 'Unavailable' %><%= resources.storeFreeGb === null ? '' : ' GB' %> (needs <%= limits.minStoreFreeGb %> GB)</dd>
-      <dt>Build service memory</dt><dd><%= resources.builderMemoryMb ?? '—' %><%= resources.builderMemoryMb === null ? '' : ' MB' %> of <%= limits.memoryMaxMb %> MB</dd>
-      <dt>Read at</dt><dd><%= formatTime(resources.sampledAt) %></dd>
-    </dl>
-    <p class="form-hint mt-4">
-      These thresholds are fixed in code. A running build is cancelled if available memory falls
-      below <%= limits.abortAvailableMb %> MB or free disk below <%= limits.abortDiskFreeGb %> GB.
-    </p>
-    <% } %>
+    <p class="text-muted text-sm" data-builder-show="noResources" <%= view.show.noResources ? '' : 'hidden' %>>No resource reading yet.</p>
+    <div data-builder-show="resources" <%= view.show.resources ? '' : 'hidden' %>>
+      <dl class="detail-list">
+        <dt>Available memory</dt><dd data-builder-field="memAvailable"><%= f.memAvailable %></dd>
+        <dt>Free swap</dt><dd data-builder-field="swap"><%= f.swap %></dd>
+        <dt>Memory pressure (60 s)</dt><dd data-builder-field="pressure"><%= f.pressure %></dd>
+        <dt>Free disk</dt><dd data-builder-field="disk"><%= f.disk %></dd>
+        <dt>Build cache free</dt><dd data-builder-field="store"><%= f.store %></dd>
+        <dt>Build service memory</dt><dd data-builder-field="builderMemory"><%= f.builderMemory %></dd>
+        <dt>Read at</dt><dd data-builder-field="readAt"><%= f.readAt %></dd>
+      </dl>
+      <% if (limits) { %>
+      <p class="form-hint mt-4">
+        These thresholds are fixed in code. A running build is cancelled if available memory falls
+        below <%= limits.abortAvailableMb %> MB or free disk below <%= limits.abortDiskFreeGb %> GB.
+      </p>
+      <% } %>
+    </div>
   </div>
 </section>
 
 <section class="card mb-6" aria-labelledby="builder-registry-title">
   <div class="card__header">
     <h2 class="card__title" id="builder-registry-title">Image registry</h2>
-    <span class="badge <%= status?.registry ? (status.registry.ok ? 'badge--success' : 'badge--danger') : 'badge--neutral' %>">
-      <%= status?.registry ? (status.registry.ok ? 'Reachable' : 'Unreachable') : 'Not checked' %>
-    </span>
+    <span class="badge <%= view.registry.badge %>" data-builder-badge="registry"><%= view.registry.label %></span>
   </div>
   <div class="card__body">
-    <% if (status?.registry) { %>
-    <p class="text-sm mb-4">
-      Checked <%= formatTime(status.registry.checkedAt) %>.<% if (status.registry.error) { %> <%= status.registry.error %><% } %>
+    <p class="text-sm mb-4" data-builder-show="registryDetail" <%= view.show.registryDetail ? '' : 'hidden' %>>
+      <span data-builder-field="registryDetail"><%= f.registryDetail %></span>
     </p>
-    <% } %>
     <form method="POST" action="/admin/builder/check-registry">
       <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--secondary">Check registry now</button>
@@ -272,3 +250,4 @@
     <% } %>
   </div>
 </section>
+</div>

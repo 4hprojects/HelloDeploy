@@ -304,3 +304,85 @@ export async function getBuilderPageData() {
 function toAuditVerb(action) {
   return action.replaceAll('-', '_');
 }
+
+const STATE_PRESENTATION = Object.freeze({
+  [BuilderState.STOPPED]: { label: 'Stopped', badge: 'badge--neutral' },
+  [BuilderState.STARTING]: { label: 'Starting', badge: 'badge--warning' },
+  [BuilderState.READY]: { label: 'Ready', badge: 'badge--success' },
+  [BuilderState.BUILDING]: { label: 'Building', badge: 'badge--warning' },
+  [BuilderState.STOPPING]: { label: 'Stopping', badge: 'badge--warning' },
+  [BuilderState.FAILED]: { label: 'Failed', badge: 'badge--danger' },
+});
+
+function formatTime(value) {
+  return value ? new Date(value).toLocaleString('en-GB') : '—';
+}
+
+function withUnit(value, unit) {
+  return value === null || value === undefined || Number.isNaN(value)
+    ? 'Unavailable'
+    : `${value} ${unit}`;
+}
+
+/**
+ * The text the Build Service page shows for a status record. The page renders
+ * it and its live updates reuse it, so the two never disagree.
+ */
+export function presentBuilderStatus({ status, isFresh, idleMinutes }) {
+  const state = (isFresh && STATE_PRESENTATION[status?.state]) || {
+    label: 'Not reporting',
+    badge: 'badge--danger',
+  };
+  const resources = status?.resources ?? null;
+  const limits = status?.limits ?? null;
+  const registry = status?.registry ?? null;
+  const fields = {
+    lastError: status?.lastError ?? '',
+    runningSince: formatTime(status?.startedAt),
+    idleShutdown: `After ${idleMinutes} minutes without a build${status?.idleStopAt ? ` (next: ${formatTime(status.idleStopAt)})` : ''}. A running build is never stopped by idle shutdown.`,
+    activeBuild: status?.activeBuild
+      ? `Deployment ${status.activeBuild.deploymentId}, started ${formatTime(status.activeBuild.startedAt)}`
+      : 'None',
+    reported: formatTime(status?.updatedAt),
+    registryDetail: registry
+      ? `Checked ${formatTime(registry.checkedAt)}.${registry.error ? ` ${registry.error}` : ''}`
+      : '',
+  };
+  if (resources && limits) {
+    Object.assign(fields, {
+      memAvailable: `${withUnit(resources.memAvailableMb, 'MB')} (a start or build needs ${limits.memoryMaxMb + limits.hostReserveMb} MB)`,
+      swap: `${resources.swapFreeMb} of ${resources.swapTotalMb} MB (needs ${limits.minSwapFreeMb} MB)`,
+      pressure: `${resources.memoryPressureSome60}% (must be below ${limits.maxMemoryPressureSome60}%)`,
+      disk: `${withUnit(resources.diskFreeGb, 'GB')} (needs ${limits.minDiskFreeGb} GB)`,
+      store: `${withUnit(resources.storeFreeGb, 'GB')} (needs ${limits.minStoreFreeGb} GB)`,
+      builderMemory: `${resources.builderMemoryMb ?? '—'}${resources.builderMemoryMb === null || resources.builderMemoryMb === undefined ? '' : ' MB'} of ${limits.memoryMaxMb} MB`,
+      readAt: formatTime(resources.sampledAt),
+    });
+  }
+  return {
+    state,
+    registry: registry
+      ? registry.ok
+        ? { label: 'Reachable', badge: 'badge--success' }
+        : { label: 'Unreachable', badge: 'badge--danger' }
+      : { label: 'Not checked', badge: 'badge--neutral' },
+    fields,
+    show: {
+      notReporting: !isFresh,
+      lastError: Boolean(status?.lastError),
+      resources: Boolean(resources && limits),
+      noResources: !(resources && limits),
+      registryDetail: Boolean(registry),
+    },
+    limits,
+  };
+}
+
+/** The live part of the Build Service page, for its polling. */
+export async function getBuilderLiveStatus() {
+  const [{ status, isFresh }, settings] = await Promise.all([
+    getBuilderStatus(),
+    getBuilderSettings(),
+  ]);
+  return presentBuilderStatus({ status, isFresh, idleMinutes: settings.idleMinutes });
+}

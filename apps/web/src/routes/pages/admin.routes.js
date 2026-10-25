@@ -41,6 +41,7 @@ import {
 } from '../../controllers/domain.controller.js';
 import {
   getAdminBuilder,
+  getAdminBuilderStatus,
   postBuilderCheckRegistry,
   postBuilderEmergencyStop,
   postBuilderSettings,
@@ -101,6 +102,7 @@ router.post('/server/maintenance/disable', requireSuperAdmin, postDisableMainten
 // administrators; anything that starts, stops or reconfigures it needs a super
 // administrator, and the worker checks the role again before acting.
 router.get('/builder', requireBuilderControl, getAdminBuilder);
+router.get('/builder/status', requireBuilderControl, getAdminBuilderStatus);
 router.post('/builder/check-registry', requireBuilderControl, postBuilderCheckRegistry);
 router.post('/builder/start', requireBuilderControl, requireSuperAdmin, postBuilderStart);
 router.post('/builder/stop', requireBuilderControl, requireSuperAdmin, postBuilderStop);

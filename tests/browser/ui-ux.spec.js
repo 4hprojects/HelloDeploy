@@ -174,6 +174,8 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('heading', { name: 'Build Service', level: 1 })).toBeVisible();
   await expect(page.getByText('Not reporting')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Emergency Stop' })).toBeVisible();
+  const builderStatus = await page.request.get('/admin/builder/status');
+  expect((await builderStatus.json()).state.label).toBe('Not reporting');
   const builderAxe = await new AxeBuilder({ page }).analyze();
   expect(builderAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
 

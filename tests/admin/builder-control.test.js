@@ -17,8 +17,12 @@ import {
 import { configureAuditService } from '@hellodeploy/observability';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
-const { checkBuilderDeploymentGate, requestBuilderAction, updateBuilderSettings } =
-  await import('../../apps/web/src/services/builder-control.service.js');
+const {
+  checkBuilderDeploymentGate,
+  presentBuilderStatus,
+  requestBuilderAction,
+  updateBuilderSettings,
+} = await import('../../apps/web/src/services/builder-control.service.js');
 const { requireBuilderControl } =
   await import('../../apps/web/src/controllers/builder-control.controller.js');
 
@@ -274,17 +278,20 @@ describe('builder routes', () => {
 
 describe('builder page', () => {
   function render(overrides = {}) {
+    const status = overrides.status ?? {
+      state: BuilderState.READY,
+      updatedAt: new Date().toISOString(),
+      lastError: null,
+      registry: null,
+      resources: null,
+      limits: BUILDER_LIMITS,
+    };
+    const isFresh = overrides.isFresh ?? true;
     return ejs.renderFile(builderPagePath, {
       csrfToken: 'csrf',
-      status: {
-        state: BuilderState.READY,
-        updatedAt: new Date().toISOString(),
-        lastError: null,
-        registry: null,
-        resources: null,
-        limits: BUILDER_LIMITS,
-      },
-      isFresh: true,
+      status,
+      isFresh,
+      view: presentBuilderStatus({ status, isFresh, idleMinutes: 30 }),
       settings: normalizeBuilderSettings(null),
       ceiling: nextCeiling(),
       builds: [],
@@ -310,10 +317,69 @@ describe('builder page', () => {
     assert.match(await render({ isFresh: false }), /Not reporting/);
   });
 
+  it('marks the status for live updates', async () => {
+    assert.match(await render(), /data-builder-status-url="\/admin\/builder\/status"/);
+  });
+
+  it('announces live status changes politely', async () => {
+    assert.match(await render(), /aria-live="polite" data-builder-live/);
+  });
+
   it('labels each allowlisted project checkbox', async () => {
     assert.match(
       await render(),
       new RegExp(`<label for="builder-next-${PROJECT_ID}" class="checkbox-label">\\s*Pilot app`),
+    );
+  });
+});
+
+describe('builder status presentation', () => {
+  const resources = {
+    memAvailableMb: 2819,
+    swapFreeMb: 2241,
+    swapTotalMb: 4096,
+    memoryPressureSome60: 0,
+    diskFreeGb: 797,
+    storeFreeGb: 27,
+    builderMemoryMb: 72,
+    sampledAt: '2026-10-25T14:44:16.000Z',
+  };
+
+  it('reports a stale status as not reporting', () => {
+    assert.equal(
+      presentBuilderStatus({ status: { state: 'READY' }, isFresh: false, idleMinutes: 30 }).state
+        .label,
+      'Not reporting',
+    );
+  });
+
+  it('shows the builder memory against its cap', () => {
+    assert.equal(
+      presentBuilderStatus({
+        status: { state: 'READY', resources, limits: BUILDER_LIMITS },
+        isFresh: true,
+        idleMinutes: 30,
+      }).fields.builderMemory,
+      '72 MB of 1536 MB',
+    );
+  });
+
+  it('marks an unreachable registry', () => {
+    assert.equal(
+      presentBuilderStatus({
+        status: { state: 'READY', registry: { ok: false, checkedAt: null, error: 'denied' } },
+        isFresh: true,
+        idleMinutes: 30,
+      }).registry.label,
+      'Unreachable',
+    );
+  });
+
+  it('hides the resource list until a reading exists', () => {
+    assert.equal(
+      presentBuilderStatus({ status: { state: 'STOPPED' }, isFresh: true, idleMinutes: 30 }).show
+        .resources,
+      false,
     );
   });
 });
