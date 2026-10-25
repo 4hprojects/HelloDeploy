@@ -232,3 +232,47 @@ describe('builder control deactivation', () => {
     ]);
   });
 });
+
+// Seen in production 2026-10-25: restoring .env with `cp -a` copied the backup's
+// root-only mode, so neither service could read .env and both crash-looped.
+describe('builder control activation recovery', () => {
+  it('restores .env by content, keeping its owner and mode', () => {
+    assert.match(activate, /cat "\$BACKUP" >"\$ENV_FILE"/);
+  });
+
+  it('never copies the backup file over .env', () => {
+    assert.doesNotMatch(commands(activate), /cp -a "\$BACKUP" "\$ENV_FILE"/);
+  });
+
+  // `journalctl | grep -q` under pipefail fails when grep exits first (status 141).
+  it('never pipes into grep -q for its post-restart checks', () => {
+    assert.doesNotMatch(commands(activate), /\|\s*grep -q/);
+  });
+
+  it('checks only log lines written after its own restart', () => {
+    assert.match(activate, /journalctl -u hellodeploy-worker --since "\$RESTARTED_AT"/);
+  });
+
+  it('confirms both services can still read .env after a restore, from HD_HOME', () => {
+    assert.match(
+      activate,
+      /\(cd "\$HD_HOME" && runuser -u hellodeploy-web -- test -r "\$ENV_FILE"/,
+    );
+  });
+
+  // Seen live 2026-10-26: "Groups:" is followed by a tab, so a space-delimited
+  // match missed the first group, which was the builder control group.
+  it('reads the worker groups without the tab after the label', () => {
+    assert.match(activate, /awk '\/\^Groups:\/ \{ \$1 = ""; print \}'/);
+  });
+});
+
+describe('platform restore', () => {
+  it('leaves .env readable by the service config group', async () => {
+    const restore = await readFile(
+      new URL('../../infrastructure/restore.sh', import.meta.url),
+      'utf8',
+    );
+    assert.match(restore, /chmod 640 "\$HD_HOME\/\.env"/);
+  });
+});

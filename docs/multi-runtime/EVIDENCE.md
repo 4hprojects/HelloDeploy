@@ -409,6 +409,24 @@ egress. A normal Stop now leaves the unit `inactive` (`Result=success`), not `fa
   every app container stalled 0%. The cancel rule now reads the app containers' and the builder's
   own pressure instead.
 
+## 2026-10-25 Incident: dashboard down about 5 minutes during a token renewal
+
+- The owner ran the token renewal (`deactivate-builder-control.sh --remove-credentials`, then
+  `activate-builder-control.sh`) early. Reactivation restarted the services, and builder control
+  came up, but the post-restart check falsely failed. `journalctl | grep -q` under `pipefail`
+  returns 141 when grep exits first, and it had passed earlier only because the journal was
+  shorter.
+- The rollback restored `.env` with `cp -a`, which copied the backup's root-only `0600` mode.
+  The web and worker read `.env` through the `hellodeploy-config` group, so they failed with
+  "Missing required environment variable" until systemd's start limit stopped them. The dashboard
+  answered 503 from 23:55:30 for about 5 minutes. The hosted apps, including the pilot,
+  answered 200 throughout.
+- Recovery: the owner restored `root:hellodeploy-config 0640` and started both services.
+- Fixes: restore by content (`cat backup >.env`); check through variables, not `| grep -q`;
+  read the journal only from the restart time; confirm both service users can read `.env` after a
+  restore; and report loudly if the services do not come back. `infrastructure/restore.sh` had the
+  same latent `chmod 600`; it now sets `640`, as `install.sh` does.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current
