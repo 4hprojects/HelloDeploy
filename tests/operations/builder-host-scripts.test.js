@@ -158,3 +158,77 @@ describe('builder verify and uninstall scripts', () => {
     assert.deepEqual(commands(uninstall).match(/systemctl stop \S+/g), ['systemctl stop "$UNIT"']);
   });
 });
+
+const activate = await read('activate-builder-control.sh');
+const deactivate = await read('deactivate-builder-control.sh');
+
+describe('builder control activation (Phase D)', () => {
+  it('restarts only the worker and the web service', () => {
+    assert.deepEqual(
+      [
+        ...new Set(
+          commands(activate)
+            .match(/systemctl restart [^\n|]+/g)
+            .map((command) => command.trim()),
+        ),
+      ],
+      ['systemctl restart hellodeploy-worker hellodeploy-web'],
+    );
+  });
+
+  it('pauses and drains the deployment queue before restarting', () => {
+    assert.ok(
+      commands(activate).indexOf('pause-and-drain') <
+        commands(activate).indexOf('systemctl restart hellodeploy-worker'),
+    );
+  });
+
+  it('backs up the configuration before changing it', () => {
+    assert.ok(
+      commands(activate).indexOf('cp -a "$ENV_FILE" "$BACKUP"') <
+        commands(activate).indexOf('cat >>"$ENV_FILE"'),
+    );
+  });
+
+  it('restores the configuration when validation fails', () => {
+    assert.match(
+      activate,
+      /--require-production >\/dev\/null\); then\n\s+restore_env\n\s+fail "the new configuration did not validate/,
+    );
+  });
+
+  it('reads the token without echoing it and never writes it to .env', () => {
+    assert.match(activate, /read -rs TOKEN/);
+  });
+
+  it('keeps the token readable only by the worker', () => {
+    assert.match(
+      activate,
+      /install -m 0400 -o "\$WORKER_USER" -g "\$WORKER_USER" \/dev\/null "\$TOKEN_FILE"/,
+    );
+  });
+
+  it('refuses to run while the builder is running', () => {
+    assert.match(activate, /if systemctl is-active --quiet "\$UNIT"; then\n\s+fail/);
+  });
+
+  it('never enables owner images', () => {
+    assert.doesNotMatch(activate, /MULTIRUNTIME_(?:DOCKERFILE|OCI)_V1_ENABLED=true/);
+  });
+
+  it('allowlists exactly one project', () => {
+    assert.match(activate, /^MULTIRUNTIME_NEXT_V1_PROJECT_IDS=\$PROJECT_ID$/m);
+  });
+});
+
+describe('builder control deactivation', () => {
+  it('removes only the marked configuration block', () => {
+    assert.match(deactivate, /sed -i "\/\^\$MARK_BEGIN\\\$\/,\/\^\$MARK_END\\\$\/d" "\$ENV_FILE"/);
+  });
+
+  it('restarts only the worker and the web service', () => {
+    assert.deepEqual(commands(deactivate).match(/systemctl restart [^\n]+/g), [
+      'systemctl restart hellodeploy-worker hellodeploy-web',
+    ]);
+  });
+});
