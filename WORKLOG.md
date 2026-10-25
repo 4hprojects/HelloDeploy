@@ -2514,3 +2514,22 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   the #140 fixes were deployed. All eight checks were completed with no issues reported: sign-in,
   dashboard, project overview, deployments list, live logs, confirmation dialogs,
   settings/environment, and theme and navigation.
+
+## 2026-10-26 — Node.js October Security Release (CVE-2026-111497)
+
+- Node.js 22.23.4 (2026-10-21) fixes 10 CVEs. The most severe is an out-of-bounds write in the
+  Brotli decoder. The host ran Ubuntu's `nodejs` 22.22.1 on the system `libbrotli1` 1.2.0, and
+  both were affected. Ubuntu still listed them as "Needs evaluation".
+- #149: the worker health check fetched each tenant container with `fetch`, which built a Brotli
+  decoder for a `Content-Encoding: br` reply even with the body unread, so a tenant app could feed
+  it. It now uses `node:http`, which never decompresses. CI had resolved a cached 22.23.3, so it now
+  sets `check-latest: true`.
+- Rebuilt HelloRun, HelloPera, HelloUniversity and HelloEventHub; every tenant container reports
+  `NODE_VERSION=22.23.4`.
+- Moved the host to NodeSource `22.23.4-1nodesource1` following the
+  [runbook](docs/OPERATIONS_RUNBOOKS.md#host-nodejs-runtime). The steps: saved the distro debs,
+  paused autodeploy and drained the queue, then simulated and ran the install, which removed the
+  distro npm and the `node-*` packages. All installation verifier checks passed after the restart.
+  A HelloEventHub test deploy reached HEALTHY. Bundled Brotli still reports `1.1.0`, because the
+  fix is a cherry-pick; `zlib.constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` shows it is
+  present. OpenSSL is now 3.5.9. Rollback debs are in `/var/backups/hellodeploy/node-distro`.
