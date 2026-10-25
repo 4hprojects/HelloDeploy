@@ -32,6 +32,17 @@ Keep this file short. Put evidence in the worklog, not here.
 
 **Paused by owner decision (2026-10-22) until a build host exists; pilots stay off.**
 
+**2026-10-23: the owner chose to plan an on-demand builder that administrators control, with no new
+VPS.** The Phase A design is in
+[BUILDER_CONTROL_DESIGN.md](multi-runtime/BUILDER_CONTROL_DESIGN.md). It recommends a
+restricted rootless builder on this host for generated templates only. The owner approved it with
+conditions; Phase B (the admin interface, lifecycle controls and tests) is implemented on
+`feat/builder-control` (#142, not merged). Phase C passed on 2026-10-25: the builder is installed
+on this host (stopped), and a Next.js 16 app built in it, was pushed to private GHCR and served
+from a test worker; every failure case held. **Next:** the section 12 fixes (the referrers
+fallback leak and a unit reinstall), then owner approval for Phase D. The host-option notes below
+predate that design.
+
 When you're ready:
 
 - **Recommended host:** a separate small VPS (2 vCPU / 4 GB, about $5–15 a month) used only for

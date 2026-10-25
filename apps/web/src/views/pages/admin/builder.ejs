@@ -1,0 +1,274 @@
+<%
+  const state = isFresh ? status?.state : null;
+  const stateLabels = {
+    STOPPED: 'Stopped', STARTING: 'Starting', READY: 'Ready', BUILDING: 'Building',
+    STOPPING: 'Stopping', FAILED: 'Failed',
+  };
+  const stateBadges = {
+    STOPPED: 'badge--neutral', STARTING: 'badge--warning', READY: 'badge--success',
+    BUILDING: 'badge--warning', STOPPING: 'badge--warning', FAILED: 'badge--danger',
+  };
+  const formatTime = (value) => value ? new Date(value).toLocaleString('en-GB') : '—';
+  const resources = status?.resources;
+  const limits = status?.limits;
+%>
+<div class="page-header">
+  <h1 class="page-header__title">Build Service</h1>
+  <p class="page-header__subtitle text-muted text-sm">
+    An isolated builder for administrator-owned Next.js, Python, PHP and Java test projects. It
+    runs only while a super administrator has it started. Node.js deployments never use it.
+  </p>
+</div>
+
+<section class="card mb-6" aria-labelledby="builder-status-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-status-title">Status</h2>
+    <span class="badge <%= state ? stateBadges[state] : 'badge--danger' %>">
+      <%= state ? stateLabels[state] : 'Not reporting' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (!isFresh) { %>
+    <p class="text-sm mb-4">
+      The worker has not reported the build service's status in the last minute, so new builds
+      are refused. Check that the deployment worker and Redis are running.
+    </p>
+    <% } %>
+    <% if (status?.lastError) { %>
+    <p class="text-sm mb-4"><strong>Last problem:</strong> <%= status.lastError %></p>
+    <% } %>
+    <dl class="detail-list">
+      <dt>Running since</dt><dd><%= formatTime(status?.startedAt) %></dd>
+      <dt>Idle shutdown</dt>
+      <dd>
+        After <%= settings.idleMinutes %> minutes without a build<%= status?.idleStopAt ? ' (next: ' + formatTime(status.idleStopAt) + ')' : '' %>.
+        A running build is never stopped by idle shutdown.
+      </dd>
+      <dt>Active build</dt>
+      <dd>
+        <% if (status?.activeBuild) { %>
+          Deployment <code class="code-inline"><%= status.activeBuild.deploymentId %></code>, started <%= formatTime(status.activeBuild.startedAt) %>
+        <% } else { %>None<% } %>
+      </dd>
+      <dt>Reported</dt><dd><%= formatTime(status?.updatedAt) %></dd>
+    </dl>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-controls-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-controls-title">Controls</h2>
+  </div>
+  <div class="card__body">
+    <% if (isSuperAdmin) { %>
+    <p class="form-hint mb-4">
+      Start runs a resource check first and refuses when the server lacks headroom. Stop waits for
+      no build to be running. Emergency Stop cancels any running build and kills the build service;
+      live applications are not affected.
+    </p>
+    <div class="button-group">
+      <form method="POST" action="/admin/builder/start"
+            data-confirm="Start the build service? It checks free memory and disk first."
+            data-confirm-title="Start build service"
+            data-confirm-accept-label="Start"
+            data-confirm-pending-label="Starting..."
+            data-confirm-variant="success">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--success">Start</button>
+      </form>
+      <form method="POST" action="/admin/builder/stop"
+            data-confirm="Stop the build service? A running build is not stopped; use Emergency Stop for that."
+            data-confirm-title="Stop build service"
+            data-confirm-accept-label="Stop"
+            data-confirm-pending-label="Stopping..."
+            data-confirm-variant="warning">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--warning">Stop</button>
+      </form>
+      <form method="POST" action="/admin/builder/emergency-stop"
+            data-confirm="Emergency Stop cancels any running build and kills the build service immediately. Continue?"
+            data-confirm-title="Emergency Stop"
+            data-confirm-accept-label="Emergency Stop"
+            data-confirm-pending-label="Stopping..."
+            data-confirm-variant="danger">
+        <%- include('../../partials/csrf-field') %>
+        <button type="submit" class="button button--danger">Emergency Stop</button>
+      </form>
+    </div>
+    <% } else { %>
+    <p class="text-sm">Only a super administrator can start or stop the build service.</p>
+    <% } %>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-resources-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-resources-title">Resources</h2>
+  </div>
+  <div class="card__body">
+    <% if (!resources) { %>
+    <p class="text-muted text-sm">No resource reading yet.</p>
+    <% } else { %>
+    <dl class="detail-list">
+      <dt>Available memory</dt><dd><%= resources.memAvailableMb %> MB (a start or build needs <%= limits.memoryMaxMb + limits.hostReserveMb %> MB)</dd>
+      <dt>Free swap</dt><dd><%= resources.swapFreeMb %> of <%= resources.swapTotalMb %> MB (needs <%= limits.minSwapFreeMb %> MB)</dd>
+      <dt>Memory pressure (60 s)</dt><dd><%= resources.memoryPressureSome60 %>% (must be below <%= limits.maxMemoryPressureSome60 %>%)</dd>
+      <dt>Free disk</dt><dd><%= resources.diskFreeGb %> GB (needs <%= limits.minDiskFreeGb %> GB)</dd>
+      <dt>Build cache free</dt><dd><%= resources.storeFreeGb ?? 'Unavailable' %><%= resources.storeFreeGb === null ? '' : ' GB' %> (needs <%= limits.minStoreFreeGb %> GB)</dd>
+      <dt>Build service memory</dt><dd><%= resources.builderMemoryMb ?? '—' %><%= resources.builderMemoryMb === null ? '' : ' MB' %> of <%= limits.memoryMaxMb %> MB</dd>
+      <dt>Read at</dt><dd><%= formatTime(resources.sampledAt) %></dd>
+    </dl>
+    <p class="form-hint mt-4">
+      These thresholds are fixed in code. A running build is cancelled if available memory falls
+      below <%= limits.abortAvailableMb %> MB or free disk below <%= limits.abortDiskFreeGb %> GB.
+    </p>
+    <% } %>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-registry-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-registry-title">Image registry</h2>
+    <span class="badge <%= status?.registry ? (status.registry.ok ? 'badge--success' : 'badge--danger') : 'badge--neutral' %>">
+      <%= status?.registry ? (status.registry.ok ? 'Reachable' : 'Unreachable') : 'Not checked' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (status?.registry) { %>
+    <p class="text-sm mb-4">
+      Checked <%= formatTime(status.registry.checkedAt) %>.<% if (status.registry.error) { %> <%= status.registry.error %><% } %>
+    </p>
+    <% } %>
+    <form method="POST" action="/admin/builder/check-registry">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--secondary">Check registry now</button>
+    </form>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-builds-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-builds-title">Active and queued builds</h2>
+  </div>
+  <div class="card__body">
+    <% if (builds.length === 0) { %>
+    <p class="text-muted text-sm">No build service deployments are queued or running.</p>
+    <% } else { %>
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
+      <thead>
+        <tr>
+          <th scope="col">Project</th>
+          <th scope="col">Deployment</th>
+          <th scope="col">Strategy</th>
+          <th scope="col">Status</th>
+          <th scope="col">Queued</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% builds.forEach((build) => { %>
+        <tr>
+          <td data-label="Project"><%= build.projectId?.name ?? 'Unknown' %></td>
+          <td data-label="Deployment">#<%= build.sequenceNumber %></td>
+          <td data-label="Strategy"><code class="code-inline"><%= build.configurationSnapshot?.buildStrategy %></code></td>
+          <td data-label="Status"><%= build.status %></td>
+          <td data-label="Queued"><%= formatTime(build.createdAt) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-permissions-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-permissions-title">Permissions and idle shutdown</h2>
+  </div>
+  <div class="card__body">
+    <p class="form-hint mb-4">
+      The server configuration is the upper limit: a runtime it turns off cannot be enabled here,
+      and only projects in its allowlist can be chosen. Only projects owned by a platform
+      administrator can build.
+    </p>
+    <form method="POST" action="/admin/builder/settings">
+      <%- include('../../partials/csrf-field') %>
+      <div class="form-group mb-4">
+        <label class="form-label" for="builder-idle-minutes">Idle shutdown (minutes)</label>
+        <input id="builder-idle-minutes" name="idleMinutes" type="number" class="form-input"
+               min="<%= idleBounds.min %>" max="<%= idleBounds.max %>" step="1" required
+               value="<%= settings.idleMinutes %>" <%= isSuperAdmin ? '' : 'disabled' %>>
+      </div>
+      <% runtimeFamilies.forEach((family) => { %>
+      <% const ceilingFamily = ceiling[family]; const allowed = settings.runtimes[family]; %>
+      <fieldset class="form-group mb-4">
+        <legend class="form-label"><%= runtimeLabels[family] %></legend>
+        <% if (!ceilingFamily.enabled) { %>
+        <p class="text-muted text-sm">Off in the server configuration.</p>
+        <% } else { %>
+        <div class="checkbox-field">
+          <input type="checkbox" id="builder-<%= family %>-enabled" name="<%= family %>Enabled" class="checkbox-input"
+                 <%= allowed.enabled ? 'checked' : '' %> <%= isSuperAdmin ? '' : 'disabled' %>>
+          <label for="builder-<%= family %>-enabled" class="checkbox-label">Allow <%= runtimeLabels[family] %> builds</label>
+        </div>
+        <% if (ceilingFamily.projectIds.length === 0) { %>
+        <p class="text-muted text-sm">The server allowlist has no projects.</p>
+        <% } %>
+        <% ceilingFamily.projectIds.forEach((projectId) => { %>
+        <% const project = projectsById[projectId]; %>
+        <div class="checkbox-field">
+          <input type="checkbox" id="builder-<%= family %>-<%= projectId %>" name="<%= family %>Projects" value="<%= projectId %>" class="checkbox-input"
+                 <%= allowed.projectIds.includes(projectId) ? 'checked' : '' %> <%= isSuperAdmin ? '' : 'disabled' %>>
+          <label for="builder-<%= family %>-<%= projectId %>" class="checkbox-label">
+            <%= project?.name ?? 'Unknown project' %> <code class="code-inline"><%= projectId %></code>
+            <%= project && !project.isAdminOwned ? '(not owned by an administrator; builds will be refused)' : '' %>
+          </label>
+        </div>
+        <% }) %>
+        <% } %>
+      </fieldset>
+      <% }) %>
+      <% if (isSuperAdmin) { %>
+      <button type="submit" class="button button--primary">Save settings</button>
+      <% } else { %>
+      <p class="text-sm">Only a super administrator can change these settings.</p>
+      <% } %>
+    </form>
+  </div>
+</section>
+
+<section class="card mb-6" aria-labelledby="builder-activity-title">
+  <div class="card__header">
+    <h2 class="card__title" id="builder-activity-title">Recent activity</h2>
+  </div>
+  <div class="card__body">
+    <% if (activity.length === 0) { %>
+    <p class="text-muted text-sm">No build service activity recorded.</p>
+    <% } else { %>
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--sm table--responsive">
+      <thead>
+        <tr>
+          <th scope="col">When</th>
+          <th scope="col">Action</th>
+          <th scope="col">Outcome</th>
+          <th scope="col">By</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% activity.forEach((event) => { %>
+        <tr>
+          <td data-label="When"><%= formatTime(event.createdAt) %></td>
+          <td data-label="Action"><code class="code-inline"><%= event.action %></code></td>
+          <td data-label="Outcome"><%= event.outcome %></td>
+          <td data-label="By"><%= event.actorId ? event.actorRole ?? 'Administrator' : 'System' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <p class="form-hint mt-4">The full history is in the <a href="/admin/audit-events">audit log</a>.</p>
+    <% } %>
+  </div>
+</section>

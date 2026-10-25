@@ -17,6 +17,9 @@ import {
   findDockerfilePolicyViolations,
   isBlockedRepository,
   parseImageReference,
+  evaluateBuilderEligibility,
+  getBuilderRuntimeFamily,
+  isOwnerImageStrategy,
 } from '@hellodeploy/contracts';
 import { enqueueJob } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
@@ -56,6 +59,8 @@ import { scanImage } from '../deployment/image-scan.js';
 import { getRuntimePlatform } from '../deployment/container.js';
 import { createBuildExecutor } from '../deployment/build-executor.js';
 import { deleteRegistryManifest } from '../deployment/registry.js';
+import { getBuilderController } from '../builder/builder-registry.js';
+import { loadBuilderSettings, loadPlatformRole } from '../builder/builder-settings.js';
 
 // ─── Job handler ───────────────────────────────────────────────────────────────
 
@@ -261,6 +266,34 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       completedAt: new Date(),
     });
     return;
+  }
+  // The on-demand builder: refuse at once, before any clone or build work, so a
+  // refused deployment never holds the one-job deployment queue. Legacy builds
+  // have no builder family and skip this entirely.
+  const usesOnDemandBuilder =
+    env.BUILDER_CONTROL_ENABLED && Boolean(getBuilderRuntimeFamily(buildStrategy));
+  if (env.BUILDER_CONTROL_ENABLED && (usesOnDemandBuilder || isOwnerImageStrategy(buildStrategy))) {
+    const [ownerRole, settings] = await Promise.all([
+      (deps.loadPlatformRole ?? loadPlatformRole)(project.ownerId),
+      (deps.loadBuilderSettings ?? loadBuilderSettings)(),
+    ]);
+    const refusal = evaluateBuilderEligibility({
+      strategy: buildStrategy,
+      projectId,
+      ownerRole,
+      settings,
+    });
+    const builder = (deps.getBuilderController ?? getBuilderController)();
+    if (refusal || !builder?.isReady()) {
+      await failBuild({
+        failureCode: refusal?.code ?? 'BUILDER_OFFLINE',
+        failureSummary:
+          refusal?.message ??
+          'The build service is not running. A platform administrator must start it.',
+        completedAt: new Date(),
+      });
+      return;
+    }
   }
   // Owner Dockerfiles run their own code during the build, so they never reach
   // the shared local daemon, whatever the flag validation allowed.
@@ -648,9 +681,32 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     correlationId,
   );
 
+  // Reserve the on-demand builder with a fresh admission check; its signal
+  // cancels the build on Emergency Stop or when the host runs short.
+  let builderLease = null;
+  if (usesOnDemandBuilder) {
+    try {
+      builderLease = await (deps.getBuilderController ?? getBuilderController)().acquireBuild({
+        deploymentId,
+        projectId,
+        timeoutMs: buildTimeoutMs,
+      });
+    } catch (error) {
+      await logEvent(deploymentId, 'BUILD', 'ERROR', error.message, correlationId);
+      await failBuild({
+        failureCode: error.code ?? 'BUILDER_OFFLINE',
+        failureSummary: error.message.slice(0, 1000),
+        completedAt: new Date(),
+      });
+      await deps.cleanupBuildWorkspace(workDir);
+      return;
+    }
+  }
+
   let builtImage;
   try {
     const buildOptions = {
+      signal: builderLease?.signal,
       contextDir,
       localImageTag: imageTag,
       registryTag: `${project.slug}-${deployment._id.toString()}`,
@@ -674,8 +730,10 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       const executor =
         deps.buildExecutor ??
         createBuildExecutor({
-          mode: env.BUILD_EXECUTOR,
-          builderName: env.BUILD_BUILDER_NAME,
+          mode: usesOnDemandBuilder ? 'remote-buildkit' : env.BUILD_EXECUTOR,
+          builderName: usesOnDemandBuilder
+            ? env.BUILDER_CONTROL_BUILDX_NAME
+            : env.BUILD_BUILDER_NAME,
           registryPrefix: env.USER_IMAGE_REGISTRY,
           deps,
         });
@@ -696,6 +754,18 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       correlationId,
     );
   } catch (err) {
+    const cancellation = builderLease?.signal.aborted ? builderLease.signal.reason : null;
+    if (cancellation) {
+      await logEvent(deploymentId, 'BUILD', 'ERROR', cancellation.message, correlationId);
+      await failBuild({
+        failureCode: 'BUILD_CANCELLED',
+        failureSummary: cancellation.message.slice(0, 1000),
+        completedAt: new Date(),
+      });
+      await removeBuiltArtifact(builtImage, imageTag, deps);
+      await deps.cleanupBuildWorkspace(workDir);
+      return;
+    }
     await logEvent(deploymentId, 'BUILD', 'ERROR', `Build failed: ${err.message}`, correlationId);
     await failBuild({
       failureCode: 'BUILD_FAILED',
@@ -714,6 +784,8 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
     await removeBuiltArtifact(builtImage, imageTag, deps);
     await deps.cleanupBuildWorkspace(workDir);
     return;
+  } finally {
+    await builderLease?.release();
   }
 
   if (

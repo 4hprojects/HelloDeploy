@@ -87,6 +87,9 @@ export function classifyRedisError(error) {
 
 const DEPLOYMENT_QUEUE_NAME = 'deployments';
 const NOTIFICATION_QUEUE_NAME = 'notifications';
+// Builder start/stop requests travel apart from deployments, so an admin's
+// Emergency Stop never waits behind the build it is meant to stop.
+const BUILDER_CONTROL_QUEUE_NAME = 'builder-control';
 
 /**
  * Create the deployment BullMQ Queue (used by the web process to enqueue jobs).
@@ -100,6 +103,17 @@ export function createDeploymentQueue(connection) {
     defaultJobOptions: {
       removeOnComplete: { count: 200 },
       removeOnFail: { count: 500 },
+    },
+  });
+}
+
+export function createBuilderControlQueue(connection) {
+  return new Queue(BUILDER_CONTROL_QUEUE_NAME, {
+    connection,
+    defaultJobOptions: {
+      attempts: 1,
+      removeOnComplete: { count: 200 },
+      removeOnFail: { count: 200 },
     },
   });
 }
@@ -161,5 +175,17 @@ export function createNotificationWorker(connection, processor, concurrency = 4)
     connection,
     concurrency,
     lockDuration: 60_000,
+  });
+}
+
+/**
+ * The builder-control consumer. One request at a time keeps start, stop and
+ * emergency stop strictly ordered.
+ */
+export function createBuilderControlWorker(connection, processor) {
+  return new Worker(BUILDER_CONTROL_QUEUE_NAME, processor, {
+    connection,
+    concurrency: 1,
+    lockDuration: 120_000,
   });
 }

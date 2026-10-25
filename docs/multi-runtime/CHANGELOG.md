@@ -1,5 +1,18 @@
 # Multi-Runtime Changelog
 
+## 2026-10-23 to 2026-10-24
+
+- Builder control Phase A (audit and design) approved by the owner with conditions; Phase B
+  implemented on `feat/builder-control` (#142, not merged): the admin Build Service page, an
+  independent `builder-control` queue, admission and in-build monitoring with fixed thresholds,
+  Emergency Stop, idle shutdown, startup reconciliation, the builder isolation check (S1), and
+  five failure codes. Builder control is off by default. See
+  [BUILDER_CONTROL_DESIGN.md](BUILDER_CONTROL_DESIGN.md).
+- Found while designing: `BUILD_EXECUTOR=remote-buildkit` would route legacy Node builds to the
+  remote builder too, so builder control uses its own `BUILDER_CONTROL_*` settings and leaves
+  `BUILD_EXECUTOR=local`.
+- The unused `hellodeploy-dev-builder` was removed from the host with owner approval.
+
 ## 2026-10-21
 
 - #120 (P4 owner images) merged at the owner's request and autodeployed (`e54f99b`) with

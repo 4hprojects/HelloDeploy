@@ -39,6 +39,15 @@ import {
   postRejectDomain,
   postSetDomainTunnel,
 } from '../../controllers/domain.controller.js';
+import {
+  getAdminBuilder,
+  postBuilderCheckRegistry,
+  postBuilderEmergencyStop,
+  postBuilderSettings,
+  postBuilderStart,
+  postBuilderStop,
+  requireBuilderControl,
+} from '../../controllers/builder-control.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 
 const router = Router();
@@ -87,6 +96,21 @@ router.post('/server/queue/pause', requireSuperAdmin, postPauseQueue);
 router.post('/server/queue/resume', requireSuperAdmin, postResumeQueue);
 router.post('/server/maintenance/enable', requireSuperAdmin, postEnableMaintenance);
 router.post('/server/maintenance/disable', requireSuperAdmin, postDisableMaintenance);
+
+// The on-demand build service. Viewing and the registry check are open to
+// administrators; anything that starts, stops or reconfigures it needs a super
+// administrator, and the worker checks the role again before acting.
+router.get('/builder', requireBuilderControl, getAdminBuilder);
+router.post('/builder/check-registry', requireBuilderControl, postBuilderCheckRegistry);
+router.post('/builder/start', requireBuilderControl, requireSuperAdmin, postBuilderStart);
+router.post('/builder/stop', requireBuilderControl, requireSuperAdmin, postBuilderStop);
+router.post(
+  '/builder/emergency-stop',
+  requireBuilderControl,
+  requireSuperAdmin,
+  postBuilderEmergencyStop,
+);
+router.post('/builder/settings', requireBuilderControl, requireSuperAdmin, postBuilderSettings);
 
 router.get('/audit-events', getAdminAuditEvents);
 router.get('/audit-events/export', getAdminAuditExport);

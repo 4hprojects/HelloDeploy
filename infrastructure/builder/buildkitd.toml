@@ -1,0 +1,17 @@
+# HelloDeploy on-demand builder. One build at a time, cache capped well inside
+# the fixed-size store mounted at /var/lib/hellodeploy-builder.
+root = "/var/lib/hellodeploy-builder/buildkit"
+
+[grpc]
+  address = ["unix:///run/hellodeploy-builder/buildkitd.sock"]
+
+[worker.oci]
+  enabled = true
+  rootless = true
+  max-parallelism = 1
+  gc = true
+  maxUsedSpace = "20GB"
+  minFreeSpace = "5GB"
+
+[worker.containerd]
+  enabled = false

@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
+import { isIsolatedBuilderEndpoint } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
 import { processOutputLines } from './log-capture.js';
@@ -232,8 +233,12 @@ export async function createIsolatedDockerConfig(
   return directory;
 }
 
-function runTimedProcess(command, args, timeoutMs, { onLogLine, label, env: extraEnv }) {
+function runTimedProcess(command, args, timeoutMs, { onLogLine, label, env: extraEnv, signal }) {
   return new Promise((resolve, reject) => {
+    if (signal?.aborted) {
+      reject(signal.reason);
+      return;
+    }
     const proc = spawn(command, args, {
       stdio: ['ignore', 'pipe', 'pipe'],
       ...(extraEnv ? { env: { ...process.env, ...extraEnv } } : {}),
@@ -242,6 +247,13 @@ function runTimedProcess(command, args, timeoutMs, { onLogLine, label, env: extr
       proc.kill('SIGKILL');
       reject(new Error(`${label} timed out after ${Math.round(timeoutMs / 1000)}s`));
     }, timeoutMs);
+    // Killing the client ends its BuildKit session, which cancels the build.
+    const onAbort = () => {
+      clearTimeout(timeout);
+      proc.kill('SIGKILL');
+      reject(signal.reason);
+    };
+    signal?.addEventListener('abort', onAbort, { once: true });
     for (const [stream, output] of [
       ['stdout', proc.stdout],
       ['stderr', proc.stderr],
@@ -252,10 +264,12 @@ function runTimedProcess(command, args, timeoutMs, { onLogLine, label, env: extr
     }
     proc.on('close', (code) => {
       clearTimeout(timeout);
+      signal?.removeEventListener('abort', onAbort);
       code === 0 ? resolve() : reject(new Error(`${label} exited with code ${code}`));
     });
     proc.on('error', (error) => {
       clearTimeout(timeout);
+      signal?.removeEventListener('abort', onAbort);
       reject(new Error(`${label} could not start: ${error.message}`));
     });
   });
@@ -270,6 +284,7 @@ export async function buildAndPushDockerImage({
   buildArgs = {},
   onLogLine,
   shouldIsolateRegistryCredentials = false,
+  signal,
 }) {
   if (!builderName) {
     throw new Error('Remote BuildKit builder is not configured.');
@@ -297,6 +312,7 @@ export async function buildAndPushDockerImage({
       onLogLine,
       label: 'Remote Docker build',
       env: buildEnv,
+      signal,
     });
     const metadata = JSON.parse(await readFile(metadataFile, 'utf8'));
     const imageDigest = metadata['containerimage.digest'];
@@ -309,7 +325,7 @@ export async function buildAndPushDockerImage({
       'oras',
       createOrasPushArgs({ layoutDir, imageDigest, imageRef }),
       Math.max(buildTimeoutMs - (Date.now() - startedAt), 60_000),
-      { onLogLine, label: 'Image push' },
+      { onLogLine, label: 'Image push', signal },
     );
     return {
       imageRef: `${imageRef.split('@')[0]}@${imageDigest}`,
@@ -388,14 +404,47 @@ export async function ensureBuildBuilder({ name, memoryMb }, deps = { run: runDo
  * are infrastructure-owned: the runtime worker must never create or silently
  * replace one with a local builder.
  */
-export async function verifyRemoteBuildBuilder(name, deps = { run: runDocker }) {
+export async function verifyRemoteBuildBuilder(
+  name,
+  deps = { run: runDocker },
+  { expectedEndpoint = null } = {},
+) {
   const inspect = await deps.run(['buildx', 'inspect', name, '--bootstrap']);
   if (inspect.code !== 0) {
     throw new Error(
       `Remote build builder ${name} is unavailable: ${inspect.stderr.trim().slice(0, 500)}`,
     );
   }
+  // A builder of the same name on the production Docker daemon would also
+  // answer, so the driver and address must prove it is the isolated one.
+  const { driver, endpoints } = parseBuildxInspect(inspect.stdout ?? '');
+  if (driver !== 'remote') {
+    throw new Error(
+      `Builder ${name} uses the ${driver ?? 'unknown'} driver; only a remote BuildKit builder is allowed.`,
+    );
+  }
+  if (
+    endpoints.length === 0 ||
+    endpoints.some((endpoint) => !isIsolatedBuilderEndpoint(endpoint))
+  ) {
+    throw new Error(`Builder ${name} does not point at an isolated BuildKit address.`);
+  }
+  if (expectedEndpoint && !endpoints.every((endpoint) => endpoint === expectedEndpoint)) {
+    throw new Error(`Builder ${name} does not point at the configured BuildKit address.`);
+  }
   return { ready: true };
+}
+
+/** The builder-level driver and every node endpoint from `docker buildx inspect`. */
+export function parseBuildxInspect(output) {
+  const lines = output.split('\n').map((line) => line.trim());
+  const driverLine = lines.find((line) => /^Driver:\s/.test(line));
+  return {
+    driver: driverLine ? driverLine.replace(/^Driver:\s+/, '').trim() : null,
+    endpoints: lines
+      .filter((line) => /^Endpoint:\s/.test(line))
+      .map((line) => line.replace(/^Endpoint:\s+/, '').trim()),
+  };
 }
 
 function runDocker(args) {

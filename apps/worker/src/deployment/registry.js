@@ -16,6 +16,15 @@ const VERSIONS_PER_PAGE = 100;
 // what retention leaves in the platform repository.
 const MAX_VERSION_PAGES = 100;
 const NOT_FOUND = /MANIFEST_UNKNOWN|not found|404/i;
+/** A permanent version kept in the package; release cleanup never deletes it. */
+export const PACKAGE_ANCHOR_TAG = 'hellodeploy-anchor';
+const INDEX_MEDIA_TYPES = new Set([
+  'application/vnd.oci.image.index.v1+json',
+  'application/vnd.docker.distribution.manifest.list.v2+json',
+]);
+// Orphaned fallback indexes appear at most once per cached rebuild, so a sweep
+// that inspects this many candidates keeps up without fetching every version.
+const MAX_ORPHAN_CHECKS = 50;
 
 function runOras(args) {
   return new Promise((resolve) => {
@@ -53,6 +62,14 @@ export async function verifyRegistryAccess(repository, deps = {}) {
   }
   if (deleteApi === 'github-packages') {
     await createPackagesApi(repository, deps).listVersions(1, 1);
+    // GitHub refuses to delete a package's last tagged version, so without a
+    // permanent version every cleanup of the final release would fail.
+    const anchor = await run(['manifest', 'fetch', `${repository}:${PACKAGE_ANCHOR_TAG}`]);
+    if (anchor.code !== 0) {
+      throw new Error(
+        `Registry ${repository} has no ${PACKAGE_ANCHOR_TAG} tag; push it as described in runbook step 7.`,
+      );
+    }
   }
   return { ready: true };
 }
@@ -125,7 +142,7 @@ export async function deleteRegistryManifest(imageRef, deps = {}) {
   };
   const remover =
     deleteApi === 'github-packages'
-      ? createPackagesApi(repository, deps)
+      ? createPackagesApi(repository, { ...deps, run })
       : createOrasRemover(repository, run);
   await remover.remove(plan);
   return true;
@@ -246,6 +263,65 @@ function createPackagesApi(repository, deps) {
       throw await failure('version deletion', res);
     }
   };
+  /** Every version, or null when the package is larger than one sweep reads. */
+  const listAllVersions = async () => {
+    const all = [];
+    for (let page = 1; page <= MAX_VERSION_PAGES; page += 1) {
+      const versions = await listVersions(page);
+      all.push(...versions);
+      if (versions.length < VERSIONS_PER_PAGE) {
+        return all;
+      }
+    }
+    return null;
+  };
+
+  // When a cached rebuild reuses an image manifest, ORAS rewrites its
+  // referrers fallback tag, and GitHub keeps the previous fallback index as an
+  // untagged version that no tag or release names. An untagged, unknown index
+  // whose every listed manifest is gone points at nothing, so it is deleted.
+  // Tagged versions (releases, live fallback indexes, the anchor) are never
+  // candidates, and neither is any digest a release record still holds.
+  const removeOrphanedIndexes = async (deletedDigests) => {
+    const versions = await listAllVersions();
+    if (!versions) {
+      return;
+    }
+    const existing = new Set(versions.map((version) => version.name));
+    const known = await (deps.findKnownImageDigests ?? findKnownImageDigests)(repository);
+    const candidates = versions
+      .filter(
+        (version) =>
+          DIGEST_PATTERN.test(version.name ?? '') &&
+          (version.metadata?.container?.tags ?? []).length === 0 &&
+          !known.has(version.name) &&
+          !deletedDigests.has(version.name),
+      )
+      .slice(0, MAX_ORPHAN_CHECKS);
+    for (const version of candidates) {
+      const result = await deps.run(['manifest', 'fetch', `${repository}@${version.name}`]);
+      if (result.code !== 0) {
+        continue;
+      }
+      let manifest;
+      try {
+        manifest = JSON.parse(result.stdout);
+      } catch {
+        continue;
+      }
+      const listed = manifest.manifests ?? [];
+      const isOrphanedIndex =
+        INDEX_MEDIA_TYPES.has(manifest.mediaType) &&
+        listed.length > 0 &&
+        listed.every(
+          (descriptor) => deletedDigests.has(descriptor.digest) || !existing.has(descriptor.digest),
+        );
+      if (isOrphanedIndex) {
+        await deleteVersion(version.id);
+      }
+    }
+  };
+
   return {
     listVersions,
     async remove({ referrerTags, digests }) {
@@ -256,6 +332,18 @@ function createPackagesApi(repository, deps) {
           await deleteVersion(versionId);
         }
       }
+      await removeOrphanedIndexes(new Set(digests));
     },
   };
+}
+
+/** Every image and child digest a release record of this repository still holds. */
+async function findKnownImageDigests(repository) {
+  const holders = await Deployment.find(
+    { imageRef: { $regex: `^${repository.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[:@]` } },
+    { imageDigest: 1, imageChildDigests: 1 },
+  ).lean();
+  return new Set(
+    holders.flatMap((holder) => [holder.imageDigest, ...(holder.imageChildDigests ?? [])]),
+  );
 }

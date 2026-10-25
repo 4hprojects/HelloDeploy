@@ -109,6 +109,7 @@ In order; also listed in [PRIORITIES.md](../PRIORITIES.md):
 | [THREAT_MODEL.md](THREAT_MODEL.md)                                                                                                   | Threats, controls and residual risks                         |
 | [BUILDKIT_GHCR_RUNBOOK.md](BUILDKIT_GHCR_RUNBOOK.md)                                                                                 | Operator setup, acceptance and stop procedure                |
 | [P5_COMPOSE_ADR.md](P5_COMPOSE_ADR.md)                                                                                               | Proposed restricted-Compose design                           |
+| [BUILDER_CONTROL_DESIGN.md](BUILDER_CONTROL_DESIGN.md)                                                                               | Proposed on-demand builder that administrators control       |
 | [acceptance-config.example.json](acceptance-config.example.json), [acceptance-evidence.schema.json](acceptance-evidence.schema.json) | Harness input template and output schema                     |
 | [evidence/](evidence/README.md)                                                                                                      | Point-in-time records, including the starting baseline audit |
 

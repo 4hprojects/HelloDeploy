@@ -1,0 +1,53 @@
+# HelloDeploy on-demand builder: rootless BuildKit, started only by an
+# administrator through the worker (polkit rule 50-hellodeploy-builder.rules).
+# Installed disabled; it never starts at boot and is never restarted on its own.
+# The resource caps must match BUILDER_LIMITS in
+# packages/contracts/src/builder-control.js.
+[Unit]
+Description=HelloDeploy on-demand rootless BuildKit
+Documentation=https://github.com/4hprojects/HelloDeploy/blob/main/docs/multi-runtime/BUILDER_CONTROL_DESIGN.md
+After=network-online.target
+Wants=network-online.target
+RequiresMountsFor=/var/lib/hellodeploy-builder
+
+[Service]
+Type=simple
+User=hellodeploy-builder
+Group=hellodeploy-builder
+Environment=HOME=/var/lib/hellodeploy-builder
+Environment=XDG_RUNTIME_DIR=/run/hellodeploy-builder
+Environment=PATH=/usr/local/lib/hellodeploy-builder/bin:/usr/local/bin:/usr/bin:/bin
+RuntimeDirectory=hellodeploy-builder
+RuntimeDirectoryMode=0750
+UMask=0007
+# The egress firewall is loaded before the builder starts and removed after it
+# stops; if it cannot be loaded, the builder does not start.
+ExecStartPre=+/usr/sbin/nft -f /etc/hellodeploy-builder/egress.nft
+ExecStart=/usr/bin/rootlesskit --net=slirp4netns --disable-host-loopback --copy-up=/etc --state-dir=/run/hellodeploy-builder/rootlesskit /usr/local/lib/hellodeploy-builder/bin/buildkitd --config=/etc/hellodeploy-builder/buildkitd.toml
+ExecStopPost=-+/usr/sbin/nft delete table inet hellodeploy_builder
+Restart=no
+# buildkitd exits 1 when it is stopped with SIGTERM; that is a normal stop.
+SuccessExitStatus=1
+TimeoutStopSec=30
+KillMode=control-group
+
+MemoryMax=1536M
+MemoryHigh=1280M
+MemorySwapMax=0
+CPUQuota=200%
+CPUWeight=20
+IOWeight=20
+TasksMax=512
+ManagedOOMMemoryPressure=kill
+Delegate=yes
+
+# NoNewPrivileges stays off: rootlesskit needs the setuid newuidmap/newgidmap.
+ProtectSystem=strict
+ReadWritePaths=/var/lib/hellodeploy-builder
+ProtectHome=yes
+PrivateTmp=yes
+ProtectKernelModules=yes
+# ProtectKernelLogs stays off: it masks /proc/kmsg, and the kernel then refuses
+# the fresh /proc that rootless runc mounts in every build container.
+ProtectClock=yes
+LockPersonality=yes

@@ -10,6 +10,7 @@ import {
   ConfigurationError,
   isValidNonproductionEnvironmentId,
   isPilotStrategyEnabledFor,
+  isIsolatedBuilderEndpoint,
 } from '@hellodeploy/contracts';
 import { resolveRedisConnectionConfig } from '@hellodeploy/queue';
 import {
@@ -111,8 +112,58 @@ if (registryDeleteApi === 'github-packages') {
   }
 }
 
-// Each multi-runtime pilot builds only on the isolated remote builder, keeps
-// registry cleanup on, serves an explicit allowlist, and runs one job at a time.
+// The on-demand builder that administrators start and stop. It is a second,
+// separate build path: legacy Node builds keep BUILD_EXECUTOR and its builder.
+const builderControlEnabled = optional('BUILDER_CONTROL_ENABLED', 'false') === 'true';
+const builderControlBuildxName = optional('BUILDER_CONTROL_BUILDX_NAME', '').trim() || null;
+const builderControlEndpoint = optional('BUILDER_CONTROL_ENDPOINT', '').trim() || null;
+const builderControlUnit = optional('BUILDER_CONTROL_UNIT', 'hellodeploy-buildkitd.service');
+const builderControlStorePath = optional(
+  'BUILDER_CONTROL_STORE_PATH',
+  '/var/lib/hellodeploy-builder',
+);
+if (builderControlEnabled) {
+  if (!builderControlBuildxName || !BUILD_BUILDER_NAME_PATTERN.test(builderControlBuildxName)) {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_ENABLED requires BUILDER_CONTROL_BUILDX_NAME (1-63 lowercase letters, digits, hyphens, or underscores).',
+    );
+  }
+  if (builderControlBuildxName === buildBuilderName) {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_BUILDX_NAME must differ from BUILD_BUILDER_NAME, which legacy builds use.',
+    );
+  }
+  if (!isIsolatedBuilderEndpoint(builderControlEndpoint)) {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_ENDPOINT must be a unix:// or tcp:// BuildKit address that is not the Docker daemon socket.',
+    );
+  }
+  if (!/^hellodeploy-[a-z0-9-]{1,48}\.service$/.test(builderControlUnit)) {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_UNIT must name a hellodeploy-*.service systemd unit.',
+    );
+  }
+  if (!builderControlStorePath.startsWith('/')) {
+    throw new ConfigurationError('BUILDER_CONTROL_STORE_PATH must be an absolute path.');
+  }
+  if (buildExecutor === 'remote-buildkit') {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_ENABLED and BUILD_EXECUTOR=remote-buildkit are separate build paths; set only one.',
+    );
+  }
+  if (!userImageRegistry || !registryManifestDeleteEnabled) {
+    throw new ConfigurationError(
+      'BUILDER_CONTROL_ENABLED requires USER_IMAGE_REGISTRY and REGISTRY_MANIFEST_DELETE_ENABLED=true.',
+    );
+  }
+  if (workerConcurrency !== 1) {
+    throw new ConfigurationError('BUILDER_CONTROL_ENABLED requires WORKER_CONCURRENCY=1.');
+  }
+}
+
+// Each multi-runtime pilot builds only on an isolated builder (the remote
+// executor or the on-demand builder), keeps registry cleanup on, serves an
+// explicit allowlist, and runs one job at a time.
 function parsePilotFlag(prefix) {
   const flagName = `${prefix}_ENABLED`;
   const allowlistName = `${prefix}_PROJECT_IDS`;
@@ -121,14 +172,11 @@ function parsePilotFlag(prefix) {
   if (!enabled) {
     return { enabled, projectIds };
   }
-  if (
-    buildExecutor !== 'remote-buildkit' ||
-    !buildBuilderName ||
-    !userImageRegistry ||
-    !registryManifestDeleteEnabled
-  ) {
+  const hasIsolatedBuilder =
+    (buildExecutor === 'remote-buildkit' && buildBuilderName) || builderControlEnabled;
+  if (!hasIsolatedBuilder || !userImageRegistry || !registryManifestDeleteEnabled) {
     throw new ConfigurationError(
-      `${flagName} requires remote-buildkit, BUILD_BUILDER_NAME, USER_IMAGE_REGISTRY, and REGISTRY_MANIFEST_DELETE_ENABLED=true.`,
+      `${flagName} requires remote-buildkit (or BUILDER_CONTROL_ENABLED), BUILD_BUILDER_NAME, USER_IMAGE_REGISTRY, and REGISTRY_MANIFEST_DELETE_ENABLED=true.`,
     );
   }
   if (projectIds.size === 0) {
@@ -148,6 +196,13 @@ const ociPilot = parsePilotFlag('MULTIRUNTIME_OCI_V1');
 const imageScanner = optional('IMAGE_SCANNER', 'none');
 if (!['none', 'trivy'].includes(imageScanner)) {
   throw new ConfigurationError('IMAGE_SCANNER must be none or trivy.');
+}
+// The same-host builder shares this server's kernel, so owner-supplied images
+// stay off while it is in use.
+if (builderControlEnabled && (dockerfilePilot.enabled || ociPilot.enabled)) {
+  throw new ConfigurationError(
+    'BUILDER_CONTROL_ENABLED must not be combined with MULTIRUNTIME_DOCKERFILE_V1_ENABLED or MULTIRUNTIME_OCI_V1_ENABLED.',
+  );
 }
 // Owner-supplied images are only allowed with scanning in the pipeline.
 if ((dockerfilePilot.enabled || ociPilot.enabled) && imageScanner !== 'trivy') {
@@ -273,6 +328,11 @@ export const env = {
   MULTIRUNTIME_OCI_V1_ENABLED: ociPilot.enabled,
   MULTIRUNTIME_OCI_V1_PROJECT_IDS: ociPilot.projectIds,
   IMAGE_SCANNER: imageScanner,
+  BUILDER_CONTROL_ENABLED: builderControlEnabled,
+  BUILDER_CONTROL_BUILDX_NAME: builderControlBuildxName,
+  BUILDER_CONTROL_ENDPOINT: builderControlEndpoint,
+  BUILDER_CONTROL_UNIT: builderControlUnit,
+  BUILDER_CONTROL_STORE_PATH: builderControlStorePath,
   CUSTOM_IMAGE_MAX_MB: customImageMaxMb,
   USER_IMAGE_TEMPLATE_VERSION: userImageTemplateVersion,
   USER_IMAGE_OPTIMIZED_PROJECT_IDS: userImageOptimizedProjectIds,

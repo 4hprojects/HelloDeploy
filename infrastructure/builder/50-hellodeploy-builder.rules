@@ -1,0 +1,14 @@
+// HelloDeploy: members of hellodeploy-builder-control may start, stop and kill
+// the on-demand builder unit, and nothing else. Every other request falls
+// through to the system's normal polkit policy.
+polkit.addRule(function (action, subject) {
+  if (
+    action.id === 'org.freedesktop.systemd1.manage-units' &&
+    action.lookup('unit') === 'hellodeploy-buildkitd.service' &&
+    ['start', 'stop', 'kill'].indexOf(action.lookup('verb')) !== -1 &&
+    subject.isInGroup('hellodeploy-builder-control')
+  ) {
+    return polkit.Result.YES;
+  }
+  return polkit.Result.NOT_HANDLED;
+});
