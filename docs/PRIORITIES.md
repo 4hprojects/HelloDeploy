@@ -24,7 +24,15 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-Nothing waiting. The builder control pilot is in its 7-day watch (until 2026-11-01).
+- **Node.js October 2026 security release (CVE-2026-111497, Brotli decoder):** the host runs
+  Ubuntu's `nodejs` 22.22.1, which links the system `libbrotli1` 1.2.0, and both are affected.
+  Ubuntu has no fix yet (status "Needs evaluation" on 2026-10-26). The worker health check no longer
+  decodes tenant responses, which closes the path tenants control. Install the Ubuntu
+  `libbrotli1`/`nodejs` fix as soon as it ships, then restart web, worker and nginx-helper. If it has
+  not shipped by 2026-11-02, after the builder watch ends, move the host to upstream Node 22.23.4.
+  Rebuild HelloRun, HelloPera and HelloUniversity, which still run Node 22.23.3.
+
+The builder control pilot is in its 7-day watch (until 2026-11-01).
 
 ## Next — to turn on the multi-runtime pilots
 

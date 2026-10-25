@@ -23,6 +23,8 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.x
+          # The runner's cached 22.x lags security releases (it served 22.23.3 after 22.23.4 shipped).
+          check-latest: true
           cache: npm
 
       - name: Install dependencies
