@@ -82,7 +82,8 @@ if [[ -f "$BACKUP_DIR/env.backup" ]]; then
     warn "Existing .env backed up as .env.pre-restore-*"
   fi
   cp "$BACKUP_DIR/env.backup" "$HD_HOME/.env"
-  chmod 600 "$HD_HOME/.env"
+  # The web and worker services read .env through the config group (as install.sh sets it).
+  chmod 640 "$HD_HOME/.env"
   chown root:"$HD_CONFIG_GROUP" "$HD_HOME/.env"
   info "Restored .env"
 else

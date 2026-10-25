@@ -73,11 +73,18 @@ if grep -qE '^WORKER_CONCURRENCY=' "$ENV_FILE" && ! grep -qE '^WORKER_CONCURRENC
   fail "WORKER_CONCURRENCY must be 1 for builder control."
 fi
 
+# Write the backup's contents into .env, so .env keeps its own owner and mode
+# (root:hellodeploy-config 0640). Copying the file itself would carry the
+# backup's root-only mode, and the services could no longer read .env.
 restore_env() {
   if [[ -n "$BACKUP" && -f "$BACKUP" ]]; then
-    cp -a "$BACKUP" "$ENV_FILE"
+    cat "$BACKUP" >"$ENV_FILE"
     printf 'Restored %s from %s.\n' "$ENV_FILE" "$BACKUP" >&2
   fi
+}
+# Both service identities must still be able to read .env.
+services_can_read_env() {
+  sudo -u hellodeploy-web test -r "$ENV_FILE" && sudo -u "$WORKER_USER" test -r "$ENV_FILE"
 }
 resume_queue() {
   if [[ -n "$QUEUE_STATE_FILE" && -f "$QUEUE_STATE_FILE" ]]; then
@@ -146,6 +153,7 @@ if ! (cd "$HD_HOME" && node scripts/queue-maintenance.js pause-and-drain --state
   fail "the deployment queue did not drain; nothing was restarted."
 fi
 CHECKS_OK=true
+RESTARTED_AT="$(date '+%Y-%m-%d %H:%M:%S')"
 systemctl restart hellodeploy-worker hellodeploy-web || CHECKS_OK=false
 sleep 8
 
@@ -153,15 +161,25 @@ CONTROL_GID="$(getent group hellodeploy-builder-control | cut -d: -f3)"
 WORKER_PID="$(systemctl show -p MainPID --value hellodeploy-worker)"
 systemctl is-active --quiet hellodeploy-worker || CHECKS_OK=false
 systemctl is-active --quiet hellodeploy-web || CHECKS_OK=false
-grep -E '^Groups:' "/proc/$WORKER_PID/status" 2>/dev/null | grep -qw "$CONTROL_GID" || CHECKS_OK=false
-journalctl -u hellodeploy-worker --since "-1 min" --no-pager 2>/dev/null |
-  grep -q "builder control enabled" || CHECKS_OK=false
+# Read into variables first: under pipefail, `journalctl | grep -q` fails
+# whenever grep exits before journalctl finishes writing.
+WORKER_GROUPS="$(grep -E '^Groups:' "/proc/$WORKER_PID/status" 2>/dev/null || true)"
+[[ " $WORKER_GROUPS " == *" $CONTROL_GID "* ]] || CHECKS_OK=false
+WORKER_LOG="$(journalctl -u hellodeploy-worker --since "$RESTARTED_AT" --no-pager 2>/dev/null || true)"
+[[ "$WORKER_LOG" == *"builder control enabled"* ]] || CHECKS_OK=false
 if ! $CHECKS_OK; then
   echo "The restarted services did not pass their checks; restoring the previous configuration." >&2
   restore_env
+  services_can_read_env || echo "CRITICAL: the services cannot read $ENV_FILE; run: chown root:hellodeploy-config $ENV_FILE && chmod 640 $ENV_FILE" >&2
+  systemctl reset-failed hellodeploy-worker hellodeploy-web 2>/dev/null || true
   systemctl restart hellodeploy-worker hellodeploy-web
-  sleep 5
+  sleep 8
   resume_queue
+  if systemctl is-active --quiet hellodeploy-worker && systemctl is-active --quiet hellodeploy-web; then
+    echo "The previous configuration is back and both services are running." >&2
+  else
+    echo "CRITICAL: the services did not come back; inspect: journalctl -u hellodeploy-web -u hellodeploy-worker" >&2
+  fi
   exit 1
 fi
 resume_queue
