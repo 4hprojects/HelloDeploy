@@ -47,7 +47,9 @@ if systemctl is-active --quiet "$UNIT"; then
 fi
 
 echo "== Installation"
-refuse "unit is not enabled at boot" systemctl is-enabled --quiet "$UNIT"
+# "static" (no [Install] section) cannot be enabled at all; is-enabled exits 0 for it.
+check "unit cannot start at boot (static or disabled)" \
+  bash -c "[[ \"\$(systemctl is-enabled $UNIT 2>/dev/null)\" =~ ^(static|disabled)\$ ]]"
 check "build cache store is mounted" mountpoint -q /var/lib/hellodeploy-builder
 check "builder user exists" id "$BUILDER_USER"
 refuse "builder user is not in the docker group" bash -c "id -nG $BUILDER_USER | grep -qw docker"
