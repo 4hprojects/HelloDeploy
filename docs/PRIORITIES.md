@@ -24,9 +24,7 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-1. **Decide on `hellotasks.online` (owner).** It returns 502: its pre-HelloDeploy nginx site
-   (`/etc/nginx/sites-enabled/hellotasks`) proxies to port 3000, where nothing runs. Either restart
-   that app or retire it by disabling the site.
+Nothing waiting. The builder control pilot is in its 7-day watch (until 2026-11-01).
 
 ## Next — to turn on the multi-runtime pilots
 
@@ -84,6 +82,11 @@ When you're ready:
 
 ## Decided and closed (2026-10-21)
 
+- **`hellotasks.online` retired (2026-10-26).** It was already unreachable publicly (Cloudflare 530:
+  no tunnel route), and its pre-HelloDeploy app ran only locally under the owner's pm2. The
+  `sites-enabled/hellotasks` link was removed (backup in `/var/backups/nginx-hellotasks-*`; the site
+  file stays in `sites-available`), and the pm2 app was stopped and saved. The address now gets
+  the branded 404. Undo: relink the site, reload nginx, and run `pm2 start hellotasks`.
 - **Screen-reader check done** (2026-10-22). The automated review fixed repeated row-action
   labels, a log panel that read every streamed line aloud, and silent finishes on the deployments
   list (#140). The owner then completed the Orca check in
