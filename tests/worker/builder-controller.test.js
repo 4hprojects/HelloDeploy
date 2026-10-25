@@ -402,6 +402,21 @@ describe('builder controller — idle shutdown and restarts', () => {
     assert.equal(harness.state(), BuilderState.READY);
   });
 
+  it('keeps the real start time of a service adopted after a worker restart', async () => {
+    const harness = createHarness();
+    harness.unit.state = 'active';
+    harness.unit.activeSince = async () => new Date('2026-10-25T15:31:18.000Z');
+    await harness.controller.reconcile();
+    assert.equal(harness.controller.getSnapshot().startedAt, '2026-10-25T15:31:18.000Z');
+  });
+
+  it('checks the registry when it adopts a running service', async () => {
+    const harness = createHarness();
+    harness.unit.state = 'active';
+    await harness.controller.reconcile();
+    assert.equal(harness.controller.getSnapshot().registry.ok, true);
+  });
+
   it('records a stopped service after a worker restart', async () => {
     const harness = createHarness();
     await harness.controller.reconcile();

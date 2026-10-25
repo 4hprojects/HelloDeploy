@@ -37,11 +37,13 @@ VPS.** The Phase A design is in
 [BUILDER_CONTROL_DESIGN.md](multi-runtime/BUILDER_CONTROL_DESIGN.md). It recommends a
 restricted rootless builder on this host for generated templates only. The owner approved it with
 conditions; Phase B (the admin interface, lifecycle controls and tests) is implemented on
-`feat/builder-control` (#142, not merged). Phase C passed on 2026-10-25: the builder is installed
-on this host (stopped), and a Next.js 16 app built in it, was pushed to private GHCR and served
-from a test worker; every failure case held. **Next:** the section 12 fixes (the referrers
-fallback leak and a unit reinstall), then owner approval for Phase D. The host-option notes below
-predate that design.
+#142 (merged). **Live since 2026-10-25 (Phase D)** for one administrator-owned Next.js
+project, `builder-pilot-next16`: built on the on-demand builder, pushed to private GHCR, deployed,
+and rolled back by digest. **Now:** a 7-day watch until 2026-11-01 (idle shutdowns, no unexpected
+cancels, apps healthy). The GHCR production token expires about 2027-01-23; renew it before then.
+Follow-ups: the `public/` warning still shows for the standalone mode, and a build mode chosen
+before a pilot is enabled is not saved until the advanced settings are saved. The host-option
+notes below predate that design.
 
 When you're ready:
 

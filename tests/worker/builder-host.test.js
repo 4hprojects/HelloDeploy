@@ -172,6 +172,22 @@ describe('builder systemd unit control', () => {
     );
   });
 
+  it('reads when the unit became active', async () => {
+    const control = createUnitControl({
+      unit: PATHS.unit,
+      run: async () => ({ code: 0, stdout: '@1792942274\n', stderr: '' }),
+    });
+    assert.equal((await control.activeSince()).toISOString(), '2026-10-25T15:31:14.000Z');
+  });
+
+  it('reports no start time for a unit that is not active', async () => {
+    const control = createUnitControl({
+      unit: PATHS.unit,
+      run: async () => ({ code: 0, stdout: '\n', stderr: '' }),
+    });
+    assert.equal(await control.activeSince(), null);
+  });
+
   it('reads the unit state', async () => {
     const control = createUnitControl({
       unit: PATHS.unit,
