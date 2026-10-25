@@ -34,6 +34,15 @@ production host while the acceptance record remains incomplete.
    - In either mode, push a second throwaway image and confirm one cleanup sweep removes
      it from the package's version list, including its `sha256-…` referrers fallback
      tag if GHCR created one (`oras repo tags` lists it).
+   - With `github-packages`, push a permanent anchor version once:
+     `oras push ghcr.io/OWNER/PRIVATE_REPOSITORY:hellodeploy-anchor anchor.txt:text/plain`.
+     GitHub refuses to delete a package's last tagged version, so without it the cleanup of
+     the final release would fail on every sweep. The worker's readiness check refuses to
+     start remote builds while the anchor is missing.
+   - Result on 2026-10-25 for `ghcr.io/4hprojects/hellodeploy-builds` (a personal
+     account): the package is private (anonymous fetch: `unauthorized`); GHCR answers the
+     OCI delete with `unsupported`; so it uses `REGISTRY_DELETE_API=github-packages` with
+     `GHCR_PACKAGES_OWNER_TYPE=user`, and the anchor is in place.
 
 Set the shared protected environment only after the probes below pass:
 

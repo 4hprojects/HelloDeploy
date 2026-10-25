@@ -303,6 +303,37 @@ started on the host.
   memory-constrained host.
 - `npm run lint` and Prettier on the changed paths are clean.
 
+## 2026-10-25 Builder control, Phase C: host install and runbook step 7
+
+**Host install** (`infrastructure/builder/install-builder.sh --test-user henz`, run by the
+owner): `uidmap` and `slirp4netns` installed; BuildKit v0.34.0 and ORAS 1.3.4 with pinned
+checksums; the 30 GB store mounted; the unit installed `static` (it cannot start at boot).
+
+**`verify-builder.sh`**: 33 of 34 checks passed. The one failure was the script's own boot
+check, which read `static` as enabled; it was fixed (`5a5c4a3`). Passed:
+
+- polkit, as `hellodeploy-worker`: start, stop and SIGKILL of the builder are allowed;
+  restart, signals to other services, and requests from an unrelated user are refused;
+- cgroup caps: `memory.max` 1536 MiB, `memory.swap.max` 0, `cpu.max` 2 cores, `pids.max` 512;
+- as `hellodeploy-builder` with the firewall loaded: the Docker socket, `.env`, the nginx
+  helper, Redis (6379), the web service (3100), cloud metadata and the LAN address are
+  unreachable; `registry-1.docker.io:443` is reachable and `github.com:22` is refused;
+- the firewall table is removed after both Stop and SIGKILL.
+
+polkit evaluates the requesting process's own groups, so a user added to the control group
+needs a new login, and the production worker needs its next restart, before Start works.
+
+**Runbook step 7** on `ghcr.io/4hprojects/hellodeploy-builds`:
+
+- the package is private (anonymous fetch: `unauthorized: authentication required`);
+- `oras manifest delete` answers `unsupported: The operation is unsupported.`, and the
+  manifest stays;
+- `github-packages` mode through the worker's own `deleteRegistryManifest`: deletion
+  succeeded, and a repeat deletion is a no-op;
+- GitHub refuses to delete a package's last tagged version (HTTP 400), so a permanent
+  `hellodeploy-anchor` version was pushed, and readiness now requires it;
+- `verifyRegistryAccess` against real GHCR returns ready.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

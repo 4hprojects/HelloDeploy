@@ -16,6 +16,8 @@ const VERSIONS_PER_PAGE = 100;
 // what retention leaves in the platform repository.
 const MAX_VERSION_PAGES = 100;
 const NOT_FOUND = /MANIFEST_UNKNOWN|not found|404/i;
+/** A permanent version kept in the package; release cleanup never deletes it. */
+export const PACKAGE_ANCHOR_TAG = 'hellodeploy-anchor';
 
 function runOras(args) {
   return new Promise((resolve) => {
@@ -53,6 +55,14 @@ export async function verifyRegistryAccess(repository, deps = {}) {
   }
   if (deleteApi === 'github-packages') {
     await createPackagesApi(repository, deps).listVersions(1, 1);
+    // GitHub refuses to delete a package's last tagged version, so without a
+    // permanent version every cleanup of the final release would fail.
+    const anchor = await run(['manifest', 'fetch', `${repository}:${PACKAGE_ANCHOR_TAG}`]);
+    if (anchor.code !== 0) {
+      throw new Error(
+        `Registry ${repository} has no ${PACKAGE_ANCHOR_TAG} tag; push it as described in runbook step 7.`,
+      );
+    }
   }
   return { ready: true };
 }

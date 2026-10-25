@@ -251,4 +251,32 @@ describe('registry deletion through GitHub Packages', () => {
       /version listing failed: 401/,
     );
   });
+
+  // GitHub refuses to delete a package's last tagged version (seen live 2026-10-25).
+  it('refuses readiness when the package has no permanent anchor version', async () => {
+    await assert.rejects(
+      verifyRegistryAccess('ghcr.io/example/hellodeploy-apps', {
+        deleteApi: 'github-packages',
+        packagesTokenPath,
+        run: async (args) =>
+          args[0] === 'manifest'
+            ? { code: 1, stdout: '', stderr: 'not found' }
+            : { code: 0, stdout: '', stderr: '' },
+        fetchImpl: async () => Response.json([]),
+      }),
+      /has no hellodeploy-anchor tag/,
+    );
+  });
+
+  it('is ready when the anchor version exists', async () => {
+    assert.deepEqual(
+      await verifyRegistryAccess('ghcr.io/example/hellodeploy-apps', {
+        deleteApi: 'github-packages',
+        packagesTokenPath,
+        run: async () => ({ code: 0, stdout: '{}', stderr: '' }),
+        fetchImpl: async () => Response.json([]),
+      }),
+      { ready: true },
+    );
+  });
 });
