@@ -358,6 +358,10 @@ infrastructure. A failed start was covered by the unit tests and the S1 check, n
 4. `REGISTRY_DELETE_API=github-packages`, `GHCR_PACKAGES_OWNER_TYPE=user`, a long-lived worker
    token file (`read:packages`, `delete:packages`) and the worker's GHCR login replace the Phase C
    test token, which is then revoked.
-5. Watch the 5% memory-pressure cancel threshold on real pilot builds: it cancelled a 2 GB
-   build correctly and did not cancel a normal Next.js build, but it is close to the limit.
+5. ~~Memory-pressure cancel rule~~: changed 2026-10-25 by owner decision after the first
+   production pilot build was cancelled at 7.64% system-wide pressure while the apps and the
+   builder stalled 0% (the desktop session caused it). A build is now cancelled when any app
+   container's memory pressure (`full avg10`) exceeds 5%, or when the builder's own exceeds 50%.
+   The 600 MB available-memory and 10 GB disk floors are unchanged, and so is admission (system
+   `some avg60` below 10%).
 6. Java builds are still unmeasured and should stay disabled until measured.

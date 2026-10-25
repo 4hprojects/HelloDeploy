@@ -396,6 +396,19 @@ After the `SuccessExitStatus=1` and probe fixes, the owner reinstalled the unit 
 `verify-builder.sh`: **all 36 checks passed**, including a rootless build step and HTTPS
 egress. A normal Stop now leaves the unit `inactive` (`Result=success`), not `failed`.
 
+## 2026-10-25 Builder control, Phase D: first production pilot build
+
+- Activation (`activate-builder-control.sh`) passed. The worker has the builder groups (966,
+  967), builder control is on, the builder starts and stops through the admin page, and GHCR is
+  reachable. The apps answered 200 throughout.
+- Deployments #1 and #2 of the pilot used the legacy template: the build mode was saved before
+  the pilot flag existed, and the dropdown only showed the recommendation until it was saved.
+  Both failed on the missing `public/`, as the legacy template does.
+- Deployment #3 used `next_standalone_v1`. The monitor cancelled it after 16 s for system-wide
+  memory pressure of 7.64%, while the builder peaked at 1,028 MiB and the builder cgroup and
+  every app container stalled 0%. The cancel rule now reads the app containers' and the builder's
+  own pressure instead.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current

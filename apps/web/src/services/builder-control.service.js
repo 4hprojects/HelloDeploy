@@ -353,6 +353,7 @@ export function presentBuilderStatus({ status, isFresh, idleMinutes }) {
       memAvailable: `${withUnit(resources.memAvailableMb, 'MB')} (a start or build needs ${limits.memoryMaxMb + limits.hostReserveMb} MB)`,
       swap: `${resources.swapFreeMb} of ${resources.swapTotalMb} MB (needs ${limits.minSwapFreeMb} MB)`,
       pressure: `${resources.memoryPressureSome60}% (must be below ${limits.maxMemoryPressureSome60}%)`,
+      appPressure: `${withUnit(resources.appMemoryPressureFull10, '%').replace(' %', '%')} (a build is cancelled above ${limits.abortAppMemoryPressureFull10}%)`,
       disk: `${withUnit(resources.diskFreeGb, 'GB')} (needs ${limits.minDiskFreeGb} GB)`,
       store: `${withUnit(resources.storeFreeGb, 'GB')} (needs ${limits.minStoreFreeGb} GB)`,
       builderMemory: `${resources.builderMemoryMb ?? '—'}${resources.builderMemoryMb === null || resources.builderMemoryMb === undefined ? '' : ' MB'} of ${limits.memoryMaxMb} MB`,

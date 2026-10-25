@@ -93,6 +93,7 @@
         <dt>Available memory</dt><dd data-builder-field="memAvailable"><%= f.memAvailable %></dd>
         <dt>Free swap</dt><dd data-builder-field="swap"><%= f.swap %></dd>
         <dt>Memory pressure (60 s)</dt><dd data-builder-field="pressure"><%= f.pressure %></dd>
+        <dt>App memory pressure (10 s)</dt><dd data-builder-field="appPressure"><%= f.appPressure %></dd>
         <dt>Free disk</dt><dd data-builder-field="disk"><%= f.disk %></dd>
         <dt>Build cache free</dt><dd data-builder-field="store"><%= f.store %></dd>
         <dt>Build service memory</dt><dd data-builder-field="builderMemory"><%= f.builderMemory %></dd>
@@ -100,8 +101,9 @@
       </dl>
       <% if (limits) { %>
       <p class="form-hint mt-4">
-        These thresholds are fixed in code. A running build is cancelled if available memory falls
-        below <%= limits.abortAvailableMb %> MB or free disk below <%= limits.abortDiskFreeGb %> GB.
+        These thresholds are fixed in code. A running build is cancelled if the running apps stall on
+        memory, if available memory falls below <%= limits.abortAvailableMb %> MB, or if free disk
+        falls below <%= limits.abortDiskFreeGb %> GB.
       </p>
       <% } %>
     </div>

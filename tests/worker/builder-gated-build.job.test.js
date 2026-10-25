@@ -64,6 +64,8 @@ async function createBuilder({ isStarted = true, memAvailableMb = 4000 } = {}) {
     swapFreeMb: 2048,
     memoryPressureSome60: 0,
     memoryPressureFull10: 0,
+    appMemoryPressureFull10: 0,
+    builderMemoryPressureFull10: 0,
     diskFreeGb: 500,
     storeFreeGb: 25,
   };
