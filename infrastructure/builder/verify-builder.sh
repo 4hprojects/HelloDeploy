@@ -32,9 +32,16 @@ refuse() {
 }
 as_worker() { runuser -u "$WORKER_USER" -- systemctl --no-ask-password "$@"; }
 as_builder() { runuser -u "$BUILDER_USER" -- "$@"; }
-# A TCP connection attempt from the builder user, with a short timeout.
+# A TCP connection attempt from the builder user over IPv4, up to three tries,
+# so one slow name lookup or handshake does not read as blocked.
 builder_connects() {
-  as_builder timeout 5 bash -c "exec 3<>/dev/tcp/$1/$2" 2>/dev/null
+  local address
+  address="$(getent ahostsv4 "$1" | awk 'NR == 1 { print $1 }')"
+  [[ -n "$address" ]] || return 1
+  for _ in 1 2 3; do
+    as_builder timeout 5 bash -c "exec 3<>/dev/tcp/$address/$2" 2>/dev/null && return 0
+  done
+  return 1
 }
 
 [[ $EUID -eq 0 ]] || {

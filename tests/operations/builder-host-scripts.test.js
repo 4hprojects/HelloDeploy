@@ -40,6 +40,11 @@ describe('builder unit', () => {
     assert.match(unit, /^Restart=no$/m);
   });
 
+  // Found live: a normal Stop otherwise leaves the unit "failed".
+  it('treats buildkitd’s exit status on SIGTERM as a clean stop', () => {
+    assert.match(unit, /^SuccessExitStatus=1$/m);
+  });
+
   it('cannot start at boot', () => {
     assert.doesNotMatch(unit, /^\[Install\]/m);
   });

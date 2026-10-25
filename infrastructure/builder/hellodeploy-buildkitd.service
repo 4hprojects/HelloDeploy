@@ -26,6 +26,8 @@ ExecStartPre=+/usr/sbin/nft -f /etc/hellodeploy-builder/egress.nft
 ExecStart=/usr/bin/rootlesskit --net=slirp4netns --disable-host-loopback --copy-up=/etc --state-dir=/run/hellodeploy-builder/rootlesskit /usr/local/lib/hellodeploy-builder/bin/buildkitd --config=/etc/hellodeploy-builder/buildkitd.toml
 ExecStopPost=-+/usr/sbin/nft delete table inet hellodeploy_builder
 Restart=no
+# buildkitd exits 1 when it is stopped with SIGTERM; that is a normal stop.
+SuccessExitStatus=1
 TimeoutStopSec=30
 KillMode=control-group
 

@@ -37,9 +37,11 @@ VPS.** The Phase A design is in
 [BUILDER_CONTROL_DESIGN.md](multi-runtime/BUILDER_CONTROL_DESIGN.md). It recommends a
 restricted rootless builder on this host for generated templates only. The owner approved it with
 conditions; Phase B (the admin interface, lifecycle controls and tests) is implemented on
-`feat/builder-control` (#142, not merged). **Next: owner approval for Phase C**, the host install
-and isolated tests. Today's host memory would refuse every build until about 1.3 GB more is free.
-The host-option notes below predate that design.
+`feat/builder-control` (#142, not merged). Phase C passed on 2026-10-25: the builder is installed
+on this host (stopped), and a Next.js 16 app built in it, was pushed to private GHCR and served
+from a test worker; every failure case held. **Next:** the section 12 fixes (the referrers
+fallback leak and a unit reinstall), then owner approval for Phase D. The host-option notes below
+predate that design.
 
 When you're ready:
 

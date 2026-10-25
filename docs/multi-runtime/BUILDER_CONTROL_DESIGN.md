@@ -331,3 +331,33 @@ and peak build memory per framework.
 | Next.js standard build | likely 700 MB–1.3 GB                                              | unmeasured; first Phase C measurement                   |
 | Java (Gradle/Maven)    | may exceed 1.5 GB                                                 | unmeasured; may need a higher cap or must stay disabled |
 | Disk                   | 30 GB fixed store image, out of 801 GB free                       | no effect on app storage                                |
+
+## 12. Phase C results (2026-10-25)
+
+Host install, `verify-builder.sh`, runbook step 7, and live isolated tests are complete; see
+`EVIDENCE.md` (2026-10-25). Every scenario in section 8 behaved as designed on real
+infrastructure. A failed start was covered by the unit tests and the S1 check, not by a live run.
+
+**Measured resources** (replacing the section 11 estimates where measured):
+
+| Item                               | Measured                                                 |
+| ---------------------------------- | -------------------------------------------------------- |
+| Builder idle                       | 92–128 MiB                                               |
+| Next.js 16 standalone build        | 1,255 MiB peak, 3 min 44 s cold; cached rebuilds seconds |
+| Host available memory during build | never below 2,375 MB                                     |
+| Over-limit build                   | worker cancels at host pressure before systemd-oomd acts |
+
+**Before Phase D** (activation needs owner approval):
+
+1. Fix the referrers fallback leak: when a cached rebuild rewrites the `sha256-<child>` tag, the
+   previous fallback index must be deleted too (in `github-packages` mode, find untagged
+   versions whose index lists only attestations being deleted).
+2. Reinstall the unit once more for `SuccessExitStatus=1` and rerun `verify-builder.sh`.
+3. The production worker gains the builder groups only at its next restart (polkit checks the
+   process's own groups); activation therefore happens through a normal `upgrade.sh` restart.
+4. `REGISTRY_DELETE_API=github-packages`, `GHCR_PACKAGES_OWNER_TYPE=user`, a long-lived worker
+   token file (`read:packages`, `delete:packages`) and the worker's GHCR login replace the Phase C
+   test token, which is then revoked.
+5. Watch the 5% memory-pressure cancel threshold on real pilot builds: it cancelled a 2 GB
+   build correctly and did not cancel a normal Next.js build, but it is close to the limit.
+6. Java builds are still unmeasured and should stay disabled until measured.

@@ -334,6 +334,58 @@ needs a new login, and the production worker needs its next restart, before Star
   `hellodeploy-anchor` version was pushed, and readiness now requires it;
 - `verifyRegistryAccess` against real GHCR returns ready.
 
+## 2026-10-25 Builder control, Phase C: live isolated tests
+
+Setup:
+
+- the real system builder unit and `ghcr.io/4hprojects/hellodeploy-builds`;
+- a test worker started with `env -i` from a directory with no `.env`, with builder control on,
+  a throwaway MongoDB (27999) and Redis (6999), `NGINX_ENABLED=false`,
+  `ALLOW_UNROUTED_RELEASES=true`, ports 29000–29099, and on-disk scratch workspaces;
+- the `next16-standalone-app` fixture cloned from public GitHub at `3984477`.
+
+Production containers and networks were compared before and after: unchanged. The apps answered
+200 (HelloEventHub 308) throughout.
+
+**Inside a real build** (`buildctl` through the unit):
+
+- blocked: Redis on 127.0.0.1, the slirp host gateway 10.0.2.2 (6379, 3100), the LAN address,
+  169.254.169.254, `github.com:22`, and the Docker socket (not present);
+- reachable: `registry.npmjs.org:443` and `dl-cdn.alpinelinux.org:443`;
+- uid 0 inside the build is the user-namespace root, not host root.
+
+| Case                                         | Result                                                                                                                                                                                  |
+| -------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Builder stopped, deploy queued               | `BUILDER_OFFLINE` in about 2 s; nothing cloned                                                                                                                                          |
+| Start through the control queue              | `READY`; polkit start, S1 check and GHCR readiness (with the anchor) passed                                                                                                             |
+| Next.js 16 standalone, end to end            | `HEALTHY` in 3 min 44 s; digest-pinned GHCR index with image and attestation children; `sha256-<child>` fallback tag created; container non-root `node`, 256 MB, 200 on 127.0.0.1:29000 |
+| Build memory                                 | unit peak 1,255 MiB (`memory.peak`); host available memory never below 2,375 MB; no OOM kill, no swap                                                                                   |
+| Emergency Stop mid-build                     | `BUILD_CANCELLED` ("Stopped by an administrator"); unit killed; builder `STOPPED`; live release still 200                                                                               |
+| Worker SIGKILL mid-build, restarted          | the deployment marked `WORKER_INTERRUPTED`; the running builder adopted as `READY`; no build processes left                                                                             |
+| Health check fails after the image was built | `HEALTH_CHECK_FAILED`; the candidate container removed; live release still 200                                                                                                          |
+| A build command holding 2 GB                 | the worker's monitor cancelled it after 16 s (`Memory pressure reached 8.05% (maximum 5%)`); host available memory never below 1,869 MB; builder stayed `READY`                         |
+| Direct 2 GB build without the worker         | throttled at `MemoryHigh` (peak 1,395 MiB); systemd-oomd killed the builder unit at 66% pressure after 20 s; apps unaffected                                                            |
+| Build timeout (90 s, `sleep 600`)            | `BUILD_FAILED` "timed out after 90s"; BuildKit cancelled the step (no `sleep` left); builder `READY`                                                                                    |
+| GHCR refuses the push (no credentials)       | `BUILD_FAILED` "Image push exited with code 1"; live release still 200                                                                                                                  |
+| Idle shutdown (5 min)                        | stopped 5 min after the last build ended; `builder.idle_stopped` audited                                                                                                                |
+| Registry cleanup (github-packages)           | a failed release's index and unique attestation deleted; the image manifest it shared with the live release kept (shared-child rule); the live release still pullable                   |
+| Host reboot at 20:47                         | the builder unit stayed stopped (it cannot start at boot); every app came back on its own                                                                                               |
+
+Findings:
+
+- `ProtectKernelLogs=yes` stopped every build step (`error mounting "proc" ... operation not
+permitted`). It was removed (`a44aaef`); a build step now runs.
+- A normal stop exits 1 (`buildkitd: got SIGTERM`), which left the unit `failed`. Fixed with
+  `SuccessExitStatus=1`.
+- The `registry-1.docker.io:443` probe in `verify-builder.sh` failed once although a build had
+  just pulled through the same firewall. The probe now uses IPv4 with three tries.
+- A cached rebuild makes ORAS rewrite the `sha256-<child>` fallback tag, and the previous
+  fallback index becomes an untagged package version that cleanup never deletes. One such version
+  was found and deleted by hand; this needs a code fix before Phase D.
+- The timeout and push-failure messages get the Next.js secrets hint appended, which is
+  misleading. This is existing remote-path wording; it is listed as a follow-up.
+- After cleanup, the package holds only `hellodeploy-anchor`.
+
 ## External evidence still required
 
 No dedicated builder or private GHCR credentials are available in the current
