@@ -1,0 +1,19 @@
+# HelloDeploy on-demand builder egress. Applies only to processes running as
+# the hellodeploy-builder user (rootlesskit and slirp4netns carry every build's
+# traffic): DNS through the local resolver and HTTP(S) to public addresses are
+# allowed; loopback, private, link-local (cloud metadata) and other ports are not.
+add table inet hellodeploy_builder
+delete table inet hellodeploy_builder
+
+table inet hellodeploy_builder {
+  chain output {
+    type filter hook output priority 0; policy accept;
+    meta skuid != "hellodeploy-builder" accept
+    ip daddr 127.0.0.53 meta l4proto { tcp, udp } th dport 53 accept
+    oifname "lo" drop
+    ip daddr { 0.0.0.0/8, 10.0.0.0/8, 100.64.0.0/10, 127.0.0.0/8, 169.254.0.0/16, 172.16.0.0/12, 192.168.0.0/16, 224.0.0.0/4, 240.0.0.0/4 } drop
+    ip6 daddr { ::/128, ::1/128, fc00::/7, fe80::/10, ff00::/8 } drop
+    meta l4proto { tcp, udp } th dport { 53, 80, 443 } accept
+    drop
+  }
+}
