@@ -29,6 +29,8 @@ function healthySample(overrides = {}) {
     swapFreeMb: BUILDER_LIMITS.minSwapFreeMb,
     memoryPressureSome60: 0,
     memoryPressureFull10: 0,
+    appMemoryPressureFull10: 0,
+    builderMemoryPressureFull10: 0,
     diskFreeGb: BUILDER_LIMITS.minDiskFreeGb,
     storeFreeGb: BUILDER_LIMITS.minStoreFreeGb,
     ...overrides,
@@ -183,7 +185,8 @@ describe('builder pressure during a build', () => {
       evaluateBuilderPressure(
         healthySample({
           memAvailableMb: BUILDER_LIMITS.abortAvailableMb,
-          memoryPressureFull10: BUILDER_LIMITS.abortMemoryPressureFull10,
+          appMemoryPressureFull10: BUILDER_LIMITS.abortAppMemoryPressureFull10,
+          builderMemoryPressureFull10: BUILDER_LIMITS.abortBuilderMemoryPressureFull10,
           diskFreeGb: BUILDER_LIMITS.abortDiskFreeGb,
         }),
       ),
@@ -196,6 +199,33 @@ describe('builder pressure during a build', () => {
       evaluateBuilderPressure(
         healthySample({ memAvailableMb: BUILDER_LIMITS.abortAvailableMb - 1 }),
       ).length,
+      1,
+    );
+  });
+
+  // Measured 2026-10-25: a busy desktop drove system-wide pressure to 7.6% while
+  // the apps and the builder stalled 0%; that build must not be cancelled.
+  it('keeps a build running when only the rest of the host is under pressure', () => {
+    assert.deepEqual(evaluateBuilderPressure(healthySample({ memoryPressureFull10: 7.64 })), []);
+  });
+
+  it('cancels when the running apps stall on memory', () => {
+    assert.equal(
+      evaluateBuilderPressure(healthySample({ appMemoryPressureFull10: 5.01 })).length,
+      1,
+    );
+  });
+
+  it('cancels when the builder is thrashing', () => {
+    assert.equal(
+      evaluateBuilderPressure(healthySample({ builderMemoryPressureFull10: 66 })).length,
+      1,
+    );
+  });
+
+  it('cancels when the app pressure reading is missing', () => {
+    assert.equal(
+      evaluateBuilderPressure(healthySample({ appMemoryPressureFull10: NaN })).length,
       1,
     );
   });

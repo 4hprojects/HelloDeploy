@@ -1127,6 +1127,60 @@
     window.setTimeout(poll, 5000);
   }
 
+  // The admin Build Service page: refresh status, resources and registry from
+  // the worker's published status, and announce state changes politely.
+  function initBuilderStatusPolling() {
+    const root = document.querySelector('[data-builder-status-url]');
+    if (!root) {
+      return;
+    }
+    const live = root.querySelector('[data-builder-live]');
+    let previousState = root.querySelector('[data-builder-badge="state"]')?.textContent.trim();
+    function apply(view) {
+      root.querySelectorAll('[data-builder-field]').forEach((element) => {
+        const value = view.fields[element.dataset.builderField];
+        if (typeof value === 'string' && element.textContent !== value) {
+          element.textContent = value;
+        }
+      });
+      root.querySelectorAll('[data-builder-show]').forEach((element) => {
+        element.hidden = !view.show[element.dataset.builderShow];
+      });
+      root.querySelectorAll('[data-builder-badge]').forEach((element) => {
+        const badge = view[element.dataset.builderBadge];
+        if (badge) {
+          element.className = `badge ${badge.badge}`;
+          element.textContent = badge.label;
+        }
+      });
+      if (live && previousState && view.state.label !== previousState) {
+        live.textContent = `Build service is ${view.state.label}.`;
+      }
+      previousState = view.state.label;
+    }
+    async function poll() {
+      if (document.hidden) {
+        window.setTimeout(poll, 5000);
+        return;
+      }
+      try {
+        const response = await fetch(root.dataset.builderStatusUrl, {
+          headers: { Accept: 'application/json' },
+          credentials: 'same-origin',
+          cache: 'no-store',
+        });
+        if (!response.ok) {
+          throw new Error('Status unavailable');
+        }
+        apply(await response.json());
+        window.setTimeout(poll, 5000);
+      } catch {
+        window.setTimeout(poll, 10000);
+      }
+    }
+    window.setTimeout(poll, 5000);
+  }
+
   function initDeploymentLiveLogs() {
     const output = document.getElementById('log-output');
     if (!output) {
@@ -2056,6 +2110,7 @@
     initWebVitals();
     initVerificationCooldown();
     initDashboardPolling();
+    initBuilderStatusPolling();
     initDeploymentLiveLogs();
     initDeploymentListPolling();
     initEnvFileImport();

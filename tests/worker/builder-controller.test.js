@@ -18,6 +18,8 @@ function healthyResources() {
     swapFreeMb: 2048,
     memoryPressureSome60: 0,
     memoryPressureFull10: 0,
+    appMemoryPressureFull10: 0,
+    builderMemoryPressureFull10: 0,
     diskFreeGb: 500,
     storeFreeGb: 25,
     builderMemoryMb: 80,
@@ -307,6 +309,24 @@ describe('builder controller — monitoring during a build', () => {
     harness.resources = { ...healthyResources(), memAvailableMb: 400 };
     await harness.runMonitor();
     assert.match(lease.signal.reason.message, /protect running apps/);
+  });
+
+  it('keeps building when only the rest of the host is under memory pressure', async () => {
+    const harness = createHarness();
+    await harness.startReady();
+    const lease = await harness.acquire();
+    harness.resources = { ...healthyResources(), memoryPressureFull10: 7.64 };
+    await harness.runMonitor();
+    assert.equal(lease.signal.aborted, false);
+  });
+
+  it('cancels the build when the running apps stall on memory', async () => {
+    const harness = createHarness();
+    await harness.startReady();
+    const lease = await harness.acquire();
+    harness.resources = { ...healthyResources(), appMemoryPressureFull10: 12 };
+    await harness.runMonitor();
+    assert.match(lease.signal.reason.message, /Running apps reached 12% memory pressure/);
   });
 
   it('cancels the build when the service dies', async () => {

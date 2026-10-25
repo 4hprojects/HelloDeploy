@@ -1,6 +1,9 @@
-import { readFile, statfs } from 'node:fs/promises';
+import { readdir, readFile, statfs } from 'node:fs/promises';
 
 const BYTES_PER_MB = 1024 * 1024;
+const SYSTEM_SLICE = '/sys/fs/cgroup/system.slice';
+// Docker's systemd cgroup driver puts each container in its own scope here.
+const CONTAINER_SCOPE = /^docker-[0-9a-f]{64}\.scope$/;
 const BYTES_PER_GB = 1024 * BYTES_PER_MB;
 
 /**
@@ -13,9 +16,17 @@ const BYTES_PER_GB = 1024 * BYTES_PER_MB;
  */
 export async function readHostResources(
   { workspacePath, storePath, unit },
-  deps = { readFile, statfs },
+  deps = { readdir, readFile, statfs },
 ) {
-  const [meminfo, pressure, diskFreeGb, storeFreeGb, builderMemoryMb] = await Promise.all([
+  const [
+    meminfo,
+    pressure,
+    diskFreeGb,
+    storeFreeGb,
+    builderMemoryMb,
+    builderPressure,
+    appPressureFull10,
+  ] = await Promise.all([
     deps.readFile('/proc/meminfo', 'utf8').then(parseMeminfo, () => null),
     deps.readFile('/proc/pressure/memory', 'utf8').then(parseMemoryPressure, () => null),
     readFreeGb(workspacePath, deps),
@@ -24,6 +35,10 @@ export async function readHostResources(
       (text) => Math.round(Number(text.trim()) / BYTES_PER_MB),
       () => null,
     ),
+    deps
+      .readFile(`${SYSTEM_SLICE}/${unit}/memory.pressure`, 'utf8')
+      .then(parseMemoryPressure, () => null),
+    readAppPressureFull10(deps),
   ]);
   return {
     memAvailableMb: meminfo?.memAvailableMb ?? NaN,
@@ -31,6 +46,9 @@ export async function readHostResources(
     swapFreeMb: meminfo?.swapFreeMb ?? NaN,
     memoryPressureSome60: pressure?.some60 ?? NaN,
     memoryPressureFull10: pressure?.full10 ?? NaN,
+    // Without readable app containers, the system-wide value stands in.
+    appMemoryPressureFull10: appPressureFull10 ?? pressure?.full10 ?? NaN,
+    builderMemoryPressureFull10: builderPressure?.full10 ?? NaN,
     diskFreeGb: diskFreeGb ?? NaN,
     storeFreeGb,
     builderMemoryMb,
@@ -73,4 +91,29 @@ async function readFreeGb(path, deps) {
   } catch {
     return null;
   }
+}
+
+/**
+ * The highest `full avg10` memory pressure among the running containers, or
+ * null when no container cgroup can be read.
+ */
+async function readAppPressureFull10(deps) {
+  let entries;
+  try {
+    entries = await deps.readdir(SYSTEM_SLICE);
+  } catch {
+    return null;
+  }
+  const values = await Promise.all(
+    entries
+      .filter((name) => CONTAINER_SCOPE.test(name))
+      .map((name) =>
+        deps.readFile(`${SYSTEM_SLICE}/${name}/memory.pressure`, 'utf8').then(
+          (text) => parseMemoryPressure(text)?.full10 ?? null,
+          () => null,
+        ),
+      ),
+  );
+  const readable = values.filter((value) => value !== null);
+  return readable.length > 0 ? Math.max(...readable) : null;
 }

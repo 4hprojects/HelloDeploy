@@ -29,8 +29,14 @@ const PATHS = {
   unit: 'hellodeploy-buildkitd.service',
 };
 
-function fakeFs({ files = {}, freeGb = {} } = {}) {
+function fakeFs({ files = {}, freeGb = {}, slice = null } = {}) {
   return {
+    readdir: async () => {
+      if (!slice) {
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      }
+      return slice;
+    },
     readFile: async (path) => {
       if (!(path in files)) {
         throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
@@ -68,6 +74,54 @@ describe('host resource readings', () => {
       }),
     );
     assert.equal(sample.diskFreeGb, 801);
+  });
+
+  const SCOPE_A = `docker-${'a'.repeat(64)}.scope`;
+  const SCOPE_B = `docker-${'b'.repeat(64)}.scope`;
+  const pressureText = (full10) =>
+    `some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=${full10} avg60=0.00 avg300=0.00 total=0\n`;
+
+  it('reads the highest memory pressure among the app containers', async () => {
+    const sample = await readHostResources(
+      PATHS,
+      fakeFs({
+        files: {
+          '/proc/meminfo': MEMINFO,
+          '/proc/pressure/memory': PRESSURE,
+          [`/sys/fs/cgroup/system.slice/${SCOPE_A}/memory.pressure`]: pressureText('0.50'),
+          [`/sys/fs/cgroup/system.slice/${SCOPE_B}/memory.pressure`]: pressureText('3.20'),
+        },
+        freeGb: { [PATHS.workspacePath]: 801, [PATHS.storePath]: 28 },
+        slice: [SCOPE_A, SCOPE_B, 'cron.service'],
+      }),
+    );
+    assert.equal(sample.appMemoryPressureFull10, 3.2);
+  });
+
+  it('falls back to system-wide pressure when no container can be read', async () => {
+    const sample = await readHostResources(
+      PATHS,
+      fakeFs({
+        files: { '/proc/meminfo': MEMINFO, '/proc/pressure/memory': PRESSURE },
+        freeGb: { [PATHS.workspacePath]: 801, [PATHS.storePath]: 28 },
+      }),
+    );
+    assert.equal(sample.appMemoryPressureFull10, 0.04);
+  });
+
+  it('reads the builder unit’s own memory pressure', async () => {
+    const sample = await readHostResources(
+      PATHS,
+      fakeFs({
+        files: {
+          '/proc/meminfo': MEMINFO,
+          '/proc/pressure/memory': PRESSURE,
+          [`/sys/fs/cgroup/system.slice/${PATHS.unit}/memory.pressure`]: pressureText('66.00'),
+        },
+        freeGb: { [PATHS.workspacePath]: 801, [PATHS.storePath]: 28 },
+      }),
+    );
+    assert.equal(sample.builderMemoryPressureFull10, 66);
   });
 
   it('refuses admission when memory readings are unavailable', async () => {

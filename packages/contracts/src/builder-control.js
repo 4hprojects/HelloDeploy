@@ -61,9 +61,14 @@ export const BUILDER_LIMITS = Object.freeze({
   maxMemoryPressureSome60: 10,
   minDiskFreeGb: 20,
   minStoreFreeGb: 5,
-  // Monitoring during a build: any breach cancels it.
+  // Monitoring during a build: any breach cancels it. Memory pressure is read
+  // where it matters, the app containers, so a busy desktop session on the same
+  // host does not cancel builds (measured 2026-10-25: the apps and the builder
+  // stalled 0% while system-wide pressure reached 7.6%).
   abortAvailableMb: 600,
-  abortMemoryPressureFull10: 5,
+  abortAppMemoryPressureFull10: 5,
+  // A builder this starved of memory is thrashing; stop it before oomd does.
+  abortBuilderMemoryPressureFull10: 50,
   abortDiskFreeGb: 10,
   monitorIntervalMs: 5_000,
   // A build still running this long after its timeout gets the service killed.
@@ -217,8 +222,9 @@ export function evaluateBuilderEligibility({ strategy, projectId, ownerRole, set
  * @param {HostResourceSample} sample
  * @returns {string[]} reasons the builder may not start or build; empty when admitted
  * @typedef {{ memAvailableMb: number, swapFreeMb: number, swapTotalMb: number,
- *   memoryPressureSome60: number, memoryPressureFull10: number, diskFreeGb: number,
- *   storeFreeGb: number|null }} HostResourceSample
+ *   memoryPressureSome60: number, memoryPressureFull10: number,
+ *   appMemoryPressureFull10: number, builderMemoryPressureFull10: number,
+ *   diskFreeGb: number, storeFreeGb: number|null }} HostResourceSample
  */
 export function evaluateBuilderAdmission(sample) {
   const limits = BUILDER_LIMITS;
@@ -249,8 +255,9 @@ export function evaluateBuilderAdmission(sample) {
 }
 
 /**
- * Reasons to cancel a running build: the host is close to running out of
- * memory or disk, which would endanger the live applications.
+ * Reasons to cancel a running build: the live applications are stalling on
+ * memory, the host is close to running out of memory or disk, or the builder
+ * is thrashing. A missing reading counts as a breach.
  *
  * @param {HostResourceSample} sample
  * @returns {string[]}
@@ -263,9 +270,14 @@ export function evaluateBuilderPressure(sample) {
       `Available memory fell to ${sample.memAvailableMb} MB (minimum ${limits.abortAvailableMb} MB).`,
     );
   }
-  if (!(sample.memoryPressureFull10 <= limits.abortMemoryPressureFull10)) {
+  if (!(sample.appMemoryPressureFull10 <= limits.abortAppMemoryPressureFull10)) {
     reasons.push(
-      `Memory pressure reached ${sample.memoryPressureFull10}% (maximum ${limits.abortMemoryPressureFull10}%).`,
+      `Running apps reached ${sample.appMemoryPressureFull10}% memory pressure (maximum ${limits.abortAppMemoryPressureFull10}%).`,
+    );
+  }
+  if (!(sample.builderMemoryPressureFull10 <= limits.abortBuilderMemoryPressureFull10)) {
+    reasons.push(
+      `The build service reached ${sample.builderMemoryPressureFull10}% memory pressure (maximum ${limits.abortBuilderMemoryPressureFull10}%).`,
     );
   }
   if (!(sample.diskFreeGb >= limits.abortDiskFreeGb)) {
