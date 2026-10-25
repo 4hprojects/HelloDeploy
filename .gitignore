@@ -40,3 +40,8 @@ test-results/
 # Temporary build artifacts
 /var/lib/hellodeploy/
 CLAUDE.local.md
+
+# Java fixture build output (local Maven/Gradle runs and IDE imports)
+tests/fixtures/multi-runtime/java-maven/target/
+tests/fixtures/multi-runtime/java-gradle/.gradle/
+tests/fixtures/multi-runtime/java-gradle/build/
