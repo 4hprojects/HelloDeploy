@@ -30,6 +30,20 @@ export function createUnitControl({ unit, run = runSystemctl }) {
       const result = await run(['--no-ask-password', 'is-active', unit]);
       return result.stdout.trim() || 'unknown';
     },
+    /** When the unit last became active, or null when it is not known. */
+    async activeSince() {
+      const result = await run([
+        '--no-ask-password',
+        'show',
+        '--timestamp=unix',
+        '-p',
+        'ActiveEnterTimestamp',
+        '--value',
+        unit,
+      ]);
+      const match = /^@(\d+)$/.exec(result.stdout.trim());
+      return match ? new Date(Number(match[1]) * 1000) : null;
+    },
   };
 }
 

@@ -409,6 +409,12 @@ egress. A normal Stop now leaves the unit `inactive` (`Result=success`), not `fa
   every app container stalled 0%. The cancel rule now reads the app containers' and the builder's
   own pressure instead.
 
+**Deployment #5** (`next_standalone_v1`, after #145): HEALTHY in 29 s (warm cache), image
+`ghcr.io/4hprojects/hellodeploy-builds@sha256:faa2ad490b68…`, public URL 200, container non-root
+`node`, 256 MB, bound to 127.0.0.1. A second release followed, then a rollback to #5: the live
+container runs the same digest, with no rebuild. The builder stopped with `Result=success`. The
+other apps answered 200 throughout, and the worker logged no errors.
+
 ## 2026-10-25 Incident: dashboard down about 5 minutes during a token renewal
 
 - The owner ran the token renewal (`deactivate-builder-control.sh --remove-credentials`, then
@@ -426,6 +432,10 @@ egress. A normal Stop now leaves the unit `inactive` (`Result=success`), not `fa
   read the journal only from the restart time; confirm both service users can read `.env` after a
   restore; and report loudly if the services do not come back. `infrastructure/restore.sh` had the
   same latent `chmod 600`; it now sets `640`, as `install.sh` does.
+- A retry with those fixes still rolled back: `/proc/<pid>/status` writes a tab after
+  `Groups:`, so the space-delimited match missed the first listed group (the builder control
+  group). That was fixed in `3559ad9`. The restore path worked as designed: the services came
+  back. Reactivation then succeeded at 00:04 on 2026-10-26, and builder control has been on since.
 
 ## External evidence still required
 

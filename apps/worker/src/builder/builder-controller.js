@@ -412,8 +412,11 @@ export function createBuilderController({
       try {
         await verifyBuilder();
         setState(BuilderState.READY);
-        status.startedAt = new Date(now()).toISOString();
-        status.lastActivityAt = status.startedAt;
+        const activeSince = await unitControl.activeSince?.().catch(() => null);
+        status.startedAt = (activeSince ?? new Date(now())).toISOString();
+        // The idle countdown restarts here: the restart itself was activity.
+        status.lastActivityAt = new Date(now()).toISOString();
+        await checkRegistry();
       } catch (error) {
         setState(BuilderState.FAILED, error.message);
       }

@@ -1,5 +1,17 @@
 # Multi-Runtime Changelog
 
+## 2026-10-25
+
+- Phase C passed live; Phase D activated builder control in production (`activate-builder-control.sh`).
+  The first pilot, `builder-pilot-next16` (Next.js 16 standalone), was built on the on-demand
+  builder, pushed to `ghcr.io/4hprojects/hellodeploy-builds` by digest, deployed, and rolled
+  back to the same digest. The other apps answered 200 throughout.
+- #145: the Build Service page updates itself; builds are cancelled on app-container (or
+  builder) memory pressure rather than system-wide pressure, after a busy desktop session
+  cancelled the first pilot build.
+- After a worker restart, an adopted builder keeps its real start time and its registry status
+  is re-checked.
+
 ## 2026-10-23 to 2026-10-24
 
 - Builder control Phase A (audit and design) approved by the owner with conditions; Phase B
