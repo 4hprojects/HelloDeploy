@@ -1,3 +1,5 @@
+import http from 'node:http';
+
 import { logger } from '@hellodeploy/observability';
 
 const DEFAULT_ATTEMPTS = 12;
@@ -30,20 +32,17 @@ export async function httpHealthCheck({
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
 
-      const res = await fetch(url, {
-        signal: controller.signal,
-        redirect: 'manual', // treat redirects as healthy
-      }).finally(() => clearTimeout(timer));
+      const status = await getStatus(url, controller.signal).finally(() => clearTimeout(timer));
 
-      lastStatus = res.status;
+      lastStatus = status;
 
-      if (res.status < 400) {
-        logger.info('HealthCheck: passed', { url, status: res.status, attempt });
-        return { healthy: true, finalStatus: res.status };
+      if (status < 400) {
+        logger.info('HealthCheck: passed', { url, status, attempt });
+        return { healthy: true, finalStatus: status };
       }
 
-      logger.info('HealthCheck: non-success status', { url, status: res.status, attempt });
-      lastError = `HTTP ${res.status}`;
+      logger.info('HealthCheck: non-success status', { url, status, attempt });
+      lastError = `HTTP ${status}`;
     } catch (err) {
       if (err.name === 'AbortError') {
         lastError = `Timeout after ${timeoutMs}ms`;
@@ -65,22 +64,15 @@ export async function httpHealthCheck({
   };
 }
 
-/**
- * A fast readiness check — a single attempt with a shorter timeout.
- * Used to quickly detect immediate container crashes before the full health poll.
- *
- * @param {{ url: string, timeoutMs?: number }} opts
- * @returns {Promise<boolean>}
- */
-export async function quickReadinessCheck({ url, timeoutMs = 2_000 }) {
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
-    const res = await fetch(url, { signal: controller.signal, redirect: 'manual' }).finally(() =>
-      clearTimeout(timer),
-    );
-    return res.status < 500;
-  } catch {
-    return false;
-  }
+// The response comes from tenant code. node:http never decodes Content-Encoding,
+// unlike fetch, so a crafted br/gzip body never reaches zlib (CVE-2026-111497).
+// Redirects are not followed, so a 3xx counts as healthy.
+function getStatus(url, signal) {
+  return new Promise((resolve, reject) => {
+    const req = http.get(url, { agent: false, signal }, (res) => {
+      resolve(res.statusCode);
+      res.destroy();
+    });
+    req.on('error', reject);
+  });
 }
