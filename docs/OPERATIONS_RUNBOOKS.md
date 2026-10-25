@@ -375,9 +375,11 @@ Pause auto-deploy before running `upgrade.sh` by hand so the two never overlap. 
 
 ## Host Node.js runtime
 
-Production runs on Ubuntu's `nodejs` package (22.22.1). It links the system `libbrotli1`, OpenSSL and `libnode127` dynamically. `infrastructure/install.sh` installs NodeSource's Node 22 instead, so switching to NodeSource also brings the host in line with the installer. Use this procedure for a Node security release, such as CVE-2026-111497 in October 2026.
+Production runs NodeSource's Node 22 at `/usr/bin/node`, from the same source `infrastructure/install.sh` uses. That build bundles Brotli and OpenSSL, so only a new Node package fixes a Node security release. The host ran Ubuntu's `nodejs` (which links the system `libbrotli1`, OpenSSL and `libnode127`) until 2026-10-26. The switch below is kept for any host still on the Ubuntu package.
 
-Work in a quiet window: no build running, and no pilot watch in progress. All four HelloDeploy services, `hellodeploy-autodeploy` and `pm2-henz` run `/usr/bin/node`. The native addons (`argon2`, `msgpackr-extract`) are N-API, so a Node 22 patch release does not need a rebuild.
+**Patch release (NodeSource already installed).** Pause as in step 3, run `sudo apt update && sudo apt-get install --only-upgrade nodejs`, then follow steps 7–10.
+
+**Switching from Ubuntu's package.** Work in a quiet window: no build running, and no pilot watch in progress. All four HelloDeploy services, `hellodeploy-autodeploy` and `pm2-henz` run `/usr/bin/node`. The native addons (`argon2`, `msgpackr-extract`) are N-API, so a Node 22 patch release does not need a rebuild.
 
 1. **Check Ubuntu first.** Run `sudo apt update && apt-cache policy libbrotli1 nodejs`. If Ubuntu has a fixed package, install it with `sudo apt install --only-upgrade libbrotli1 nodejs` and go to step 7. Otherwise continue with NodeSource.
 2. **Save the distro packages for rollback.**
@@ -412,18 +414,23 @@ Work in a quiet window: no build running, and no pilot watch in progress. All fo
    node -e "fetch('https://api.github.com').then((r) => console.log(r.status))"
    ```
 
+   `process.versions.brotli` may not change after a fix, because Node cherry-picks patches into its bundled copy. 22.23.4 still reports `1.1.0`. Check the release notes instead.
+
 8. **Restart.** Run `sudo systemctl restart hellodeploy-nginx-helper hellodeploy-web hellodeploy-worker pm2-henz`. Running processes keep the old libraries mapped until they restart.
 9. **Verify.**
    - Run `sudo bash -c 'cd /opt/hellodeploy && bash infrastructure/verify-installation.sh'`.
    - Check that `/ready` returns 200 and `/admin/server` shows MongoDB, Redis, Docker and the webhook as healthy.
    - Check that `journalctl -u 'hellodeploy-*' --since -10min` shows no TLS or `ERR_` errors.
-   - Redeploy one app, such as HelloEventHub, and confirm it reaches HEALTHY.
-10. **Resume.** Run `sudo bash -c 'cd /opt/hellodeploy && node scripts/queue-maintenance.js resume --state-file /var/backups/hellodeploy/node-distro/queue-state.json'`, then `sudo rm /etc/hellodeploy/autodeploy.disabled`. Watch the next autodeploy run, because it runs `npm ci` on the new runtime.
+10. **Resume and test.** Follow these steps in order:
+    1. Run `sudo bash -c 'cd /opt/hellodeploy && node scripts/queue-maintenance.js resume --state-file /var/backups/hellodeploy/node-distro/queue-state.json'`.
+    2. Redeploy one app, such as HelloEventHub, and confirm it reaches HEALTHY. It cannot run while the queue is paused.
+    3. Run `sudo rm /etc/hellodeploy/autodeploy.disabled`.
+    4. Watch the next autodeploy run, because it runs `npm ci` on the new runtime.
 
 **Rollback.** Follow these steps in order:
 
 1. Pause the queue and autodeploy as in step 3.
-2. Delete the NodeSource source and pin files that step 4 created.
+2. Delete the files step 4 created: `/etc/apt/sources.list.d/nodesource.sources`, `/etc/apt/preferences.d/nodejs`, `/etc/apt/preferences.d/nsolid` and `/usr/share/keyrings/nodesource.gpg`. Then run `sudo apt update`. The pins (priority 600) would otherwise keep the NodeSource package.
 3. Run `sudo apt-get install --allow-downgrades /var/backups/hellodeploy/node-distro/*.deb`.
 4. Restart the services as in step 8, then verify as in step 9.
 5. Reinstall any package in `installed-before.txt` that is now missing and still needed.
