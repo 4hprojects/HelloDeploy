@@ -381,7 +381,11 @@ permitted`). It was removed (`a44aaef`); a build step now runs.
   just pulled through the same firewall. The probe now uses IPv4 with three tries.
 - A cached rebuild makes ORAS rewrite the `sha256-<child>` fallback tag, and the previous
   fallback index becomes an untagged package version that cleanup never deletes. One such version
-  was found and deleted by hand; this needs a code fix before Phase D.
+  was found and deleted by hand. Fixed the same day: after a deletion, cleanup also deletes any
+  untagged index that no release record holds and whose every listed manifest is gone. Live
+  check: two Next.js releases, the second a cached rebuild, left 8 versions (4 untagged,
+  including the orphaned fallback index). Deleting the older release removed the orphan and left
+  the newer release's image, attestation and fallback tag; it kept serving.
 - The timeout and push-failure messages get the Next.js secrets hint appended, which is
   misleading. This is existing remote-path wording; it is listed as a follow-up.
 - After cleanup, the package holds only `hellodeploy-anchor`.

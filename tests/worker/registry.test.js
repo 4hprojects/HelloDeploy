@@ -280,3 +280,144 @@ describe('registry deletion through GitHub Packages', () => {
     );
   });
 });
+
+// Seen live on GHCR 2026-10-25: a cached rebuild makes ORAS rewrite the
+// referrers fallback tag, and the previous fallback index stays as an
+// untagged version that no tag or release names.
+describe('registry cleanup of orphaned fallback indexes', () => {
+  const ORPHAN = `sha256:${'f'.repeat(64)}`;
+  const LIVE_ATTESTATION = `sha256:${'d'.repeat(64)}`;
+  let packagesTokenPath;
+  before(async () => {
+    await startTestDb();
+    packagesTokenPath = await tokenFile();
+  });
+  after(stopTestDb);
+  beforeEach(clearTestDb);
+
+  /** A package whose versions disappear as they are deleted. */
+  function livePackage(extraVersions) {
+    const versions = [
+      { id: 1, name: INDEX, metadata: { container: { tags: ['release-1'] } } },
+      { id: 2, name: IMAGE },
+      { id: 3, name: ATTESTATION },
+      ...extraVersions,
+    ];
+    const deleted = [];
+    const fetchImpl = async (url, init) => {
+      if (init.method === 'DELETE') {
+        const id = Number(url.split('/').pop());
+        deleted.push(id);
+        versions.splice(
+          versions.findIndex((version) => version.id === id),
+          1,
+        );
+        return new Response(null, { status: 204 });
+      }
+      return Response.json(url.includes('page=1') ? versions : []);
+    };
+    return { fetchImpl, deleted };
+  }
+
+  /** ORAS answers for the release index and for the version under test. */
+  function orasFor(orphanManifest) {
+    return async (args) => {
+      if (args[2] === `ghcr.io/example/hellodeploy-apps@${INDEX}`) {
+        return {
+          code: 0,
+          stdout: JSON.stringify({ manifests: [{ digest: IMAGE }, { digest: ATTESTATION }] }),
+          stderr: '',
+        };
+      }
+      if (args[2] === `ghcr.io/example/hellodeploy-apps@${ORPHAN}`) {
+        return { code: 0, stdout: JSON.stringify(orphanManifest), stderr: '' };
+      }
+      return { code: 1, stdout: '', stderr: 'not found' };
+    };
+  }
+
+  const fallbackIndex = (digests) => ({
+    mediaType: 'application/vnd.oci.image.index.v1+json',
+    manifests: digests.map((digest) => ({ digest })),
+  });
+
+  function cleanup({ fetchImpl, run, known = new Set() }) {
+    return deleteRegistryManifest(IMAGE_REF, {
+      isDeletionEnabled: true,
+      platformRepository: 'ghcr.io/example/hellodeploy-apps',
+      deleteApi: 'github-packages',
+      packagesOwnerType: 'org',
+      packagesTokenPath,
+      findSharedChildDigests: async () => new Set(),
+      findKnownImageDigests: async () => known,
+      fetchImpl,
+      run,
+    });
+  }
+
+  it('deletes an untagged index whose every manifest is gone', async () => {
+    const { fetchImpl, deleted } = livePackage([{ id: 9, name: ORPHAN }]);
+    await cleanup({ fetchImpl, run: orasFor(fallbackIndex([ATTESTATION])) });
+    assert.deepEqual(deleted, [2, 3, 1, 9]);
+  });
+
+  it('keeps an untagged index that still lists an existing manifest', async () => {
+    const { fetchImpl, deleted } = livePackage([
+      { id: 9, name: ORPHAN },
+      { id: 10, name: LIVE_ATTESTATION },
+    ]);
+    await cleanup({
+      fetchImpl,
+      run: orasFor(fallbackIndex([ATTESTATION, LIVE_ATTESTATION])),
+    });
+    assert.deepEqual(deleted, [2, 3, 1]);
+  });
+
+  it('never deletes a tagged index, such as a live fallback tag', async () => {
+    const { fetchImpl, deleted } = livePackage([
+      { id: 9, name: ORPHAN, metadata: { container: { tags: ['sha256-other'] } } },
+    ]);
+    await cleanup({ fetchImpl, run: orasFor(fallbackIndex([ATTESTATION])) });
+    assert.deepEqual(deleted, [2, 3, 1]);
+  });
+
+  it('never deletes a digest a release record still holds', async () => {
+    const { fetchImpl, deleted } = livePackage([{ id: 9, name: ORPHAN }]);
+    await cleanup({
+      fetchImpl,
+      run: orasFor(fallbackIndex([ATTESTATION])),
+      known: new Set([ORPHAN]),
+    });
+    assert.deepEqual(deleted, [2, 3, 1]);
+  });
+
+  it('keeps a digest that a stored release lists as a child', async () => {
+    const project = await createProject();
+    await createDeployment(project._id, {
+      imageRef: `ghcr.io/example/hellodeploy-apps:release-2@${LIVE_ATTESTATION}`,
+      imageDigest: LIVE_ATTESTATION,
+      imageChildDigests: [ORPHAN],
+    });
+    const { fetchImpl, deleted } = livePackage([{ id: 9, name: ORPHAN }]);
+    await deleteRegistryManifest(IMAGE_REF, {
+      isDeletionEnabled: true,
+      platformRepository: 'ghcr.io/example/hellodeploy-apps',
+      deleteApi: 'github-packages',
+      packagesOwnerType: 'org',
+      packagesTokenPath,
+      findSharedChildDigests: async () => new Set(),
+      fetchImpl,
+      run: orasFor(fallbackIndex([ATTESTATION])),
+    });
+    assert.deepEqual(deleted, [2, 3, 1]);
+  });
+
+  it('never deletes an untagged single image manifest', async () => {
+    const { fetchImpl, deleted } = livePackage([{ id: 9, name: ORPHAN }]);
+    await cleanup({
+      fetchImpl,
+      run: orasFor({ mediaType: 'application/vnd.oci.image.manifest.v1+json', layers: [] }),
+    });
+    assert.deepEqual(deleted, [2, 3, 1]);
+  });
+});

@@ -349,9 +349,8 @@ infrastructure. A failed start was covered by the unit tests and the S1 check, n
 
 **Before Phase D** (activation needs owner approval):
 
-1. Fix the referrers fallback leak: when a cached rebuild rewrites the `sha256-<child>` tag, the
-   previous fallback index must be deleted too (in `github-packages` mode, find untagged
-   versions whose index lists only attestations being deleted).
+1. ~~Fix the referrers fallback leak~~: done (cleanup deletes untagged indexes whose every
+   listed manifest is gone; verified live on GHCR).
 2. Reinstall the unit once more for `SuccessExitStatus=1` and rerun `verify-builder.sh`.
 3. The production worker gains the builder groups only at its next restart (polkit checks the
    process's own groups); activation therefore happens through a normal `upgrade.sh` restart.
