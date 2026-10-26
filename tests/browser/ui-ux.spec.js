@@ -444,6 +444,14 @@ test('advanced deployment controls stay collapsed below the history', async ({ p
   await expect(page.getByRole('button', { name: 'Deploy Commit' })).toBeHidden();
 });
 
+test('rollback choices name a rollback that repeats another release', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(page.locator('#targetDeploymentId option', { hasText: '#5' })).toContainText(
+    'same release as #4',
+  );
+});
+
 test('project overview keeps a live app visible while an update builds', async ({ page }) => {
   await signIn(page);
   await page.goto('/projects/northstar-notes');

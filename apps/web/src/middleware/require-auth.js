@@ -26,6 +26,7 @@ export function requireSuperAdmin(req, res, next) {
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',
+      canRetry: false,
       message: 'You do not have permission to access this page.',
     });
   }
@@ -41,6 +42,7 @@ export function requireAdmin(req, res, next) {
     return res.status(403).render('pages/error', {
       title: 'Forbidden',
       layout: 'layouts/main',
+      canRetry: false,
       message: 'You do not have permission to access this page.',
     });
   }

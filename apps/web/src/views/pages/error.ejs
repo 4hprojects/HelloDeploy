@@ -18,7 +18,8 @@
     </div>
     <div class="confirm-modal__actions">
       <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--secondary"><%= locals.user ? 'Return to dashboard' : 'Return home' %></a>
-      <a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--primary">Try again</a>
+      <%# A permission or not-found answer will not change on retry. %>
+      <% if (locals.canRetry !== false) { %><a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--primary">Try again</a><% } %>
     </div>
   </div>
 </div>
@@ -32,7 +33,7 @@
     <p><%= typeof message !== 'undefined' ? message : 'An error occurred.' %></p>
     <p class="mt-4">
       <a href="<%= locals.user ? '/dashboard' : '/' %>" class="button button--primary"><%= locals.user ? 'Return to dashboard' : 'Return home' %></a>
-      <a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--secondary">Try again</a>
+      <% if (locals.canRetry !== false) { %><a href="<%= locals.retryHref || locals.currentPath || '/' %>" class="button button--secondary">Try again</a><% } %>
     </p>
     <% if (locals.correlationId) { %><p class="form-hint mt-4">If you contact support, include reference <code class="code-inline"><%= correlationId %></code>.</p><% } %>
   </div>

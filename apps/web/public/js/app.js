@@ -1014,6 +1014,13 @@
     });
 
     let sent = false;
+    // Auth forms regenerate the session, so this page's CSRF token is already
+    // stale by the time pagehide fires; the request would only be rejected.
+    document.addEventListener('submit', (e) => {
+      if (new URL(e.target.action, window.location.href).pathname.startsWith('/auth/')) {
+        sent = true;
+      }
+    });
     function send() {
       if (sent) {
         return;

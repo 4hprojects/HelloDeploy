@@ -41,7 +41,7 @@ function productionFetch({ cookie = 'Secure; HttpOnly; SameSite=Lax', ready = tr
         return response({
           status: ready ? 'ready' : 'not_ready',
           service: 'web',
-          checks: { mongodb: ready, redis: ready, queue: ready },
+          checks: { mongodb: ready, redis: ready, queue: ready, email: ready },
         });
       case '/robots.txt':
         return new Response(
@@ -99,7 +99,13 @@ describe('public production check', () => {
         return response({
           status: 'ready',
           service: 'web',
-          checks: { mongodb: true, redis: true, queue: true, topology: 'must-not-leak' },
+          checks: {
+            mongodb: true,
+            redis: true,
+            queue: true,
+            email: true,
+            topology: 'must-not-leak',
+          },
         });
       }
       return productionFetch()(url, options);

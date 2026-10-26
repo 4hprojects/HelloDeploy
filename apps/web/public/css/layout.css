@@ -133,7 +133,7 @@
   color: var(--color-text);
 }
 
-.sidebar__link[aria-current='page'] {
+.sidebar__link[aria-current] {
   background: var(--color-bg-muted);
   color: var(--color-text);
   box-shadow: inset 3px 0 0 var(--color-blue);

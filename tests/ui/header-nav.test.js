@@ -77,4 +77,16 @@ describe('sidebar navigation', () => {
     });
     assert.match(html, /href="\/projects"\s+class="sidebar__link"\s+aria-current="page"/);
   });
+
+  it('marks Projects as the current section, not the current page, inside a project', async () => {
+    const sidebarPath = fileURLToPath(
+      new URL('../../apps/web/src/views/partials/sidebar.ejs', import.meta.url),
+    );
+    const html = await ejs.renderFile(sidebarPath, {
+      user: { platformRole: 'USER' },
+      currentPath: '/projects/sample-app/deployments',
+      csrfToken: '',
+    });
+    assert.match(html, /href="\/projects"\s+class="sidebar__link"\s+aria-current="true"/);
+  });
 });

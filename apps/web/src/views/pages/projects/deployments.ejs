@@ -227,6 +227,8 @@
           <option value="<%= d._id %>">
             #<%= d.sequenceNumber %> — <%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %>
             <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
+            <% const restoredFrom = d.sourceDeploymentId && rollbackTargets.find((target) => target._id.toString() === d.sourceDeploymentId.toString()); %>
+            <% if (restoredFrom) { %> (same release as #<%= restoredFrom.sequenceNumber %>)<% } else if (d.triggerType === 'ROLLBACK') { %> (rollback)<% } %>
           </option>
           <% }) %>
         </select>

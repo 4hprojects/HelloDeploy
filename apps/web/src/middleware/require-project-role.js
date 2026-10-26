@@ -6,6 +6,7 @@ function forbidden(res) {
   return res.status(403).render('pages/error', {
     title: 'Forbidden',
     layout: 'layouts/main',
+    canRetry: false,
     message: 'You do not have permission to access this project.',
   });
 }
@@ -14,6 +15,7 @@ function notFound(res) {
   return res.status(404).render('pages/error', {
     title: 'Not Found',
     layout: 'layouts/main',
+    canRetry: false,
     message: 'Project not found.',
   });
 }
