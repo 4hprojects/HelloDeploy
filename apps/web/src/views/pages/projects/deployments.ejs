@@ -85,7 +85,7 @@
           <td class="text-muted text-sm" data-label="Trigger"><%= d.triggerType %></td>
           <td class="text-muted text-sm" data-label="Started">
             <% if (d.startedAt) { %>
-              <%= new Date(d.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) %>
+              <time datetime="<%= new Date(d.startedAt).toISOString() %>"><%= new Date(d.startedAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZoneName: 'short' }) %></time>
             <% } else { %> — <% } %>
           </td>
           <td class="text-muted text-sm" data-label="Duration" data-deployment-duration>

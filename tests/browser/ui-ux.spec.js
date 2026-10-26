@@ -46,6 +46,34 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   }
 });
 
+test('homepage summarises the pilot limits from the plan defaults', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Free pilot: 1 project, 10 deployments a month.')).toBeVisible();
+});
+
+test('supported applications keep paused pilot runtimes out of the supported list', async ({
+  page,
+}) => {
+  await page.goto('/supported-apps');
+  const supported = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Supported', exact: true }),
+  });
+  await expect(supported.getByText(/Python|PHP|Java Spring/)).toHaveCount(0);
+});
+
+test('status check time states its timezone', async ({ page }) => {
+  await page.goto('/status');
+  await expect(page.locator('time[datetime]')).toHaveText(/\d{2}:\d{2}:\d{2} (GMT|UTC)/);
+});
+
+test('unverified sign-in explains verification once', async ({ page }) => {
+  await page.goto('/auth/sign-in');
+  await page.getByLabel('Email Address').fill('unverified@hellodeploy.test');
+  await page.getByLabel('Password').fill(fixturePassword);
+  await page.getByRole('button', { name: 'Sign In' }).click();
+  await expect(page.getByText(/verify your email/i)).toHaveCount(1);
+});
+
 test('how-it-works is indexable and accessible', async ({ page }) => {
   await page.goto('/how-it-works');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('From a GitHub repository');
@@ -410,6 +438,18 @@ test('healthy deployment detail fits a phone viewport', async ({ page }) => {
   await page.goto('/projects/northstar-notes/deployments');
   const href = await page.getByRole('link', { name: '#7', exact: true }).getAttribute('href');
   await page.goto(href);
+  const overflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test('admin server page fits a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin/server');
   const overflow = await page.evaluate(
     () =>
       globalThis.document.documentElement.scrollWidth -

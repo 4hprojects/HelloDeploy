@@ -707,7 +707,7 @@
 /* ── Detail list ─────────────────────────────────────────────────── */
 .detail-list {
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--space-2) var(--space-6);
   font-size: var(--text-sm);
 }
@@ -716,6 +716,12 @@
   color: var(--color-text-muted);
   font-weight: var(--font-medium);
   white-space: nowrap;
+}
+
+/* Full commit SHAs and URLs must wrap instead of widening the page on phones. */
+.detail-list dd {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .detail-list--inline {

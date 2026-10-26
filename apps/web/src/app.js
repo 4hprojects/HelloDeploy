@@ -19,6 +19,7 @@ import webhookRoutes from './routes/api/webhook.routes.js';
 import deployHookRoutes from './routes/api/deploy-hook.routes.js';
 import helmet from 'helmet';
 import { getDashboard, getDashboardStatusJson } from './controllers/dashboard.controller.js';
+import { getPlanDefaults } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
@@ -172,7 +173,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
     if (req.session?.user) {
       return res.redirect('/dashboard');
     }
-    res.render('pages/index', { title: 'HelloDeploy' });
+    res.render('pages/index', { title: 'HelloDeploy', planDefaults: getPlanDefaults() });
   });
 
   app.get('/how-it-works', getHowItWorks);

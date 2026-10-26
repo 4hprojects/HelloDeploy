@@ -73,6 +73,14 @@ const [user] = await User.create([
     status: UserStatus.ACTIVE,
     emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
   },
+  {
+    firstName: 'Unverified',
+    lastName: 'Visitor',
+    email: 'unverified@hellodeploy.test',
+    passwordHash,
+    platformRole: PlatformRole.USER,
+    status: UserStatus.PENDING_VERIFICATION,
+  },
 ]);
 
 const project = await Project.create({
