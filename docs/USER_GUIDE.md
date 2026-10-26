@@ -372,7 +372,7 @@ Owners and Maintainers can:
 - Retry failed or cancelled deployments.
 - Roll back to a retained healthy release.
 
-HelloDeploy retains three healthy rollback releases by default. Rollback still runs health checks before replacing the active route.
+HelloDeploy retains three healthy rollback releases by default. In deployment history only the release serving traffic shows **Live**; retained ones show **Previous release**. Rollback, exact-commit deploys, and rebuilds without cache are under **Advanced deployment** below the history. Rollback still runs health checks before replacing the active route.
 
 ## Deployment Notifications
 
