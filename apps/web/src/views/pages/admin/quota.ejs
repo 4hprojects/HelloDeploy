@@ -1,10 +1,12 @@
-<div class="page-header">
+<% const backHref = scopeType === 'PROJECT' ? '/admin/projects' : `/admin/users/${scopeId}`; %>
+<div class="page-header page-header--actions">
   <div>
     <h1 class="page-header__title">Quota Override — <%= scopeName %></h1>
     <p class="page-header__subtitle text-muted text-sm">
       <%= scopeType %> / <code class="code-inline"><%= scopeId %></code>
     </p>
   </div>
+  <a href="<%= backHref %>" class="button button--secondary"><%= scopeType === 'PROJECT' ? 'Back to Projects' : 'Back to User' %></a>
 </div>
 
 <% const isProject = scopeType === 'PROJECT'; %>
@@ -71,7 +73,12 @@
   </div>
   <div class="card__body">
     <p class="text-sm text-muted mb-4">Leave a field empty to remove its override and inherit the value shown in the placeholder. Clear every field to remove the override entirely.</p>
-    <form method="POST" action="/admin/quotas/<%= scopeType %>/<%= scopeId %>">
+    <form method="POST" action="/admin/quotas/<%= scopeType %>/<%= scopeId %>"
+          data-confirm="Save these quota limits for <%= scopeName %>? The change and its reason are recorded in the audit log."
+          data-confirm-title="Save quota override"
+          data-confirm-accept-label="Save Override"
+          data-confirm-pending-label="Saving..."
+          data-confirm-variant="warning">
       <%- include('../../partials/csrf-field') %>
 
       <div class="form-grid form-grid--2">
@@ -108,7 +115,7 @@
 
       <div class="button-group mt-6">
         <button type="submit" class="button button--primary" data-pending-label="Saving...">Save Quota Override</button>
-        <a href="<%= isProject ? '/admin/projects' : `/admin/users/${scopeId}` %>" class="button button--ghost">Cancel</a>
+        <a href="<%= backHref %>" class="button button--ghost">Cancel</a>
       </div>
     </form>
   </div>

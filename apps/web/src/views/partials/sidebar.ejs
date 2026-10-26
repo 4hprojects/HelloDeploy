@@ -50,6 +50,7 @@
   <% } %>
 
   <% if (_user && (_user.platformRole === 'ADMIN' || _user.platformRole === 'SUPER_ADMIN')) { %>
+  <% const _adminCounts = locals.adminPendingCounts || {}; %>
   <div class="sidebar__section">
     <p class="sidebar__section-title">Admin</p>
     <ul class="sidebar__nav" role="list">
@@ -91,13 +92,29 @@
         >
           <%- include('icon', { name: 'reviews', className: 'sidebar__icon' }) %>
           <span>Reviews</span>
+          <% if (_adminCounts.pendingApprovals > 0) { %>
+          <span class="status-badge status-badge--pending sidebar__count"><%= _adminCounts.pendingApprovals %><span class="sr-only"> waiting</span></span>
+          <% } %>
+        </a>
+      </li>
+      <li>
+        <a
+          href="/admin/domains"
+          class="sidebar__link"
+          <%- _path.startsWith('/admin/domains') ? 'aria-current="page"' : '' %>
+        >
+          <%- include('icon', { name: 'domain', className: 'sidebar__icon' }) %>
+          <span>Domains</span>
+          <% if (_adminCounts.pendingDomainApprovals > 0) { %>
+          <span class="status-badge status-badge--pending sidebar__count"><%= _adminCounts.pendingDomainApprovals %><span class="sr-only"> waiting</span></span>
+          <% } %>
         </a>
       </li>
       <li>
         <a
           href="/admin/audit-events"
           class="sidebar__link"
-          <%- currentPath.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/audit-events') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'audit', className: 'sidebar__icon' }) %>
           <span>Audit Log</span>
@@ -107,7 +124,7 @@
         <a
           href="/admin/server"
           class="sidebar__link"
-          <%- currentPath.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/server') ? 'aria-current="page"' : '' %>
         >
           <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
           <span>Server</span>
@@ -118,14 +135,23 @@
         <a
           href="/admin/builder"
           class="sidebar__link"
-          <%- currentPath.startsWith('/admin/builder') ? 'aria-current="page"' : '' %>
+          <%- _path.startsWith('/admin/builder') ? 'aria-current="page"' : '' %>
         >
-          <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
+          <%- include('icon', { name: 'deploy', className: 'sidebar__icon' }) %>
           <span>Build Service</span>
         </a>
       </li>
       <% } %>
-      <li><a href="/admin/ux-metrics" class="sidebar__link" <%- currentPath.startsWith('/admin/ux-metrics') ? 'aria-current="page"' : '' %>><%- include('icon', { name: 'dashboard', className: 'sidebar__icon' }) %><span>UX Metrics</span></a></li>
+      <li>
+        <a
+          href="/admin/ux-metrics"
+          class="sidebar__link"
+          <%- _path.startsWith('/admin/ux-metrics') ? 'aria-current="page"' : '' %>
+        >
+          <%- include('icon', { name: 'activity', className: 'sidebar__icon' }) %>
+          <span>UX Metrics</span>
+        </a>
+      </li>
     </ul>
   </div>
   <% } %>

@@ -10,6 +10,7 @@ const canChangeRole = isSuperAdmin && !isSelf;
 const fullName = `${target.firstName} ${target.lastName}`;
 const formatDate = (d) => (d ? new Date(d).toLocaleString('en-GB') : 'Never');
 const returnTo = `/admin/users/${target._id}`;
+const ROLE_LABELS = { USER: 'User', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin' };
 %>
 <div class="page-header page-header--actions">
   <div>
@@ -38,7 +39,7 @@ const returnTo = `/admin/users/${target._id}`;
   <div class="card__body">
     <dl class="detail-list">
       <dt>Role</dt>
-      <dd><span class="role-pill"><%= target.platformRole %></span></dd>
+      <dd><span class="role-pill"><%= ROLE_LABELS[target.platformRole] || target.platformRole %></span></dd>
       <dt>Status</dt>
       <dd>
         <%- include('../../partials/status-badge', { status: target.status, statusKind: 'user' }) %>
@@ -92,10 +93,11 @@ const returnTo = `/admin/users/${target._id}`;
             data-confirm-title="Suspend user"
             data-confirm-accept-label="Suspend User"
             data-confirm-pending-label="Suspending..."
-            data-confirm-variant="warning">
+            data-confirm-variant="warning"
+            data-confirm-reason>
         <%- include('../../partials/csrf-field') %>
         <input type="hidden" name="returnTo" value="<%= returnTo %>" />
-        <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" aria-label="Suspension reason" />
+        <input type="hidden" name="reason" value="" />
         <button type="submit" class="button button--warning button--sm">Suspend</button>
       </form>
       <% } %>
@@ -211,7 +213,7 @@ const returnTo = `/admin/users/${target._id}`;
       <%- include('../../partials/csrf-field') %>
       <select name="role" class="form-select form-select--sm" aria-label="Platform role">
         <% ['USER', 'ADMIN', 'SUPER_ADMIN'].forEach(r => { %>
-        <option value="<%= r %>" <%= target.platformRole === r ? 'selected' : '' %>><%= r %></option>
+        <option value="<%= r %>" <%= target.platformRole === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option>
         <% }) %>
       </select>
       <button type="submit" class="button button--secondary button--sm">Update Role</button>

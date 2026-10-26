@@ -1654,6 +1654,11 @@ a.setup-guide__step-link:hover .setup-guide__label {
   font-size: var(--text-sm);
 }
 
+.confirm-modal__reason {
+  margin-top: var(--space-4);
+  margin-bottom: 0;
+}
+
 .confirm-modal__actions {
   display: flex;
   justify-content: flex-end;
@@ -3558,9 +3563,13 @@ a.setup-guide__step-link:hover .setup-guide__label {
 }
 .activity-list span span,
 .activity-list a span {
-  color: var(--color-text-muted);
   font-size: var(--text-sm);
   text-align: right;
+}
+/* Badges inside a row keep their own tone colours. */
+.activity-list span span:not(.status-badge),
+.activity-list a span:not(.status-badge) {
+  color: var(--color-text-muted);
 }
 .stat-card--link {
   color: inherit;

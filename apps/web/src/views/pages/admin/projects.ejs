@@ -73,7 +73,12 @@
         <td class="text-right" data-label="Actions">
           <a href="/admin/quotas/PROJECT/<%= p._id %>" class="button button--ghost button--sm">Manage Quota</a>
           <% if (p.status === 'SUSPENDED') { %>
-          <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" class="d-inline">
+          <form method="POST" action="/admin/projects/<%= p._id %>/reactivate" class="d-inline"
+                data-confirm="Reactivate project <%= p.name %> and restore user access to it?"
+                data-confirm-title="Reactivate project"
+                data-confirm-accept-label="Reactivate Project"
+                data-confirm-pending-label="Reactivating..."
+                data-confirm-variant="success">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
@@ -83,9 +88,10 @@
                 data-confirm-title="Suspend project"
                 data-confirm-accept-label="Suspend Project"
                 data-confirm-pending-label="Suspending..."
-                data-confirm-variant="warning">
+                data-confirm-variant="warning"
+                data-confirm-reason>
             <%- include('../../partials/csrf-field') %>
-            <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the suspension." />
+            <input type="hidden" name="reason" value="" />
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>
@@ -99,11 +105,11 @@
 <% if (totalPages > 1) { %>
 <div class="pagination mt-4">
   <% if (page > 1) { %>
-  <a href="?page=<%= page - 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Previous</a>
+  <a href="?page=<%= page - 1 %>&status=<%= encodeURIComponent(filters.status) %>&search=<%= encodeURIComponent(filters.search) %>" class="button button--ghost button--sm">Previous</a>
   <% } %>
   <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
   <% if (page < totalPages) { %>
-  <a href="?page=<%= page + 1 %>&status=<%= filters.status %>&search=<%= filters.search %>" class="button button--ghost button--sm">Next</a>
+  <a href="?page=<%= page + 1 %>&status=<%= encodeURIComponent(filters.status) %>&search=<%= encodeURIComponent(filters.search) %>" class="button button--ghost button--sm">Next</a>
   <% } %>
 </div>
 <% } %>

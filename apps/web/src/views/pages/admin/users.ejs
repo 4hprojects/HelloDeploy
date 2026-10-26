@@ -4,6 +4,7 @@ const canManage = (u) =>
   u._id.toString() !== user.id &&
   u.platformRole !== 'SUPER_ADMIN' &&
   (u.platformRole !== 'ADMIN' || user.platformRole === 'SUPER_ADMIN');
+const ROLE_LABELS = { USER: 'User', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin' };
 const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeURIComponent(filters.role)}&search=${encodeURIComponent(filters.search)}`;
 %>
 <div class="page-header">
@@ -35,7 +36,7 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
       <select class="form-select" id="user-role" name="role" data-auto-submit>
         <option value="">All roles</option>
         <% ['USER', 'ADMIN', 'SUPER_ADMIN'].forEach(r => { %>
-        <option value="<%= r %>" <%= filters.role === r ? 'selected' : '' %>><%= r %></option>
+        <option value="<%= r %>" <%= filters.role === r ? 'selected' : '' %>><%= ROLE_LABELS[r] %></option>
         <% }) %>
       </select>
     </div>
@@ -73,7 +74,7 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
           <a href="/admin/users/<%= u._id %>" class="table-link"><strong><%= u.firstName %> <%= u.lastName %></strong></a>
           <span class="text-muted text-xs d-block"><%= u.email %></span>
         </td>
-        <td data-label="Role"><span class="role-pill"><%= u.platformRole %></span></td>
+        <td data-label="Role"><span class="role-pill"><%= ROLE_LABELS[u.platformRole] || u.platformRole %></span></td>
         <td data-label="Status">
           <%- include('../../partials/status-badge', { status: u.status, statusKind: 'user' }) %>
           <% if (u.lockedUntil && new Date(u.lockedUntil) > now) { %>
@@ -88,7 +89,12 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
         <td class="text-right" data-label="Actions">
           <a href="/admin/users/<%= u._id %>" class="button button--ghost button--sm">Manage</a>
           <% if (canManage(u) && u.status === 'SUSPENDED') { %>
-          <form method="POST" action="/admin/users/<%= u._id %>/reactivate" class="d-inline">
+          <form method="POST" action="/admin/users/<%= u._id %>/reactivate" class="d-inline"
+                data-confirm="Reactivate <%= u.firstName %> <%= u.lastName %> and restore account access?"
+                data-confirm-title="Reactivate user"
+                data-confirm-accept-label="Reactivate User"
+                data-confirm-pending-label="Reactivating..."
+                data-confirm-variant="success">
             <%- include('../../partials/csrf-field') %>
             <button type="submit" class="button button--ghost button--sm">Reactivate</button>
           </form>
@@ -98,9 +104,10 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
                 data-confirm-title="Suspend user"
                 data-confirm-accept-label="Suspend User"
                 data-confirm-pending-label="Suspending..."
-                data-confirm-variant="warning">
+                data-confirm-variant="warning"
+                data-confirm-reason>
             <%- include('../../partials/csrf-field') %>
-            <input type="text" name="reason" placeholder="Reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the suspension." />
+            <input type="hidden" name="reason" value="" />
             <button type="submit" class="button button--ghost button--sm">Suspend</button>
           </form>
           <% } %>

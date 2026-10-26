@@ -22,6 +22,10 @@
       <p class="confirm-modal__eyebrow">Confirm action</p>
       <h2 class="confirm-modal__title" id="confirm-modal-title">Continue?</h2>
       <p class="confirm-modal__message" id="confirm-modal-message"></p>
+      <div class="form-group confirm-modal__reason" data-confirm-reason-group hidden>
+        <label class="form-label" for="confirm-modal-reason">Reason <span class="text-muted">(optional)</span></label>
+        <textarea class="form-textarea" id="confirm-modal-reason" rows="2" maxlength="500" placeholder="Recorded with the action in the audit log"></textarea>
+      </div>
     </div>
     <div class="confirm-modal__actions">
       <button type="button" class="button button--ghost" data-confirm-cancel>Cancel</button>
