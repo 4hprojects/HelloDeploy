@@ -2778,7 +2778,7 @@ a.setup-guide__step-link:hover .setup-guide__label {
 
 .deploy-console__row {
   display: grid;
-  /* Grows past 10ch for VALIDATE when the fallback mono font is wider than 1ch per letter. */
+  /* Grows past its minimum when a wider mono font cannot fit VALIDATE. */
   grid-template-columns: 1.25rem minmax(10ch, max-content) minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
@@ -2859,7 +2859,7 @@ a.setup-guide__step-link:hover .setup-guide__label {
 
 @media (max-width: 40rem) {
   .deploy-console__row {
-    grid-template-columns: 1.25rem 7ch minmax(0, 1fr) auto;
+    grid-template-columns: 1.25rem minmax(7ch, max-content) minmax(0, 1fr) auto;
   }
 }
 
