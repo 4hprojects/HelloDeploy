@@ -542,7 +542,7 @@
 /* ── Stat card sub-label ─────────────────────────────────────────── */
 .stat-card__sub {
   font-size: var(--text-xs);
-  color: var(--color-text-subtle);
+  color: var(--color-text-muted);
   margin-top: var(--space-1);
 }
 .stats-grid--sm {

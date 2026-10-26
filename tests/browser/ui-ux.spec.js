@@ -30,7 +30,9 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   await page.getByRole('button', { name: /dark theme/i }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   for (const path of [
     '/how-it-works',
@@ -85,7 +87,9 @@ test('how-it-works is indexable and accessible', async ({ page }) => {
     }),
   ).toHaveAttribute('aria-current', 'page');
   const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 });
 
 test('docs guides a reader through a first deployment', async ({ page }) => {
@@ -100,14 +104,18 @@ test('docs guides a reader through a first deployment', async ({ page }) => {
   await createAccount.focus();
   await expect(createAccount).toBeFocused();
   let results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   await page.goto('/docs/getting-started');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Getting Started');
   await expect(page.getByRole('heading', { name: 'Complete your first deployment' })).toBeVisible();
   await expect(page.getByText('Deploy Latest', { exact: false })).toBeVisible();
   results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 });
 
 for (const path of ['/docs', '/docs/getting-started']) {
@@ -188,11 +196,17 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await page.goto('/admin');
   await expect(page.getByRole('heading', { name: 'Admin Overview' })).toBeVisible();
   const overviewAxe = await new AxeBuilder({ page }).analyze();
-  expect(overviewAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    overviewAxe.violations.filter((violation) =>
+      ['critical', 'serious'].includes(violation.impact),
+    ),
+  ).toEqual([]);
   await page.getByRole('link', { name: 'Domains' }).click();
   await expect(page.getByRole('heading', { name: 'Domain Approval Queue' })).toBeVisible();
   const domainsAxe = await new AxeBuilder({ page }).analyze();
-  expect(domainsAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    domainsAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: /Users/ })).toBeVisible();
   await page.goto('/admin/ux-metrics');
@@ -212,7 +226,9 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await page.getByRole('button', { name: 'Details' }).first().click();
   await expect(page.getByText('IP address').first()).toBeVisible();
   const auditAxe = await new AxeBuilder({ page }).analyze();
-  expect(auditAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    auditAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   // Without a reporting worker the build service shows as not reporting; its
   // controls stay reachable to a super administrator.
@@ -223,7 +239,9 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   const builderStatus = await page.request.get('/admin/builder/status');
   expect((await builderStatus.json()).state.label).toBe('Not reporting');
   const builderAxe = await new AxeBuilder({ page }).analyze();
-  expect(builderAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    builderAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   await page.goto('/admin/audit-events');
   await page.setViewportSize({ width: 320, height: 900 });
@@ -552,7 +570,9 @@ test('deployment polling preserves canonical status and refreshes terminal actio
   await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
 
-test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
+test('authenticated dark-mode views meet critical and serious accessibility checks', async ({
+  page,
+}) => {
   await signIn(page);
   await page.getByRole('button', { name: /dark theme/i }).click();
 
@@ -566,8 +586,8 @@ test('authenticated dark-mode views meet critical accessibility checks', async (
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     const results = await new AxeBuilder({ page }).analyze();
     expect(
-      results.violations.filter((violation) => violation.impact === 'critical'),
-      `${path} should have no critical axe violations`,
+      results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+      `${path} should have no critical or serious axe violations`,
     ).toEqual([]);
   }
 });

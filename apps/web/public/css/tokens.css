@@ -8,8 +8,9 @@
   color-scheme: light;
 
   /* ── Brand colors ──────────────────────────────────────────── */
-  --color-orange: #e95420; /* Primary CTA, logo, selected nav */
-  --color-orange-hover: #c9461a;
+  /* Darkened from #e95420 so white button text and orange text on white meet WCAG AA (4.5:1). */
+  --color-orange: #c8461b; /* Primary CTA, logo, selected nav */
+  --color-orange-hover: #a83a16;
   --color-orange-light: #fde8e1;
 
   --color-blue: #38bdf8; /* Building/active state, links, focus */
@@ -26,12 +27,12 @@
 
   /* ── Semantic status colors ────────────────────────────────── */
   --color-status-draft: #94a3b8; /* slate */
-  --color-status-pending: #d97706; /* gold/amber */
+  --color-status-pending: #b45309; /* gold/amber */
   --color-status-queued: #7c3aed; /* violet */
-  --color-status-building: #38bdf8; /* baby blue */
+  --color-status-building: #0369a1; /* sky-700: baby blue fails as badge text */
   --color-status-deploying: #e95420; /* orange */
   --color-status-healthy: #15803d; /* green */
-  --color-status-failed: #dc2626; /* red */
+  --color-status-failed: #b91c1c; /* red */
   --color-status-stopped: #64748b; /* slate mid */
   --color-status-suspended: #9f1239; /* rose dark */
   --color-status-archived: #6b7280; /* gray */
@@ -57,16 +58,27 @@
   --color-text: var(--color-gray-900);
   --color-text-muted: var(--color-gray-500);
   --color-text-subtle: var(--color-gray-400);
-  --color-link: var(--color-blue-hover);
+  --color-link: #0369a1; /* sky-700: the brand blues are below 3:1 as text on white */
   --color-link-hover: var(--color-navy);
 
   /* ── Error / warning / info ────────────────────────────────── */
-  --color-error: #dc2626;
+  --color-error: #b91c1c;
   --color-error-bg: #fef2f2;
   --color-error-border: #fecaca;
-  --color-warning: #d97706;
+  --color-warning: #b45309;
+  --color-warning-hover: #92400e;
   --color-warning-bg: #fffbeb;
-  --color-info: var(--color-blue-hover);
+  --color-success: var(--color-green);
+  --color-info: var(--color-link);
+  /* Text on --color-bg-muted surfaces (neutral badges, role pills). */
+  --color-text-on-muted: var(--color-gray-600);
+
+  /* Button fills that carry white text. Dark mode needs deeper fills than its accent colors. */
+  --color-action-primary: var(--color-orange);
+  --color-action-primary-hover: var(--color-orange-hover);
+  --color-action-danger: var(--color-error);
+  --color-action-warning: var(--color-warning);
+  --color-action-success: var(--color-success);
   --color-info-bg: var(--color-blue-light);
 
   /* ── Typography ────────────────────────────────────────────── */
@@ -159,6 +171,17 @@
   --color-green-light: #052e16;
 
   --color-error: #f87171;
+  --color-status-failed: #f87171;
+  --color-status-building: #7dd3fc;
+  --color-status-healthy: #4ade80;
+  --color-status-pending: #fbbf24;
+  --color-warning: #fbbf24;
+  --color-text-on-muted: #cbd5e1;
+  --color-action-primary: #c2410c;
+  --color-action-primary-hover: #9a3412;
+  --color-action-danger: #b91c1c;
+  --color-action-warning: #b45309;
+  --color-action-success: #15803d;
   --color-error-bg: #450a0a;
   --color-error-border: #7f1d1d;
   --color-warning-bg: #422006;
