@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-10-21. This is the single current list of what to work on. Detailed status for
+Updated 2026-10-27. This is the single current list of what to work on. Detailed status for
 the multi-runtime initiative lives in [multi-runtime/STATUS.md](multi-runtime/STATUS.md);
 dated evidence lives in the [worklog](../WORKLOG.md) and each initiative's evidence file.
 Earlier trackers and audits are in the [archive](archive/README.md); the previous version of
@@ -24,7 +24,15 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-Nothing waiting. The builder control pilot is in its 7-day watch (until 2026-11-01).
+The builder control pilot is in its 7-day watch (until 2026-11-01). Small items:
+
+- **Screen-reader pass on the admin area.** #151 (live 2026-10-26) changed the sidebar (new
+  Domains link and waiting counts), the overview, and the confirm dialog, which now has an
+  optional reason field for suspend and reject. Repeat the Orca check from
+  [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) on those.
+- **Untracked `docs/todo/` blocks commits.** The pre-commit hook runs `prettier --check .`,
+  which fails on `docs/todo/HELLODEPLOY_GHCR_DECISION_AND_AUDIT.md`. Format and commit it, move
+  it into `docs/`, or add `docs/todo/` to `.prettierignore`.
 
 ## Next — to turn on the multi-runtime pilots
 
@@ -71,6 +79,15 @@ When you're ready:
    every fail-closed case run live, and Docker Hub anonymous pull limits measured.
 
 ## Later
+
+- **Admin area follow-ups** (left out of #151):
+  - Pagination and search for the domain approval queue and the build service activity table,
+    plus a project filter on domains. Both lists are short today.
+  - The approval queue's stat-card tabs carry long labels ("Open · Pending and provisional");
+    shorten them or make them real tabs.
+  - The domain tunnels table prints a `sudo` provisioning command into the page. It goes away
+    with the admin tunnel step
+    ([CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md)).
 
 - **Before owner images are generally available:** a builder per tenant or per build (the
   shared BuildKit cache is reachable through `ONBUILD`), and runtime egress filtering for app
