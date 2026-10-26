@@ -4,6 +4,7 @@ import { AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import {
   getAdminOverview,
+  getAdminPendingCounts,
   getUsers,
   getUserDetail,
   suspendUser,
@@ -45,6 +46,11 @@ import { getUxMetrics } from '../services/product-analytics.service.js';
 import { isSafeReturnPath } from '../utils/safe-redirect.js';
 
 // ─── Overview ──────────────────────────────────────────────────────────────────
+
+export const loadAdminPendingCounts = asyncHandler(async (req, res, next) => {
+  res.locals.adminPendingCounts = await getAdminPendingCounts();
+  next();
+});
 
 export const getAdminIndex = asyncHandler(async (req, res) => {
   const [stats, server] = await Promise.all([getAdminOverview(), collectServerStats()]);

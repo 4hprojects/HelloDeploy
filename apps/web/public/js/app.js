@@ -333,6 +333,8 @@
     const message = document.getElementById('confirm-modal-message');
     const acceptButton = modal.querySelector('[data-confirm-accept]');
     const cancelButtons = modal.querySelectorAll('[data-confirm-cancel]');
+    const reasonGroup = modal.querySelector('[data-confirm-reason-group]');
+    const reasonInput = document.getElementById('confirm-modal-reason');
     let pendingTarget = null;
     let pendingSubmitter = null;
     let lastFocus = null;
@@ -387,8 +389,9 @@
       // attrSource lets a specific submit button (e.g. one of several
       // actions sharing a form) override the form's own data-confirm-*
       // styling/copy — falls back to target when a single button/link/form
-      // carries its own attributes directly (the common case).
-      const attrs = attrSource || target;
+      // carries its own attributes directly (the common case). A plain submit
+      // button without its own data-confirm defers to the form.
+      const attrs = attrSource && attrSource.hasAttribute('data-confirm') ? attrSource : target;
       pendingTarget = target;
       lastFocus = trigger || document.activeElement;
       modal.removeAttribute('aria-busy');
@@ -408,10 +411,17 @@
       }
       message.textContent = msg;
       setAcceptButton(attrs);
+      // The reason lives in the modal so table rows stay one line of buttons;
+      // it is copied into the form's hidden reason input on confirm.
+      const wantsReason = target.tagName === 'FORM' && attrs.hasAttribute('data-confirm-reason');
+      if (reasonGroup && reasonInput) {
+        reasonGroup.hidden = !wantsReason;
+        reasonInput.value = '';
+      }
       modal.hidden = false;
       document.body.classList.add('confirm-modal-open');
       requestAnimationFrame(() => {
-        dialog.focus();
+        (wantsReason && reasonInput ? reasonInput : dialog).focus();
       });
     }
 
@@ -422,7 +432,7 @@
       const target = pendingTarget;
       const submitter =
         pendingSubmitter && pendingSubmitter.form === target ? pendingSubmitter : null;
-      const attrs = submitter || target;
+      const attrs = submitter && submitter.hasAttribute('data-confirm') ? submitter : target;
 
       modal.setAttribute('aria-busy', 'true');
       if (acceptButton) {
@@ -434,6 +444,10 @@
       pendingSubmitter = null;
 
       if (target.tagName === 'FORM') {
+        const reasonField = target.querySelector('input[name="reason"]');
+        if (reasonField && reasonGroup && !reasonGroup.hidden) {
+          reasonField.value = reasonInput.value.trim();
+        }
         target.setAttribute('data-confirmed', '1');
         if (target.requestSubmit) {
           target.requestSubmit(submitter || undefined);

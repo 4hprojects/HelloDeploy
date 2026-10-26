@@ -6,8 +6,9 @@ const publicRoot = new URL('../apps/web/public/', import.meta.url);
 const manifest = JSON.parse(await readFile(new URL('asset-manifest.json', publicRoot), 'utf8'));
 const budgets = {
   'css/main.css': 110_000,
-  // Raised from 65 KB for the .env import review table (#79); unminified bytes.
-  'js/app.js': 70_000,
+  // Raised from 65 KB for the .env import review table (#79), then from 70 KB
+  // for the confirm modal's reason field; unminified bytes.
+  'js/app.js': 72_000,
 };
 
 let failed = false;

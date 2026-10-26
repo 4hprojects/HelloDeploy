@@ -147,6 +147,14 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin');
+  await expect(page.getByRole('heading', { name: 'Admin Overview' })).toBeVisible();
+  const overviewAxe = await new AxeBuilder({ page }).analyze();
+  expect(overviewAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  await page.getByRole('link', { name: 'Domains' }).click();
+  await expect(page.getByRole('heading', { name: 'Domain Approval Queue' })).toBeVisible();
+  const domainsAxe = await new AxeBuilder({ page }).analyze();
+  expect(domainsAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: /Users/ })).toBeVisible();
   await page.goto('/admin/ux-metrics');
@@ -187,6 +195,14 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
       globalThis.document.documentElement.clientWidth,
   );
   expect(auditOverflow).toBeLessThanOrEqual(1);
+
+  await page.goto('/admin');
+  const overviewOverflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overviewOverflow).toBeLessThanOrEqual(1);
 });
 
 const publicNavigationWidths = [320, 360, 390, 480, 481, 768, 769, 1023, 1024, 1280, 1440];

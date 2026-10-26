@@ -93,7 +93,7 @@ export const STATUS_PRESENTATION = Object.freeze({
     ),
     [ApprovalStatus.CHANGES_REQUESTED]: define(
       'Changes requested',
-      'failed',
+      'warning',
       'Update the requested items and submit again.',
       true,
     ),

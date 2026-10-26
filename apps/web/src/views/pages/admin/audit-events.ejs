@@ -19,8 +19,7 @@ const withoutFilter = (name) => new URLSearchParams(Object.entries(activeFilters
   </div>
   <a href="/admin/audit-events/export?<%= new URLSearchParams(activeFilters) %>"
      class="button button--secondary button--sm"
-     data-tooltip="Download the currently filtered audit events as a CSV file."
-     data-confirm="Export the filtered audit events as CSV?">Export CSV</a>
+     data-tooltip="Download the currently filtered audit events as a CSV file.">Export CSV</a>
 </div>
 
 <form method="GET" action="/admin/audit-events" class="filter-bar list-filters list-filters--many mb-4" role="search" aria-label="Filter audit events">

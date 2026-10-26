@@ -143,6 +143,10 @@
   height: 1rem;
 }
 
+.sidebar__count {
+  margin-left: auto;
+}
+
 .sidebar__setup-mark {
   display: inline-flex;
   margin-left: auto;

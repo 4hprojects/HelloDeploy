@@ -56,20 +56,27 @@ function escapedSearchRegex(value) {
 
 // ─── Overview ─────────────────────────────────────────────────────────────────
 
+/** Review queues that wait on an administrator; shown on the overview and as sidebar counts. */
+export async function getAdminPendingCounts() {
+  const [pendingApprovals, pendingDomainApprovals] = await Promise.all([
+    ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
+    Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+  ]);
+  return { pendingApprovals, pendingDomainApprovals };
+}
+
 export async function getAdminOverview() {
   const [
     totalUsers,
     activeUsers,
     totalProjects,
-    pendingApprovals,
-    pendingDomainApprovals,
+    { pendingApprovals, pendingDomainApprovals },
     recentActivity,
   ] = await Promise.all([
     User.countDocuments(),
     User.countDocuments({ status: UserStatus.ACTIVE }),
     Project.countDocuments({ status: { $ne: ProjectStatus.ARCHIVED } }),
-    ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
-    Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+    getAdminPendingCounts(),
     AuditEvent.find({ action: /^admin\./ })
       .select('action outcome targetType createdAt')
       .sort({ createdAt: -1 })

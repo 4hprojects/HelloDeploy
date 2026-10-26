@@ -1,5 +1,22 @@
+<%
+// Routing state comes from the last end-to-end reachability probe.
+const ROUTING_STATES = {
+  LIVE: { tone: 'healthy', label: 'Reachable' },
+  FOREIGN: { tone: 'failed', label: 'Points elsewhere' },
+  TUNNEL_DOWN: { tone: 'failed', label: 'Tunnel down' },
+  NOT_POINTED: { tone: 'pending', label: 'DNS not pointed' },
+  UNKNOWN: { tone: 'draft', label: 'Not checked yet' },
+};
+const routingBadge = (state) => {
+  const r = ROUTING_STATES[state] || ROUTING_STATES.UNKNOWN;
+  return `<span class="status-badge status-badge--${r.tone}">${r.label}</span>`;
+};
+%>
 <div class="page-header">
   <h1 class="page-header__title">Domain Approval Queue</h1>
+  <% if (domains.length) { %>
+  <p class="page-header__subtitle"><%= domains.length %> awaiting approval</p>
+  <% } %>
 </div>
 
 <% if (domains.length === 0) { %>
@@ -67,9 +84,10 @@
                     data-confirm-title="Reject domain"
                     data-confirm-accept-label="Reject Domain"
                     data-confirm-pending-label="Rejecting..."
-                    data-confirm-variant="danger">
+                    data-confirm-variant="danger"
+                    data-confirm-reason>
                 <%- include('../../partials/csrf-field') %>
-                <input type="text" name="reason" placeholder="Rejection reason (optional)" class="form-input form-input--sm" data-tooltip="Optional note recorded with the rejection.">
+                <input type="hidden" name="reason" value="">
                 <button type="submit" class="button button--danger button--sm" data-tooltip="Reject this domain request and keep routing inactive.">Reject</button>
               </form>
             </div>
@@ -106,17 +124,22 @@
 
 <div class="card mt-4">
   <div class="card__header">
-    <h2 class="card__title">Custom domain tunnels</h2>
-    <p class="card__subtitle">Each custom domain reaches this platform through its own Cloudflare
-      tunnel. Create the tunnel with the domain owner's Cloudflare account, then record its id
-      here so the owner can publish the matching CNAME.</p>
+    <div>
+      <h2 class="card__title">Custom domain tunnels</h2>
+      <p class="card__subtitle">Each custom domain reaches this platform through its own Cloudflare
+        tunnel. Create the tunnel with the domain owner's Cloudflare account, then record its id
+        here so the owner can publish the matching CNAME.</p>
+    </div>
   </div>
   <div class="card__body">
     <% if (!routableDomains.length) { %>
-    <p class="text-muted">No verified domains yet.</p>
+    <div class="empty-state">
+      <p class="empty-state__title">No verified domains yet</p>
+      <p class="empty-state__description">Domains appear here once their ownership TXT record is verified, so their tunnel can be recorded.</p>
+    </div>
     <% } else { %>
-    <div class="table-wrapper">
-    <table class="table">
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
       <thead>
         <tr>
           <th scope="col">Hostname</th>
@@ -139,10 +162,11 @@
           <td data-label="Tunnel">
             <% if (d.cfCustomHostnameId) { %>
               <span>Connected automatically (Cloudflare custom hostname)</span>
-              <span class="text-xs d-block text-muted">Cloudflare: <%= d.cfHostnameStatus || 'unknown' %>, certificate <%= d.cfSslStatus || 'unknown' %>. Routing: <%= d.routingState || 'UNKNOWN' %></span>
+              <span class="text-xs d-block text-muted">Cloudflare: <%= d.cfHostnameStatus || 'unknown' %>, certificate <%= d.cfSslStatus || 'unknown' %>.</span>
+              <span class="d-block mt-1"><%- routingBadge(d.routingState) %></span>
             <% } else if (d.tunnelId) { %>
               <code class="code-inline"><%= d.tunnelId %>.cfargotunnel.com</code>
-              <span class="text-xs d-block text-muted">Routing: <%= d.routingState || 'UNKNOWN' %></span>
+              <span class="d-block mt-1"><%- routingBadge(d.routingState) %></span>
             <% } else { %>
               <span class="text-muted">Not recorded</span>
               <span class="text-xs d-block">Run: <code class="code-inline">sudo bash infrastructure/provision-custom-domain-tunnel.sh --hostname <%= d.hostnameNormalized %> --tunnel-id &lt;uuid&gt;</code></span>
@@ -150,7 +174,12 @@
           </td>
           <td class="text-right" data-label="Record tunnel">
             <% if (!d.cfCustomHostnameId) { %>
-            <form method="POST" action="/admin/domains/<%= d._id %>/tunnel" class="form-inline">
+            <form method="POST" action="/admin/domains/<%= d._id %>/tunnel" class="form-inline"
+                  data-confirm="Record this tunnel for <%= d.hostnameNormalized %>? The owner is shown the matching CNAME target."
+                  data-confirm-title="Record tunnel"
+                  data-confirm-accept-label="Save Tunnel"
+                  data-confirm-pending-label="Saving..."
+                  data-confirm-variant="warning">
               <%- include('../../partials/csrf-field') %>
               <label class="sr-only" for="tunnel-<%= d._id %>">Tunnel id for <%= d.hostnameNormalized %></label>
               <input type="text" id="tunnel-<%= d._id %>" name="tunnelId" class="form-input form-input--sm"

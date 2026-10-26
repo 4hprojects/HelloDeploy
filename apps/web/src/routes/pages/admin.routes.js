@@ -3,6 +3,7 @@ import { requireAuth } from '../../middleware/require-auth.js';
 import { requireAdmin } from '../../middleware/require-auth.js';
 import { requireSuperAdmin } from '../../middleware/require-auth.js';
 import {
+  loadAdminPendingCounts,
   getAdminIndex,
   getAdminUsers,
   getAdminUserDetail,
@@ -54,6 +55,24 @@ import { validateObjectId } from '../../middleware/validate-object-id.js';
 const router = Router();
 
 router.use(requireAuth, requireAdmin);
+// Sidebar queue counts, for rendered pages only: form posts redirect, and the
+// builder status poll and CSV export never render the sidebar.
+router.get(
+  [
+    '/',
+    '/users',
+    '/users/:userId',
+    '/projects',
+    '/approval-requests',
+    '/domains',
+    '/server',
+    '/ux-metrics',
+    '/builder',
+    '/audit-events',
+    '/quotas/:scopeType/:scopeId',
+  ],
+  loadAdminPendingCounts,
+);
 
 for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId']) {
   router.param(param, validateObjectId);
