@@ -3,11 +3,23 @@ import { expect, test } from '@playwright/test';
 
 const fixturePassword = 'FixturePass123!';
 
+// Sign-ins are rate limited to 10 per 15 minutes per IP, so each user signs in
+// through the form once and later tests reuse that session's cookies.
+const sessionCookies = new Map();
+
 async function signIn(page, email = 'demo@hellodeploy.test') {
+  const cookies = sessionCookies.get(email);
+  if (cookies) {
+    await page.context().addCookies(cookies);
+    await page.goto('/dashboard');
+    return;
+  }
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password').fill(fixturePassword);
   await page.getByRole('button', { name: 'Sign In' }).click();
+  await expect(page).not.toHaveURL(/\/auth\/sign-in/);
+  sessionCookies.set(email, await page.context().cookies());
 }
 
 test('public discovery, metadata, theme, and accessibility', async ({ page }) => {
@@ -143,8 +155,6 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
   await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 
-  // Sign-ins are rate limited to 10 per 15 minutes across this whole spec, so
-  // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin');
@@ -365,6 +375,47 @@ test('keyboard focus is visible and returns after confirmation modal', async ({ 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
   await expect(cancel).toBeFocused();
+});
+
+test('deployment history labels only the active release as live', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const badgeFor = (sequence) =>
+    page
+      .locator('[data-deployment-row]', {
+        has: page.getByRole('link', { name: `#${sequence}`, exact: true }),
+      })
+      .locator('.status-badge');
+  expect([await badgeFor(7).textContent(), await badgeFor(4).textContent()]).toEqual([
+    'Live',
+    'Previous release',
+  ]);
+});
+
+test('advanced deployment controls stay collapsed below the history', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(page.getByRole('button', { name: 'Deploy Commit' })).toBeHidden();
+});
+
+test('project overview keeps a live app visible while an update builds', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes');
+  await expect(page.getByRole('heading', { level: 2, name: 'Your app is live' })).toBeVisible();
+});
+
+test('healthy deployment detail fits a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const href = await page.getByRole('link', { name: '#7', exact: true }).getAttribute('href');
+  await page.goto(href);
+  const overflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 });
 
 test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {

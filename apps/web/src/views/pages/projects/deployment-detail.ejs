@@ -2,7 +2,7 @@
   <div>
     <h1 class="page-header__title">
       Deployment #<%= deployment.sequenceNumber %>
-      <span data-detail-status><%- include('../../partials/status-badge', { status: deployment.status, statusKind: 'deployment' }) %></span>
+      <span data-detail-status><%- include('../../partials/status-badge', deployment.status === 'HEALTHY' && !isCurrentRelease ? { status: 'RETAINED', statusKind: 'release' } : { status: deployment.status, statusKind: 'deployment' }) %></span>
     </h1>
     <p class="page-header__subtitle text-muted text-sm">
       <a href="/projects/<%= project.slug %>/deployments" class="table-link">&larr; All Deployments</a>
@@ -35,7 +35,7 @@
   </div>
 </div>
 
-<div data-deployment-refresh="result" class="alert alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
+<div data-deployment-refresh="result" class="alert alert--stacked alert--<%= deployment.status === 'HEALTHY' ? 'success' : deployment.status === 'FAILED' ? 'error' : 'info' %> mb-6" role="status" data-deployment-result data-status-url="/projects/<%= project.slug %>/deployments/<%= deployment._id %>/status" data-terminal="<%= !isActive %>">
   <strong><%= deployment.status === 'HEALTHY' ? 'Deployment completed successfully.' : deployment.status === 'FAILED' ? 'Deployment did not go live.' : deployment.status === 'CANCELLED' ? 'Deployment was cancelled.' : 'Deployment is in progress.' %></strong>
   <% if (deployment.status === 'HEALTHY' && isCurrentRelease && locals.appUrl) { %>
   <p class="text-sm mt-1">

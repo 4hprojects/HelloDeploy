@@ -12,11 +12,6 @@
       <%- include('../../partials/csrf-field') %>
       <button type="submit" class="button button--primary" data-pending-label="Deploying..." data-tooltip="Deploy the latest commit from the production branch.">Deploy Latest</button>
     </form>
-    <form method="POST" action="/projects/<%= project.slug %>/deployments">
-      <%- include('../../partials/csrf-field') %>
-      <input type="hidden" name="noCache" value="true">
-      <button type="submit" class="button button--secondary button--sm" data-pending-label="Deploying..." data-tooltip="Rebuild without using cached build layers.">Deploy (no cache)</button>
-    </form>
   </div>
   <% } %>
 </div>
@@ -28,74 +23,6 @@
   <button type="submit" class="button button--secondary">Apply</button><% if (filters.result || filters.branch) { %><a href="/projects/<%= project.slug %>/deployments" class="button button--ghost">Clear</a><% } %>
 </form>
 
-<% if (canDeploy) { %>
-<div class="card mb-4">
-  <div class="card__header">
-    <h2 class="card__title text-sm">Deploy a Specific Commit</h2>
-  </div>
-  <div class="card__body">
-    <p class="text-sm text-muted mb-4">
-      Build and deploy an exact commit instead of the latest one on the production branch.
-      Paste the full 40-character SHA.
-    </p>
-    <form method="POST" action="/projects/<%= project.slug %>/deployments" class="form-inline" novalidate>
-      <%- include('../../partials/csrf-field') %>
-      <div class="form-field">
-        <label for="commitSha" class="form-label sr-only">Commit SHA</label>
-        <input
-          type="text"
-          id="commitSha"
-          name="commitSha"
-          class="form-input<%= locals.commitShaError ? ' form-input--error' : '' %>"
-          value="<%= locals.commitShaValue || '' %>"
-          placeholder="e.g. 4b825dc642cb6eb9a060e54bf8d69288fbee4904"
-          pattern="[0-9a-fA-F]{40}"
-          maxlength="40"
-          spellcheck="false"
-          autocomplete="off"
-          <% if (locals.commitShaError) { %>aria-describedby="commitSha-error"<% } %>
-        />
-        <% if (locals.commitShaError) { %>
-        <span id="commitSha-error" class="form-error" role="alert"><%= commitShaError %></span>
-        <% } %>
-      </div>
-      <button type="submit" class="button button--secondary" data-pending-label="Deploying...">Deploy Commit</button>
-    </form>
-  </div>
-</div>
-<% } %>
-
-<% if (rollbackTargets && rollbackTargets.length > 0 && canDeploy) { %>
-<div class="card mb-4">
-  <div class="card__header">
-    <h2 class="card__title text-sm">Rollback</h2>
-  </div>
-  <div class="card__body">
-    <p class="text-sm text-muted mb-3">
-      Switch live traffic back to a previous working version. Only the most recent
-      healthy releases stay available here — older ones are cleaned up automatically.
-    </p>
-    <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
-          data-confirm="Switch live traffic to the selected previous version?"
-          data-confirm-title="Roll back deployment"
-          data-confirm-accept-label="Roll Back"
-          data-confirm-pending-label="Rolling back..."
-          data-confirm-variant="warning">
-      <%- include('../../partials/csrf-field') %>
-      <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
-      <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
-        <% rollbackTargets.forEach(d => { %>
-        <option value="<%= d._id %>">
-          #<%= d.sequenceNumber %> — <%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %>
-          <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
-        </option>
-        <% }) %>
-      </select>
-      <button type="submit" class="button button--warning button--sm" data-tooltip="Switch live traffic to this previous version.">Roll Back</button>
-    </form>
-  </div>
-</div>
-<% } %>
 
 <% if (deployments.length === 0) { %>
 <div class="card">
@@ -148,7 +75,7 @@
               #<%= d.sequenceNumber %>
             </a>
           </td>
-          <td data-label="Status"><span data-deployment-status><%- include('../../partials/status-badge', { status: d.status, statusKind: 'deployment' }) %></span><span class="text-muted text-xs d-block" data-deployment-stage><%= d.currentStage || '' %></span></td>
+          <td data-label="Status"><% const isRetainedRelease = d.status === 'HEALTHY' && d._id.toString() !== project.activeDeploymentId?.toString(); %><span data-deployment-status><%- include('../../partials/status-badge', isRetainedRelease ? { status: 'RETAINED', statusKind: 'release' } : { status: d.status, statusKind: 'deployment' }) %></span><span class="text-muted text-xs d-block" data-deployment-stage><%= d.currentStage || '' %></span></td>
           <td data-label="Commit">
             <code class="code-inline"><%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %></code>
             <% if (d.commitMessage) { %>
@@ -216,4 +143,97 @@
   <% } %>
 </div>
 <% } %>
+<% } %>
+
+<% if (canDeploy) { %>
+<details class="project-details-disclosure mt-6" id="advanced-deploy"<%= locals.commitShaError ? ' open' : '' %>>
+  <summary>
+    <span>
+      <strong>Advanced deployment</strong>
+      <span class="text-sm text-muted">Rebuild without cache, deploy an exact commit, or roll back</span>
+    </span>
+    <span class="project-details-disclosure__toggle" aria-hidden="true">Show</span>
+  </summary>
+  <div class="project-details-disclosure__body">
+    <div class="card mb-4">
+      <div class="card__header">
+        <h2 class="card__title text-sm">Rebuild Without Cache</h2>
+      </div>
+      <div class="card__body">
+        <p class="text-sm text-muted mb-4">Use only when stale build layers are a plausible cause of a problem.</p>
+          <form method="POST" action="/projects/<%= project.slug %>/deployments">
+            <%- include('../../partials/csrf-field') %>
+            <input type="hidden" name="noCache" value="true">
+            <button type="submit" class="button button--secondary button--sm" data-pending-label="Deploying..." data-tooltip="Rebuild without using cached build layers.">Deploy (no cache)</button>
+          </form>
+      </div>
+    </div>
+  <div class="card mb-4">
+    <div class="card__header">
+      <h2 class="card__title text-sm">Deploy a Specific Commit</h2>
+    </div>
+    <div class="card__body">
+      <p class="text-sm text-muted mb-4">
+        Build and deploy an exact commit instead of the latest one on the production branch.
+        Paste the full 40-character SHA.
+      </p>
+      <form method="POST" action="/projects/<%= project.slug %>/deployments" class="form-inline" novalidate>
+        <%- include('../../partials/csrf-field') %>
+        <div class="form-field">
+          <label for="commitSha" class="form-label sr-only">Commit SHA</label>
+          <input
+            type="text"
+            id="commitSha"
+            name="commitSha"
+            class="form-input<%= locals.commitShaError ? ' form-input--error' : '' %>"
+            value="<%= locals.commitShaValue || '' %>"
+            placeholder="e.g. 4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+            pattern="[0-9a-fA-F]{40}"
+            maxlength="40"
+            spellcheck="false"
+            autocomplete="off"
+            <% if (locals.commitShaError) { %>aria-describedby="commitSha-error"<% } %>
+          />
+          <% if (locals.commitShaError) { %>
+          <span id="commitSha-error" class="form-error" role="alert"><%= commitShaError %></span>
+          <% } %>
+        </div>
+        <button type="submit" class="button button--secondary" data-pending-label="Deploying...">Deploy Commit</button>
+      </form>
+    </div>
+  </div>
+  <% } %>
+
+  <% if (rollbackTargets && rollbackTargets.length > 0 && canDeploy) { %>
+  <div class="card mb-4">
+    <div class="card__header">
+      <h2 class="card__title text-sm">Rollback</h2>
+    </div>
+    <div class="card__body">
+      <p class="text-sm text-muted mb-3">
+        Switch live traffic back to a previous working version. Only the most recent
+        healthy releases stay available here — older ones are cleaned up automatically.
+      </p>
+      <form method="POST" action="/projects/<%= project.slug %>/rollback" class="form-inline"
+            data-confirm="Switch live traffic to the selected previous version?"
+            data-confirm-title="Roll back deployment"
+            data-confirm-accept-label="Roll Back"
+            data-confirm-pending-label="Rolling back..."
+            data-confirm-variant="warning">
+        <%- include('../../partials/csrf-field') %>
+        <label for="targetDeploymentId" class="form-label text-sm">Roll back to</label>
+        <select name="targetDeploymentId" id="targetDeploymentId" class="form-select form-select--sm">
+          <% rollbackTargets.forEach(d => { %>
+          <option value="<%= d._id %>">
+            #<%= d.sequenceNumber %> — <%= d.commitSha ? d.commitSha.slice(0, 7) : '—' %>
+            <% if (d.commitMessage) { %> – <%= d.commitMessage.slice(0, 40) %><% } %>
+          </option>
+          <% }) %>
+        </select>
+        <button type="submit" class="button button--warning button--sm" data-tooltip="Switch live traffic to this previous version.">Roll Back</button>
+      </form>
+    </div>
+  </div>
+  </div>
+</details>
 <% } %>

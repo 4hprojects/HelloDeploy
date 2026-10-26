@@ -229,6 +229,11 @@
   font-size: var(--text-sm);
 }
 
+.alert--stacked {
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
 .alert--error {
   background: var(--color-error-bg);
   border-color: var(--color-error-border);
@@ -829,33 +834,6 @@
   margin-top: var(--space-5);
 }
 
-.project-home-url {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1);
-  max-width: 42rem;
-  padding: var(--space-3) 0;
-  color: var(--color-text);
-  text-decoration: none;
-}
-
-.project-home-url:hover .project-home-url__value {
-  color: var(--color-blue);
-  text-decoration: underline;
-}
-
-.project-home-url__label {
-  color: var(--color-text-muted);
-  font-size: var(--text-xs);
-  font-weight: var(--font-semibold);
-}
-
-.project-home-url__value {
-  overflow-wrap: anywhere;
-  font-size: var(--text-lg);
-  font-weight: var(--font-semibold);
-}
-
 .project-milestones {
   display: grid;
   grid-template-columns: 1fr;
@@ -1445,6 +1423,7 @@ a.setup-guide__step-link:hover .setup-guide__label {
 /* ── Button group ────────────────────────────────────────────────── */
 .button-group {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   align-items: center;
 }
@@ -2792,7 +2771,8 @@ a.setup-guide__step-link:hover .setup-guide__label {
 
 .deploy-console__row {
   display: grid;
-  grid-template-columns: 1.25rem 9ch minmax(0, 1fr) auto;
+  /* Wide enough for the longest stage tag (VALIDATE) plus its letter-spacing. */
+  grid-template-columns: 1.25rem 10ch minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--space-2);
 }
@@ -2850,7 +2830,7 @@ a.setup-guide__step-link:hover .setup-guide__label {
 
 .deploy-console__row--pending .deploy-console__message,
 .deploy-console__row--pending .deploy-console__time {
-  color: #64748b;
+  color: #7c8ba1;
 }
 
 .deploy-console__time {
