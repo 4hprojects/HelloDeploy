@@ -339,7 +339,14 @@ test('signed-in app header keeps the sidebar breakpoint independent', async ({ p
         globalThis.document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
+
+    // A closed off-canvas drawer must leave the Tab order, not only the accessibility tree.
+    expect(await page.locator('#sidebar').getAttribute('inert')).toBe(width <= 768 ? '' : null);
   }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const results = await new AxeBuilder({ page }).withRules(['aria-hidden-focus']).analyze();
+  expect(results.violations).toEqual([]);
 });
 
 test('keyboard focus is visible and returns after confirmation modal', async ({ page }) => {
@@ -349,6 +356,15 @@ test('keyboard focus is visible and returns after confirmation modal', async ({ 
   const focused = page.locator(':focus');
   await expect(focused).toBeVisible();
   await expect(focused).toHaveCSS('outline-style', /solid|auto/);
+
+  const cancel = page.getByRole('button', { name: /Cancel for deployment #8/ });
+  await cancel.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Cancel deployment' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(cancel).toBeFocused();
 });
 
 test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {
