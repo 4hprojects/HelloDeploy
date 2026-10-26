@@ -30,9 +30,9 @@ The builder control pilot is in its 7-day watch (until 2026-11-01). Small items:
   Domains link and waiting counts), the overview, and the confirm dialog, which now has an
   optional reason field for suspend and reject. Repeat the Orca check from
   [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) on those.
-- **Untracked `docs/todo/` blocks commits.** The pre-commit hook runs `prettier --check .`,
-  which fails on `docs/todo/HELLODEPLOY_GHCR_DECISION_AND_AUDIT.md`. Format and commit it, move
-  it into `docs/`, or add `docs/todo/` to `.prettierignore`.
+- **UI/UX improvement branch** `feat/uiux-phase-improvements` (local, unmerged): fixes from the
+  2026-10-27 Phase 0B audit. Merging needs the three visual baselines regenerated on the CI
+  runner, because the contrast token change alters every page.
 
 ## Next — to turn on the multi-runtime pilots
 
