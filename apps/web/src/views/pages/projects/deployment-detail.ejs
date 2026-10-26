@@ -209,7 +209,7 @@
       <% }) %>
     </ol>
     <% if (deployment.failureCode && failureCopy) { %>
-    <div class="alert alert--error mt-4">
+    <div class="alert alert--stacked alert--error mt-4">
       <strong><%= failureCopy.message %></strong>
       <p class="text-sm mt-1"><%= failureCopy.action %></p>
     </div>
