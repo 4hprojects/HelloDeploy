@@ -860,46 +860,67 @@ describe('findDockerfileSystemPackages', () => {
   });
 });
 
-describe('fetchProjectFilesForRepository — Python entry files', () => {
-  const publicRepository = { sourceType: 'PUBLIC_GIT', fullName: 'owner/repo' };
-
-  async function requestedPaths(presentFiles) {
-    const paths = [];
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) => {
-      const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
-      paths.push(path);
-      if (!(path in presentFiles)) {
-        return new Response('', { status: 404 });
-      }
-      const content = Buffer.from(presentFiles[path]).toString('base64');
-      return new Response(JSON.stringify({ encoding: 'base64', content }), { status: 200 });
-    };
-    try {
-      await fetchProjectFilesForRepository(publicRepository, 'main');
-    } finally {
-      globalThis.fetch = originalFetch;
+// Serves a repository from a map of path to content: the folder listing answers
+// with the top-level names, and each file request with its content.
+async function fetchWithRepository(presentFiles, applicationRoot = '.') {
+  const requested = [];
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = async (url) => {
+    const path = decodeURIComponent(new URL(url).pathname.split(/\/contents\/?/)[1]);
+    requested.push(path);
+    if (path === (applicationRoot === '.' ? '' : applicationRoot)) {
+      const names = new Map(
+        Object.keys(presentFiles).map((file) => {
+          const [name, ...rest] = file.split('/');
+          return [name, rest.length ? 'dir' : 'file'];
+        }),
+      );
+      const listing = [...names].map(([name, type]) => ({ name, type }));
+      return new Response(JSON.stringify(listing), { status: 200 });
     }
-    return paths;
+    const file = applicationRoot === '.' ? path : path.slice(applicationRoot.length + 1);
+    if (!(file in presentFiles)) {
+      return new Response('', { status: 404 });
+    }
+    const content = Buffer.from(presentFiles[file]).toString('base64');
+    return new Response(JSON.stringify({ encoding: 'base64', content }), { status: 200 });
+  };
+  try {
+    const files = await fetchProjectFilesForRepository(publicRepository, 'main', applicationRoot);
+    return { files, requested };
+  } finally {
+    globalThis.fetch = originalFetch;
   }
+}
 
+const publicRepository = { sourceType: 'PUBLIC_GIT', fullName: 'owner/repo' };
+
+describe('fetchProjectFilesForRepository — Python entry files', () => {
   it('fetches entry-point candidates when requirements.txt exists', async () => {
-    const paths = await requestedPaths({ 'requirements.txt': 'flask==3.1.0\n' });
-    assert.ok(paths.includes('manage.py'));
+    const { files } = await fetchWithRepository({
+      'requirements.txt': 'flask==3.1.0\n',
+      'manage.py': '',
+    });
+    assert.equal(files['manage.py'], '');
   });
 
-  // A rate limit must not look like a missing package.json and be saved as the
+  it('fetches a nested entry point when its folder exists', async () => {
+    const { files } = await fetchWithRepository({
+      'requirements.txt': 'fastapi\n',
+      'app/main.py': 'app = FastAPI()\n',
+    });
+    assert.equal(files['app/main.py'], 'app = FastAPI()\n');
+  });
+
+  // A rate limit must not look like an empty repository and be saved as the
   // repository's runtime.
-  it('fails instead of treating a GitHub error as a missing file', async () => {
+  it('fails instead of treating a GitHub error as an empty repository', async () => {
     const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) =>
-      String(url).includes('package.json')
-        ? new Response('rate limited', { status: 403 })
-        : new Response('', { status: 404 });
+    globalThis.fetch = async () => new Response('rate limited', { status: 403 });
     try {
       await assert.rejects(
         fetchProjectFilesForRepository(publicRepository, 'main'),
-        /GitHub API error fetching package\.json: 403/,
+        /GitHub API error listing \.: 403/,
       );
     } finally {
       globalThis.fetch = originalFetch;
@@ -908,23 +929,36 @@ describe('fetchProjectFilesForRepository — Python entry files', () => {
 
   // Only a lockfile's presence matters, and large apps commit lockfiles bigger
   // than the detection response cap.
-  it('counts an oversized lockfile as present', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) =>
-      String(url).includes('package-lock.json')
-        ? new Response('', { status: 200, headers: { 'content-length': '900000' } })
-        : new Response('', { status: 404 });
-    try {
-      const files = await fetchProjectFilesForRepository(publicRepository, 'main');
-      assert.equal(files['package-lock.json'], '');
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+  it('counts a lockfile as present without downloading it', async () => {
+    const { requested } = await fetchWithRepository({
+      'package.json': '{}',
+      'package-lock.json': '{}',
+    });
+    assert.equal(requested.includes('package-lock.json'), false);
   });
 
   it('does not fetch entry-point candidates for a Node repository', async () => {
-    const paths = await requestedPaths({ 'package.json': '{}' });
-    assert.equal(paths.includes('manage.py'), false);
+    const { requested } = await fetchWithRepository({ 'package.json': '{}' });
+    assert.equal(requested.includes('manage.py'), false);
+  });
+});
+
+// GitHub allows 60 anonymous requests an hour; one check per file used to take
+// about 26 of them and left public repositories failing detection.
+describe('fetchProjectFilesForRepository — request count', () => {
+  it('requests only the listing and the files that exist', async () => {
+    const { requested } = await fetchWithRepository({
+      'package.json': JSON.stringify({ dependencies: { next: '16' } }),
+      'package-lock.json': '{}',
+      'next.config.ts': 'export default {}',
+      'public/favicon.ico': '',
+    });
+    assert.deepEqual(requested.sort(), ['', 'next.config.ts', 'package.json']);
+  });
+
+  it('lists the application root folder', async () => {
+    const { files } = await fetchWithRepository({ 'package.json': '{}' }, 'apps/site');
+    assert.equal(files['package.json'], '{}');
   });
 });
 
@@ -979,28 +1013,17 @@ describe('detectRuntime — Next.js public folder', () => {
 
 describe('fetchProjectFilesForRepository — Next.js public folder', () => {
   it('records whether a Next.js repository has a public folder', async () => {
-    const originalFetch = globalThis.fetch;
-    globalThis.fetch = async (url) => {
-      const path = decodeURIComponent(new URL(url).pathname.split('/contents/')[1]);
-      if (path === 'package.json') {
-        const content = Buffer.from(JSON.stringify({ dependencies: { next: '15' } })).toString(
-          'base64',
-        );
-        return new Response(JSON.stringify({ encoding: 'base64', content }), { status: 200 });
-      }
-      if (path === 'public') {
-        return new Response(JSON.stringify([{ name: 'favicon.ico' }]), { status: 200 });
-      }
-      return new Response('', { status: 404 });
-    };
-    try {
-      const fetched = await fetchProjectFilesForRepository(
-        { sourceType: 'PUBLIC_GIT', fullName: 'owner/repo' },
-        'main',
-      );
-      assert.equal(fetched['public/'], true);
-    } finally {
-      globalThis.fetch = originalFetch;
-    }
+    const { files } = await fetchWithRepository({
+      'package.json': JSON.stringify({ dependencies: { next: '15' } }),
+      'public/favicon.ico': '',
+    });
+    assert.equal(files['public/'], true);
+  });
+
+  it('records a missing public folder', async () => {
+    const { files } = await fetchWithRepository({
+      'package.json': JSON.stringify({ dependencies: { next: '15' } }),
+    });
+    assert.equal(files['public/'], false);
   });
 });

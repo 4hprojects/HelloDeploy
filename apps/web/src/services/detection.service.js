@@ -822,7 +822,7 @@ const FILES_TO_FETCH = [
 ];
 const DETECTION_REQUEST_TIMEOUT_MS = 10_000;
 const DETECTION_RESPONSE_MAX_BYTES = 750_000;
-// Detection only checks that these exist, so one too large to read still counts.
+// Detection only checks that these exist, so they are never downloaded.
 const PRESENCE_ONLY_FILES = new Set([
   'package-lock.json',
   'yarn.lock',
@@ -833,7 +833,6 @@ const PRESENCE_ONLY_FILES = new Set([
 class DetectionFileTooLargeError extends Error {
   constructor(path) {
     super(`GitHub API response too large for ${path}`);
-    this.code = 'DETECTION_FILE_TOO_LARGE';
   }
 }
 
@@ -899,10 +898,12 @@ function fileAtApplicationRoot(applicationRoot, path) {
 }
 
 /**
- * Fetch the detection files for a repository at a ref. A missing file (404) is
- * null and an oversized lockfile is an empty string; any other GitHub error
- * fails the whole fetch, so a rate limit is never mistaken for an absent file
- * and saved as the wrong runtime.
+ * Fetch the detection files for a repository at a ref. The application root is
+ * listed once and only files in that listing are downloaded, which keeps a
+ * check well inside GitHub's anonymous limit of 60 requests an hour. A missing
+ * file is null and a lockfile is an empty string; any GitHub error fails the
+ * whole fetch, so a rate limit is never mistaken for an absent file and saved
+ * as the wrong runtime.
  */
 export async function fetchProjectFilesForRepository(repository, ref, applicationRoot = '.') {
   const token =
@@ -910,43 +911,33 @@ export async function fetchProjectFilesForRepository(repository, ref, applicatio
       ? null
       : await getInstallationToken(repository.installationId);
   const [owner, repo] = repository.fullName.split('/');
+  const entries = await listGithubDirectory(token, owner, repo, applicationRoot, ref);
   const fetchFile = async (path) => {
-    try {
-      return await fetchGithubFile(
-        token,
-        owner,
-        repo,
-        fileAtApplicationRoot(applicationRoot, path),
-        ref,
-      );
-    } catch (error) {
-      if (error.code === 'DETECTION_FILE_TOO_LARGE' && PRESENCE_ONLY_FILES.has(path)) {
-        return '';
-      }
-      throw error;
+    // Nested candidates such as app/main.py are fetched when their folder exists.
+    const isNested = path.includes('/');
+    const type = entries.get(path.split('/')[0]);
+    if (!type || (type === 'dir') !== isNested) {
+      return null;
     }
+    if (PRESENCE_ONLY_FILES.has(path)) {
+      return '';
+    }
+    return fetchGithubFile(token, owner, repo, fileAtApplicationRoot(applicationRoot, path), ref);
   };
   const contents = await Promise.all(FILES_TO_FETCH.map(fetchFile));
   const files = Object.fromEntries(FILES_TO_FETCH.map((path, index) => [path, contents[index]]));
   // Only Next.js needs it: the default image copies public/ into the runtime stage.
   if (/"next"\s*:/.test(files['package.json'] ?? '')) {
-    files['public/'] = await githubPathExists(
-      token,
-      owner,
-      repo,
-      fileAtApplicationRoot(applicationRoot, 'public'),
-      ref,
-    );
+    files['public/'] = entries.get('public') === 'dir';
   }
   return addBackendEntryFiles(files, fetchFile);
 }
 
-/** True when a file or folder exists at the path; GitHub answers 404 otherwise. */
-async function githubPathExists(token, owner, repo, path, ref) {
-  const encodedPath = path.split('/').map(encodeURIComponent).join('/');
-  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(ref)}`;
+/** Entry names and types in a folder; a missing folder lists nothing. */
+async function listGithubDirectory(token, owner, repo, path, ref) {
+  const encodedPath = path === '.' ? '' : `/${path.split('/').map(encodeURIComponent).join('/')}`;
+  const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents${encodedPath}?ref=${encodeURIComponent(ref)}`;
   const res = await fetch(url, {
-    method: 'GET',
     redirect: 'error',
     signal: AbortSignal.timeout(DETECTION_REQUEST_TIMEOUT_MS),
     headers: {
@@ -956,14 +947,20 @@ async function githubPathExists(token, owner, repo, path, ref) {
       'User-Agent': 'hellodeploy',
     },
   });
-  await res.body?.cancel();
   if (res.status === 404) {
-    return false;
+    await res.body?.cancel();
+    return new Map();
   }
   if (!res.ok) {
-    throw new Error(`GitHub API error checking ${path}: ${res.status}`);
+    await res.body?.cancel();
+    throw new Error(`GitHub API error listing ${path}: ${res.status}`);
   }
-  return true;
+  const data = JSON.parse(await readBoundedDetectionResponse(res, path));
+  // A file at the application root path is not a folder to detect in.
+  if (!Array.isArray(data)) {
+    return new Map();
+  }
+  return new Map(data.map((entry) => [entry.name, entry.type]));
 }
 
 // Entry-point candidates are fetched only for repositories with backend
