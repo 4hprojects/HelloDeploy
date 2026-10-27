@@ -27,9 +27,13 @@ function renderAdminProjects(search) {
   });
 }
 
-function renderAdminDomains(routingState) {
+function renderAdminDomains(routingState, { search = '', domains = [], totalPages = 0 } = {}) {
   return ejs.renderFile(viewPath('pages/admin/domains.ejs'), {
-    domains: [],
+    domains,
+    total: domains.length,
+    page: 1,
+    totalPages,
+    filters: { search },
     routableDomains: [
       { _id: 'd1', hostnameNormalized: 'app.example.com', tunnelId: 'a'.repeat(36), routingState },
     ],
@@ -64,6 +68,21 @@ describe('admin list pages', () => {
   it('asks for the suspension reason in the confirm dialog instead of the table row', async () => {
     const html = await renderAdminProjects('');
     assert.match(html, /data-confirm-reason>[\s\S]*?<input type="hidden" name="reason"/);
+  });
+
+  it('encodes the domain search term in pagination links', async () => {
+    const pending = { _id: 'd2', hostnameNormalized: 'shop.example.com', projectId: null };
+    const html = await renderAdminDomains('LIVE', {
+      search: 'a&b c',
+      domains: [pending],
+      totalPages: 2,
+    });
+    assert.match(html, /href="\?page=2&search=a%26b%20c"/);
+  });
+
+  it('says when no pending domain matches the search', async () => {
+    const html = await renderAdminDomains('LIVE', { search: 'nothing' });
+    assert.match(html, /No domains awaiting approval match the search/);
   });
 
   it('describes the domain routing probe result in words', async () => {

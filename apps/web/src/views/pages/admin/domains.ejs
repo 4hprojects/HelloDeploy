@@ -14,12 +14,36 @@ const routingBadge = (state) => {
 %>
 <div class="page-header">
   <h1 class="page-header__title">Domain Approval Queue</h1>
-  <% if (domains.length) { %>
-  <p class="page-header__subtitle"><%= domains.length %> awaiting approval</p>
+  <% if (total) { %>
+  <p class="page-header__subtitle"><%= total %> awaiting approval<%= filters.search ? ' matching the search' : '' %></p>
   <% } %>
 </div>
 
-<% if (domains.length === 0) { %>
+<form method="GET" action="/admin/domains" class="filter-bar list-filters mb-6" role="search" aria-label="Filter domains">
+  <div class="list-filters__grid">
+    <div class="form-group list-filters__search">
+      <label class="form-label" for="domain-search">Search</label>
+      <div class="search-field">
+        <input class="form-input search-field__input" type="search" id="domain-search" name="search" value="<%= filters.search %>" placeholder="Search by hostname or project…" autocomplete="off">
+        <button class="button button--secondary search-field__button" type="submit">Search</button>
+      </div>
+    </div>
+    <% if (filters.search) { %>
+    <a href="/admin/domains" class="button button--ghost list-filters__clear">Clear</a>
+    <% } %>
+  </div>
+</form>
+
+<% if (domains.length === 0 && filters.search) { %>
+<div class="card">
+  <div class="card__body">
+    <div class="empty-state">
+      <p class="empty-state__title">No domains awaiting approval match the search</p>
+      <p class="empty-state__description">Search by part of a hostname or a project name, or clear the search.</p>
+    </div>
+  </div>
+</div>
+<% } else if (domains.length === 0) { %>
 <div class="card">
   <div class="card__body">
     <div class="empty-state">
@@ -99,6 +123,17 @@ const routingBadge = (state) => {
     </div>
   </div>
 </div>
+<% if (totalPages > 1) { %>
+<div class="pagination mt-4">
+  <% if (page > 1) { %>
+  <a href="?page=<%= page - 1 %>&search=<%= encodeURIComponent(filters.search) %>" class="button button--ghost button--sm">Previous</a>
+  <% } %>
+  <span class="pagination__info text-sm text-muted">Page <%= page %> of <%= totalPages %></span>
+  <% if (page < totalPages) { %>
+  <a href="?page=<%= page + 1 %>&search=<%= encodeURIComponent(filters.search) %>" class="button button--ghost button--sm">Next</a>
+  <% } %>
+</div>
+<% } %>
 <% } %>
 
 <% if (locals.customHostnameUsage) { %>
@@ -132,7 +167,11 @@ const routingBadge = (state) => {
     </div>
   </div>
   <div class="card__body">
-    <% if (!routableDomains.length) { %>
+    <% if (!routableDomains.length && filters.search) { %>
+    <div class="empty-state">
+      <p class="empty-state__title">No verified domains match the search</p>
+    </div>
+    <% } else if (!routableDomains.length) { %>
     <div class="empty-state">
       <p class="empty-state__title">No verified domains yet</p>
       <p class="empty-state__description">Domains appear here once their ownership TXT record is verified, so their tunnel can be recorded.</p>
