@@ -92,6 +92,17 @@
       );
     }
 
+    // aria-hidden alone leaves the off-canvas links in the Tab order; inert removes them too.
+    function setSidebarHidden(hidden) {
+      if (hidden) {
+        sidebar.setAttribute('aria-hidden', 'true');
+        sidebar.setAttribute('inert', '');
+      } else {
+        sidebar.removeAttribute('aria-hidden');
+        sidebar.removeAttribute('inert');
+      }
+    }
+
     function setDrawerOpen(open, restoreFocus) {
       if (open && !mobileQuery.matches) {
         return;
@@ -103,7 +114,7 @@
       document.body.classList.toggle('sidebar-drawer-open', open);
 
       if (open) {
-        sidebar.removeAttribute('aria-hidden');
+        setSidebarHidden(false);
         if (main) {
           main.setAttribute('inert', '');
         }
@@ -117,11 +128,7 @@
       if (main) {
         main.removeAttribute('inert');
       }
-      if (mobileQuery.matches) {
-        sidebar.setAttribute('aria-hidden', 'true');
-      } else {
-        sidebar.removeAttribute('aria-hidden');
-      }
+      setSidebarHidden(mobileQuery.matches);
       if (restoreFocus) {
         sidebarToggle.focus();
       }
@@ -129,11 +136,7 @@
 
     function syncDrawerForViewport() {
       setDrawerOpen(false, false);
-      if (mobileQuery.matches) {
-        sidebar.setAttribute('aria-hidden', 'true');
-      } else {
-        sidebar.removeAttribute('aria-hidden');
-      }
+      setSidebarHidden(mobileQuery.matches);
     }
 
     sidebarToggle.addEventListener('click', () => {
@@ -1011,6 +1014,13 @@
     });
 
     let sent = false;
+    // Auth forms regenerate the session, so this page's CSRF token is already
+    // stale by the time pagehide fires; the request would only be rejected.
+    document.addEventListener('submit', (e) => {
+      if (new URL(e.target.action, window.location.href).pathname.startsWith('/auth/')) {
+        sent = true;
+      }
+    });
     function send() {
       if (sent) {
         return;

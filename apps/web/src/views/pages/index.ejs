@@ -4,6 +4,7 @@
     <h1 class="hero__title">Deploy your web app from GitHub without managing the deployment steps yourself.</h1>
     <p class="hero__subtitle">Connect a repository, review the detected setup, deploy, and get a live URL from one dashboard.</p>
     <div class="button-group mt-6"><a href="/auth/create-account" class="button button--primary button--lg">Create Account</a><a href="/how-it-works" class="button button--secondary button--lg">See How It Works</a></div>
+    <p class="mt-4 text-sm">Free pilot: <%= planDefaults.maxOwnedProjects %> project<%= planDefaults.maxOwnedProjects === 1 ? '' : 's' %>, <%= planDefaults.deploymentsPerMonth %> deployments a month. <a href="/service-limits">See service limits</a></p>
     <p class="mt-4"><a href="/supported-apps">View supported applications</a></p>
   </div>
 </section>

@@ -323,14 +323,17 @@ export function buildProjectOverviewState({
   }
 
   if (inFlightDeployment) {
+    const progress = `Deployment #${inFlightDeployment.sequenceNumber} is ${inFlightDeployment.status.toLowerCase()}.`;
+    // A redeploy must not read as an outage: the current release keeps serving until the swap.
     return {
       ...result,
       phase: 'DEPLOYING',
-      tone: 'pending',
-      eyebrow: 'Deployment in progress',
-      title: 'HelloDeploy is publishing your app',
-      description: `Deployment #${inFlightDeployment.sequenceNumber} is ${inFlightDeployment.status.toLowerCase()}.`,
+      tone: appLive ? 'live' : 'pending',
+      eyebrow: appLive ? 'App live, update in progress' : 'Deployment in progress',
+      title: appLive ? 'Your app is live' : 'HelloDeploy is publishing your app',
+      description: appLive ? `The current version is serving visitors. ${progress}` : progress,
       primaryAction: getAction('View progress', `${base}/deployments/${inFlightDeployment._id}`),
+      showMilestones: !appLive,
       canSubmit: false,
     };
   }

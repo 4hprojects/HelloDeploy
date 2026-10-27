@@ -7,7 +7,7 @@ import { readFile } from 'node:fs/promises';
 const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=lax'];
 const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
-const REQUIRED_READY_CHECKS = ['mongodb', 'queue', 'redis'];
+const REQUIRED_READY_CHECKS = ['email', 'mongodb', 'queue', 'redis'];
 
 function exactKeys(value, expected) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

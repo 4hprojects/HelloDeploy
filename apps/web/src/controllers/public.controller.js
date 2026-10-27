@@ -230,8 +230,8 @@ const CORE_TOPIC_CONTENT = Object.freeze({
         items: [
           'Open the platform address and confirm the application behaves as expected.',
           'Use deployment history to identify the commit and configuration used for each attempt.',
-          'Roll back to a retained healthy release when a newer version should be replaced.',
-          'Use Deploy (no cache) only when stale build layers are a plausible cause of a problem.',
+          'Roll back to a retained healthy release, listed as Previous release, from Advanced deployment on the Deployments page.',
+          'Use Rebuild Without Cache under Advanced deployment only when stale build layers are a plausible cause of a problem.',
         ],
       },
     ],

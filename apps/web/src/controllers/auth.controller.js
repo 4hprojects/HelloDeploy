@@ -321,7 +321,8 @@ export const postSignIn = asyncHandler(async (req, res) => {
       'pages/auth/sign-in',
       authRenderOpts({
         title: 'Sign In',
-        errors: { form: result.error },
+        // The verification alert already says this and offers a resend; a form error would repeat it.
+        errors: result.needsVerification ? {} : { form: result.error },
         values: { email: req.body.email ?? '' },
         returnTo,
         ...extra,

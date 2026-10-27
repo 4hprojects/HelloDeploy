@@ -56,6 +56,16 @@ export const STATUS_PRESENTATION = Object.freeze({
       true,
     ),
   }),
+  // A normal deploy leaves the replaced release HEALTHY for rollback, so "Live"
+  // belongs only to the project's active deployment.
+  release: Object.freeze({
+    RETAINED: define(
+      'Previous release',
+      'neutral',
+      'Kept for rollback. Another release is serving traffic.',
+      true,
+    ),
+  }),
   project: Object.freeze({
     [ProjectStatus.DRAFT]: define(
       'Setup incomplete',

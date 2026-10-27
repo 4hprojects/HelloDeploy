@@ -4,8 +4,8 @@
   <p class="text-sm text-muted">Verification links are valid for 24 hours. Delivery can take a few minutes; check spam or junk before resending.</p>
 
   <% if (typeof submitted !== 'undefined' && submitted) { %>
-    <div class="alert alert--info" role="status">
-      <strong>Check your inbox.</strong><br />
+    <div class="alert alert--stacked alert--info" role="status">
+      <strong>Check your inbox.</strong>
       We sent a verification link<%= locals.maskedEmail ? ` to ${maskedEmail}` : '' %>. Click it to activate your account.
     </div>
     <p class="mt-4">Didn't receive it? Check your spam folder, or:</p>

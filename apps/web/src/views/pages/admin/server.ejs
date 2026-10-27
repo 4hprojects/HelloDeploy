@@ -1,7 +1,7 @@
 <div class="page-header">
   <h1 class="page-header__title">Server &amp; Queue</h1>
   <p class="page-header__subtitle text-muted text-sm">
-    Collected at <%= server.collectedAt ? new Date(server.collectedAt).toLocaleTimeString('en-GB') : '—' %>
+    Collected at <%= server.collectedAt ? new Date(server.collectedAt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }) : '—' %>
     &nbsp;·&nbsp; Uptime: <%= server.uptime?.human ?? '—' %>
   </p>
 </div>
@@ -17,7 +17,7 @@
     <dl class="detail-list">
       <dt>Running SHA</dt><dd><code class="code-inline"><%= server.platformRelease?.actualSha || 'Unavailable' %></code></dd>
       <dt>Expected SHA</dt><dd><code class="code-inline"><%= server.platformRelease?.expectedSha || 'Metadata unavailable' %></code></dd>
-      <dt>Process started</dt><dd><%= server.platformRelease?.processStartedAt ? new Date(server.platformRelease.processStartedAt).toLocaleString('en-GB') : 'Unavailable' %></dd>
+      <dt>Process started</dt><dd><%= server.platformRelease?.processStartedAt ? new Date(server.platformRelease.processStartedAt).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }) : 'Unavailable' %></dd>
       <dt>Environment</dt><dd><%= server.platformRelease?.environment || 'Unknown' %></dd>
     </dl>
     <p class="form-hint mt-4">Release metadata is written by install, upgrade, and rollback workflows. The web process does not need Docker access.</p>
@@ -157,13 +157,13 @@
     <% } else if (server.webhooks.isFailing) { %>
     <p class="text-sm">
       <%= server.webhooks.rejectedSinceAccepted %> deliveries rejected since
-      <%= server.webhooks.lastAcceptedAt ? 'the last accepted one (' + new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB') + ')' : 'this was first recorded; none accepted' %>.
+      <%= server.webhooks.lastAcceptedAt ? 'the last accepted one (' + new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }) + ')' : 'this was first recorded; none accepted' %>.
       Push-to-deploy and repository access updates are not arriving. This almost always means the
       webhook secret on the server differs from the GitHub App's — rotate it as described in the
       operations runbook.
     </p>
     <% } else if (server.webhooks.lastAcceptedAt) { %>
-    <p class="text-sm">Receiving deliveries. Last accepted <%= new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB') %>.</p>
+    <p class="text-sm">Receiving deliveries. Last accepted <%= new Date(server.webhooks.lastAcceptedAt).toLocaleString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', timeZoneName: 'short' }) %>.</p>
     <% } else { %>
     <p class="text-muted text-sm">No GitHub deliveries recorded yet.</p>
     <% } %>

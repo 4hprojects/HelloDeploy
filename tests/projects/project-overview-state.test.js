@@ -194,6 +194,29 @@ describe('project overview lifecycle state', () => {
     assert.match(state.primaryAction.href, /deployments\/64b7/);
   });
 
+  it('keeps a live release visible while an update deploys', () => {
+    const active = {
+      _id: '64b7f8e2a1c9d4f5b6a7c804',
+      sequenceNumber: 1,
+      status: DeploymentStatus.HEALTHY,
+      commitSha: COMMIT,
+    };
+    const building = {
+      _id: '64b7f8e2a1c9d4f5b6a7c805',
+      sequenceNumber: 2,
+      status: DeploymentStatus.BUILDING,
+    };
+    const state = fixture({
+      project: { status: ProjectStatus.ACTIVE },
+      deployments: [building, active],
+      activeDeployment: active,
+    });
+    assert.deepEqual(
+      { phase: state.phase, tone: state.tone, title: state.title },
+      { phase: 'DEPLOYING', tone: 'live', title: 'Your app is live' },
+    );
+  });
+
   it('guides a failed first deployment and restricts retry by role', () => {
     const failed = {
       _id: '64b7f8e2a1c9d4f5b6a7c802',

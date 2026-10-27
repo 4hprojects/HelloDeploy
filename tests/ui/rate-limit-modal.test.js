@@ -33,6 +33,15 @@ describe('rate-limit modal UI', () => {
     assert.match(appJs, /initPageModal\(\)/);
   });
 
+  it('offers no retry when a permission or not-found answer cannot change', async () => {
+    const html = await ejs.renderFile(errorViewPath, {
+      title: 'Forbidden',
+      message: 'You do not have permission to access this project.',
+      canRetry: false,
+    });
+    assert.doesNotMatch(html, /Try again/);
+  });
+
   it('shows the caller-supplied eyebrow in the modal', async () => {
     const html = await ejs.renderFile(errorViewPath, {
       title: 'Something Went Wrong',

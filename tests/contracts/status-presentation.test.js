@@ -18,6 +18,10 @@ describe('canonical status presentation', () => {
     );
   });
 
+  it('labels a retained healthy release as a previous release, not live', () => {
+    assert.equal(getStatusPresentation('release', 'RETAINED').label, 'Previous release');
+  });
+
   it('provides contextual domain guidance and a safe fallback', () => {
     assert.match(
       getStatusPresentation('domain', DomainStatus.PENDING_VERIFICATION).hint,

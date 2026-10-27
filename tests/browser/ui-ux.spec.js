@@ -3,11 +3,23 @@ import { expect, test } from '@playwright/test';
 
 const fixturePassword = 'FixturePass123!';
 
+// Sign-ins are rate limited to 10 per 15 minutes per IP, so each user signs in
+// through the form once and later tests reuse that session's cookies.
+const sessionCookies = new Map();
+
 async function signIn(page, email = 'demo@hellodeploy.test') {
+  const cookies = sessionCookies.get(email);
+  if (cookies) {
+    await page.context().addCookies(cookies);
+    await page.goto('/dashboard');
+    return;
+  }
   await page.goto('/auth/sign-in');
   await page.getByLabel('Email Address').fill(email);
   await page.getByLabel('Password').fill(fixturePassword);
   await page.getByRole('button', { name: 'Sign In' }).click();
+  await expect(page).not.toHaveURL(/\/auth\/sign-in/);
+  sessionCookies.set(email, await page.context().cookies());
 }
 
 test('public discovery, metadata, theme, and accessibility', async ({ page }) => {
@@ -18,7 +30,9 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   await page.getByRole('button', { name: /dark theme/i }).click();
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
   const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   for (const path of [
     '/how-it-works',
@@ -34,6 +48,34 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   }
 });
 
+test('homepage summarises the pilot limits from the plan defaults', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('Free pilot: 1 project, 10 deployments a month.')).toBeVisible();
+});
+
+test('supported applications keep paused pilot runtimes out of the supported list', async ({
+  page,
+}) => {
+  await page.goto('/supported-apps');
+  const supported = page.locator('section', {
+    has: page.getByRole('heading', { name: 'Supported', exact: true }),
+  });
+  await expect(supported.getByText(/Python|PHP|Java Spring/)).toHaveCount(0);
+});
+
+test('status check time states its timezone', async ({ page }) => {
+  await page.goto('/status');
+  await expect(page.locator('time[datetime]')).toHaveText(/\d{2}:\d{2}:\d{2} (GMT|UTC)/);
+});
+
+test('unverified sign-in explains verification once', async ({ page }) => {
+  await page.goto('/auth/sign-in');
+  await page.getByLabel('Email Address').fill('unverified@hellodeploy.test');
+  await page.getByLabel('Password').fill(fixturePassword);
+  await page.getByRole('button', { name: 'Sign In' }).click();
+  await expect(page.getByText(/verify your email/i)).toHaveCount(1);
+});
+
 test('how-it-works is indexable and accessible', async ({ page }) => {
   await page.goto('/how-it-works');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('From a GitHub repository');
@@ -45,7 +87,9 @@ test('how-it-works is indexable and accessible', async ({ page }) => {
     }),
   ).toHaveAttribute('aria-current', 'page');
   const results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 });
 
 test('docs guides a reader through a first deployment', async ({ page }) => {
@@ -60,14 +104,18 @@ test('docs guides a reader through a first deployment', async ({ page }) => {
   await createAccount.focus();
   await expect(createAccount).toBeFocused();
   let results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   await page.goto('/docs/getting-started');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Getting Started');
   await expect(page.getByRole('heading', { name: 'Complete your first deployment' })).toBeVisible();
   await expect(page.getByText('Deploy Latest', { exact: false })).toBeVisible();
   results = await new AxeBuilder({ page }).analyze();
-  expect(results.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 });
 
 for (const path of ['/docs', '/docs/getting-started']) {
@@ -143,18 +191,22 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await expect(page.getByRole('cell', { name: 'Secret set' })).toBeVisible();
   await expect(page.getByText('DATABASE_URL')).toHaveCount(0);
 
-  // Sign-ins are rate limited to 10 per 15 minutes across this whole spec, so
-  // new checks join an already signed-in test instead of signing in again.
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin');
   await expect(page.getByRole('heading', { name: 'Admin Overview' })).toBeVisible();
   const overviewAxe = await new AxeBuilder({ page }).analyze();
-  expect(overviewAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    overviewAxe.violations.filter((violation) =>
+      ['critical', 'serious'].includes(violation.impact),
+    ),
+  ).toEqual([]);
   await page.getByRole('link', { name: 'Domains' }).click();
   await expect(page.getByRole('heading', { name: 'Domain Approval Queue' })).toBeVisible();
   const domainsAxe = await new AxeBuilder({ page }).analyze();
-  expect(domainsAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    domainsAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
   await page.goto('/admin/users');
   await expect(page.getByRole('heading', { name: /Users/ })).toBeVisible();
   await page.goto('/admin/ux-metrics');
@@ -174,7 +226,9 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await page.getByRole('button', { name: 'Details' }).first().click();
   await expect(page.getByText('IP address').first()).toBeVisible();
   const auditAxe = await new AxeBuilder({ page }).analyze();
-  expect(auditAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    auditAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   // Without a reporting worker the build service shows as not reporting; its
   // controls stay reachable to a super administrator.
@@ -185,7 +239,9 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   const builderStatus = await page.request.get('/admin/builder/status');
   expect((await builderStatus.json()).state.label).toBe('Not reporting');
   const builderAxe = await new AxeBuilder({ page }).analyze();
-  expect(builderAxe.violations.filter((violation) => violation.impact === 'critical')).toEqual([]);
+  expect(
+    builderAxe.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
 
   await page.goto('/admin/audit-events');
   await page.setViewportSize({ width: 320, height: 900 });
@@ -339,7 +395,14 @@ test('signed-in app header keeps the sidebar breakpoint independent', async ({ p
         globalThis.document.documentElement.clientWidth,
     );
     expect(overflow).toBeLessThanOrEqual(1);
+
+    // A closed off-canvas drawer must leave the Tab order, not only the accessibility tree.
+    expect(await page.locator('#sidebar').getAttribute('inert')).toBe(width <= 768 ? '' : null);
   }
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const results = await new AxeBuilder({ page }).withRules(['aria-hidden-focus']).analyze();
+  expect(results.violations).toEqual([]);
 });
 
 test('keyboard focus is visible and returns after confirmation modal', async ({ page }) => {
@@ -349,6 +412,76 @@ test('keyboard focus is visible and returns after confirmation modal', async ({ 
   const focused = page.locator(':focus');
   await expect(focused).toBeVisible();
   await expect(focused).toHaveCSS('outline-style', /solid|auto/);
+
+  const cancel = page.getByRole('button', { name: /Cancel for deployment #8/ });
+  await cancel.focus();
+  await page.keyboard.press('Enter');
+  const dialog = page.getByRole('dialog', { name: 'Cancel deployment' });
+  await expect(dialog).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(dialog).toBeHidden();
+  await expect(cancel).toBeFocused();
+});
+
+test('deployment history labels only the active release as live', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const badgeFor = (sequence) =>
+    page
+      .locator('[data-deployment-row]', {
+        has: page.getByRole('link', { name: `#${sequence}`, exact: true }),
+      })
+      .locator('.status-badge');
+  expect([await badgeFor(7).textContent(), await badgeFor(4).textContent()]).toEqual([
+    'Live',
+    'Previous release',
+  ]);
+});
+
+test('advanced deployment controls stay collapsed below the history', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(page.getByRole('button', { name: 'Deploy Commit' })).toBeHidden();
+});
+
+test('rollback choices name a rollback that repeats another release', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(page.locator('#targetDeploymentId option', { hasText: '#5' })).toContainText(
+    'same release as #4',
+  );
+});
+
+test('project overview keeps a live app visible while an update builds', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes');
+  await expect(page.getByRole('heading', { level: 2, name: 'Your app is live' })).toBeVisible();
+});
+
+test('healthy deployment detail fits a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const href = await page.getByRole('link', { name: '#7', exact: true }).getAttribute('href');
+  await page.goto(href);
+  const overflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
+});
+
+test('admin server page fits a phone viewport', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin/server');
+  const overflow = await page.evaluate(
+    () =>
+      globalThis.document.documentElement.scrollWidth -
+      globalThis.document.documentElement.clientWidth,
+  );
+  expect(overflow).toBeLessThanOrEqual(1);
 });
 
 test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {
@@ -445,7 +578,9 @@ test('deployment polling preserves canonical status and refreshes terminal actio
   await expect(refreshedRow.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
 });
 
-test('authenticated dark-mode views meet critical accessibility checks', async ({ page }) => {
+test('authenticated dark-mode views meet critical and serious accessibility checks', async ({
+  page,
+}) => {
   await signIn(page);
   await page.getByRole('button', { name: /dark theme/i }).click();
 
@@ -459,8 +594,8 @@ test('authenticated dark-mode views meet critical accessibility checks', async (
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
     const results = await new AxeBuilder({ page }).analyze();
     expect(
-      results.violations.filter((violation) => violation.impact === 'critical'),
-      `${path} should have no critical axe violations`,
+      results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+      `${path} should have no critical or serious axe violations`,
     ).toEqual([]);
   }
 });

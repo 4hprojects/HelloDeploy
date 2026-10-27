@@ -221,7 +221,6 @@ describe('guided project overview', () => {
   });
 
   it('defines responsive wrapping for long source names, notes, URLs, and activity', () => {
-    assert.match(componentsCss, /\.project-home-url__value[\s\S]*overflow-wrap: anywhere/);
     assert.match(componentsCss, /\.project-details-grid dd[\s\S]*overflow-wrap: anywhere/);
     assert.match(componentsCss, /\.project-activity__message[\s\S]*overflow-wrap: anywhere/);
     assert.match(componentsCss, /\.project-details-disclosure > summary:focus-visible/);

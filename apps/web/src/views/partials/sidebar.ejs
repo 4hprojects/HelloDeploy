@@ -16,7 +16,8 @@
       <a
         href="/projects"
         class="sidebar__link"
-        <%- _path.startsWith('/projects') ? 'aria-current="page"' : '' %>
+        <%# Inside a project the project's own link is the current page; Projects only marks the section. %>
+        <%- ['/projects', '/projects/new'].includes(_path) ? 'aria-current="page"' : _path.startsWith('/projects/') ? 'aria-current="true"' : '' %>
       >
         <%- include('icon', { name: 'projects', className: 'sidebar__icon' }) %>
         <span>Projects</span>
