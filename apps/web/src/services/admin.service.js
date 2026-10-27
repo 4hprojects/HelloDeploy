@@ -39,7 +39,7 @@ import { countDeploymentsThisMonth } from './quota.service.js';
 
 const ADMIN_SEARCH_MAX_LENGTH = 200;
 
-function normalizeAdminSearch(value) {
+export function normalizeAdminSearch(value) {
   if (typeof value !== 'string') {
     return '';
   }
@@ -50,7 +50,7 @@ function allowlistedStatus(value, statuses) {
   return typeof value === 'string' && Object.values(statuses).includes(value) ? value : null;
 }
 
-function escapedSearchRegex(value) {
+export function escapedSearchRegex(value) {
   return new RegExp(value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
 }
 

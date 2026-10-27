@@ -77,8 +77,8 @@ When you're ready:
 ## Later
 
 - **Admin area follow-ups** (left out of #151):
-  - Pagination and search for the domain approval queue and the build service activity table,
-    plus a project filter on domains. Both lists are short today.
+  - Pagination for the build service activity table. It shows the latest 25 builds, which is
+    enough today.
   - The domain tunnels table prints a `sudo` provisioning command into the page. It goes away
     with the admin tunnel step
     ([CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md)).

@@ -11,6 +11,10 @@ function renderAdminDomains(customHostnameUsage) {
   return ejs.renderFile(adminDomainsPath, {
     title: 'Domain Approval Queue',
     domains: [],
+    total: 0,
+    page: 1,
+    totalPages: 0,
+    filters: { search: '' },
     routableDomains: [],
     liveTxtRecordsById: new Map(),
     customHostnameUsage,

@@ -12,6 +12,7 @@ import {
   logCustomHostnameFailure,
   toCustomHostnameFields,
 } from './cloudflare-custom-hostnames.js';
+import { escapedSearchRegex, normalizeAdminSearch } from './admin.service.js';
 import { checkDomainQuota } from './quota.service.js';
 import { JobType } from '@hellodeploy/contracts';
 
@@ -683,7 +684,7 @@ export async function getProjectDomainStatuses(projectId) {
  * domains automatically and no longer produces PENDING_ADMIN_APPROVAL, so an
  * admin would otherwise have nowhere to record a tunnel for them.
  */
-export async function getRoutableDomains() {
+export async function getRoutableDomains({ search } = {}) {
   return Domain.find({
     status: {
       $in: [
@@ -693,17 +694,42 @@ export async function getRoutableDomains() {
         DomainStatus.ACTIVE,
       ],
     },
+    ...(await domainSearchFilter(search)),
   })
     .populate('projectId', 'name slug')
     .sort({ createdAt: 1 })
     .lean();
 }
 
-export async function getPendingApprovalDomains() {
-  return Domain.find({ status: DomainStatus.PENDING_ADMIN_APPROVAL })
-    .populate('projectId', 'name slug')
-    .sort({ createdAt: 1 })
-    .lean();
+// Paged because the approval screen runs a live DNS lookup for every row it shows.
+export async function getPendingApprovalDomains({ page = 1, limit = 20, search } = {}) {
+  const query = {
+    status: DomainStatus.PENDING_ADMIN_APPROVAL,
+    ...(await domainSearchFilter(search)),
+  };
+  const [domains, total] = await Promise.all([
+    Domain.find(query)
+      .populate('projectId', 'name slug')
+      .sort({ createdAt: 1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
+    Domain.countDocuments(query),
+  ]);
+  return { domains, total, page, limit };
+}
+
+// Matches the hostname, or the name or slug of the project that owns it.
+async function domainSearchFilter(search) {
+  const safeSearch = normalizeAdminSearch(search);
+  if (!safeSearch) {
+    return {};
+  }
+  const regex = escapedSearchRegex(safeSearch);
+  const projectIds = await Project.find({ $or: [{ name: regex }, { slug: regex }] }).distinct(
+    '_id',
+  );
+  return { $or: [{ hostnameNormalized: regex }, { projectId: { $in: projectIds } }] };
 }
 
 // ─── Live DNS re-check (admin approval screen) ─────────────────────────────────

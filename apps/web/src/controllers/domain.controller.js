@@ -165,8 +165,10 @@ export const postRemoveDomain = asyncHandler(async (req, res) => {
 // ─── Admin: domain approval queue ─────────────────────────────────────────────
 
 export const getAdminDomains = asyncHandler(async (req, res) => {
-  const domains = await getPendingApprovalDomains();
-  const routableDomains = await getRoutableDomains();
+  const page = Math.max(1, parseInt(req.query.page) || 1);
+  const search = typeof req.query.search === 'string' ? req.query.search : '';
+  const { domains, total, limit } = await getPendingApprovalDomains({ page, search });
+  const routableDomains = await getRoutableDomains({ search });
 
   // Live re-check, shown alongside the original verification timestamp so
   // an admin can independently confirm the record is still published before
@@ -190,6 +192,10 @@ export const getAdminDomains = asyncHandler(async (req, res) => {
       : null,
     title: 'Domain Approval Queue',
     domains,
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    filters: { search },
     liveTxtRecordsById,
   });
 });
