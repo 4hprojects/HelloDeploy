@@ -45,9 +45,7 @@ conditions; Phase B (the admin interface, lifecycle controls and tests) is imple
 project, `builder-pilot-next16`: built on the on-demand builder, pushed to private GHCR, deployed,
 and rolled back by digest. **Now:** a 7-day watch until 2026-11-01 (idle shutdowns, no unexpected
 cancels, apps healthy). The GHCR production token expires about 2027-01-23; renew it before then.
-Follow-ups: the `public/` warning still shows for the standalone mode, and a build mode chosen
-before a pilot is enabled is not saved until the advanced settings are saved. The host-option
-notes below predate that design.
+The host-option notes below predate that design.
 
 When you're ready:
 

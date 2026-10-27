@@ -1,5 +1,11 @@
 # Multi-Runtime Changelog
 
+## 2026-10-27
+
+- Detection no longer warns about a missing `public/` folder when the project builds with a
+  Next.js mode; only the legacy image needs one. A recommended build mode that the form
+  preselects but that is not saved yet now says so, because deploys keep the saved mode.
+
 ## 2026-10-25
 
 - Phase C passed live; Phase D activated builder control in production (`activate-builder-control.sh`).

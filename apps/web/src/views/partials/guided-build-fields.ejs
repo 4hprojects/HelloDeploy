@@ -28,6 +28,9 @@
         _gbStrategyEnabled(_gbRecommendedStrategy)
         ? _gbRecommendedStrategy
         : _gbStoredStrategy);
+  // The recommendation is preselected for convenience, but deploys keep the
+  // stored strategy until this form is saved.
+  const _gbIsUnsavedStrategy = !_gbValues && _gbStrategy !== _gbStoredStrategy;
   const _gbPythonRuntime = _gbRuntime === 'PYTHON';
   const _gbPhpRuntime = _gbRuntime === 'PHP';
   const _gbPhpStrategiesEnabled = _gbStrategyEnabled('php_plain_v1');
@@ -157,6 +160,9 @@
     </select>
     <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
       Keep the detected mode. Static export cannot run server routes, Server Actions, ISR, or image optimization.
+      <% if (_gbIsUnsavedStrategy) { %>
+      <strong>Recommended mode, not saved yet.</strong> Deployments use the default build until you save these settings.
+      <% } %>
     </p>
     <% if (_gbErrors.buildStrategy) { %>
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
@@ -177,6 +183,9 @@
     </select>
     <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
       Keep the detected framework. HelloDeploy installs <code class="code-inline">requirements.txt</code> and starts the matching server.
+      <% if (_gbIsUnsavedStrategy) { %>
+      <strong>Recommended mode, not saved yet.</strong> Deployments use the default build until you save these settings.
+      <% } %>
     </p>
     <% if (_gbErrors.buildStrategy) { %>
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
@@ -221,6 +230,9 @@
     <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
       Keep the detected type. HelloDeploy installs Composer packages from
       <code class="code-inline">composer.lock</code> and serves the app with Apache.
+      <% if (_gbIsUnsavedStrategy) { %>
+      <strong>Recommended mode, not saved yet.</strong> Deployments use the default build until you save these settings.
+      <% } %>
     </p>
     <% if (_gbErrors.buildStrategy) { %>
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>
@@ -241,6 +253,9 @@
     <p class="form-hint" id="<%= _gbId('build-strategy-hint') %>">
       Keep the detected tool. HelloDeploy builds one Spring Boot executable jar with the project
       wrapper, skips tests, and runs it with <code class="code-inline">java -jar</code>.
+      <% if (_gbIsUnsavedStrategy) { %>
+      <strong>Recommended mode, not saved yet.</strong> Deployments use the default build until you save these settings.
+      <% } %>
     </p>
     <% if (_gbErrors.buildStrategy) { %>
     <span id="<%= _gbId('build-strategy-error') %>" class="form-error" role="alert"><%= _gbErrors.buildStrategy %></span>

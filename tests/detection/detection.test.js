@@ -967,6 +967,14 @@ describe('detectRuntime — Next.js public folder', () => {
       false,
     );
   });
+
+  it('does not warn when the project builds with a Next.js mode', () => {
+    const result = detectRuntime(nextFiles(false), { currentStrategy: 'next_standalone_v1' });
+    assert.equal(
+      result.issues.some((issue) => /public\/ folder/.test(issue.message)),
+      false,
+    );
+  });
 });
 
 describe('fetchProjectFilesForRepository — Next.js public folder', () => {

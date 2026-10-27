@@ -514,8 +514,8 @@ function detectJavaRuntime(files) {
  *   isValid: boolean,
  * }}
  */
-export function detectRuntime(files) {
-  const nodeResult = detectNodeRuntime(files);
+export function detectRuntime(files, { currentStrategy = null } = {}) {
+  const nodeResult = detectNodeRuntime(files, currentStrategy);
   if (!FRONTEND_ONLY_RUNTIMES.includes(nodeResult.runtimeType)) {
     return nodeResult;
   }
@@ -543,7 +543,7 @@ const FRONTEND_ONLY_RUNTIMES = Object.freeze([
   RuntimeType.UNKNOWN,
 ]);
 
-function detectNodeRuntime(files) {
+function detectNodeRuntime(files, currentStrategy) {
   const issues = [];
 
   // ── No package.json — static or unknown ────────────────────────────────────
@@ -636,7 +636,12 @@ function detectNodeRuntime(files) {
         });
       }
     }
-    if (files['public/'] === false) {
+    // Only the legacy image copies public/ without creating it; every Next.js
+    // build mode makes or ignores the folder.
+    if (
+      files['public/'] === false &&
+      getBuildStrategyRuntime(currentStrategy) !== RuntimeType.NEXTJS
+    ) {
       issues.push({
         level: 'WARNING',
         message:
@@ -1175,7 +1180,7 @@ export async function runProjectDetection(projectId, actorId, opts = {}) {
     return result;
   }
 
-  const result = detectRuntime(files);
+  const result = detectRuntime(files, { currentStrategy: project.buildStrategy });
   result.recommendedBuildStrategy ??= BuildStrategy.LEGACY_GENERATED;
   result.strategyRationale ??= 'Existing generated-image behavior is preserved.';
   result.applicationRoot = normalizeApplicationRoot(
