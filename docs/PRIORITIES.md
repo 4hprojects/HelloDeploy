@@ -28,11 +28,9 @@ The builder control pilot is in its 7-day watch (until 2026-11-01). Small items:
 
 - **Screen-reader pass on the admin area.** #151 (live 2026-10-26) changed the sidebar (new
   Domains link and waiting counts), the overview, and the confirm dialog, which now has an
-  optional reason field for suspend and reject. Repeat the Orca check from
-  [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) on those.
-- **UI/UX improvement branch** `feat/uiux-phase-improvements` (local, unmerged): fixes from the
-  2026-10-27 Phase 0B audit. Merging needs the three visual baselines regenerated on the CI
-  runner, because the contrast token change alters every page.
+  optional reason field for suspend and reject. #153 (live 2026-10-27) added the collapsed
+  Advanced deployment section and the Previous release label on the deployments pages. Repeat
+  the Orca check from [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) on those.
 
 ## Next — to turn on the multi-runtime pilots
 
