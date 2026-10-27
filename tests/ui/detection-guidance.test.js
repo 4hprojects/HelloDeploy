@@ -253,6 +253,32 @@ describe('guided detection inputs', () => {
     assert.match(html, /<option value="java_gradle_v1" selected>Gradle \(gradlew\)/);
   });
 
+  it('flags a recommended mode that is not saved yet', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p5',
+        runtimeType: 'NEXTJS',
+        buildStrategy: 'legacy_generated',
+        detection: { status: 'READY', recommendedBuildStrategy: 'next_standalone_v1' },
+      },
+      isStrategyEnabledFor: () => true,
+    });
+    assert.match(html, /Recommended mode, not saved yet\./);
+  });
+
+  it('does not flag a saved mode', async () => {
+    const html = await renderDetection({
+      project: {
+        _id: 'p5',
+        runtimeType: 'NEXTJS',
+        buildStrategy: 'next_standalone_v1',
+        detection: { status: 'READY', recommendedBuildStrategy: 'next_standalone_v1' },
+      },
+      isStrategyEnabledFor: () => true,
+    });
+    assert.doesNotMatch(html, /not saved yet/);
+  });
+
   it('offers owner Dockerfiles and prebuilt images only on the container pilots', async () => {
     const html = await renderDetection({
       project: { _id: 'p5', runtimeType: 'EXPRESS', buildConfiguration: {} },
