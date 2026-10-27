@@ -19,7 +19,7 @@ const formatJoined = (d) => {
 };
 const tabs = [
   { view: 'open', label: 'Open', hint: 'Pending and provisional' },
-  { view: 'pending', label: 'Pending review', hint: 'Not live yet' },
+  { view: 'pending', label: 'Pending', hint: 'Not live yet' },
   { view: 'provisional', label: 'Provisional', hint: 'Live with reduced limits' },
   { view: 'decided', label: 'Decided', hint: 'Last 7 days' },
 ];
@@ -49,7 +49,8 @@ const staleCount = requests.filter((r) => r.status === 'PENDING' && !r.snapshotS
          class="stat-card stat-card--link<%= isActive ? ' stat-card--active' : '' %><%= isAlert ? ' stat-card--alert' : '' %>"
          <%- isActive ? 'aria-current="page"' : '' %>>
         <span class="stat-card__value"><%= counts[tab.view] %></span>
-        <span class="stat-card__label"><strong><%= tab.label %></strong> · <%= tab.hint %></span>
+        <span class="stat-card__label"><strong><%= tab.label %></strong></span>
+        <span class="stat-card__sub"><%= tab.hint %></span>
       </a>
     </li>
     <% }) %>

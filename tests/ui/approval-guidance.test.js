@@ -62,6 +62,13 @@ describe('initial project approval guidance', () => {
     assert.match(adminView, /<summary>Show all checks/);
   });
 
+  it('shows each queue view hint on its own line below a short label', () => {
+    assert.match(
+      adminView,
+      /<strong><%= tab\.label %><\/strong><\/span>\s*<span class="stat-card__sub"><%= tab\.hint %><\/span>/,
+    );
+  });
+
   it('keeps admin authorization, object-id validation, and CSRF forms in the path', () => {
     assert.match(adminRoutes, /router\.use\(requireAuth, requireAdmin\)/);
     assert.match(adminRoutes, /'requestId'/);

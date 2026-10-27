@@ -79,8 +79,6 @@ When you're ready:
 - **Admin area follow-ups** (left out of #151):
   - Pagination and search for the domain approval queue and the build service activity table,
     plus a project filter on domains. Both lists are short today.
-  - The approval queue's stat-card tabs carry long labels ("Open · Pending and provisional");
-    shorten them or make them real tabs.
   - The domain tunnels table prints a `sudo` provisioning command into the page. It goes away
     with the admin tunnel step
     ([CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md)).
