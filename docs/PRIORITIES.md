@@ -70,6 +70,12 @@ When you're ready:
 
 ## Later
 
+- **Installable dashboard (PWA).** An install prompt, an offline page and a service worker,
+  specified fresh. #70 was closed on 2026-10-29 as stale; mobile navigation is already done.
+- **HelloPera release API.** HelloPera's `release.yml` expects deploy-hook endpoints that
+  HelloDeploy does not have: capabilities, deploy an exact commit, deployment status, and
+  public-config snapshots restored on rollback. #49 was closed unbuilt on 2026-10-29. Write a
+  fresh spec if HelloPera's gated staging-to-production release is wanted.
 - **Admin area follow-up** (left out of #151): the domain tunnels table prints a `sudo`
   provisioning command into the page. It goes away with the admin tunnel step
   ([CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md](design/CUSTOM_DOMAINS_CLOUDFLARE_FOR_SAAS.md)).
