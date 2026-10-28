@@ -1,6 +1,6 @@
 # Documentation Archive
 
-Updated: 2026-10-21
+Updated: 2026-10-29
 
 Everything here is a historical record: earlier status trackers, resolved audits, finished
 phase specifications, and planning briefs. None of it is current status, and none of it is
@@ -45,6 +45,7 @@ Each file keeps the date it describes; the dates below are the period it covers.
 | [Public Git Repository Specification](PUBLIC_GIT_REPOSITORY_SPEC.md)                            | 2026-07-14               | Public-URL repository connection; implemented                              |
 | [Project Settings UX Specification](PROJECT_SETTINGS_UX_SPEC.md)                                | 2026-07-13               | Settings page spec; all four phases shipped                                |
 | [UI/UX Improvement Pack](hellodeploy-uiux-improvement-pack/00_MASTER_UI_UX_IMPROVEMENT_PLAN.md) | 2026-10-02 to 2026-10-09 | UI/UX programme and its implementation evidence                            |
+| [UI/UX audit and phased fixes](uiux-plan-2026-10-27/00-MASTER-ROADMAP.md)                       | 2026-10-27 to 2026-10-28 | Rendered audit, issue register and decisions; shipped as #153              |
 | [Improvement phases 1–11](phases/README.md)                                                     | 2026-07 to 2026-08       | Phase specs for the Improvements backlog; all done                         |
 | [Multi-runtime planning brief](multiruntime-brief-2026-10-16/00_START_HERE.md)                  | 2026-10-16               | Original brief; superseded by [multi-runtime/](../multi-runtime/README.md) |
 
