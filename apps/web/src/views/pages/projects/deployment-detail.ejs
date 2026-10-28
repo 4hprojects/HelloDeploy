@@ -212,6 +212,10 @@
     <div class="alert alert--stacked alert--error mt-4">
       <strong><%= failureCopy.message %></strong>
       <p class="text-sm mt-1"><%= failureCopy.action %></p>
+      <% if (locals.appReport) { %>
+      <p class="text-sm mt-3"><strong>Message from your app</strong></p>
+      <pre class="app-report"><%= appReport %></pre>
+      <% } %>
     </div>
     <details class="guided-disclosure mt-4">
       <summary class="guided-disclosure__summary">

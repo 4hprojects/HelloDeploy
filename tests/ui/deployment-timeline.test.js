@@ -60,6 +60,7 @@ function renderDeployment(overrides = {}) {
     isCurrentRelease: overrides.isCurrentRelease ?? true,
     appUrl: overrides.appUrl ?? null,
     failureCopy: overrides.failureCopy ?? null,
+    appReport: overrides.appReport ?? null,
     rollbackSource: null,
     statusPresentation: (_kind, status) => ({ label: status, hint: '', tone: 'healthy' }),
     csrfToken: 'test-token',
@@ -295,5 +296,33 @@ describe('deployment success next steps', () => {
   it('offers no next steps on a failed deployment', async () => {
     const html = await renderDeployment({ deployment: { status: 'FAILED' } });
     assert.doesNotMatch(html, /Back to Overview/);
+  });
+});
+
+describe('deployment failure explanation', () => {
+  const crashed = {
+    deployment: { status: 'FAILED', failureCode: 'CONTAINER_CRASHED_ON_STARTUP' },
+    failureCopy: { message: 'Your app started, then stopped running.', action: 'Check below.' },
+  };
+
+  it("shows the app's own message under the plain-language explanation", async () => {
+    const html = await renderDeployment({
+      ...crashed,
+      appReport: 'PRIMARY_EVENT_SLUG is not published',
+    });
+    assert.match(
+      html,
+      /Message from your app<\/strong><\/p>\s*<pre class="app-report">PRIMARY_EVENT_SLUG is not published<\/pre>/,
+    );
+  });
+
+  it("escapes the app's message", async () => {
+    const html = await renderDeployment({ ...crashed, appReport: '<img src=x onerror=alert(1)>' });
+    assert.doesNotMatch(html, /<img src=x/);
+  });
+
+  it('leaves the box out when the app gave no message', async () => {
+    const html = await renderDeployment(crashed);
+    assert.doesNotMatch(html, /Message from your app/);
   });
 });
