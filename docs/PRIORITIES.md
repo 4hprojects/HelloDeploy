@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-10-27. This is the single current list of what to work on. Detailed status for
+Updated 2026-10-28. This is the single current list of what to work on. Detailed status for
 the multi-runtime initiative lives in [multi-runtime/STATUS.md](multi-runtime/STATUS.md);
 dated evidence lives in the [worklog](../WORKLOG.md) and each initiative's evidence file.
 Earlier trackers and audits are in the [archive](archive/README.md); the previous version of
@@ -24,13 +24,7 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now
 
-The builder control pilot is in its 7-day watch (until 2026-11-01). Small items:
-
-- **Screen-reader pass on the admin area.** #151 (live 2026-10-26) changed the sidebar (new
-  Domains link and waiting counts), the overview, and the confirm dialog, which now has an
-  optional reason field for suspend and reject. #153 (live 2026-10-27) added the collapsed
-  Advanced deployment section and the Previous release label on the deployments pages. Repeat
-  the Orca check from [SCREEN_READER_CHECK.md](SCREEN_READER_CHECK.md) on those.
+The builder control pilot is in its 7-day watch (until 2026-11-01). No other open items.
 
 ## Next — to turn on the multi-runtime pilots
 
