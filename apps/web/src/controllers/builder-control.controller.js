@@ -36,7 +36,8 @@ export function requireBuilderControl(req, res, next) {
 }
 
 export const getAdminBuilder = asyncHandler(async (req, res) => {
-  const data = await getBuilderPageData();
+  const activityPage = Math.max(1, parseInt(req.query.page) || 1);
+  const data = await getBuilderPageData({ activityPage });
   res.render('pages/admin/builder', {
     title: 'Build Service',
     ...data,
