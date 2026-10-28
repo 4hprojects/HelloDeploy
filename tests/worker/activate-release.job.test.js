@@ -414,6 +414,87 @@ describe('activate-release job', () => {
     assert.ok(events.some((e) => e.messageRedacted === '[app] Error: MONGODB_URI is not set'));
   });
 
+  describe('an app that crashes during the health check', () => {
+    const CRASH = [
+      '{"level":30,"msg":"database connected, indexes ensured"}',
+      'Error: PRIMARY_EVENT_SLUG="alsem-reunion-2026" does not identify a published event.',
+    ];
+
+    // Healthy through the startup window, then restarting by the time the
+    // health check gives up, as an app does when it crashes after connecting.
+    function crashingDeps() {
+      let started = false;
+      let checked = false;
+      return makeDeps({
+        startContainer: async () => {
+          started = true;
+          return 'container-id-new';
+        },
+        inspectContainer: async () => {
+          if (!started) {
+            return { status: 'missing', running: false, exitCode: -1 };
+          }
+          return checked
+            ? { status: 'running', running: true, restarting: false, restartCount: 3, exitCode: 0 }
+            : { status: 'running', running: true, restarting: false, restartCount: 0, exitCode: 0 };
+        },
+        httpHealthCheck: async () => {
+          checked = true;
+          return { healthy: false, error: 'fetch failed' };
+        },
+        getContainerLogs: async () => [...CRASH, ...CRASH, ...CRASH],
+        getProjectEnvVars: async () => ({ PRIMARY_EVENT_SLUG: 'alsem-reunion-2026' }),
+      }).deps;
+    }
+
+    it('fails as a crash rather than a health check timeout', async () => {
+      const { project, deployment } = await seed();
+      await handleActivateRelease(makeJob(project, deployment), crashingDeps());
+      const fresh = await Deployment.findById(deployment._id).lean();
+      assert.equal(fresh.failureCode, 'CONTAINER_CRASHED_ON_STARTUP');
+    });
+
+    it("records the app's own message with the variable named and its value hidden", async () => {
+      const { project, deployment } = await seed();
+      await handleActivateRelease(makeJob(project, deployment), crashingDeps());
+      const fresh = await Deployment.findById(deployment._id).lean();
+      assert.equal(
+        fresh.failureSummary,
+        'Your app reported: PRIMARY_EVENT_SLUG="[value of PRIMARY_EVENT_SLUG]" does not identify a published event. (This refers to PRIMARY_EVENT_SLUG, one of your environment variables. Check its value on the Environment page.)',
+      );
+    });
+
+    it("logs the app's info lines as info", async () => {
+      const { project, deployment } = await seed();
+      await handleActivateRelease(makeJob(project, deployment), crashingDeps());
+      const event = await DeploymentEvent.findOne({
+        deploymentId: deployment._id,
+        messageRedacted: `[app] ${CRASH[0]}`,
+      }).lean();
+      assert.equal(event.level, 'INFO');
+    });
+
+    it('logs a crash repeated by restarts once', async () => {
+      const { project, deployment } = await seed();
+      await handleActivateRelease(makeJob(project, deployment), crashingDeps());
+      const copies = await DeploymentEvent.countDocuments({
+        deploymentId: deployment._id,
+        messageRedacted: `[app] ${CRASH[1]}`,
+      });
+      assert.equal(copies, 1);
+    });
+  });
+
+  it('still reports a health check timeout for an app that runs but never answers', async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({
+      httpHealthCheck: async () => ({ healthy: false, error: 'fetch failed' }),
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(fresh.failureCode, 'HEALTH_CHECK_FAILED');
+  });
+
   it('applies payload resource limits to the started container', async () => {
     const { project, deployment } = await seed();
     const { deps, calls } = makeDeps();

@@ -2,6 +2,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import {
   DeploymentStatus,
   DeploymentTrigger,
+  getAppReport,
   getFailureCopy,
   getStatusPresentation,
 } from '@hellodeploy/contracts';
@@ -91,6 +92,7 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     deployment,
     events,
     failureCopy,
+    appReport: getAppReport(deployment.failureSummary),
     rollbackSource,
     replacedDeployment,
     isCurrentRelease,
