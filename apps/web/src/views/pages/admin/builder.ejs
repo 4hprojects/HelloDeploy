@@ -248,6 +248,17 @@
       </tbody>
     </table>
     </div>
+    <% if (activityTotalPages > 1) { %>
+    <div class="pagination mt-4">
+      <% if (activityPage > 1) { %>
+      <a href="?page=<%= activityPage - 1 %>#builder-activity-title" class="button button--ghost button--sm">Previous</a>
+      <% } %>
+      <span class="pagination__info text-sm text-muted">Page <%= activityPage %> of <%= activityTotalPages %></span>
+      <% if (activityPage < activityTotalPages) { %>
+      <a href="?page=<%= activityPage + 1 %>#builder-activity-title" class="button button--ghost button--sm">Next</a>
+      <% } %>
+    </div>
+    <% } %>
     <p class="form-hint mt-4">The full history is in the <a href="/admin/audit-events">audit log</a>.</p>
     <% } %>
   </div>

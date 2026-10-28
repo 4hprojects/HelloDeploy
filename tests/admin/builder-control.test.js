@@ -19,6 +19,7 @@ import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worke
 
 const {
   checkBuilderDeploymentGate,
+  getBuilderPageData,
   presentBuilderStatus,
   requestBuilderAction,
   updateBuilderSettings,
@@ -296,6 +297,8 @@ describe('builder page', () => {
       ceiling: nextCeiling(),
       builds: [],
       activity: [],
+      activityPage: 1,
+      activityTotalPages: 1,
       projectsById: { [PROJECT_ID]: { name: 'Pilot app', slug: 'pilot', isAdminOwned: true } },
       runtimeFamilies: BUILDER_RUNTIME_FAMILIES,
       runtimeLabels: BUILDER_RUNTIME_LABELS,
@@ -325,11 +328,55 @@ describe('builder page', () => {
     assert.match(await render(), /aria-live="polite" data-builder-live/);
   });
 
+  it('links to the next page of activity', async () => {
+    const html = await render({
+      activity: [{ action: 'builder.started', outcome: 'SUCCESS', createdAt: new Date() }],
+      activityTotalPages: 2,
+    });
+    assert.match(html, /href="\?page=2#builder-activity-title"/);
+  });
+
+  it('shows no pagination when the activity fits on one page', async () => {
+    const html = await render({
+      activity: [{ action: 'builder.started', outcome: 'SUCCESS', createdAt: new Date() }],
+    });
+    assert.doesNotMatch(html, /class="pagination/);
+  });
+
   it('labels each allowlisted project checkbox', async () => {
     assert.match(
       await render(),
       new RegExp(`<label for="builder-next-${PROJECT_ID}" class="checkbox-label">\\s*Pilot app`),
     );
+  });
+});
+
+describe('builder activity history', () => {
+  before(async () => {
+    await startTestDb();
+  });
+  after(stopTestDb);
+  beforeEach(async () => {
+    await clearTestDb();
+    await AuditEvent.create([
+      { action: 'builder.oldest', outcome: 'SUCCESS', createdAt: new Date('2026-10-01') },
+      { action: 'builder.middle', outcome: 'SUCCESS', createdAt: new Date('2026-10-02') },
+      { action: 'admin.builder_newest', outcome: 'SUCCESS', createdAt: new Date('2026-10-03') },
+      { action: 'admin.user_suspended', outcome: 'SUCCESS', createdAt: new Date('2026-10-04') },
+    ]);
+  });
+
+  it('returns the requested page, newest first', async () => {
+    const { activity } = await getBuilderPageData({ activityPage: 2, activityLimit: 2 });
+    assert.deepEqual(
+      activity.map((event) => event.action),
+      ['builder.oldest'],
+    );
+  });
+
+  it('counts pages from build service events only', async () => {
+    const { activityTotalPages } = await getBuilderPageData({ activityLimit: 2 });
+    assert.equal(activityTotalPages, 2);
   });
 });
 

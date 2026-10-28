@@ -247,38 +247,42 @@ export async function checkBuilderDeploymentGate(
   return null;
 }
 
-/** Everything the builder page shows. */
-export async function getBuilderPageData() {
+/** Everything the builder page shows, with one page of the activity history. */
+export async function getBuilderPageData({ activityPage = 1, activityLimit = 25 } = {}) {
   const ceiling = getBuilderPermissionCeiling();
   const allowlistedIds = [
     ...new Set(BUILDER_RUNTIME_FAMILIES.flatMap((family) => ceiling[family].projectIds)),
   ];
-  const [{ status, isFresh }, settings, builds, activity, projects] = await Promise.all([
-    getBuilderStatus(),
-    getBuilderSettings(),
-    Deployment.find({
-      status: {
-        $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING],
-      },
-      'configurationSnapshot.buildStrategy': { $in: BUILDER_BUILD_STRATEGIES },
-    })
-      .sort({ createdAt: 1 })
-      .limit(20)
-      .select('projectId status sequenceNumber createdAt configurationSnapshot.buildStrategy')
-      .populate('projectId', 'name slug')
-      .lean(),
-    AuditEvent.find({ action: { $regex: /^(admin\.builder_|builder\.)/ } })
-      .sort({ createdAt: -1 })
-      .limit(25)
-      .select('action outcome actorId actorRole createdAt metadata')
-      .lean(),
-    allowlistedIds.length > 0
-      ? Project.find({ _id: { $in: allowlistedIds } })
-          .select('name slug ownerId')
-          .populate('ownerId', 'platformRole')
-          .lean()
-      : [],
-  ]);
+  const activityFilter = { action: { $regex: /^(admin\.builder_|builder\.)/ } };
+  const [{ status, isFresh }, settings, builds, activity, activityTotal, projects] =
+    await Promise.all([
+      getBuilderStatus(),
+      getBuilderSettings(),
+      Deployment.find({
+        status: {
+          $in: [DeploymentStatus.QUEUED, DeploymentStatus.VALIDATING, DeploymentStatus.BUILDING],
+        },
+        'configurationSnapshot.buildStrategy': { $in: BUILDER_BUILD_STRATEGIES },
+      })
+        .sort({ createdAt: 1 })
+        .limit(20)
+        .select('projectId status sequenceNumber createdAt configurationSnapshot.buildStrategy')
+        .populate('projectId', 'name slug')
+        .lean(),
+      AuditEvent.find(activityFilter)
+        .sort({ createdAt: -1 })
+        .skip((activityPage - 1) * activityLimit)
+        .limit(activityLimit)
+        .select('action outcome actorId actorRole createdAt metadata')
+        .lean(),
+      AuditEvent.countDocuments(activityFilter),
+      allowlistedIds.length > 0
+        ? Project.find({ _id: { $in: allowlistedIds } })
+            .select('name slug ownerId')
+            .populate('ownerId', 'platformRole')
+            .lean()
+        : [],
+    ]);
   return {
     status,
     isFresh,
@@ -286,6 +290,8 @@ export async function getBuilderPageData() {
     ceiling,
     builds,
     activity,
+    activityPage,
+    activityTotalPages: Math.max(1, Math.ceil(activityTotal / activityLimit)),
     projectsById: Object.fromEntries(
       projects.map((project) => [
         String(project._id),
