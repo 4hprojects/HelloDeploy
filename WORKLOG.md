@@ -2533,3 +2533,21 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   A HelloEventHub test deploy reached HEALTHY. Bundled Brotli still reports `1.1.0`, because the
   fix is a cherry-pick; `zlib.constants.BROTLI_DECODER_ERROR_FORMAT_BLOCK_SWITCH` shows it is
   present. OpenSSL is now 3.5.9. Rollback debs are in `/var/backups/hellodeploy/node-distro`.
+
+## 2026-10-28 — App Check Hit GitHub's Anonymous Rate Limit
+
+- "Check again" on `builder-pilot-next16` failed with "Could not retrieve repository files from
+  GitHub". Public repositories are checked without a token, and GitHub allows 60 anonymous
+  requests an hour per IP; `api.github.com/rate_limit` on the host showed `remaining: 0`. A check
+  requested about 26 candidate files one by one.
+- #158 lists the application root once and downloads only files in that listing; lockfiles and
+  `public/` come from the listing. The next check succeeded ("Ready to deploy", no `public/`
+  warning) and used 4 requests.
+
+## 2026-10-28 — Screen-Reader Check (Manual, Orca, Admin and Deployments)
+
+- The owner repeated the Orca check on the screens changed by #151 and #153, with Orca 50.2 and
+  Chromium 155.0.8059.84 on Ubuntu. All five checks passed with no issues reported: the admin
+  sidebar (Domains link with its waiting count), the admin overview headings and badges, the
+  confirm dialog's optional reason field with Escape returning focus, the collapsed Advanced
+  deployment section, and the Previous release label.
