@@ -1,26 +1,28 @@
-<div class="page-header">
-  <h1 class="page-header__title">Legal</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026 &middot; Policies for using HelloDeploy</p>
-</div>
+<%
+  const formatDate = (iso) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+%>
+<header class="legal-header">
+  <h1 class="legal-header__title">Legal</h1>
+  <p class="legal-header__lede">The policies for using HelloDeploy, run by <%= legalOperator %>. Each one starts with a short summary.</p>
+</header>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Policy Documents</h2>
-    <ul>
-      <li><a href="/terms">Terms of Service</a> — account, platform, deployment, liability, and service rules.</li>
-      <li><a href="/privacy">Privacy Policy</a> — personal data, retention, subprocessors, and user rights.</li>
-      <li><a href="/cookies">Cookie Policy</a> — cookies and browser storage used by HelloDeploy.</li>
-      <li><a href="/acceptable-use">Acceptable Use Policy</a> — prohibited content and workload rules.</li>
-      <li><a href="/service-limits">Service Limits</a> — quotas, retention, pilot limits, and resource constraints.</li>
-      <li><a href="/data-processing">Data Processing Terms</a> — platform/user responsibilities for application data.</li>
-      <li><a href="/copyright">Copyright Policy</a> — copyright complaints and repeat-infringer handling.</li>
-      <li><a href="/security">Security Policy</a> — vulnerability reporting and safe testing rules.</li>
-    </ul>
+<ul class="legal-index" role="list">
+  <% legalPolicies.forEach((item) => { %>
+    <li class="legal-index__item">
+      <h2 class="legal-index__title"><a href="/<%= item.slug %>"><%= item.title %></a></h2>
+      <p class="legal-index__summary"><%= item.summary %></p>
+      <p class="legal-index__date">Updated <time datetime="<%= item.updated %>"><%= formatDate(item.updated) %></time></p>
+    </li>
+  <% }) %>
+</ul>
 
-    <h2>Important Notice</h2>
-    <p>These documents are operational policy drafts for a pilot deployment platform. They should be reviewed by a qualified lawyer before public commercial launch, wider international availability, or use with regulated data.</p>
+<section class="legal-notice" aria-labelledby="legal-notice-title">
+  <h2 id="legal-notice-title">Important notice</h2>
+  <p>These documents are operational policy drafts for a pilot deployment platform. They should be reviewed by a qualified lawyer before public commercial launch, wider international availability, or use with regulated data.</p>
+</section>
 
-    <h2>Contact</h2>
-    <p>Questions about legal policies: <strong>hensonsagorsor@gmail.com</strong></p>
-  </div>
-</div>
+<section class="legal-contact" aria-labelledby="legal-contact-title">
+  <h2 id="legal-contact-title" class="legal-contact__title">Contact</h2>
+  <p>Questions about any policy, privacy requests, and security reports: <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>.</p>
+</section>

@@ -140,7 +140,7 @@ describe('public production check', () => {
     );
   });
 
-  it('does not expect Learning Hub bundles on the homepage', async () => {
+  it('does not expect page-scoped bundles on the homepage', async () => {
     const directory = await mkdtemp(join(tmpdir(), 'production-check-'));
     const manifestPath = join(directory, 'asset-manifest.json');
     await writeFile(
@@ -151,6 +151,7 @@ describe('public production check', () => {
           'js/app.js': '/assets-dist/app.1.js',
           'css/learning-hub.css': '/assets-dist/learning-hub.1.css',
           'js/learning-hub.js': '/assets-dist/learning-hub.1.js',
+          'css/legal.css': '/assets-dist/legal.1.css',
         },
       }),
     );

@@ -8,6 +8,7 @@ const sourceAssets = {
   'js/app.js': '/js/app.js',
   'css/learning-hub.css': '/css/learning-hub.css',
   'js/learning-hub.js': '/js/learning-hub.js',
+  'css/legal.css': '/css/legal.css',
 };
 
 function loadManifest() {

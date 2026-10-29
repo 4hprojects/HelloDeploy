@@ -12,6 +12,8 @@ const budgets = {
   // Loaded only on /blog pages.
   'css/learning-hub.css': 20_000,
   'js/learning-hub.js': 10_000,
+  // Loaded only on the policy pages.
+  'css/legal.css': 10_000,
 };
 
 let failed = false;

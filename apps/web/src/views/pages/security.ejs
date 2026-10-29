@@ -1,14 +1,22 @@
-<div class="page-header">
-  <h1 class="page-header__title">Security Policy</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/data-processing">Data Processing</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'reporting-vulnerabilities', title: 'Reporting vulnerabilities' },
+    { id: 'safe-testing-rules', title: 'Safe testing rules' },
+    { id: 'platform-security-controls', title: 'Platform security controls' },
+    { id: 'security-response', title: 'Security response' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Reporting Vulnerabilities</h2>
-    <p>If you believe you found a security vulnerability in HelloDeploy, email <strong>hensonsagorsor@gmail.com</strong> with a clear description, affected URL or component, reproduction steps, impact, and any safe proof of concept.</p>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
 
-    <h2>Safe Testing Rules</h2>
+  <article class="legal__prose">
+    <h2 id="reporting-vulnerabilities">Reporting vulnerabilities</h2>
+    <p>If you believe you found a security vulnerability in HelloDeploy, email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>. The first message only needs a short summary: the affected URL or component and the likely impact.</p>
+    <p>We will reply with a safe way to send the full details, such as reproduction steps and any safe proof of concept, so exploit details are not sent by plain email. Never include other people&rsquo;s personal data, passwords, or secret values.</p>
+
+    <h2 id="safe-testing-rules">Safe testing rules</h2>
     <ul>
       <li>Test only accounts, projects, repositories, and applications you own or are authorized to test.</li>
       <li>Do not access, modify, delete, or exfiltrate another user&rsquo;s data.</li>
@@ -16,7 +24,7 @@
       <li>Do not publicly disclose a vulnerability before HelloDeploy has had a reasonable opportunity to investigate and remediate it.</li>
     </ul>
 
-    <h2>Platform Security Controls</h2>
+    <h2 id="platform-security-controls">Platform security controls</h2>
     <ul>
       <li>Argon2id password hashing.</li>
       <li>HTTP-only, secure, same-site session cookies.</li>
@@ -28,7 +36,9 @@
       <li>Audit logs for privileged actions.</li>
     </ul>
 
-    <h2>Security Response</h2>
-    <p>HelloDeploy will review reports, prioritize confirmed issues based on severity, and communicate remediation status where practical. Reports made in good faith under these rules will not be treated as Acceptable Use Policy violations.</p>
-  </div>
+    <h2 id="security-response">Security response</h2>
+    <p>We aim to acknowledge a report within 7 days. HelloDeploy will review reports, prioritize confirmed issues based on severity, and communicate remediation status where practical. Reports made in good faith under these rules will not be treated as Acceptable Use Policy violations.</p>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>

@@ -1,64 +1,93 @@
-<div class="page-header">
-  <h1 class="page-header__title">Terms of Service</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/cookies">Cookies</a> &middot; <a href="/acceptable-use">Acceptable Use</a> &middot; <a href="/service-limits">Service Limits</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'at-a-glance', title: 'At a glance' },
+    { id: 'the-service', title: 'The service' },
+    { id: 'acceptance', title: 'Acceptance' },
+    { id: 'eligibility', title: 'Eligibility' },
+    { id: 'your-account', title: 'Your account' },
+    { id: 'beta-and-pilot-status', title: 'Beta and pilot status' },
+    { id: 'what-you-deploy', title: 'What you deploy' },
+    { id: 'service-limits', title: 'Service limits' },
+    { id: 'user-applications-and-end-users', title: 'User applications and end users' },
+    { id: 'third-party-services', title: 'Third-party services' },
+    { id: 'availability-and-changes', title: 'Availability and changes' },
+    { id: 'termination', title: 'Termination' },
+    { id: 'disclaimer-of-warranties', title: 'Disclaimer of warranties' },
+    { id: 'limitation-of-liability', title: 'Limitation of liability' },
+    { id: 'indemnity', title: 'Indemnity' },
+    { id: 'governing-law', title: 'Governing law' },
+    { id: 'changes-to-these-terms', title: 'Changes to these terms' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>The Service</h2>
-    <p>HelloDeploy (&ldquo;the platform&rdquo;) is a free, self-hosted web application deployment service operated by Henson Sagorsor as part of an MIT capstone project. It lets registered users deploy web applications from GitHub repositories to a shared server environment.</p>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
 
-    <h2>Acceptance</h2>
+  <article class="legal__prose">
+    <section class="legal-summary" aria-labelledby="at-a-glance">
+      <h2 id="at-a-glance">At a glance</h2>
+      <ul>
+        <li>HelloDeploy is a free pilot run by <%= legalOperator %>. There is no uptime guarantee.</li>
+        <li>You keep ownership of your code. You are responsible for what you deploy and for your own users&rsquo; data.</li>
+        <li>Follow the <a href="/acceptable-use">Acceptable Use Policy</a>; serious violations can end your account.</li>
+        <li>You can close your account at any time, and your data is deleted within 30 days.</li>
+      </ul>
+    </section>
+
+    <h2 id="the-service">The service</h2>
+    <p>HelloDeploy (&ldquo;the platform&rdquo;) is a free, self-hosted web application deployment service operated by <strong><%= legalOperator %></strong> as part of an MIT capstone project. It lets registered users deploy web applications from GitHub repositories to a shared server environment.</p>
+
+    <h2 id="acceptance">Acceptance</h2>
     <p>By creating an account or using HelloDeploy you agree to these Terms of Service, the <a href="/privacy">Privacy Policy</a>, <a href="/cookies">Cookie Policy</a>, <a href="/acceptable-use">Acceptable Use Policy</a>, <a href="/service-limits">Service Limits</a>, <a href="/data-processing">Data Processing Terms</a>, <a href="/copyright">Copyright Policy</a>, and <a href="/security">Security Policy</a>. If you do not agree, do not use the service.</p>
 
-    <h2>Eligibility</h2>
+    <h2 id="eligibility">Eligibility</h2>
     <p>You must be at least 13 years old to create an account. By registering you confirm this. Account creation is open to anyone; you must verify your email address before signing in. Because the platform is in an active pilot, availability, features, and eligibility requirements may change.</p>
 
-    <h2>Your Account</h2>
+    <h2 id="your-account">Your account</h2>
     <ul>
       <li>You are responsible for keeping your credentials secure. Do not share your password.</li>
       <li>You are responsible for all activity that occurs under your account.</li>
-      <li>Notify the administrator immediately if you suspect unauthorised access.</li>
+      <li>Email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a> immediately if you suspect unauthorised access.</li>
     </ul>
 
-    <h2>Beta and Pilot Status</h2>
+    <h2 id="beta-and-pilot-status">Beta and pilot status</h2>
     <p>HelloDeploy is currently a limited pilot and capstone project. Features, limits, supported runtimes, routing behavior, and availability may change. Do not use HelloDeploy for safety-critical, regulated, or production workloads that require a formal service-level agreement.</p>
 
-    <h2>What You Deploy</h2>
+    <h2 id="what-you-deploy">What you deploy</h2>
     <p>You retain ownership of all source code and content you deploy. By connecting a GitHub repository you grant HelloDeploy the access necessary to clone and build that repository on your behalf. This access is limited to repositories you explicitly authorise through the GitHub App installation.</p>
     <p>You must comply with the <a href="/acceptable-use">Acceptable Use Policy</a>. Prohibited deployments include (but are not limited to) malware, phishing sites, illegal content, and cryptocurrency miners.</p>
 
-    <h2>Service Limits</h2>
+    <h2 id="service-limits">Service limits</h2>
     <p>The platform enforces resource quotas described on the <a href="/service-limits">Service Limits</a> page. The administrator may adjust your quota at their discretion.</p>
 
-    <h2>User Applications and End Users</h2>
+    <h2 id="user-applications-and-end-users">User applications and end users</h2>
     <p>You are responsible for your deployed application, its content, its users, and any personal data your application collects or processes. HelloDeploy provides deployment infrastructure only. You must provide your own privacy notices, terms, licenses, consent flows, and compliance controls for your application where required.</p>
 
-    <h2>Third-Party Services</h2>
+    <h2 id="third-party-services">Third-party services</h2>
     <p>HelloDeploy depends on services such as Google authentication, GitHub, MongoDB Atlas, Resend, Cloudflare, Docker, and other infrastructure providers. Your use of HelloDeploy may also be subject to those providers&rsquo; terms and policies.</p>
 
-    <h2>Availability and Changes</h2>
+    <h2 id="availability-and-changes">Availability and changes</h2>
     <p>HelloDeploy is provided on a best-effort basis with no uptime guarantee or service-level agreement. The platform may be modified, suspended, or shut down at any time. We will give reasonable advance notice for planned downtime or discontinuation where practicable.</p>
 
-    <h2>Termination</h2>
-    <p>We may suspend or terminate your account if you violate these Terms or the Acceptable Use Policy. You may close your account at any time by contacting <strong>hensonsagorsor@gmail.com</strong>. Upon termination all your data will be deleted within 30 days.</p>
+    <h2 id="termination">Termination</h2>
+    <p>We may suspend or terminate your account if you violate these Terms or the Acceptable Use Policy. You may close your account at any time by contacting <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>. Upon termination all your data will be deleted within 30 days.</p>
 
-    <h2>Disclaimer of Warranties</h2>
+    <h2 id="disclaimer-of-warranties">Disclaimer of warranties</h2>
     <p>The service is provided &ldquo;as is&rdquo; without warranties of any kind, express or implied. We do not warrant that the service will be uninterrupted, error-free, or suitable for any particular purpose.</p>
 
-    <h2>Limitation of Liability</h2>
+    <h2 id="limitation-of-liability">Limitation of liability</h2>
     <p>To the extent permitted by law, the platform operator shall not be liable for any indirect, incidental, or consequential damages arising from your use of the service, including loss of data or loss of revenue.</p>
 
-    <h2>Indemnity</h2>
+    <h2 id="indemnity">Indemnity</h2>
     <p>To the extent permitted by law, you agree to defend and hold the platform operator harmless from claims, losses, liabilities, damages, and expenses arising from your deployed application, your content, your misuse of the service, or your violation of these Terms.</p>
 
-    <h2>Governing Law</h2>
+    <h2 id="governing-law">Governing law</h2>
     <p>These Terms are governed by the laws of the jurisdiction in which the platform operator resides, without regard to conflict-of-law principles.</p>
 
-    <h2>Changes to These Terms</h2>
+    <h2 id="changes-to-these-terms">Changes to these terms</h2>
     <p>We may update these Terms at any time. Continued use of the service after changes are published constitutes acceptance of the revised Terms. Material changes will be communicated by email to registered users.</p>
-
-    <h2>Contact</h2>
-    <p>Questions about these Terms: <strong>hensonsagorsor@gmail.com</strong></p>
-  </div>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>

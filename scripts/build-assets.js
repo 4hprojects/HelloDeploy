@@ -9,7 +9,13 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'apps', 'web', 'public');
 const outputDir = join(publicDir, 'assets-dist');
 const manifestPath = join(publicDir, 'asset-manifest.json');
-const sources = ['css/main.css', 'js/app.js', 'css/learning-hub.css', 'js/learning-hub.js'];
+const sources = [
+  'css/main.css',
+  'js/app.js',
+  'css/learning-hub.css',
+  'js/learning-hub.js',
+  'css/legal.css',
+];
 
 function stripCssComments(contents) {
   return contents.replace(/\/\*[\s\S]*?\*\//g, '').trim();

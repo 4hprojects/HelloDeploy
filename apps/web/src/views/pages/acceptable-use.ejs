@@ -1,14 +1,24 @@
-<div class="page-header">
-  <h1 class="page-header__title">Acceptable Use Policy</h1>
-  <p class="page-header__subtitle">Effective 29 June 2026 &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a> &middot; <a href="/service-limits">Service Limits</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'purpose', title: 'Purpose' },
+    { id: 'permitted-use', title: 'Permitted use' },
+    { id: 'prohibited-use', title: 'Prohibited use' },
+    { id: 'resource-responsibility', title: 'Resource responsibility' },
+    { id: 'account-rules', title: 'Account rules' },
+    { id: 'enforcement', title: 'Enforcement' },
+    { id: 'reporting', title: 'Reporting' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Purpose</h2>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
+
+  <article class="legal__prose">
+    <h2 id="purpose">Purpose</h2>
     <p>HelloDeploy provides a free deployment platform for personal and educational projects. This policy describes what you may and may not deploy. Using HelloDeploy means you accept these rules.</p>
 
-    <h2>Permitted Use</h2>
+    <h2 id="permitted-use">Permitted use</h2>
     <ul>
       <li>Personal web applications and APIs for learning or portfolio purposes.</li>
       <li>Open-source project demos and educational coursework.</li>
@@ -16,7 +26,7 @@
       <li>Any application whose content and behaviour are lawful in your jurisdiction.</li>
     </ul>
 
-    <h2>Prohibited Use</h2>
+    <h2 id="prohibited-use">Prohibited use</h2>
     <p>The following are not allowed on HelloDeploy under any circumstances:</p>
     <ul>
       <li><strong>Illegal content.</strong> Anything that violates applicable law, including copyright infringement, child exploitation material, or content that incites violence.</li>
@@ -29,17 +39,17 @@
       <li><strong>Reselling access.</strong> Offering HelloDeploy capacity to third parties as a commercial service.</li>
     </ul>
 
-    <h2>Resource Responsibility</h2>
+    <h2 id="resource-responsibility">Resource responsibility</h2>
     <p>Your application must operate within the limits described in the <a href="/service-limits">Service Limits</a> page. Applications that consistently exceed CPU or memory limits may be suspended without notice to protect other users.</p>
 
-    <h2>Account Rules</h2>
+    <h2 id="account-rules">Account rules</h2>
     <ul>
       <li>One account per person. Creating multiple accounts to circumvent limits is prohibited.</li>
       <li>You are responsible for all activity under your account, including actions taken by project team members you invite.</li>
       <li>Do not share your account credentials.</li>
     </ul>
 
-    <h2>Enforcement</h2>
+    <h2 id="enforcement">Enforcement</h2>
     <p>Violations are handled progressively:</p>
     <ol>
       <li><strong>Warning</strong> — notification by email for a first or minor violation.</li>
@@ -48,7 +58,9 @@
     </ol>
     <p>Severe violations (malware, illegal content, active attacks) may result in immediate termination without a prior warning.</p>
 
-    <h2>Reporting</h2>
-    <p>If you believe another user is violating this policy, contact the platform administrator at <strong>hensonsagorsor@gmail.com</strong>.</p>
-  </div>
+    <h2 id="reporting">Reporting</h2>
+    <p>If you believe another user is violating this policy, contact the platform administrator at <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>.</p>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>

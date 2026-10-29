@@ -1,0 +1,20 @@
+<%
+  const formatDate = (iso) =>
+    new Date(`${iso}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+%>
+<header class="legal-header">
+  <nav class="legal-header__crumbs" aria-label="Breadcrumb">
+    <ol role="list">
+      <li><a href="/legal">Legal</a></li>
+      <li aria-current="page"><%= policy.title %></li>
+    </ol>
+  </nav>
+  <h1 class="legal-header__title"><%= policy.title %></h1>
+  <p class="legal-header__lede"><%= policy.summary %></p>
+  <p class="legal-header__dates">
+    Effective <time datetime="<%= policy.effective %>"><%= formatDate(policy.effective) %></time>
+    <% if (policy.updated && policy.updated !== policy.effective) { %>
+      <span aria-hidden="true">&middot;</span> Last updated <time datetime="<%= policy.updated %>"><%= formatDate(policy.updated) %></time>
+    <% } %>
+  </p>
+</header>

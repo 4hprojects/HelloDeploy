@@ -1,0 +1,10 @@
+<nav class="legal-toc" aria-label="On this page">
+  <details class="legal-toc__details" data-legal-toc>
+    <summary class="legal-toc__summary">On this page</summary>
+    <ol class="legal-toc__list" role="list">
+      <% sections.forEach((section) => { %>
+        <li><a href="#<%= section.id %>"><%= section.title %></a></li>
+      <% }) %>
+    </ol>
+  </details>
+</nav>

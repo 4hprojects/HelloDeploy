@@ -1,23 +1,53 @@
-<div class="page-header">
-  <h1 class="page-header__title">Privacy Policy</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026, updated 29 October 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/cookies">Cookies</a> &middot; <a href="/acceptable-use">Acceptable Use</a> &middot; <a href="/service-limits">Service Limits</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'at-a-glance', title: 'At a glance' },
+    { id: 'who-we-are', title: 'Who we are' },
+    { id: 'data-we-collect', title: 'Data we collect' },
+    { id: 'purposes-and-legal-basis', title: 'Purposes and legal basis' },
+    { id: 'retention', title: 'How long we keep data' },
+    { id: 'recipients', title: 'Who receives your data' },
+    { id: 'international-transfers', title: 'Processing outside the Philippines' },
+    { id: 'automated-decisions', title: 'Automated decisions' },
+    { id: 'cookies', title: 'Cookies' },
+    { id: 'your-rights', title: 'Your rights' },
+    { id: 'breaches', title: 'If a breach happens' },
+    { id: 'children', title: 'Children' },
+    { id: 'user-application-data', title: 'Your application’s data' },
+    { id: 'security', title: 'Security' },
+    { id: 'changes', title: 'Changes to this policy' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Overview</h2>
-    <p>HelloDeploy is a self-hosted web application deployment platform operated as an MIT capstone project. This policy explains what personal data we collect, why we collect it, how long we keep it, and your rights over it.</p>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
 
-    <h2>Data We Collect</h2>
+  <article class="legal__prose">
+    <section class="legal-summary" aria-labelledby="at-a-glance">
+      <h2 id="at-a-glance">At a glance</h2>
+      <ul>
+        <li>We collect what we need to run your account and deployments, keep the platform secure, and count blog readers. We do not sell personal data or use it for advertising.</li>
+        <li>Your environment secret values are encrypted. Your passwords are hashed. We never store your source code.</li>
+        <li>A short list of named service providers receives data so the platform can work. Each is listed below with what it receives.</li>
+        <li>You can ask to see, correct, export, or delete your data by emailing <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>.</li>
+        <li>You can complain to the Philippine National Privacy Commission at any time.</li>
+      </ul>
+    </section>
 
-    <h3>Account Data</h3>
+    <h2 id="who-we-are">Who we are</h2>
+    <p>HelloDeploy is a self-hosted web application deployment platform run by <strong><%= legalOperator %></strong> as an MIT capstone project. <%= legalOperator %> decides why and how the personal data described here is processed. That makes it the <em>personal information controller</em> under the Philippine Data Privacy Act of 2012 (Republic Act No. 10173), and the <em>controller</em> under the EU and UK General Data Protection Regulation where that applies.</p>
+    <p>Privacy questions and requests go to <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>.</p>
+
+    <h2 id="data-we-collect">Data we collect</h2>
+
+    <h3>Account data</h3>
     <ul>
       <li><strong>Name and email address</strong> — provided at registration. Used to identify your account and send service notifications (email verification, password reset, deployment alerts).</li>
       <li><strong>Password</strong> — stored as an Argon2id hash. Your plaintext password is never stored or logged.</li>
       <li><strong>Google identity</strong> — when you continue with Google, we store Google&rsquo;s stable account identifier together with the verified email and name you review. We do not store Google access tokens or refresh tokens.</li>
     </ul>
 
-    <h3>GitHub Data</h3>
+    <h3>GitHub data</h3>
     <p>When you install the HelloDeploy GitHub App and connect a repository:</p>
     <ul>
       <li><strong>Installation ID and repository names</strong> — stored to identify which repositories you have authorised for deployment.</li>
@@ -25,7 +55,7 @@
       <li><strong>Short-lived access tokens</strong> — generated on demand to clone your repository for a build. Tokens are used once and are never stored or logged.</li>
     </ul>
 
-    <h3>Project and Deployment Data</h3>
+    <h3>Project and deployment data</h3>
     <ul>
       <li><strong>Project configuration</strong> — project name, slug, domain, runtime settings, and deployment mode.</li>
       <li><strong>Environment variable names</strong> — stored in plain text so they can be listed in the UI.</li>
@@ -36,7 +66,7 @@
       <li><strong>Container and image metadata</strong> — image tags, port assignments, and health-check results. Docker images for old releases are deleted automatically (your project's rollback-release limit is kept, 3 by default).</li>
     </ul>
 
-    <h3>Session and Technical Data</h3>
+    <h3>Session and technical data</h3>
     <ul>
       <li><strong>Session cookie</strong> — a single <code>hellodeploy.sid</code> session cookie, set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Lax</code>. It contains only a session identifier, not your personal data. Sessions expire after 24 hours of inactivity.</li>
       <li><strong>IP address</strong> — logged for rate limiting, brute-force protection, and security audit events. Not used for advertising or profiling.</li>
@@ -44,7 +74,7 @@
       <li><strong>Product and performance events</strong> — allowlisted account, project, deployment milestone counts and bounded LCP, INP, and CLS measurements. These first-party events may include an account or project identifier when you are signed in, but never an IP address, repository name, URL, credential, environment value, or secret.</li>
     </ul>
 
-    <h3>Learning Hub (blog) Data</h3>
+    <h3>Learning Hub (blog) data</h3>
     <ul>
       <li><strong>Article views</strong> — when you open an article, keyed hashes of your session identifier and of your IP address are kept in our cache for 30 minutes so a reload does not count twice. Only a total per article is stored. No IP address, account, or session identifier is stored with the count.</li>
       <li><strong>Share buttons</strong> — a click on a share or copy-link button adds one to a per-article, per-button total. We do not learn whether you finished sharing.</li>
@@ -53,69 +83,114 @@
       <li><strong>Comment drafts</strong> — an unsent comment is kept in your browser&rsquo;s session storage on your own device and is not sent to us until you submit it.</li>
     </ul>
     <p>Guest comments are currently switched off. Before they are switched on with an external automated moderation service, this policy will name that service and the data it receives.</p>
+    <p>We do not ask for, and do not intend to collect, sensitive personal information such as health, religion, government identifiers, or financial account numbers. Please do not put it in project names, environment values, logs, or comments.</p>
 
-    <h2>Data Retention</h2>
-    <table class="table">
+    <h2 id="purposes-and-legal-basis">Purposes and legal basis</h2>
+    <p>The law only lets us process personal data when we have a lawful reason. The table shows ours. The reasons come from Section 12 of the Data Privacy Act and, where it applies, Article 6 of the GDPR.</p>
+    <table class="table legal-table">
+      <thead>
+        <tr><th scope="col">Purpose</th><th scope="col">Data used</th><th scope="col">Legal basis</th></tr>
+      </thead>
+      <tbody>
+        <tr><td data-label="Purpose">Create and run your account, sign you in, and send service emails</td><td data-label="Data used">Account data, session cookie</td><td data-label="Legal basis">Needed to provide the service you asked for (contract)</td></tr>
+        <tr><td data-label="Purpose">Build, deploy, route, and roll back your applications</td><td data-label="Data used">GitHub data, project and deployment data</td><td data-label="Legal basis">Needed to provide the service you asked for (contract)</td></tr>
+        <tr><td data-label="Purpose">Sign in with Google, if you choose it</td><td data-label="Data used">Google identity</td><td data-label="Legal basis">Your choice to use it; you can sign in with a password instead (consent)</td></tr>
+        <tr><td data-label="Purpose">Prevent abuse, rate-limit requests, investigate security incidents, and keep audit records</td><td data-label="Data used">IP address, audit events, Turnstile results</td><td data-label="Legal basis">Our legitimate interest in keeping the platform and its users safe</td></tr>
+        <tr><td data-label="Purpose">Improve build reliability and understand how the product is used</td><td data-label="Data used">Anonymized deployment records and project activity, product and performance events</td><td data-label="Legal basis">Our legitimate interest in improving the service</td></tr>
+        <tr><td data-label="Purpose">Count blog readers and share clicks</td><td data-label="Data used">Keyed hashes held for 30 minutes, per-article totals</td><td data-label="Legal basis">Our legitimate interest in knowing which articles help readers</td></tr>
+        <tr><td data-label="Purpose">Report breaches and answer lawful requests from authorities</td><td data-label="Data used">Only the data a specific obligation requires</td><td data-label="Legal basis">Legal obligation</td></tr>
+      </tbody>
+    </table>
+    <p>Where we rely on legitimate interest, we have weighed it against your rights and kept the data to the minimum. You can object to it; see <a href="#your-rights">Your rights</a>.</p>
+
+    <h2 id="retention">How long we keep data</h2>
+    <table class="table legal-table">
       <thead>
         <tr><th scope="col">Data type</th><th scope="col">Retention period</th></tr>
       </thead>
       <tbody>
-        <tr><td>Build and deployment logs</td><td>30 days</td></tr>
-        <tr><td>Anonymized deployment records, log lines, and project activity</td><td>Kept indefinitely for service improvement; unlinkable once the project is deleted</td></tr>
-        <tr><td>Docker images (old releases)</td><td>Deleted once a project exceeds its rollback-release limit (3 by default)</td></tr>
-        <tr><td>Server backups</td><td>The 10 most recent, plus one per month for 12 months. A deletion request reaches backups as they age out.</td></tr>
-        <tr><td>Audit events</td><td>90 days</td></tr>
-        <tr><td>Product and Web Vital events</td><td>90 days, then automatically deleted</td></tr>
-        <tr><td>Account and project data</td><td>Until account deletion is requested</td></tr>
-        <tr><td>Session data</td><td>24 hours of inactivity, or until sign-out</td></tr>
-        <tr><td>Published blog comments</td><td>Until removed by the writer&rsquo;s request or by moderation</td></tr>
-        <tr><td>Refused blog comment submissions</td><td>7 days, then automatically deleted</td></tr>
-        <tr><td>Blog comment reports</td><td>90 days, then automatically deleted</td></tr>
-        <tr><td>Article view deduplication</td><td>30 minutes</td></tr>
+        <tr><td data-label="Data type">Build and deployment logs</td><td data-label="Retention period">30 days</td></tr>
+        <tr><td data-label="Data type">Anonymized deployment records, log lines, and project activity</td><td data-label="Retention period">Kept indefinitely for service improvement; unlinkable once the project is deleted</td></tr>
+        <tr><td data-label="Data type">Docker images (old releases)</td><td data-label="Retention period">Deleted once a project exceeds its rollback-release limit (3 by default)</td></tr>
+        <tr><td data-label="Data type">Server backups</td><td data-label="Retention period">The 10 most recent, plus one per month for 12 months. A deletion request reaches backups as they age out.</td></tr>
+        <tr><td data-label="Data type">Audit events</td><td data-label="Retention period">90 days</td></tr>
+        <tr><td data-label="Data type">Product and Web Vital events</td><td data-label="Retention period">90 days, then automatically deleted</td></tr>
+        <tr><td data-label="Data type">Account and project data</td><td data-label="Retention period">Until account deletion is requested</td></tr>
+        <tr><td data-label="Data type">Session data</td><td data-label="Retention period">24 hours of inactivity, or until sign-out</td></tr>
+        <tr><td data-label="Data type">Published blog comments</td><td data-label="Retention period">Until removed by the writer&rsquo;s request or by moderation</td></tr>
+        <tr><td data-label="Data type">Refused blog comment submissions</td><td data-label="Retention period">7 days, then automatically deleted</td></tr>
+        <tr><td data-label="Data type">Blog comment reports</td><td data-label="Retention period">90 days, then automatically deleted</td></tr>
+        <tr><td data-label="Data type">Article view deduplication</td><td data-label="Retention period">30 minutes</td></tr>
       </tbody>
     </table>
 
-    <h2>Third-Party Services</h2>
-    <table class="table">
+    <h2 id="recipients">Who receives your data</h2>
+    <p>HelloDeploy runs on its own server, but it relies on these providers. Each one receives only what its job needs.</p>
+    <table class="table legal-table">
       <thead>
-        <tr><th scope="col">Service</th><th scope="col">Purpose</th><th scope="col">Data shared</th></tr>
+        <tr><th scope="col">Provider</th><th scope="col">What it does for us</th><th scope="col">Data it receives</th></tr>
       </thead>
       <tbody>
-        <tr><td>MongoDB Atlas</td><td>Database hosting</td><td>All stored data listed above</td></tr>
-        <tr><td>GitHub</td><td>Source repository access</td><td>Installation ID; repository names and commit metadata</td></tr>
-        <tr><td>Google</td><td>Optional account authentication</td><td>Authentication request; Google returns your stable account identifier, verified email, and profile name</td></tr>
-        <tr><td>Resend</td><td>Transactional email</td><td>Your email address and name</td></tr>
-        <tr><td>Cloudflare</td><td>DNS, TLS, and tunnel ingress</td><td>IP addresses and HTTP request metadata</td></tr>
-        <tr><td>Cloudflare Turnstile</td><td>Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td>Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
+        <tr><td data-label="Provider">MongoDB Atlas</td><td data-label="What it does for us">Hosts the platform database</td><td data-label="Data it receives">All stored data listed above</td></tr>
+        <tr><td data-label="Provider">GitHub</td><td data-label="What it does for us">Source repository access</td><td data-label="Data it receives">Installation ID; repository names and commit metadata</td></tr>
+        <tr><td data-label="Provider">Google</td><td data-label="What it does for us">Optional account sign-in</td><td data-label="Data it receives">Authentication request; Google returns your stable account identifier, verified email, and profile name</td></tr>
+        <tr><td data-label="Provider">Resend</td><td data-label="What it does for us">Sends transactional email</td><td data-label="Data it receives">Your email address and name, and the message</td></tr>
+        <tr><td data-label="Provider">Cloudflare</td><td data-label="What it does for us">DNS, TLS, and tunnel ingress</td><td data-label="Data it receives">IP addresses and HTTP request metadata</td></tr>
+        <tr><td data-label="Provider">Cloudflare Turnstile</td><td data-label="What it does for us">Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td data-label="Data it receives">Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
       </tbody>
     </table>
-    <p>We do not sell your data or share it with any other third party. Product measurement is processed server-side by HelloDeploy; no third-party analytics script is loaded.</p>
+    <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. Product measurement is processed by HelloDeploy itself; no third-party analytics script is loaded.</p>
+    <p>We name these providers because you have a right to know who receives your data. We do not publish how they are configured, such as accounts, regions, or internal addresses.</p>
 
-    <h2>Cookies</h2>
-    <p>We use a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. We do not use tracking cookies, analytics cookies, or advertising cookies. See the <a href="/cookies">Cookie Policy</a> for details.</p>
+    <h2 id="international-transfers">Processing outside the Philippines</h2>
+    <p>Some of these providers store or process data in other countries. We choose established providers that publish data processing terms and security commitments for their customers. Under Section 21 of the Data Privacy Act, <%= legalOperator %> stays responsible for your data when a provider processes it for us, wherever that happens.</p>
 
-    <h2>Your Rights</h2>
+    <h2 id="automated-decisions">Automated decisions</h2>
+    <p>HelloDeploy does not use automated decision-making that has legal or similarly significant effects on you. Two automated checks do exist:</p>
     <ul>
-      <li><strong>Access</strong> — you can view all project and deployment data you own through the dashboard.</li>
-      <li><strong>Deletion</strong> — to request deletion of your account and all associated data, email <strong>hensonsagorsor@gmail.com</strong> from your registered address. Requests are processed within 30 days.</li>
-      <li><strong>Correction</strong> — contact us to correct inaccurate account information.</li>
-      <li><strong>Objection or restriction</strong> — contact us if you believe processing should be restricted or stopped.</li>
-      <li><strong>Portability</strong> — contact us to request an export of account and project metadata in a reasonable format where technically feasible.</li>
+      <li>Rate limits and Turnstile can block a request that looks automated. If you are blocked by mistake, wait a few minutes or email us.</li>
+      <li>When guest comments are switched on, automated checks decide whether a comment is published. Readers can report a published comment, and you can email us to ask a person to review any decision about your comment. Comments are currently switched off.</li>
     </ul>
 
-    <h2>International Access</h2>
-    <p>HelloDeploy may be accessed from different countries while platform infrastructure and third-party services may process data in other jurisdictions. By using the service, you understand that your data may be processed where the platform and service providers operate.</p>
+    <h2 id="cookies">Cookies</h2>
+    <p>We use a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. We do not use tracking cookies, analytics cookies, or advertising cookies. See the <a href="/cookies">Cookie Policy</a> for details.</p>
 
-    <h2>User Application Data</h2>
-    <p>Your deployed application may collect personal data from its own users. You are responsible for the privacy notices, consent requirements, retention rules, and legal basis for your application&rsquo;s own data processing. HelloDeploy processes that data only where it is included in deployment logs, environment configuration, routing metadata, or infrastructure operations.</p>
+    <h2 id="your-rights">Your rights</h2>
+    <p>Under the Data Privacy Act (Sections 16 to 18) you have the rights below. Visitors covered by the GDPR have equivalent rights.</p>
+    <ul>
+      <li><strong>To be informed</strong> — to know what we collect, why, and who receives it. This policy is how we tell you.</li>
+      <li><strong>To access</strong> — to get a copy of your personal data. Most of your project and deployment data is already visible in your dashboard.</li>
+      <li><strong>To correct</strong> — to fix inaccurate or incomplete data.</li>
+      <li><strong>To erasure or blocking</strong> — to have your data deleted or its processing stopped. Account deletion removes your data within 30 days; backups age out on the schedule above.</li>
+      <li><strong>To object</strong> — to processing based on our legitimate interest, or to a change in how your data is used.</li>
+      <li><strong>To data portability</strong> — to receive your account and project metadata in a common machine-readable format.</li>
+      <li><strong>To damages</strong> — to be compensated if you are harmed by inaccurate, incomplete, or unlawfully processed data.</li>
+      <li><strong>To complain</strong> — to file a complaint with the National Privacy Commission.</li>
+    </ul>
 
-    <h2>Security</h2>
-    <p>Passwords are hashed with Argon2id. Environment secrets are encrypted with AES-256-GCM. All connections use TLS. The platform undergoes a security test suite covering authorisation bypass, CSRF, session fixation, path traversal, command injection, and container privilege escalation.</p>
+    <h3>How to make a request</h3>
+    <ol>
+      <li>Email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a> from the address on your HelloDeploy account, and say which right you are using.</li>
+      <li>We may ask you to confirm the request from your signed-in account, so nobody else can request your data. Never send us your password or secret values.</li>
+      <li>We reply within 30 days. There is no charge.</li>
+    </ol>
+    <p>If you are not satisfied with our answer, you can complain to the <a href="https://privacy.gov.ph" rel="noopener noreferrer">National Privacy Commission</a>. If you are in the European Economic Area or the United Kingdom, you can also complain to your local data protection authority.</p>
 
-    <h2>Pilot Status</h2>
-    <p>HelloDeploy is currently in a limited pilot phase as part of an MIT capstone project. The service may be modified, suspended, or discontinued with reasonable notice. This policy will be updated to reflect any material changes.</p>
+    <h2 id="breaches">If a breach happens</h2>
+    <p>If a personal data breach is likely to put you at real risk of serious harm, we will notify the National Privacy Commission and the affected users within 72 hours of becoming aware of it, as NPC Circular 16-03 requires. The notice will say what happened, what data was involved, what we are doing about it, and what you can do.</p>
 
-    <h2>Contact</h2>
-    <p>Questions about this policy: <strong>hensonsagorsor@gmail.com</strong></p>
-  </div>
+    <h2 id="children">Children</h2>
+    <p>HelloDeploy accounts are for people aged 13 and older, as the <a href="/terms">Terms of Service</a> require. Reading the blog does not need an account. If we learn that a child under 13 has created an account, we delete it.</p>
+
+    <h2 id="user-application-data">Your application&rsquo;s data</h2>
+    <p>Your deployed application may collect personal data from its own users. You are responsible for the privacy notices, consent requirements, retention rules, and legal basis for your application&rsquo;s own data processing. HelloDeploy processes that data only where it is included in deployment logs, environment configuration, routing metadata, or infrastructure operations. See the <a href="/data-processing">Data Processing Terms</a>.</p>
+
+    <h2 id="security">Security</h2>
+    <p>Passwords are hashed with Argon2id. Environment secrets are encrypted with AES-256-GCM. All connections use TLS. The platform is tested against authorisation bypass, CSRF, session fixation, path traversal, command injection, and container privilege escalation. To report a vulnerability, see the <a href="/security">Security Policy</a>.</p>
+
+    <h2 id="changes">Changes to this policy</h2>
+    <p>HelloDeploy is in a limited pilot, so this policy will change as the service does. Each change updates the date at the top of this page. If a change materially affects how we use your data, we will email account holders before it takes effect.</p>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>
