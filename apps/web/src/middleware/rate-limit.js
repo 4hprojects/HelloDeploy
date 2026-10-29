@@ -193,3 +193,25 @@ export const repositoryInspectLimiter = rateLimit({
   store: makeStore('repository-inspect'),
   handler: onLimitReached,
 });
+
+/** Learning Hub view beacons; one per article page load, deduplicated separately. */
+export const articleViewLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('article-view'),
+  handler: onLimitReached,
+});
+
+/** Learning Hub share-button click beacons. */
+export const articleShareLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('article-share'),
+  handler: onLimitReached,
+});

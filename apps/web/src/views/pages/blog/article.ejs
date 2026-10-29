@@ -1,5 +1,5 @@
 <div class="hub hub--article">
-  <article class="hub-article" aria-labelledby="article-title" data-article-id="<%= article.id %>">
+  <article class="hub-article" aria-labelledby="article-title" data-article-id="<%= article.id %>"<% if (viewsEnabled) { %> data-view-endpoint="/blog/api/articles/<%= article.id %>/view"<% } %> data-share-endpoint="/blog/api/articles/<%= article.id %>/share">
     <nav class="hub-breadcrumb" aria-label="Breadcrumb">
       <ol>
         <li><a href="/blog">Learning Hub</a></li>
@@ -19,7 +19,9 @@
         <% if (article.updatedLabel) { %><span aria-hidden="true">·</span><span>Updated <time datetime="<%= article.updatedAt.toISOString().slice(0, 10) %>"><%= article.updatedLabel %></time></span><% } %>
         <span aria-hidden="true">·</span>
         <span><%= article.readingMinutes %> min read</span>
+        <% if (viewsEnabled && viewCount !== null) { %><span aria-hidden="true">·</span><span title="Approximate page views, not unique visitors"><%= viewCount.toLocaleString('en-US') %> <%= viewCount === 1 ? 'view' : 'views' %></span><% } %>
       </p>
+      <%- include('../../partials/blog/share-row', { placement: 'top' }) %>
     </header>
 
     <% if (article.heroImage) { %>
@@ -64,6 +66,8 @@
         <% } %>
       </div>
     </div>
+
+    <%- include('../../partials/blog/share-row', { placement: 'end' }) %>
 
     <section class="hub-author" aria-labelledby="author-heading">
       <h2 class="hub-author__label" id="author-heading">About the author</h2>

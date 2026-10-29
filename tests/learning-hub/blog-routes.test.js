@@ -45,27 +45,58 @@ const repository = createContentRepository({
 });
 
 async function startServer(learningHub) {
-  const server = createApp({ readinessCheck: async () => ({ ready: true }), learningHub }).listen(
-    0,
-  );
-  return { server, baseUrl: `http://127.0.0.1:${server.address().port}` };
+  const app = createApp({ readinessCheck: async () => ({ ready: true }), learningHub });
+  const server = app.listen(0);
+  return { app, server, baseUrl: `http://127.0.0.1:${server.address().port}` };
+}
+
+async function stopServer({ app, server }) {
+  server.close();
+  await app.locals.drainSessionWrites?.();
 }
 
 describe('Learning Hub routes', () => {
   let enabled;
   let disabled;
+  let disabledViews;
   before(async () => {
     await startTestDb();
-    enabled = await startServer({ enabled: true, getRepository: () => repository });
+    enabled = await startServer({
+      enabled: true,
+      viewsEnabled: true,
+      getRepository: () => repository,
+    });
     disabled = await startServer({ enabled: false, getRepository: () => repository });
+    disabledViews = await startServer({ enabled: true, getRepository: () => repository });
   });
   after(async () => {
-    enabled.server.close();
-    disabled.server.close();
+    await Promise.all([enabled, disabled, disabledViews].map(stopServer));
     await stopTestDb();
   });
 
   const get = (path, target = enabled) => fetch(`${target.baseUrl}${path}`, { redirect: 'manual' });
+
+  // A reader's session: the cookie and CSRF token issued with an article page.
+  async function readerSession(target = enabled) {
+    const res = await get('/blog/sample-article', target);
+    const html = await res.text();
+    return {
+      cookie: res.headers.get('set-cookie').split(';')[0],
+      token: /<meta name="csrf-token" content="([^"]+)"/.exec(html)[1],
+    };
+  }
+
+  async function post(path, body, session) {
+    return fetch(`${enabled.baseUrl}${path}`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        accept: 'application/json',
+        ...(session ? { cookie: session.cookie, 'x-csrf-token': session.token } : {}),
+      },
+      body: JSON.stringify(body),
+    });
+  }
 
   it('serves the index', async () => {
     const res = await get('/blog');
@@ -182,5 +213,74 @@ describe('Learning Hub routes', () => {
   it('never lists a draft on the index', async () => {
     const html = await (await get('/blog')).text();
     assert.doesNotMatch(html, /draft-guide/);
+  });
+
+  it('shares the encoded canonical URL on Facebook', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.match(
+      html,
+      /href="https:\/\/www.facebook.com\/sharer\/sharer.php\?u=https%3A%2F%2Fexample.test%2Fblog%2Fsample-article"/,
+    );
+  });
+
+  it('opens share links without passing the opener or referrer', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.equal(html.match(/data-share-platform="(?:facebook|linkedin|x)"/g)?.length, 6);
+  });
+
+  it('places share links at the top and the end of the article', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.equal(
+      html.match(/target="_blank" rel="noopener noreferrer" data-share-platform/g)?.length,
+      6,
+    );
+  });
+
+  it('shows the approximate view total when views are enabled', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.match(html, /title="Approximate page views, not unique visitors">0 views</);
+  });
+
+  it('omits the view beacon while views are disabled', async () => {
+    const html = await (await get('/blog/sample-article', disabledViews)).text();
+    assert.doesNotMatch(html, /data-view-endpoint/);
+  });
+
+  it('rejects a view beacon without a CSRF token', async () => {
+    const res = await post('/blog/api/articles/sample-1/view', {});
+    assert.deepEqual([res.status, (await res.json()).error.code], [403, 'CSRF_INVALID']);
+  });
+
+  it('accepts a view beacon for a published article', async () => {
+    const res = await post('/blog/api/articles/sample-1/view', {}, await readerSession());
+    assert.equal(res.status, 202);
+  });
+
+  it('refuses a view beacon for a draft', async () => {
+    const res = await post('/blog/api/articles/draft/view', {}, await readerSession());
+    assert.equal(res.status, 404);
+  });
+
+  it('refuses a view beacon for an unknown article id', async () => {
+    const res = await post('/blog/api/articles/forged-id/view', {}, await readerSession());
+    assert.equal(res.status, 404);
+  });
+
+  it('records a share click for a known platform', async () => {
+    const res = await post(
+      '/blog/api/articles/sample-1/share',
+      { platform: 'x' },
+      await readerSession(),
+    );
+    assert.equal(res.status, 202);
+  });
+
+  it('rejects a share click for an unknown platform', async () => {
+    const res = await post(
+      '/blog/api/articles/sample-1/share',
+      { platform: 'myspace' },
+      await readerSession(),
+    );
+    assert.equal(res.status, 400);
   });
 });

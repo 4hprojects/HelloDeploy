@@ -233,6 +233,8 @@ export const env = {
 
   // Learning Hub public blog at /blog. Off serves the routes as 404s.
   LEARNING_HUB_ENABLED: optional('LEARNING_HUB_ENABLED', 'false') === 'true',
+  // Counts and shows approximate article views; needs the hub enabled.
+  LEARNING_HUB_VIEWS_ENABLED: optional('LEARNING_HUB_VIEWS_ENABLED', 'false') === 'true',
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',

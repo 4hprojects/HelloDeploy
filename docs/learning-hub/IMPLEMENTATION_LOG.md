@@ -55,3 +55,30 @@ Append-only. Token figures are estimates unless marked measured.
 - Known: the browser fixture now enables the hub, so the header on `landing-1440.png` gains
   "Blog". The visual baselines are regenerated in Phase 8 with the final header.
 - Tokens: about 70K (estimate).
+
+## 2026-10-29 — Phase 3 views and sharing
+
+- `ArticleStat` model (`article_stats`, unique `articleId`, `views`, `shareClicks.{facebook,
+linkedin,x,copy,native}`), exported from `@hellodeploy/database`. Additive collection.
+- `services/learning-hub/article-stats.service.js`: Redis `SET lh:view:<id>:<hmac> NX EX 1800`
+  then Mongo `$inc` upsert; increment failure releases the reservation; Redis not ready or
+  erroring skips the count; self-identified bots skipped; count reads time out after 1.5 s and
+  render without a number.
+- Endpoints `POST /blog/api/articles/:id/view` and `/share` (CSRF header, JSON 403 on
+  CSRF failure, published ids only, platform allowlist, limiters `rl:article-view` 120/10 min and
+  `rl:article-share` 60/10 min, fail closed on store error).
+- Flag `LEARNING_HUB_VIEWS_ENABLED` (default false). The view count shows as "N views" with
+  the title "Approximate page views, not unique visitors".
+- Share rows at the top and end of each article: Facebook, LinkedIn, X links (work without JS,
+  `target=_blank rel="noopener noreferrer"`), plus JS-only Copy link (selected text-field
+  fallback) and Web Share when supported. Clicks are recorded as clicks, never as shares.
+- No-JS readers are not counted (documented in D5).
+- Tests: `tests/learning-hub/article-stats.test.js` 18 pass (dedup window, expiry, distinct
+  articles, 25 concurrent sessions exact, 10 concurrent duplicates count once, Redis down and
+  erroring, reservation release, no raw session id in Redis, bot UA, slug-independent id, store
+  failure and hang). `blog-routes.test.js` 33 pass (adds encoding, rel, placement, CSRF, draft
+  and forged ids, platform validation). Playwright 33 pass (adds copy, clipboard fallback, Web
+  Share present/absent, keyboard-reachable links, one view beacon).
+- Resource: one small document per article; Redis keys expire after 30 minutes, at most one per
+  article per session.
+- Tokens: about 55K (estimate).

@@ -1,6 +1,7 @@
 import { ARTICLES_PER_PAGE } from '../config/learning-hub.js';
 import { env } from '../config/env.js';
 import { normalizeSearchQuery } from '../services/learning-hub/content-repository.js';
+import * as articleStats from '../services/learning-hub/article-stats.service.js';
 
 const PAGE_STYLES = ['css/learning-hub.css'];
 const PAGE_SCRIPTS = ['js/learning-hub.js'];
@@ -12,7 +13,11 @@ const HUB_DESCRIPTION =
  * Handlers for the public Learning Hub. Each takes the content repository
  * through a getter so tests can supply fixture articles.
  */
-export function createBlogController({ getRepository }) {
+export function createBlogController({
+  getRepository,
+  viewsEnabled = false,
+  stats = articleStats,
+}) {
   function getIndex(req, res, next) {
     const repository = getRepository();
     const query = normalizeSearchQuery(req.query.q);
@@ -78,7 +83,7 @@ export function createBlogController({ getRepository }) {
     });
   }
 
-  function getArticle(req, res, next) {
+  async function getArticle(req, res, next) {
     const repository = getRepository();
     const redirect = repository.findRedirect(req.params.slug);
     if (redirect) {
@@ -89,6 +94,8 @@ export function createBlogController({ getRepository }) {
       return next();
     }
     const path = `/blog/${article.slug}`;
+    const canonicalUrl = absoluteUrl(path);
+    const viewCount = viewsEnabled ? await stats.getArticleViewCount(article.id) : null;
 
     res.render('pages/blog/article', {
       title: article.seo.title ?? article.title,
@@ -104,12 +111,67 @@ export function createBlogController({ getRepository }) {
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
       article: present(repository, article),
-      canonicalUrl: absoluteUrl(path),
+      canonicalUrl,
+      shareLinks: shareLinks(canonicalUrl, article.title),
+      viewsEnabled,
+      viewCount,
       related: repository.getRelated(article).map((item) => present(repository, item)),
     });
   }
 
-  return { getIndex, getCategory, getArticle };
+  async function postView(req, res) {
+    const article = getRepository().findPublishedById(req.params.id);
+    if (!viewsEnabled || !article) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Unknown article.' } });
+    }
+    const result = await stats.recordArticleView({
+      articleId: article.id,
+      sessionId: req.sessionID,
+      userAgent: req.get('user-agent'),
+    });
+    res.status(202).json({ counted: result.counted });
+  }
+
+  async function postShare(req, res) {
+    const article = getRepository().findPublishedById(req.params.id);
+    if (!article) {
+      return res.status(404).json({ error: { code: 'NOT_FOUND', message: 'Unknown article.' } });
+    }
+    const result = await stats.recordShareClick({
+      articleId: article.id,
+      platform: req.body?.platform,
+    });
+    if (result.reason === 'unknown_platform') {
+      return res
+        .status(400)
+        .json({ error: { code: 'INVALID_PLATFORM', message: 'Unknown share platform.' } });
+    }
+    res.status(202).json({ recorded: result.recorded });
+  }
+
+  return { getIndex, getCategory, getArticle, postView, postShare };
+}
+
+/** Share targets built from the canonical URL; each is a plain link that works without JavaScript. */
+export function shareLinks(canonicalUrl, title) {
+  const url = encodeURIComponent(canonicalUrl);
+  return [
+    {
+      platform: 'facebook',
+      label: 'Facebook',
+      href: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+    },
+    {
+      platform: 'linkedin',
+      label: 'LinkedIn',
+      href: `https://www.linkedin.com/sharing/share-offsite/?url=${url}`,
+    },
+    {
+      platform: 'x',
+      label: 'X',
+      href: `https://x.com/intent/post?url=${url}&text=${encodeURIComponent(title)}`,
+    },
+  ];
 }
 
 export function absoluteUrl(path) {

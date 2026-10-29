@@ -256,7 +256,7 @@ app.use(
       ready: true,
       checks: { database: 'ok', queue: 'ok', worker: 'ok' },
     }),
-    learningHub: { enabled: true, getRepository: () => learningHubRepository },
+    learningHub: { enabled: true, viewsEnabled: true, getRepository: () => learningHubRepository },
   }),
 );
 const server = app.listen(Number(process.env.PORT), process.env.HOST, () => {

@@ -48,7 +48,11 @@ function cspNonceMiddleware(_req, res, next) {
 
 export function createApp({
   readinessCheck = checkWebReadiness,
-  learningHub = { enabled: env.LEARNING_HUB_ENABLED, getRepository: getContentRepository },
+  learningHub = {
+    enabled: env.LEARNING_HUB_ENABLED,
+    viewsEnabled: env.LEARNING_HUB_VIEWS_ENABLED,
+    getRepository: getContentRepository,
+  },
 } = {}) {
   const app = express();
 
@@ -191,7 +195,7 @@ export function createApp({
   app.get('/robots.txt', getRobots);
   app.get('/sitemap.xml', getSitemap);
   if (learningHub.enabled) {
-    app.use('/blog', createBlogRouter({ getRepository: learningHub.getRepository }));
+    app.use('/blog', createBlogRouter(learningHub));
   }
 
   app.get('/dashboard', requireAuth, getDashboard);

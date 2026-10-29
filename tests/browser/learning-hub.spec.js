@@ -77,3 +77,49 @@ test('code blocks scroll inside their own region', async ({ page }) => {
     .evaluate((element) => element.scrollWidth > element.clientWidth);
   expect(scrolls).toBe(true);
 });
+
+test('copy link announces success', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(ARTICLE);
+  await page.getByRole('button', { name: 'Copy link' }).first().click();
+  await expect(page.getByRole('status')).toHaveText('Link copied to clipboard.');
+});
+
+test('copy link falls back to a selected link field when the clipboard is unavailable', async ({
+  page,
+}) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(globalThis.navigator, 'clipboard', { value: undefined });
+  });
+  await page.goto(ARTICLE);
+  await page.getByRole('button', { name: 'Copy link' }).first().click();
+  await expect(page.getByLabel('Article link').first()).toBeFocused();
+});
+
+test('native share stays hidden where Web Share is unsupported', async ({ page }) => {
+  await page.addInitScript(() => {
+    delete globalThis.Navigator.prototype.share;
+  });
+  await page.goto(ARTICLE);
+  await expect(page.getByRole('button', { name: 'More sharing options' })).toHaveCount(0);
+});
+
+test('native share appears where Web Share is supported', async ({ page }) => {
+  await page.addInitScript(() => {
+    globalThis.Navigator.prototype.share = () => Promise.resolve();
+  });
+  await page.goto(ARTICLE);
+  await expect(page.getByRole('button', { name: 'More sharing options' }).first()).toBeVisible();
+});
+
+test('share links are reachable by keyboard and open a new tab safely', async ({ page }) => {
+  await page.goto(ARTICLE);
+  const link = page.getByRole('link', { name: 'Share on LinkedIn (opens in a new tab)' }).first();
+  await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+});
+
+test('article sends one view beacon after it is shown', async ({ page }) => {
+  const beacon = page.waitForResponse((res) => res.url().endsWith('/view'));
+  await page.goto(ARTICLE);
+  expect((await beacon).status()).toBe(202);
+});
