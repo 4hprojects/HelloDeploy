@@ -1,0 +1,44 @@
+<div class="hub">
+  <header class="hub-intro">
+    <p class="hub-eyebrow">HelloDeploy</p>
+    <h1 class="hub-intro__title">Learning Hub</h1>
+    <p class="hub-intro__lead">Practical guides for deploying, hosting, securing, and troubleshooting web applications. Each guide works without a HelloDeploy account.</p>
+    <form class="hub-search" action="/blog" method="get" role="search">
+      <label class="hub-search__label" for="hub-search-input">Search articles</label>
+      <div class="hub-search__row">
+        <input class="form-input hub-search__input" id="hub-search-input" type="search" name="q" value="<%= query %>" maxlength="100" autocomplete="off" />
+        <button class="button button--primary" type="submit">Search</button>
+      </div>
+    </form>
+  </header>
+
+  <%- include('../../partials/blog/category-nav', { categories }) %>
+
+  <% if (resultCount !== null) { %>
+  <section class="hub-section" aria-labelledby="hub-results-heading">
+    <h2 class="hub-section__title" id="hub-results-heading"><%= resultCount === 1 ? '1 article' : `${resultCount} articles` %> found for “<%= query %>”</h2>
+    <% if (articles.length === 0) { %>
+    <p class="hub-empty">No published article matches that search. Try fewer or different words, or <a href="/blog">browse all articles</a>.</p>
+    <% } else { %>
+    <div class="hub-grid"><% articles.forEach((article) => { %><%- include('../../partials/blog/article-card', { article }) %><% }) %></div>
+    <% } %>
+  </section>
+  <% } else if (totalArticles === 0) { %>
+  <p class="hub-empty">No articles are published yet.</p>
+  <% } else { %>
+  <% if (featured) { %>
+  <section class="hub-section" aria-labelledby="hub-featured-heading">
+    <h2 class="hub-section__title" id="hub-featured-heading">Featured guide</h2>
+    <%- include('../../partials/blog/article-card', { article: featured, featured: true }) %>
+  </section>
+  <% } %>
+  <% if (articles.length > 0) { %>
+  <section class="hub-section" aria-labelledby="hub-latest-heading">
+    <h2 class="hub-section__title" id="hub-latest-heading">Latest articles</h2>
+    <div class="hub-grid"><% articles.forEach((article) => { %><%- include('../../partials/blog/article-card', { article }) %><% }) %></div>
+  </section>
+  <% } %>
+  <% } %>
+
+  <%- include('../../partials/blog/pagination', { pagination }) %>
+</div>

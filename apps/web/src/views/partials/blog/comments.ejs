@@ -1,0 +1,47 @@
+<% const discussionState = comments; %>
+<section class="hub-section hub-discussion" id="comments" aria-labelledby="comments-heading">
+  <h2 class="hub-section__title" id="comments-heading">Discussion<% if (!discussionState.unavailable) { %> <span class="hub-discussion__count">(<%= discussionState.totalComments %>)</span><% } %></h2>
+  <p class="hub-discussion__policy">Comments publish automatically after automated spam and safety checks. Automated checks are not perfect; report anything that breaks the <a href="/acceptable-use">acceptable use policy</a>. Do not share personal or contact details.</p>
+
+  <% if (discussionState.unavailable) { %>
+  <p class="hub-empty" role="status">The discussion cannot be loaded right now. The article is unaffected.</p>
+  <% } else { %>
+    <% if (discussionState.threads.length === 0) { %>
+    <p class="hub-empty">No comments yet.</p>
+    <% } else { %>
+    <ol class="hub-threads" role="list">
+      <% discussionState.threads.forEach((thread) => { %>
+      <li class="hub-thread">
+        <%- include('comment', { comment: thread.comment, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey, commentsPage: discussionState.page }) %>
+        <% if (thread.replies.length > 0) { %>
+        <ol class="hub-replies" role="list" aria-label="Replies to <%= thread.comment.displayName %>">
+          <% thread.replies.forEach((reply) => { %>
+          <li><%- include('comment', { comment: reply, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey, commentsPage: discussionState.page }) %></li>
+          <% }) %>
+        </ol>
+        <% } %>
+        <% if (thread.hiddenReplyCount > 0) { %>
+        <a class="hub-thread__more" href="/blog/<%= article.slug %>?thread=<%= thread.comment.id %>#comment-<%= thread.comment.id %>">Show <%= thread.hiddenReplyCount %> more <%= thread.hiddenReplyCount === 1 ? 'reply' : 'replies' %></a>
+        <% } %>
+      </li>
+      <% }) %>
+    </ol>
+    <% if (discussionState.totalPages > 1) { %>
+    <nav class="hub-pagination" aria-label="Comment pages">
+      <% if (discussionState.page > 1) { %><a class="button button--secondary" href="/blog/<%= article.slug %>?commentsPage=<%= discussionState.page - 1 %>#comments">Earlier comments</a><% } %>
+      <span class="hub-pagination__status">Page <%= discussionState.page %> of <%= discussionState.totalPages %></span>
+      <% if (discussionState.page < discussionState.totalPages) { %><a class="button button--secondary" href="/blog/<%= article.slug %>?commentsPage=<%= discussionState.page + 1 %>#comments">Later comments</a><% } %>
+    </nav>
+    <% } %>
+    <% } %>
+
+    <% if (discussionState.availability.accepting) { %>
+    <%- include('comment-form', { article, state: discussionState }) %>
+    <% } else { %>
+    <p class="hub-note" role="status"><%= discussionState.form?.errors?.form || 'New comments are closed on this article right now. Published comments remain visible.' %></p>
+    <% } %>
+    <% if (discussionState.availability.accepting || discussionState.canReport) { %>
+    <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
+    <% } %>
+  <% } %>
+</section>

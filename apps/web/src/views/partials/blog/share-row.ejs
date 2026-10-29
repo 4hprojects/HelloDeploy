@@ -1,0 +1,14 @@
+<div class="hub-share" data-share-row data-share-url="<%= canonicalUrl %>" data-share-title="<%= article.title %>">
+  <p class="hub-share__label" id="share-label-<%= placement %>">Share this guide</p>
+  <ul class="hub-share__list" role="list" aria-labelledby="share-label-<%= placement %>">
+    <% shareLinks.forEach((link) => { %>
+    <li><a class="hub-share__button" href="<%= link.href %>" target="_blank" rel="noopener noreferrer" data-share-platform="<%= link.platform %>">Share on <%= link.label %><span class="sr-only"> (opens in a new tab)</span></a></li>
+    <% }) %>
+    <li hidden data-share-copy-item><button type="button" class="hub-share__button" data-share-platform="copy">Copy link</button></li>
+    <li hidden data-share-native-item><button type="button" class="hub-share__button" data-share-platform="native">More sharing options</button></li>
+  </ul>
+  <div class="hub-share__fallback" hidden data-share-fallback>
+    <label for="share-fallback-<%= placement %>">Article link</label>
+    <input class="form-input" id="share-fallback-<%= placement %>" type="text" readonly value="<%= canonicalUrl %>" />
+  </div>
+</div>

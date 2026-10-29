@@ -1,0 +1,28 @@
+<% const errors = state.form.errors || {}; %>
+<form class="hub-comment-form" id="comment-form" method="post" action="/blog/<%= article.slug %>/comments" novalidate data-comment-form data-draft-key="lh-draft-<%= article.id %>">
+  <h3 class="hub-comment-form__title"><%= state.replyTarget ? `Reply to ${state.replyTarget.displayName}` : 'Join the discussion' %></h3>
+  <% if (errors.form || errors.replyTo) { %>
+  <div class="alert alert--error" role="alert" tabindex="-1" data-form-error><%= errors.form || errors.replyTo %></div>
+  <% } %>
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+  <input type="hidden" name="submissionKey" value="<%= state.submissionKey %>" />
+  <% if (state.replyTarget) { %>
+  <input type="hidden" name="replyTo" value="<%= state.replyTarget.id %>" />
+  <p class="hub-comment-form__context">Replying to <a href="#comment-<%= state.replyTarget.id %>">@<%= state.replyTarget.displayName %></a> · <a href="/blog/<%= article.slug %>#comment-form">Write a new comment instead</a></p>
+  <% } %>
+  <div class="form-group">
+    <label class="form-label" for="comment-display-name">Display name</label>
+    <input class="form-input" id="comment-display-name" name="displayName" type="text" minlength="2" maxlength="60" required autocomplete="nickname" value="<%= state.form.displayName %>" aria-describedby="comment-display-name-hint<%= errors.displayName ? ' comment-display-name-error' : '' %>" <%- errors.displayName ? 'aria-invalid="true"' : '' %> />
+    <p class="form-hint" id="comment-display-name-hint">Shown publicly. 2–60 characters. No account needed.</p>
+    <% if (errors.displayName) { %><p class="form-error" id="comment-display-name-error"><%= errors.displayName %></p><% } %>
+  </div>
+  <div class="form-group">
+    <label class="form-label" for="comment-body">Comment</label>
+    <textarea class="form-textarea" id="comment-body" name="body" rows="6" minlength="10" maxlength="2000" required aria-describedby="comment-body-hint<%= errors.body ? ' comment-body-error' : '' %>" <%- errors.body ? 'aria-invalid="true"' : '' %>><%= state.form.body %></textarea>
+    <p class="form-hint" id="comment-body-hint">Plain text, 10–2,000 characters. Links and contact details are not allowed.</p>
+    <% if (errors.body) { %><p class="form-error" id="comment-body-error"><%= errors.body %></p><% } %>
+  </div>
+  <div class="hub-turnstile" data-turnstile data-turnstile-eager data-sitekey="<%= state.turnstileSiteKey %>" data-action="blog-comment"></div>
+  <noscript><p class="form-hint">Posting a comment needs JavaScript for the verification check. Reading works without it.</p></noscript>
+  <button type="submit" class="button button--primary">Post comment</button>
+</form>

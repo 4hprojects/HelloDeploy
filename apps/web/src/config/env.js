@@ -231,6 +231,31 @@ export const env = {
   // Off by default: every project waits for an admin unless this is turned on.
   AUTO_APPROVAL_ENABLED: optional('AUTO_APPROVAL_ENABLED', 'false') === 'true',
 
+  // Learning Hub public blog at /blog. Off serves the routes as 404s.
+  LEARNING_HUB_ENABLED: optional('LEARNING_HUB_ENABLED', 'false') === 'true',
+  // Counts and shows approximate article views; needs the hub enabled.
+  LEARNING_HUB_VIEWS_ENABLED: optional('LEARNING_HUB_VIEWS_ENABLED', 'false') === 'true',
+  // Guest comments. Submissions also need Turnstile, a moderation provider, the
+  // admin switch, and the article's own commentsEnabled; any missing one keeps them closed.
+  LEARNING_HUB_COMMENTS_ENABLED: optional('LEARNING_HUB_COMMENTS_ENABLED', 'false') === 'true',
+  LEARNING_HUB_MODERATION_PROVIDER: optional('LEARNING_HUB_MODERATION_PROVIDER', 'none'),
+  OPENAI_MODERATION_API_KEY: optional('OPENAI_MODERATION_API_KEY', ''),
+  // GA4 on Learning Hub pages only, and only once the owner confirms a consent
+  // mechanism is in place. Either missing keeps the tag off.
+  GA4_MEASUREMENT_ID: /^G-[A-Z0-9]{4,12}$/.test(optional('GA4_MEASUREMENT_ID', ''))
+    ? optional('GA4_MEASUREMENT_ID', '')
+    : '',
+  LEARNING_HUB_ANALYTICS_CONSENT_READY:
+    optional('LEARNING_HUB_ANALYTICS_CONSENT_READY', 'false') === 'true',
+  // AdSense stays off until the site is approved and the owner authorizes it.
+  ADSENSE_ENABLED: optional('ADSENSE_ENABLED', 'false') === 'true',
+  ADSENSE_CLIENT_ID: /^ca-pub-\d{16}$/.test(optional('ADSENSE_CLIENT_ID', ''))
+    ? optional('ADSENSE_CLIENT_ID', '')
+    : '',
+  ADSENSE_ARTICLE_SLOT_ID: /^\d{6,12}$/.test(optional('ADSENSE_ARTICLE_SLOT_ID', ''))
+    ? optional('ADSENSE_ARTICLE_SLOT_ID', '')
+    : '',
+
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isGoogleAuthConfigured: () =>

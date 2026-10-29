@@ -17,6 +17,17 @@ export { DeploymentEvent } from './models/deployment-event.model.js';
 export { Domain } from './models/domain.model.js';
 export { PlatformSetting } from './models/platform-setting.model.js';
 export { ProductEvent, PRODUCT_EVENT_NAMES } from './models/product-event.model.js';
+export { ArticleStat, SHARE_PLATFORMS } from './models/article-stat.model.js';
+export {
+  ArticleComment,
+  COMMENT_AUTHOR_TYPES,
+  COMMENT_STATUSES,
+  REJECTED_COMMENT_RETENTION_SECONDS,
+} from './models/article-comment.model.js';
+export {
+  ArticleCommentReport,
+  COMMENT_REPORT_REASONS,
+} from './models/article-comment-report.model.js';
 export { Notification } from './models/notification.model.js';
 export { NotificationWebhookEvent } from './models/notification-webhook-event.model.js';
 export { StudyDeployment } from './models/study-deployment.model.js';

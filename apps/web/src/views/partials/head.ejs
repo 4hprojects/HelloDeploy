@@ -12,7 +12,9 @@
   <link rel="apple-touch-icon" sizes="180x180" href="/assets/icons/apple-touch-icon.png" />
   <link rel="manifest" href="/site.webmanifest" />
 
-  <meta property="og:type" content="website" />
+  <meta property="og:type" content="<%= meta.ogType || 'website' %>" />
+  <% if (meta.publishedTime) { %><meta property="article:published_time" content="<%= meta.publishedTime %>" /><% } %>
+  <% if (meta.modifiedTime) { %><meta property="article:modified_time" content="<%= meta.modifiedTime %>" /><% } %>
   <meta property="og:site_name" content="HelloDeploy" />
   <meta property="og:title" content="<%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %>" />
   <meta property="og:description" content="<%= meta.description || 'Manage application deployments with HelloDeploy.' %>" />
@@ -71,4 +73,7 @@
   </script>
 
   <link rel="stylesheet" href="<%= assetPath('css/main.css') %>" />
+  <% (locals.pageStyles || []).forEach((style) => { %><link rel="stylesheet" href="<%= assetPath(style) %>" /><% }) %>
+  <% (meta.structuredData || []).forEach((data) => { %><script type="application/ld+json" nonce="<%= cspNonce %>"><%- JSON.stringify(data).replace(/</g, '\\u003c') %></script><% }) %>
+  <% if (locals.analytics) { %><%- include('analytics', { analytics: locals.analytics }) %><% } %>
 </head>

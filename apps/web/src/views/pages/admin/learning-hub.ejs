@@ -1,0 +1,91 @@
+<%
+const STATUS_LABELS = { reported: 'Reported', published: 'Published', hidden: 'Hidden', removed: 'Removed', rejected: 'Rejected' };
+const ACTIONS = { published: ['hide', 'remove'], hidden: ['restore', 'remove'], removed: ['restore'], rejected: [] };
+const ACTION_LABELS = { hide: 'Hide', remove: 'Remove', restore: 'Restore' };
+const formatTime = (date) => new Date(date).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short', timeZone: 'UTC' });
+%>
+<div class="page-header">
+  <h1 class="page-header__title">Learning Hub</h1>
+  <p class="page-header__subtitle">Guest comment moderation and emergency controls. Comments publish automatically only when every automated check passes.</p>
+</div>
+
+<% if (contentErrors.length > 0) { %>
+<div class="alert alert--error mb-4" role="alert">
+  <strong><%= contentErrors.length %> article file(s) failed validation and are not served.</strong>
+  <ul><% contentErrors.forEach((error) => { %><li><%= error %></li><% }) %></ul>
+</div>
+<% } %>
+
+<section class="card mb-4" aria-labelledby="comment-controls-heading">
+  <div class="card__body">
+    <h2 id="comment-controls-heading">Comment controls</h2>
+    <dl class="mb-4">
+      <dt>Feature flag (<code>LEARNING_HUB_COMMENTS_ENABLED</code>)</dt>
+      <dd><%= commentsFeatureEnabled ? 'On' : 'Off — discussions are hidden and submissions refused' %></dd>
+      <dt>Moderation provider (<code>LEARNING_HUB_MODERATION_PROVIDER</code>)</dt>
+      <dd><%= moderationProvider === 'none' ? 'None configured — submissions refused' : moderationProvider %></dd>
+    </dl>
+    <form method="post" action="/admin/learning-hub/settings">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+      <div class="form-group">
+        <label class="hub-check"><input type="checkbox" name="submissionsPaused" <%- settings.submissionsPaused ? 'checked' : '' %> /> Pause new comments and replies on every article</label>
+        <p class="form-hint">Published comments stay readable and reportable. Takes effect within five seconds.</p>
+      </div>
+      <% if (articles.length > 0) { %>
+      <fieldset class="form-group">
+        <legend class="form-label">Pause new comments on specific articles</legend>
+        <% articles.forEach((article) => { %>
+        <label class="hub-check"><input type="checkbox" name="pausedArticleIds" value="<%= article.id %>" <%- settings.pausedArticleIds.includes(article.id) ? 'checked' : '' %> /> <%= article.title %></label>
+        <% }) %>
+      </fieldset>
+      <% } %>
+      <button type="submit" class="button button--primary">Save controls</button>
+    </form>
+  </div>
+</section>
+
+<nav class="hub-admin-tabs mb-4" aria-label="Comment status">
+  <% statusFilters.forEach((value) => { %>
+  <a class="button button--sm <%= value === status ? 'button--primary' : 'button--secondary' %>" href="/admin/learning-hub?status=<%= value %>" <%- value === status ? 'aria-current="page"' : '' %>><%= STATUS_LABELS[value] %></a>
+  <% }) %>
+</nav>
+
+<% if (listing.comments.length === 0) { %>
+<p class="text-muted">No <%= STATUS_LABELS[status].toLowerCase() %> comments.</p>
+<% } else { %>
+<div class="table-wrapper table-responsive">
+  <table class="table table--responsive">
+    <caption class="sr-only"><%= STATUS_LABELS[status] %> comments, <%= listing.total %> total</caption>
+    <thead>
+      <tr><th scope="col">Comment</th><th scope="col">Article</th><th scope="col">Status</th><th scope="col">Reports</th><th scope="col">Decision</th><th scope="col">Actions</th></tr>
+    </thead>
+    <tbody>
+      <% listing.comments.forEach((comment) => { %>
+      <tr>
+        <td data-label="Comment"><strong><%= comment.displayName %></strong><%= comment.authorType === 'staff' ? ' (team)' : '' %><br /><span class="text-muted"><%= formatTime(comment.createdAt) %> UTC</span><p class="hub-comment__body"><%= comment.body %></p></td>
+        <td data-label="Article"><%= articleTitle(comment.articleId) %></td>
+        <td data-label="Status"><%= comment.status %></td>
+        <td data-label="Reports"><%= comment.reports?.count ?? 0 %></td>
+        <td data-label="Decision"><%= comment.moderation?.decision ?? '—' %><% if (comment.moderation?.reasons?.length) { %> (<%= comment.moderation.reasons.join(', ') %>)<% } %></td>
+        <td data-label="Actions">
+          <% (ACTIONS[comment.status] || []).forEach((action) => { %>
+          <form method="post" action="/admin/learning-hub/comments/<%= comment._id %>/<%= action %>" class="d-inline">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+            <input type="hidden" name="returnStatus" value="<%= status %>" />
+            <button type="submit" class="button button--sm <%= action === 'remove' ? 'button--danger' : 'button--secondary' %>"><%= ACTION_LABELS[action] %><span class="sr-only"> comment by <%= comment.displayName %></span></button>
+          </form>
+          <% }) %>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+<% if (listing.totalPages > 1) { %>
+<nav class="mt-4" aria-label="Comment pages">
+  <% if (listing.page > 1) { %><a class="button button--secondary button--sm" href="/admin/learning-hub?status=<%= status %>&page=<%= listing.page - 1 %>">Previous</a><% } %>
+  <span>Page <%= listing.page %> of <%= listing.totalPages %></span>
+  <% if (listing.page < listing.totalPages) { %><a class="button button--secondary button--sm" href="/admin/learning-hub?status=<%= status %>&page=<%= listing.page + 1 %>">Next</a><% } %>
+</nav>
+<% } %>
+<% } %>

@@ -1,0 +1,7 @@
+<script async src="https://www.googletagmanager.com/gtag/js?id=<%= analytics.measurementId %>"></script>
+<script nonce="<%= cspNonce %>">
+  window.dataLayer = window.dataLayer || [];
+  function gtag() { window.dataLayer.push(arguments); }
+  gtag('js', new Date());
+  gtag('config', '<%= analytics.measurementId %>');
+</script>

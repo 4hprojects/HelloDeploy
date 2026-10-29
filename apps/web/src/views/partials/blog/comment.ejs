@@ -1,0 +1,30 @@
+<article class="hub-comment<%= comment.isStaff ? ' hub-comment--staff' : '' %>" id="comment-<%= comment.id %>" aria-labelledby="comment-author-<%= comment.id %>">
+  <header class="hub-comment__header">
+    <p class="hub-comment__author" id="comment-author-<%= comment.id %>"><%= comment.displayName %></p>
+    <% if (comment.isStaff) { %><span class="hub-comment__badge">HelloDeploy team</span><% } %>
+    <time class="hub-comment__date" datetime="<%= new Date(comment.createdAt).toISOString() %>"><%= new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(comment.createdAt)) %></time>
+  </header>
+  <% if (comment.replyToCommentId && comment.replyToCommentId !== comment.parentId) { %>
+  <p class="hub-comment__context"><a href="#comment-<%= comment.replyToCommentId %>">Replying to @<%= comment.replyToDisplayName %></a></p>
+  <% } %>
+  <p class="hub-comment__body"><%= comment.body %></p>
+  <div class="hub-comment__actions">
+    <a class="hub-comment__action" href="/blog/<%= article.slug %>?<%= new URLSearchParams({ ...(locals.commentsPage > 1 ? { commentsPage: String(locals.commentsPage) } : {}), replyTo: comment.id }) %>#comment-form">Reply<span class="sr-only"> to <%= comment.displayName %></span></a>
+    <% if (canReport) { %>
+    <details class="hub-report">
+      <summary class="hub-comment__action">Report<span class="sr-only"> comment by <%= comment.displayName %></span></summary>
+      <form class="hub-report__form" method="post" action="/blog/<%= article.slug %>/comments/<%= comment.id %>/report">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>" />
+        <fieldset>
+          <legend>Why are you reporting this comment?</legend>
+          <% [['spam', 'Spam or advertising'], ['harassment', 'Harassment or bullying'], ['hate', 'Hate speech'], ['threats', 'Threats or violence'], ['personal_data', 'Personal information'], ['other', 'Something else']].forEach(([value, label], index) => { %>
+          <label class="hub-report__option"><input type="radio" name="reason" value="<%= value %>" <%- index === 0 ? 'required' : '' %> /> <%= label %></label>
+          <% }) %>
+        </fieldset>
+        <div class="hub-turnstile" data-turnstile data-sitekey="<%= turnstileSiteKey %>" data-action="blog-report"></div>
+        <button type="submit" class="button button--secondary">Send report</button>
+      </form>
+    </details>
+    <% } %>
+  </div>
+</article>

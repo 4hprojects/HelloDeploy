@@ -9,7 +9,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const publicDir = join(root, 'apps', 'web', 'public');
 const outputDir = join(publicDir, 'assets-dist');
 const manifestPath = join(publicDir, 'asset-manifest.json');
-const sources = ['css/main.css', 'js/app.js'];
+const sources = ['css/main.css', 'js/app.js', 'css/learning-hub.css', 'js/learning-hub.js'];
 
 function stripCssComments(contents) {
   return contents.replace(/\/\*[\s\S]*?\*\//g, '').trim();
@@ -32,6 +32,8 @@ for (const source of sources) {
     contents = Buffer.from(
       stripCssComments(`${bundled.join('\n')}\n${sourceText.replace(/@import[^;]+;/g, '')}`),
     );
+  } else if (source.endsWith('.css')) {
+    contents = Buffer.from(stripCssComments(contents.toString('utf8')));
   }
   const hash = createHash('sha256').update(contents).digest('hex').slice(0, 16);
   const extension = extname(source);

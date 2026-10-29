@@ -3,7 +3,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const publicDir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'public');
-const sourceAssets = { 'css/main.css': '/css/main.css', 'js/app.js': '/js/app.js' };
+const sourceAssets = {
+  'css/main.css': '/css/main.css',
+  'js/app.js': '/js/app.js',
+  'css/learning-hub.css': '/css/learning-hub.css',
+  'js/learning-hub.js': '/js/learning-hub.js',
+};
 
 function loadManifest() {
   try {

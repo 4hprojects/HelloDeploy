@@ -1,0 +1,9 @@
+<% if (categories.length > 0) { %>
+<nav class="hub-categories" aria-label="Article categories">
+  <ul role="list">
+    <% categories.forEach((item) => { %>
+    <li><a class="hub-chip" href="/blog/category/<%= item.slug %>" <%- locals.activeCategory === item.slug ? 'aria-current="page"' : '' %>><%= item.name %></a></li>
+    <% }) %>
+  </ul>
+</nav>
+<% } %>

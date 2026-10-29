@@ -1,0 +1,90 @@
+<div class="hub hub--article">
+  <article class="hub-article" aria-labelledby="article-title" data-article-id="<%= article.id %>"<% if (viewsEnabled) { %> data-view-endpoint="/blog/api/articles/<%= article.id %>/view"<% } %> data-share-endpoint="/blog/api/articles/<%= article.id %>/share">
+    <nav class="hub-breadcrumb" aria-label="Breadcrumb">
+      <ol>
+        <li><a href="/blog">Learning Hub</a></li>
+        <li><a href="/blog/category/<%= article.category.slug %>"><%= article.category.name %></a></li>
+        <li aria-current="page"><%= article.title %></li>
+      </ol>
+    </nav>
+
+    <header class="hub-article__header">
+      <p class="hub-eyebrow"><a href="/blog/category/<%= article.category.slug %>"><%= article.category.name %></a> <span aria-hidden="true">·</span> <span class="hub-difficulty"><%= article.difficulty[0].toUpperCase() + article.difficulty.slice(1) %></span></p>
+      <h1 class="hub-article__title" id="article-title"><%= article.title %></h1>
+      <p class="hub-article__deck"><%= article.description %></p>
+      <p class="hub-meta">
+        <span>By <%= article.author.name %></span>
+        <span aria-hidden="true">·</span>
+        <span>Published <time datetime="<%= article.publishedAt.toISOString().slice(0, 10) %>"><%= article.publishedLabel %></time></span>
+        <% if (article.updatedLabel) { %><span aria-hidden="true">·</span><span>Updated <time datetime="<%= article.updatedAt.toISOString().slice(0, 10) %>"><%= article.updatedLabel %></time></span><% } %>
+        <span aria-hidden="true">·</span>
+        <span><%= article.readingMinutes %> min read</span>
+        <% if (viewsEnabled && viewCount !== null) { %><span aria-hidden="true">·</span><span title="Approximate page views, not unique visitors"><%= viewCount.toLocaleString('en-US') %> <%= viewCount === 1 ? 'view' : 'views' %></span><% } %>
+      </p>
+      <%- include('../../partials/blog/share-row', { placement: 'top' }) %>
+    </header>
+
+    <% if (article.heroImage) { %>
+    <figure class="hub-hero">
+      <img src="<%= article.heroImage.src %>" alt="<%= article.heroImage.alt %>" width="<%= article.heroImage.width %>" height="<%= article.heroImage.height %>" fetchpriority="high" />
+    </figure>
+    <% } %>
+
+    <div class="hub-article__body">
+      <% if (article.headings.length > 1) { %>
+      <nav class="hub-toc" aria-label="On this page">
+        <details class="hub-toc__details" data-hub-toc>
+          <summary class="hub-toc__summary">On this page</summary>
+          <ol class="hub-toc__list" role="list">
+            <% article.headings.forEach((heading) => { %>
+            <li class="hub-toc__item hub-toc__item--<%= heading.level %>"><a href="#<%= heading.id %>"><%= heading.text %></a></li>
+            <% }) %>
+          </ol>
+        </details>
+      </nav>
+      <% } %>
+      <div class="hub-prose">
+        <%- article.html %>
+
+        <% if (article.testedEnvironment) { %>
+        <aside class="hub-note" aria-labelledby="tested-environment-heading">
+          <h2 class="hub-note__title" id="tested-environment-heading">Tested environment</h2>
+          <p><%= article.testedEnvironment.summary %></p>
+          <p class="hub-note__meta">Verified <time datetime="<%= article.testedEnvironment.verifiedAt.toISOString().slice(0, 10) %>"><%= article.testedEnvironment.verifiedAt.toISOString().slice(0, 10) %></time></p>
+        </aside>
+        <% } %>
+
+        <% if (article.references.length > 0) { %>
+        <section class="hub-references" aria-labelledby="references-heading">
+          <h2 id="references-heading">References</h2>
+          <ul>
+            <% article.references.forEach((reference) => { %>
+            <li><a href="<%= reference.url %>" rel="noopener noreferrer"><%= reference.title %></a></li>
+            <% }) %>
+          </ul>
+        </section>
+        <% } %>
+      </div>
+    </div>
+
+    <%- include('../../partials/blog/ad-slot', { adSlot }) %>
+
+    <%- include('../../partials/blog/share-row', { placement: 'end' }) %>
+
+    <section class="hub-author" aria-labelledby="author-heading">
+      <h2 class="hub-author__label" id="author-heading">About the author</h2>
+      <p class="hub-author__name"><%= article.author.name %></p>
+      <p class="hub-author__role"><%= article.author.role %></p>
+      <p class="hub-author__bio"><%= article.author.bio %></p>
+    </section>
+  </article>
+
+  <% if (related.length > 0) { %>
+  <section class="hub-section hub-related" aria-labelledby="related-heading">
+    <h2 class="hub-section__title" id="related-heading">Related guides</h2>
+    <div class="hub-grid"><% related.forEach((item) => { %><%- include('../../partials/blog/article-card', { article: item }) %><% }) %></div>
+  </section>
+  <% } %>
+
+  <% if (comments.availability.visible) { %><%- include('../../partials/blog/comments', { comments, article }) %><% } %>
+</div>

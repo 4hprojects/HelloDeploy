@@ -45,6 +45,9 @@ jobs:
       - name: Validate development/test configuration
         run: NODE_ENV=test npm run config:check
 
+      - name: Validate Learning Hub content
+        run: npm run content:check
+
       - name: Test (with coverage report)
         run: npm run test:coverage
 

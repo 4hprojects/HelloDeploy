@@ -1,0 +1,11 @@
+<% const headingTag = locals.headingLevel === 2 ? 'h2' : 'h3'; %>
+<article class="hub-card<%= locals.featured ? ' hub-card--featured' : '' %>">
+  <p class="hub-card__category"><%= article.category.name %></p>
+  <<%= headingTag %> class="hub-card__title"><a href="<%= article.href %>"><%= article.title %></a></<%= headingTag %>>
+  <p class="hub-card__description"><%= article.description %></p>
+  <p class="hub-card__meta">
+    <time datetime="<%= article.publishedAt.toISOString().slice(0, 10) %>"><%= article.publishedLabel %></time>
+    <span aria-hidden="true">·</span>
+    <span><%= article.readingMinutes %> min read</span>
+  </p>
+</article>

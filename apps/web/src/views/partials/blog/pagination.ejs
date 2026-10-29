@@ -1,0 +1,7 @@
+<% if (pagination) { %>
+<nav class="hub-pagination" aria-label="Pagination">
+  <% if (pagination.previousHref) { %><a class="button button--secondary" href="<%= pagination.previousHref %>" rel="prev">Previous page</a><% } %>
+  <span class="hub-pagination__status">Page <%= pagination.current %> of <%= pagination.total %></span>
+  <% if (pagination.nextHref) { %><a class="button button--secondary" href="<%= pagination.nextHref %>" rel="next">Next page</a><% } %>
+</nav>
+<% } %>
