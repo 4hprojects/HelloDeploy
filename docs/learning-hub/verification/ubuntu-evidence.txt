@@ -1,0 +1,13 @@
+os Ubuntu 26.04.1 LTS
+nodejs candidate: 22.22.1+dfsg+~cs22.19.15-1ubuntu1
+PASS A2 sshd -t accepts hardening drop-in
+PASS A2 drop-in is applied
+PASS A2 OpenSSH ufw profile exists
+PASS A2 ufw dry-run allow OpenSSH
+PASS A2 ufw dry-run default deny incoming
+PASS A2 unattended-upgrades config present
+PASS A2 nginx -t default
+PASS A2 cloudflared installs from Cloudflare apt repo
+cloudflared version 2026.10.5 (built 2026-10-27-13:25 UTC)
+PASS A2 ingress validate accepts example
+PASS A2 ingress rule resolves hostname

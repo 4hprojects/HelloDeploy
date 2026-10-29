@@ -1,0 +1,24 @@
+node v26.13.0 npm 11.20.0 nginx 1.22.1
+express 5.3.0
+PASS A1 app binds PORT env
+PASS A1 SIGTERM closes server
+pm2 7.1.1
+PASS A4 pm2 start ecosystem
+PASS A4 app on 3000 under pm2
+PASS A4 pm2 reload keeps online
+PASS A4 pm2 logs --nostream
+PASS A4 pm2 save
+PASS A4 nginx -t
+PASS A4 proxy returns app
+PASS A4 stopped app gives 502
+PASS A4 error log names upstream refusal
++-- express-rate-limit@8.7.1
+`-- helmet@8.3.0
+
+PASS A5 helmet sets CSP
+PASS A5 helmet sets HSTS
+PASS A5 x-powered-by removed
+PASS A5 6th login is 429
+PASS A5 loopback proxy header trusted
+PASS A5 npm audit runs
+PASS A5 npm ci reproducible

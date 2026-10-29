@@ -164,3 +164,26 @@ linkedin,x,copy,native}`), exported from `@hellodeploy/database`. Additive colle
   event payload keys). `tests/ui/how-it-works.test.js` and `tests/security/csp.test.js` pass.
 - Social images: produced in Phase 7 with the articles.
 - Tokens: about 45K (estimate).
+
+## 2026-10-29 — Phase 7 five tutorials
+
+- Articles in `content/blog/articles/`: A1 `how-to-deploy-nodejs-app` (featured, 1,224 words),
+  A2 `host-website-old-laptop-ubuntu` (1,127), A3 `self-hosting-vs-cloud-hosting` (1,022),
+  A4 `pm2-nginx-nodejs-production` (979), A5 `secure-nodejs-before-production` (1,110). Word
+  counts exclude code blocks. All `commentsEnabled: true` (inert while the feature flag is off)
+  and `adEligible: false`.
+- Fact checks against primary sources fetched on 2026-10-29; see `ARTICLE_VERIFICATION.md`.
+  Corrections made while checking: Node.js support dates taken from the release
+  `schedule.json` (the website table shows last-release dates); SSH step uses `restart` rather
+  than `reload`; Cloudflare key path matches the official repository page.
+- Commands run in disposable containers (`node:26-bookworm-slim`, `ubuntu:26.04`; 768 MB, 1 CPU;
+  no leftovers): 18/18 and 10/10 PASS. Scripts and raw output in `verification/`.
+- Social images: `scripts/render-learning-hub-social-images.js` renders original 1200×630
+  PNGs (41–52 KB each) into `apps/web/public/assets/blog/social/`.
+- Tests: `published-content.test.js` 22 pass (no validation errors, five slugs, PNG
+  dimensions, references, internal links, ads off). All external references HTTP 200.
+- Resource: Docker images pulled (`node:26-bookworm-slim`, `ubuntu:26.04`) remain in the local
+  image cache; no existing images or containers were changed.
+- Owner approval of publication timing: covered by the autonomous release authorization;
+  content can be withdrawn by setting `status: draft`.
+- Tokens: about 120K (estimate).
