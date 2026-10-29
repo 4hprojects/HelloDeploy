@@ -1,18 +1,18 @@
 # Phase Tracker and Resource Estimates
 
-All phases initially `NOT STARTED`. Claude Code updates this file after each completed phase, including actual SHA, tests and findings. Never fabricate progress.
+All phases initially `NOT STARTED`. Phase SHAs are `feat/learning-hub` commits, squashed into `main` as `3309c51`. Claude Code updates this file after each completed phase, including actual SHA, tests and findings. Never fabricate progress.
 
 | Phase | Focus                 | Initial status                                                                           | Gate                                                                  |
 | ----- | --------------------- | ---------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
 | 0     | Audit                 | DONE 2026-10-29 (`feat/learning-hub`, baseline `2b54d22`) — see PHASE_00_AUDIT_REPORT.md | Report (review gate waived by CLAUDE_CODE_AUTONOMOUS_CONTINUATION.md) |
-| 1     | Markdown architecture | NOT STARTED                                                                              | Content validation tests                                              |
-| 2     | Public UI             | NOT STARTED                                                                              | Responsive/a11y tests                                                 |
-| 3     | Views and sharing     | NOT STARTED                                                                              | Dedup/share tests                                                     |
-| 4     | Comments core         | NOT STARTED                                                                              | Disabled route and threading tests                                    |
-| 5     | Moderation/reporting  | NOT STARTED                                                                              | Fail-closed/adversarial suite                                         |
-| 6     | SEO, GA4, AdSense     | NOT STARTED                                                                              | Rendered SEO and privacy review                                       |
-| 7     | Five tutorials        | NOT STARTED                                                                              | Editorial and technical checks                                        |
-| 8     | Release QA            | NOT STARTED                                                                              | Regression and release report                                         |
+| 1     | Markdown architecture | DONE 2026-10-29 (`72fdc8f`)                                                              | Content validation tests                                              |
+| 2     | Public UI             | DONE 2026-10-29 (`f80db0f`)                                                              | Responsive/a11y tests                                                 |
+| 3     | Views and sharing     | DONE 2026-10-29 (`012ad25`)                                                              | Dedup/share tests                                                     |
+| 4     | Comments core         | DONE 2026-10-29 (`5c840f5`)                                                              | Disabled route and threading tests                                    |
+| 5     | Moderation/reporting  | CODE DONE 2026-10-29 (`5c840f5`); live comments blocked, see BLOCKERS_AND_HANDOFF.md     | Fail-closed/adversarial suite                                         |
+| 6     | SEO, GA4, AdSense     | DONE 2026-10-29 (`8b5c734`); GA4 and AdSense off                                         | Rendered SEO and privacy review                                       |
+| 7     | Five tutorials        | DONE 2026-10-29 (`4fb5549`) — see ARTICLE_VERIFICATION.md                                | Editorial and technical checks                                        |
+| 8     | Release QA            | DEPLOYED 2026-10-29 as `3309c51` (PR #165); hub flags off                                | Regression and release report                                         |
 
 ## Rough pre-audit effort (non-binding)
 

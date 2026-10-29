@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
+import { mkdtemp, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { describe, it } from 'node:test';
 
-import { checkPublicProduction } from '../../scripts/check-public-production.js';
+import {
+  checkPublicProduction,
+  readExpectedPublicAssets,
+} from '../../scripts/check-public-production.js';
 
 function response(body, { status = 200, headers = {} } = {}) {
   return new Response(body === null ? null : JSON.stringify(body), {
@@ -131,5 +138,25 @@ describe('public production check', () => {
         detail: '1 expected asset(s) missing',
       },
     );
+  });
+
+  it('does not expect Learning Hub bundles on the homepage', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'production-check-'));
+    const manifestPath = join(directory, 'asset-manifest.json');
+    await writeFile(
+      manifestPath,
+      JSON.stringify({
+        assets: {
+          'css/main.css': '/assets-dist/main.1.css',
+          'js/app.js': '/assets-dist/app.1.js',
+          'css/learning-hub.css': '/assets-dist/learning-hub.1.css',
+          'js/learning-hub.js': '/assets-dist/learning-hub.1.js',
+        },
+      }),
+    );
+    assert.deepEqual(await readExpectedPublicAssets({ manifestUrl: pathToFileURL(manifestPath) }), [
+      '/assets-dist/main.1.css',
+      '/assets-dist/app.1.js',
+    ]);
   });
 });

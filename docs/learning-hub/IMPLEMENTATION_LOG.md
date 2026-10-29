@@ -235,3 +235,18 @@ Code review (code-reviewer agent): one high, four medium, one low. Fixed:
   `npm run production:check -- https://hellodeploy.online --expected-sha <merged-sha>`, then
   enable the blog per `BLOCKERS_AND_HANDOFF.md`.
 - Tokens: about 600K across all phases (estimate; not measured).
+
+## 2026-10-29 — Phase 8 released to production
+
+- Owner marked PR #165 ready and squash-merged it at 14:58 UTC as
+  `3309c51d2c4b5c62016446d612dc4d422d70ef72`. Main CI and CodeQL passed on it.
+- Autodeploy ran `upgrade.sh` at 23:08 host time: backup
+  `/var/backups/hellodeploy/20261029_230800`, installation verification all pass, deployment
+  queue resumed. Previous commit (rollback reference): `2b54d220344bcbaed94e08b8468480883651b3af`.
+- `npm run production:check -- https://hellodeploy.online --expected-sha 3309c51…` passed 11 of
+  12 checks. `frontend-release` failed because the check expected every manifest asset in the
+  homepage HTML, and the Learning Hub bundles load only on `/blog` pages. Both bundles return 200. The check now skips page-scoped bundles (follow-up PR); with that change all 12 pass.
+- Live probes: `/`, `/privacy`, `/cookies`, `/sitemap.xml`, `/health` return 200; `/blog`
+  returns 404 as intended (flags off); `/dashboard` redirects (302) to sign-in.
+- The tracker had not been updated for Phases 1–8 before the merge; corrected in the same
+  follow-up.

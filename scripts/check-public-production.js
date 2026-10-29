@@ -8,6 +8,8 @@ const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=lax'];
 const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
 const REQUIRED_READY_CHECKS = ['email', 'mongodb', 'queue', 'redis'];
+// Loaded only on Learning Hub pages, so the homepage never references them.
+const PAGE_SCOPED_ASSET_KEYS = new Set(['css/learning-hub.css', 'js/learning-hub.js']);
 
 function exactKeys(value, expected) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -33,14 +35,15 @@ function sessionCookieAttributes(headers) {
   return null;
 }
 
-export async function readExpectedPublicAssets() {
+export async function readExpectedPublicAssets({
+  manifestUrl = new URL('../apps/web/public/asset-manifest.json', import.meta.url),
+} = {}) {
   try {
-    const manifest = JSON.parse(
-      await readFile(new URL('../apps/web/public/asset-manifest.json', import.meta.url), 'utf8'),
-    );
-    const assets = Object.values(manifest.assets ?? {}).filter(
-      (value) => typeof value === 'string' && value.startsWith('/assets-dist/'),
-    );
+    const manifest = JSON.parse(await readFile(manifestUrl, 'utf8'));
+    const assets = Object.entries(manifest.assets ?? {})
+      .filter(([key]) => !PAGE_SCOPED_ASSET_KEYS.has(key))
+      .map(([, value]) => value)
+      .filter((value) => typeof value === 'string' && value.startsWith('/assets-dist/'));
     if (assets.length > 0) {
       return assets;
     }
