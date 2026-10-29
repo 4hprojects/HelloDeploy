@@ -6,6 +6,7 @@ import * as articleStats from '../services/learning-hub/article-stats.service.js
 const PAGE_STYLES = ['css/learning-hub.css'];
 const PAGE_SCRIPTS = ['js/learning-hub.js'];
 const HUB_TITLE = 'Learning Hub';
+const COMMENT_VIEW_PARAMS = ['commentsPage', 'thread', 'replyTo'];
 const HUB_DESCRIPTION =
   'Practical, tested guides for deploying, hosting, securing, and troubleshooting web applications.';
 
@@ -17,6 +18,7 @@ export function createBlogController({
   getRepository,
   viewsEnabled = false,
   stats = articleStats,
+  discussion = null,
 }) {
   function getIndex(req, res, next) {
     const repository = getRepository();
@@ -93,16 +95,35 @@ export function createBlogController({
     if (!article) {
       return next();
     }
+    await renderArticle(req, res, article);
+  }
+
+  /** Render an article, optionally after a failed comment submission. */
+  async function renderArticle(req, res, article, { status = 200, form } = {}) {
+    const repository = getRepository();
     const path = `/blog/${article.slug}`;
     const canonicalUrl = absoluteUrl(path);
-    const viewCount = viewsEnabled ? await stats.getArticleViewCount(article.id) : null;
+    const [viewCount, comments] = await Promise.all([
+      viewsEnabled ? stats.getArticleViewCount(article.id) : null,
+      discussion
+        ? discussion.load(article, {
+            page: req.query.commentsPage,
+            thread: req.query.thread,
+            replyTo: form?.replyTo ?? req.query.replyTo,
+            form,
+          })
+        : { availability: { visible: false, accepting: false } },
+    ]);
 
-    res.render('pages/blog/article', {
+    res.status(status).render('pages/blog/article', {
       title: article.seo.title ?? article.title,
       pageMetadata: pageMetadata({
         path,
         description: article.seo.description ?? article.description,
-        robots: 'index,follow',
+        // Comment pagination and reply links are views of the same article.
+        robots: COMMENT_VIEW_PARAMS.some((param) => param in req.query)
+          ? 'noindex,follow'
+          : 'index,follow',
         imageUrl: article.socialImage ? absoluteUrl(article.socialImage) : undefined,
         ogType: 'article',
         publishedTime: article.publishedAt.toISOString(),
@@ -115,6 +136,7 @@ export function createBlogController({
       shareLinks: shareLinks(canonicalUrl, article.title),
       viewsEnabled,
       viewCount,
+      comments,
       related: repository.getRelated(article).map((item) => present(repository, item)),
     });
   }
@@ -149,7 +171,7 @@ export function createBlogController({
     res.status(202).json({ recorded: result.recorded });
   }
 
-  return { getIndex, getCategory, getArticle, postView, postShare };
+  return { getIndex, getCategory, getArticle, renderArticle, postView, postShare };
 }
 
 /** Share targets built from the canonical URL; each is a plain link that works without JavaScript. */

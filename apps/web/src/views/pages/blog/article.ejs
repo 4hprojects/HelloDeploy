@@ -83,4 +83,6 @@
     <div class="hub-grid"><% related.forEach((item) => { %><%- include('../../partials/blog/article-card', { article: item }) %><% }) %></div>
   </section>
   <% } %>
+
+  <% if (comments.availability.visible) { %><%- include('../../partials/blog/comments', { comments, article }) %><% } %>
 </div>

@@ -215,3 +215,35 @@ export const articleShareLimiter = rateLimit({
   store: makeStore('article-share'),
   handler: onLimitReached,
 });
+
+/** Guest comment submissions: a short burst limit and an hourly ceiling. */
+export const commentBurstLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 3,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('comment-burst'),
+  handler: onLimitReached,
+});
+
+export const commentHourlyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('comment-hourly'),
+  handler: onLimitReached,
+});
+
+/** Comment reports. */
+export const commentReportLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('comment-report'),
+  handler: onLimitReached,
+});

@@ -235,6 +235,11 @@ export const env = {
   LEARNING_HUB_ENABLED: optional('LEARNING_HUB_ENABLED', 'false') === 'true',
   // Counts and shows approximate article views; needs the hub enabled.
   LEARNING_HUB_VIEWS_ENABLED: optional('LEARNING_HUB_VIEWS_ENABLED', 'false') === 'true',
+  // Guest comments. Submissions also need Turnstile, a moderation provider, the
+  // admin switch, and the article's own commentsEnabled; any missing one keeps them closed.
+  LEARNING_HUB_COMMENTS_ENABLED: optional('LEARNING_HUB_COMMENTS_ENABLED', 'false') === 'true',
+  LEARNING_HUB_MODERATION_PROVIDER: optional('LEARNING_HUB_MODERATION_PROVIDER', 'none'),
+  OPENAI_MODERATION_API_KEY: optional('OPENAI_MODERATION_API_KEY', ''),
 
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',

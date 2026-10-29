@@ -243,6 +243,57 @@ const { createContentRepository } =
 const learningHubRepository = createContentRepository({
   directory: fileURLToPath(new URL('../tests/fixtures/learning-hub/articles', import.meta.url)),
 });
+const { ArticleComment } = await import('@hellodeploy/database');
+const { createCommentsRuntime } =
+  await import('../apps/web/src/services/learning-hub/comments-runtime.js');
+const { createModerator } = await import('../apps/web/src/services/learning-hub/moderation.js');
+const { createFakeRedis } = await import('../tests/learning-hub/fake-redis.js');
+// Synthetic comment protections: the fixture cannot reach Cloudflare or a
+// moderation provider, so both are stubbed to pass. Nothing here is evidence
+// that the real providers work.
+const learningHubComments = createCommentsRuntime({
+  featureEnabled: true,
+  turnstileSiteKey: 'fixture-site-key',
+  turnstileSecretKey: 'fixture-secret-placeholder',
+  verifyTurnstile: async () => ({ valid: true, reason: 'valid' }),
+  moderator: createModerator({
+    provider: 'injected',
+    classify: async () => ({ decision: 'safe', categories: [] }),
+  }),
+  getRedis: (() => {
+    const redis = createFakeRedis();
+    return () => redis;
+  })(),
+  getSettings: async () => ({ submissionsPaused: false, pausedArticleIds: [], readable: true }),
+  expectedHostname: '127.0.0.1',
+});
+const fixtureRoot = await ArticleComment.create({
+  articleId: 'fixture-long',
+  displayName: 'Fixture reader',
+  body: 'A synthetic top-level comment.\nIt has two lines.',
+  status: 'published',
+  createdAt: new Date('2026-10-21T00:00:00Z'),
+});
+const fixtureReply = await ArticleComment.create({
+  articleId: 'fixture-long',
+  parentId: fixtureRoot._id,
+  replyToCommentId: fixtureRoot._id,
+  displayName: 'HelloDeploy team',
+  authorType: 'staff',
+  body: 'A synthetic staff reply.',
+  status: 'published',
+  createdAt: new Date('2026-10-21T01:00:00Z'),
+});
+await ArticleComment.create({
+  articleId: 'fixture-long',
+  parentId: fixtureRoot._id,
+  replyToCommentId: fixtureReply._id,
+  replyToDisplayName: 'HelloDeploy team',
+  displayName: 'Second reader',
+  body: 'A synthetic reply to the staff reply.',
+  status: 'published',
+  createdAt: new Date('2026-10-21T02:00:00Z'),
+});
 const { default: compression } = await import('compression');
 const { default: express } = await import('express');
 // Production responses are compressed at the Cloudflare edge; without the same
@@ -256,7 +307,12 @@ app.use(
       ready: true,
       checks: { database: 'ok', queue: 'ok', worker: 'ok' },
     }),
-    learningHub: { enabled: true, viewsEnabled: true, getRepository: () => learningHubRepository },
+    learningHub: {
+      enabled: true,
+      viewsEnabled: true,
+      getRepository: () => learningHubRepository,
+      comments: learningHubComments,
+    },
   }),
 );
 const server = app.listen(Number(process.env.PORT), process.env.HOST, () => {

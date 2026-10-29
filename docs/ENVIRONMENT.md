@@ -150,6 +150,18 @@ With the flag on, a submission that passes every readiness check and has no appl
 
 With the flag on, the web process also checks the queue every minute. A request nobody has reviewed within 30 minutes is approved **provisionally**, as long as its repository and settings still match the submission. The project goes live with a project quota override of 256 MB memory, 0.25 CPU and no custom domains, and stays in the approval queue until an admin confirms it (the override is removed) or suspends it (the container is stopped). Provisional approvals write a `project.provisionally_approved` audit event. Admins are emailed when a project enters the queue, whether or not the flag is on.
 
+## Learning Hub (web)
+
+| Variable                           | Required (prod)          | Default | Purpose                                                                                                 |
+| ---------------------------------- | ------------------------ | ------- | ------------------------------------------------------------------------------------------------------- |
+| `LEARNING_HUB_ENABLED`             | no                       | `false` | Serves the public blog at `/blog`; off answers 404                                                      |
+| `LEARNING_HUB_VIEWS_ENABLED`       | no                       | `false` | Counts and shows approximate article views (Redis dedup, 30 minutes)                                    |
+| `LEARNING_HUB_COMMENTS_ENABLED`    | no                       | `false` | Shows article discussions; submissions need every safeguard below too                                   |
+| `LEARNING_HUB_MODERATION_PROVIDER` | no                       | `none`  | `none` refuses all comment submissions; `openai-moderation` uses the provider below                     |
+| `OPENAI_MODERATION_API_KEY`        | with `openai-moderation` | empty   | Key for the moderation endpoint; sends comment text to OpenAI, so it needs the owner's privacy approval |
+
+Guest comments accept submissions only when `LEARNING_HUB_COMMENTS_ENABLED=true`, both `TURNSTILE_*` keys are set (production only), a moderation provider is configured, the article has `commentsEnabled: true`, and the administrator has not paused comments at `/admin/learning-hub`. Missing any one keeps submissions closed while published comments stay readable. See [learning-hub/OPERATIONS.md](learning-hub/OPERATIONS.md).
+
 ## Email / notifications
 
 Resend is optional. In production, when the complete email group or its Redis-backed notification queue is unavailable, password signup, verification resend, and password recovery return a clear service-unavailable response without creating replacement credentials. Google authentication and existing sessions remain available. Deployment mail remains non-blocking and its operational outcome is recorded on the durable notification record and in safe audit metadata.

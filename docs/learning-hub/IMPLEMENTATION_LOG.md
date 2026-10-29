@@ -82,3 +82,59 @@ linkedin,x,copy,native}`), exported from `@hellodeploy/database`. Additive colle
 - Resource: one small document per article; Redis keys expire after 30 minutes, at most one per
   article per session.
 - Tokens: about 55K (estimate).
+
+## 2026-10-29 — Phase 4 comments core
+
+- `ArticleComment` model (`article_comments`): root `parentId`, actual `replyToCommentId` and
+  name snapshot, statuses `published | rejected | hidden | removed`, moderation metadata,
+  report counters, unique partial `idempotencyKey`, TTL on `purgeAt` (set only for rejected).
+- `comment.service.js`: oldest-first threads, 10 roots per page, 20 visible replies per thread
+  with a "show more" link, hidden roots hide their whole thread, counts include only visible
+  comments; reply resolution enforces same article, published target, published root, and
+  stores replies to replies under the root (one visual level) with the real target kept.
+- `comment-input.js`: NFKC, control/bidi/invisible-character stripping, name 2–60, body
+  10–2,000, object-id-only reply ids, required submission key.
+- Routes `POST /blog/:slug/comments` and `/blog/:slug/comments/:commentId/report`; the open
+  check runs before limiters and protections, so a closed discussion answers 503 to any POST.
+- Templates `partials/blog/{comments,comment,comment-form}.ejs`; plain-text rendering with
+  escaping and `white-space: pre-line`; failed submissions re-render with the text kept and the
+  error focused; JS keeps a session-storage draft.
+- Tests: `comment-threads.test.js` 28 pass; `comment-routes.test.js` 20 pass (closed/disabled
+  503, nothing stored, CSRF, publish redirect, reply, revision keeps text, 4th post 429,
+  escaping, one visual level, pause keeps comments readable, report, admin anonymous refused).
+
+## 2026-10-29 — Phase 5 moderation, reporting, enforcement
+
+- `verifyTurnstileStrict` (new; sign-in verifier unchanged): fails closed without a secret,
+  checks action and hostname, maps `timeout-or-duplicate` to replay.
+- `comment-heuristics.js`, `moderation.js` (`none`, `openai-moderation`, test-only `injected`;
+  5 s timeout; errors and timeouts become `unavailable`), `comment-pipeline.js` (ordered gate,
+  idempotent replay, 24 h duplicate fingerprints, rejection-spike log at 30 per hour, rejected
+  bodies purged after 7 days).
+- `ArticleCommentReport` (`article_comment_reports`, one per reader per comment, 90-day TTL);
+  reports re-run moderation and only an `unsafe` verdict hides.
+- Admin page `/admin/learning-hub` (any admin): pause all / per article (audited
+  `admin.learning_hub_comments_paused|resumed`), hide/remove/restore (audited
+  `admin.learning_hub_comment_*`), content validation errors shown.
+- `PlatformSetting` key `learningHubComments`; unreadable setting ⇒ paused.
+- Tests: `comment-protection.test.js` 67 pass: missing, replayed, wrong-action, wrong-host,
+  unreachable Turnstile; Redis down; provider none, timeout, throw; outage then resubmit;
+  unsafe rejected and purge-scheduled; uncertain asks for revision; no rule disclosure; replay
+  and 5 concurrent retries publish once; duplicate text; cross-article reply; staff reply;
+  links, bare and "(dot)" domains, Cyrillic lookalikes, zero-width splits, emails (plain and
+  obfuscated), PH and international phones, promotion spam, link in name; harsh criticism,
+  Filipino troubleshooting, error logs, localhost URL, file names, quoted HTML all publish;
+  OpenAI adapter mapping; 30 concurrent reports cannot hide an innocent comment; one report per
+  reader; unsafe re-check hides; admin restore/remove; rejected cannot be restored;
+  availability for each missing safeguard; unreadable settings close submissions.
+  `admin-view.test.js` 5 pass. Playwright 39 pass (adds comment axe coverage, one visual
+  level, reply context, staff badge, keyboard report panel, publish in place, refused text
+  kept).
+- Found and fixed by the suite: `http://localhost:3000` was refused as a link.
+- Regression: `tests/security`, `tests/ui`, `tests/admin`, `tests/config`, production check
+  → 798 pass after updating `tests/security/rate-limit.test.js` (fail-closed limiter count 8 →
+  13 for the five new limiters).
+- **Not verified, by design:** real Cloudflare Siteverify and any real moderation provider.
+  The harsh-criticism and Filipino cases prove the rules do not block them; whether a real
+  provider classifies Filipino abuse correctly is untested. Guest comments stay off.
+- Tokens: about 150K for Phases 4–5 (estimate).

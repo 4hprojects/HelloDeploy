@@ -597,3 +597,174 @@
 .hub [hidden] {
   display: none;
 }
+
+/* ── Discussion ────────────────────────────────────────────────── */
+
+.hub-discussion {
+  max-width: var(--hub-measure);
+}
+
+.hub-discussion__count {
+  color: var(--color-text-on-muted);
+  font-weight: var(--font-normal);
+}
+
+.hub-discussion__policy {
+  color: var(--color-text-on-muted);
+  font-size: var(--text-sm);
+}
+
+.hub-discussion__policy a {
+  color: var(--color-link);
+}
+
+.hub-threads {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.hub-thread {
+  display: grid;
+  gap: var(--space-3);
+}
+
+/* One visual level only: every reply in a thread sits at the same indent. */
+.hub-replies {
+  display: grid;
+  gap: var(--space-3);
+  padding-left: var(--space-4);
+  border-left: 2px solid var(--color-border);
+}
+
+@media (min-width: 40rem) {
+  .hub-replies {
+    padding-left: var(--space-8);
+  }
+}
+
+.hub-comment {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-bg);
+}
+
+.hub-comment--staff {
+  border-color: var(--color-link);
+}
+
+.hub-comment__header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+}
+
+.hub-comment__author {
+  font-weight: var(--font-semibold);
+  overflow-wrap: anywhere;
+}
+
+.hub-comment__badge {
+  padding: 0 var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-info-bg);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.hub-comment__date,
+.hub-comment__context {
+  color: var(--color-text-on-muted);
+  font-size: var(--text-sm);
+}
+
+.hub-comment__context a,
+.hub-thread__more,
+.hub-comment-form__context a {
+  color: var(--color-link);
+}
+
+.hub-comment__body {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.hub-comment__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.hub-comment__action {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--color-link);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.hub-report {
+  flex-basis: 100%;
+}
+
+.hub-report__form {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+}
+
+.hub-report__form fieldset {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.hub-report__form legend {
+  margin-bottom: var(--space-2);
+  font-weight: var(--font-medium);
+}
+
+.hub-report__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.hub-comment-form {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-xl);
+  background: var(--color-bg-subtle);
+}
+
+.hub-comment-form__title {
+  font-size: var(--text-lg);
+}
+
+.hub-comment-form .button {
+  justify-self: start;
+  min-height: 44px;
+}
+
+/* ── Admin moderation page ─────────────────────────────────────── */
+
+.hub-check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+}
+
+.hub-admin-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

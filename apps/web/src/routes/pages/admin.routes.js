@@ -50,6 +50,11 @@ import {
   postBuilderStop,
   requireBuilderControl,
 } from '../../controllers/builder-control.controller.js';
+import {
+  getAdminLearningHub,
+  postAdminCommentAction,
+  postAdminCommentSettings,
+} from '../../controllers/learning-hub-admin.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 
 const router = Router();
@@ -68,13 +73,14 @@ router.get(
     '/server',
     '/ux-metrics',
     '/builder',
+    '/learning-hub',
     '/audit-events',
     '/quotas/:scopeType/:scopeId',
   ],
   loadAdminPendingCounts,
 );
 
-for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId']) {
+for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId', 'commentId']) {
   router.param(param, validateObjectId);
 }
 
@@ -132,6 +138,15 @@ router.post(
   postBuilderEmergencyStop,
 );
 router.post('/builder/settings', requireBuilderControl, requireSuperAdmin, postBuilderSettings);
+
+// Learning Hub moderation. Any administrator can hide, remove, or restore a
+// comment and pause submissions: abuse response must not wait for a super admin.
+router.get('/learning-hub', getAdminLearningHub);
+router.post('/learning-hub/settings', postAdminCommentSettings);
+router.post(
+  '/learning-hub/comments/:commentId/:action(hide|remove|restore)',
+  postAdminCommentAction,
+);
 
 router.get('/audit-events', getAdminAuditEvents);
 router.get('/audit-events/export', getAdminAuditExport);

@@ -143,6 +143,18 @@
         </a>
       </li>
       <% } %>
+      <% if (locals.learningHubEnabled) { %>
+      <li>
+        <a
+          href="/admin/learning-hub"
+          class="sidebar__link"
+          <%- _path.startsWith('/admin/learning-hub') ? 'aria-current="page"' : '' %>
+        >
+          <%- include('icon', { name: 'audit', className: 'sidebar__icon' }) %>
+          <span>Learning Hub</span>
+        </a>
+      </li>
+      <% } %>
       <li>
         <a
           href="/admin/ux-metrics"

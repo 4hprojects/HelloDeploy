@@ -6,6 +6,12 @@ const ARTICLE = '/blog/fixture-long-article';
 const PAGES = ['/blog', ARTICLE, '/blog/category/deployment-guides'];
 const WIDTHS = [320, 375, 768, 1024, 1440];
 
+// The fixture cannot reach Cloudflare; the widget script is blocked so tests
+// never depend on the network. The server-side check is stubbed in the fixture.
+test.beforeEach(async ({ page }) => {
+  await page.route('https://challenges.cloudflare.com/**', (route) => route.abort());
+});
+
 for (const path of PAGES) {
   for (const width of WIDTHS) {
     test(`${path} has no page-level horizontal overflow at ${width}px`, async ({ page }) => {
@@ -122,4 +128,51 @@ test('article sends one view beacon after it is shown', async ({ page }) => {
   const beacon = page.waitForResponse((res) => res.url().endsWith('/view'));
   await page.goto(ARTICLE);
   expect((await beacon).status()).toBe(202);
+});
+
+test('a reply to a reply stays at the first reply level with its context', async ({ page }) => {
+  await page.goto(ARTICLE);
+  const nested = page.locator('.hub-replies .hub-replies');
+  await expect(nested).toHaveCount(0);
+});
+
+test('shows who a nested reply answers', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await expect(page.getByRole('link', { name: 'Replying to @HelloDeploy team' })).toBeVisible();
+});
+
+test('marks staff replies with a team badge', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await expect(page.locator('.hub-comment__badge')).toHaveText('HelloDeploy team');
+});
+
+test('report panel opens from the keyboard', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await page.getByText('Report comment by Fixture reader').focus();
+  await page.keyboard.press('Enter');
+  await expect(
+    page.getByRole('group', { name: 'Why are you reporting this comment?' }).first(),
+  ).toBeVisible();
+});
+
+test('a guest comment publishes and is shown in place', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await page.getByLabel('Display name').fill('Browser reader');
+  await page.getByLabel('Comment', { exact: true }).fill('Posted from the browser test suite.');
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await expect(
+    page.locator('.hub-comment__body', { hasText: 'Posted from the browser test suite.' }),
+  ).toBeVisible();
+});
+
+test('a refused comment keeps the text and announces the error', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await page.getByLabel('Display name').fill('Browser reader');
+  await page
+    .getByLabel('Comment', { exact: true })
+    .fill('Read more at https://spam.example today.');
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await expect(page.getByLabel('Comment', { exact: true })).toHaveValue(
+    'Read more at https://spam.example today.',
+  );
 });

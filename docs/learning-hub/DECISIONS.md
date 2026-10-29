@@ -39,3 +39,33 @@ under-count. Readers without JavaScript are not counted.
 Provider `none` is the default and always reports unavailable, so no comment can publish. An
 `openai-moderation` adapter (free endpoint) is included but needs an API key and owner privacy
 approval before use. A timeout or error never publishes.
+
+## D7 — Comment rate limits reuse express-rate-limit (2026-10-29)
+
+`commentBurstLimiter` (3 / 10 min) and `commentHourlyLimiter` (10 / h) use the existing Redis
+store with `passOnStoreError: false`, so a Redis failure refuses submissions in production.
+They key on the client address as every other limiter does; the key expires with the window.
+
+## D8 — Rule screening before the provider (2026-10-29)
+
+Deterministic checks (links, contact details, promotion pairs, character floods) run first, after
+folding Cyrillic/Greek lookalikes and removing invisible characters. They protect provider quota
+and catch what classifiers miss. Local addresses (`localhost`, `127.0.0.1`) and file names such
+as `server.js` are allowed so error logs can be pasted. These rules are not a substitute for the
+contextual provider and are not claimed to catch everything.
+
+## D9 — Staff replies skip guest screening (2026-10-29)
+
+Signed-in administrators reply without Turnstile or provider screening and carry a
+"HelloDeploy team" badge. They are authenticated, audited platform operators.
+
+## D10 — Phases 4 and 5 committed together (2026-10-29)
+
+The comment route, its gate, and the protection pipeline are one unit: a Phase 4-only route
+would have had no safe publish path. Both phases are recorded separately in the log.
+
+## D11 — Comments readable independently of submissions (2026-10-29)
+
+The discussion shows when the feature flag and article opt-in are on. The admin pause, a missing
+Turnstile key, or a missing provider closes only submissions, so an emergency stop never hides
+already published discussion. Reports stay open while submissions are paused.

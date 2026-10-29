@@ -11,6 +11,8 @@
   addCopyButtons();
   enhanceShareRows();
   recordViewWhenVisible();
+  enhanceCommentForm();
+  renderVerificationWidgets();
 
   function createStatusRegion() {
     const region = document.createElement('p');
@@ -155,6 +157,90 @@
         }
       });
     });
+  }
+
+  function enhanceCommentForm() {
+    const form = document.querySelector('[data-comment-form]');
+    if (!form) {
+      return;
+    }
+    const error = form.querySelector('[data-form-error]');
+    if (error) {
+      error.focus();
+    }
+    const body = form.querySelector('textarea[name="body"]');
+    const key = form.getAttribute('data-draft-key');
+    const storage = safeSessionStorage();
+    if (!storage || !body) {
+      return;
+    }
+    // A redirect to a new comment's anchor means the last draft was published.
+    if (/^#comment-[a-f0-9]{24}$/.test(window.location.hash)) {
+      storage.removeItem(key);
+    } else if (!body.value && storage.getItem(key)) {
+      body.value = storage.getItem(key);
+    }
+    body.addEventListener('input', () => {
+      storage.setItem(key, body.value);
+    });
+  }
+
+  function safeSessionStorage() {
+    try {
+      const storage = window.sessionStorage;
+      storage.setItem('lh-probe', '1');
+      storage.removeItem('lh-probe');
+      return storage;
+    } catch {
+      return null;
+    }
+  }
+
+  // Turnstile renders explicitly: the comment form's widget on load, each
+  // report form's widget only when that report panel is opened.
+  function renderVerificationWidgets() {
+    const widgets = document.querySelectorAll('[data-turnstile]');
+    if (widgets.length === 0) {
+      return;
+    }
+    whenTurnstileReady((turnstile) => {
+      const render = (element) => {
+        if (element.hasAttribute('data-rendered')) {
+          return;
+        }
+        element.setAttribute('data-rendered', '');
+        turnstile.render(element, {
+          sitekey: element.getAttribute('data-sitekey'),
+          action: element.getAttribute('data-action'),
+          size: 'flexible',
+          theme: 'auto',
+        });
+      };
+      Array.prototype.forEach.call(widgets, (element) => {
+        if (element.hasAttribute('data-turnstile-eager')) {
+          render(element);
+          return;
+        }
+        const panel = element.closest('details');
+        if (panel) {
+          panel.addEventListener('toggle', () => {
+            if (panel.open) {
+              render(element);
+            }
+          });
+        }
+      });
+    });
+  }
+
+  function whenTurnstileReady(callback, attempt = 0) {
+    if (window.turnstile) {
+      callback(window.turnstile);
+      return;
+    }
+    if (attempt < 100) {
+      window.setTimeout(() => whenTurnstileReady(callback, attempt + 1), 100);
+    }
   }
 
   function copyText(text) {

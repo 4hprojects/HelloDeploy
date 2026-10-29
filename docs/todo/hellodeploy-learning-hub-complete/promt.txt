@@ -1,0 +1,35 @@
+Continue implementing HelloDeploy Learning Hub using the existing implementation documentation.
+
+Read `CLAUDE_CODE_AUTONOMOUS_CONTINUATION.md` and treat it as the latest instruction for implementation authority, phase progression, and production deployment.
+
+You are authorized to complete Phases 0–8 continuously without requesting approval between phases.
+
+For every phase:
+
+1. Analyze the existing implementation and requirements.
+2. Select the best technical approach independently.
+3. Implement the required functionality.
+4. Run relevant tests and fix identified issues.
+5. Update the phase tracker, implementation logs, and technical decisions.
+6. Commit completed changes and push to the development branch.
+7. Continue automatically to the next phase.
+
+Do not stop for routine technical decisions. Evaluate alternatives and choose the safest, most maintainable solution that satisfies our requirements.
+
+You are authorized to deploy the completed Learning Hub to production after all required tests, security checks, backups, and release gates pass.
+
+Preserve existing HelloDeploy functionality and production data.
+
+Guest comments must not be enabled until Cloudflare Turnstile, spam detection, abuse moderation, reporting, and emergency controls have passed verification.
+
+Keep AdSense advertising disabled until the site is approved and I separately authorize activation.
+
+Do not introduce paid services, destructive changes, or unverified production changes.
+
+If an essential external permission or safety requirement blocks deployment, complete all remaining independent work, document the blocker, and leave a verified release ready for deployment.
+
+Provide phase completion reports without interrupting implementation.
+
+At the end, provide a comprehensive report covering completed features, tests, resource usage, deployment status, production verification, outstanding issues, and rollback information.
+
+Proceed from the current implementation state without repeating verified work.

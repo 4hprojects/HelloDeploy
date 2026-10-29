@@ -11,7 +11,7 @@ featured: true
 publishedAt: '2026-10-20'
 updatedAt: '2026-10-25'
 difficulty: beginner
-commentsEnabled: false
+commentsEnabled: true
 references:
   - title: Node.js documentation
     url: https://nodejs.org/docs/latest/api/
