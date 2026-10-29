@@ -11,7 +11,7 @@ const { createModerator } = await import('../../apps/web/src/services/learning-h
 const { verifyTurnstileStrict } = await import('../../apps/web/src/services/turnstile.service.js');
 const { reportComment, changeCommentStatus } =
   await import('../../apps/web/src/services/learning-hub/comment-moderation.service.js');
-const { evaluateCommentAvailability, getCommentSettings } =
+const { evaluateCommentAvailability, getCommentSettings, resetCommentSettingsCache } =
   await import('../../apps/web/src/services/learning-hub/comment-settings.service.js');
 const { screenComment } =
   await import('../../apps/web/src/services/learning-hub/comment-heuristics.js');
@@ -37,12 +37,34 @@ function pipelineWith({
   verifyTurnstile = passTurnstile,
   moderator = safeModerator,
   redis = createFakeRedis(),
+  Comment = ArticleComment,
 } = {}) {
   return createCommentPipeline({
     verifyTurnstile,
     moderator,
     getRedis: () => redis,
     expectedHostname: 'hellodeploy.test',
+    Comment,
+  });
+}
+
+// ArticleComment with a create() that fails the first time, like a database blip.
+function flakyComment() {
+  let failures = 1;
+  return new Proxy(ArticleComment, {
+    get(target, property) {
+      if (property === 'create') {
+        return async (document) => {
+          if (failures > 0) {
+            failures -= 1;
+            throw new Error('connection reset');
+          }
+          return target.create(document);
+        };
+      }
+      const value = Reflect.get(target, property);
+      return typeof value === 'function' ? value.bind(target) : value;
+    },
   });
 }
 
@@ -259,6 +281,31 @@ describe('Comment pipeline', () => {
     const key = submissionKey();
     await Promise.all(Array.from({ length: 5 }, () => submit(pipeline, { submissionKey: key })));
     assert.equal(await storedCount(), 1);
+  });
+
+  it('answers 503 instead of failing when the comment cannot be saved', async () => {
+    const result = await submit(pipelineWith({ Comment: flakyComment() }));
+    assert.equal(result.status, 503);
+  });
+
+  it('publishes a retry of the same text after a failed save', async () => {
+    const redis = createFakeRedis();
+    const pipeline = pipelineWith({ redis, Comment: flakyComment() });
+    const body = 'Retrying after the database hiccup, thanks.';
+    await submit(pipeline, { body });
+    const result = await submit(pipeline, { body });
+    assert.equal(result.outcome, 'published');
+  });
+
+  it('replays the original comment when an old submission key is reused after expiry', async () => {
+    const key = submissionKey();
+    await submit(pipelineWith(), { submissionKey: key });
+    // A fresh Redis has forgotten the key; Mongo still holds it.
+    const result = await submit(pipelineWith(), {
+      submissionKey: key,
+      body: 'Different text under the same old form.',
+    });
+    assert.deepEqual([result.outcome, await storedCount()], ['published', 1]);
   });
 
   it('rejects the same text posted again under a new submission', async () => {
@@ -532,7 +579,9 @@ describe('Comment availability', () => {
         },
       }),
     };
-    const settings = await getCommentSettings({ Setting: broken, now: () => 10 ** 13 });
+    resetCommentSettingsCache();
+    const settings = await getCommentSettings({ Setting: broken });
+    resetCommentSettingsCache();
     assert.equal(settings.submissionsPaused, true);
   });
 });

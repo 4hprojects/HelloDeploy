@@ -32,7 +32,10 @@ export async function getCommentSettings({ Setting = PlatformSetting, now = Date
     logger.error('[learning-hub] Comment settings unreadable; submissions closed', {
       error: error.message,
     });
-    return { submissionsPaused: true, pausedArticleIds: [], readable: false };
+    // Cache the closed result too, so an outage costs one slow read per TTL.
+    cached = { submissionsPaused: true, pausedArticleIds: [], readable: false };
+    cachedAt = now();
+    return cached;
   }
 }
 

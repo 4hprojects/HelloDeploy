@@ -20,13 +20,16 @@ export function isLikelyAutomatedAgent(userAgent) {
 }
 
 /**
- * Count one view of a published article unless the same browser session
- * already counted it within the last 30 minutes. Never throws: reading must
- * not depend on the counter. When deduplication is unavailable the view is
- * not counted, so failures can only under-count.
+ * Count one view of a published article unless the same browser session, or
+ * the same network address, already counted it within the last 30 minutes.
+ * The address check stops a script from minting a fresh session per view; it
+ * also means readers sharing one address (an office, a carrier NAT) count
+ * once per window, so the total under-counts rather than over-counts.
+ * Never throws: reading must not depend on the counter. When deduplication
+ * is unavailable the view is not counted.
  */
 export async function recordArticleView(
-  { articleId, sessionId, userAgent },
+  { articleId, sessionId, sourceIp, userAgent },
   { redis = getRedisConnection(), Stat = ArticleStat, secret = env.SESSION_SECRET } = {},
 ) {
   if (isLikelyAutomatedAgent(userAgent)) {
@@ -36,19 +39,24 @@ export async function recordArticleView(
     return { counted: false, reason: 'dedup_unavailable' };
   }
 
-  // The session id is hashed so Redis never holds a usable session identifier.
-  const visitor = createHmac('sha256', secret).update(sessionId).digest('hex').slice(0, 32);
-  const key = `lh:view:${articleId}:${visitor}`;
+  // Identifiers are hashed so Redis never holds a usable session id or a raw address.
+  const hash = (value) => createHmac('sha256', secret).update(value).digest('hex').slice(0, 32);
+  const keys = [`lh:view:${articleId}:${hash(sessionId)}`];
+  if (sourceIp) {
+    keys.push(`lh:view-addr:${articleId}:${hash(`addr:${sourceIp}`)}`);
+  }
 
-  let reserved;
+  const reserved = [];
   try {
-    reserved = (await redis.set(key, '1', 'EX', VIEW_DEDUP_SECONDS, 'NX')) === 'OK';
+    for (const candidate of keys) {
+      if ((await redis.set(candidate, '1', 'EX', VIEW_DEDUP_SECONDS, 'NX')) !== 'OK') {
+        return { counted: false, reason: 'duplicate' };
+      }
+      reserved.push(candidate);
+    }
   } catch (error) {
     logger.warn('[learning-hub] View dedup unavailable', { code: error.code ?? error.name });
     return { counted: false, reason: 'dedup_unavailable' };
-  }
-  if (!reserved) {
-    return { counted: false, reason: 'duplicate' };
   }
 
   try {
@@ -56,12 +64,16 @@ export async function recordArticleView(
     return { counted: true, reason: 'counted' };
   } catch (error) {
     logger.warn('[learning-hub] View increment failed', { articleId, error: error.message });
-    // Release the reservation so a later view in the window can still count.
-    await redis.del(key).catch((releaseError) => {
-      logger.warn('[learning-hub] View reservation not released', {
-        code: releaseError.code ?? releaseError.name,
-      });
-    });
+    // Release the reservations so a later view in the window can still count.
+    await Promise.all(
+      reserved.map((key) =>
+        redis.del(key).catch((releaseError) => {
+          logger.warn('[learning-hub] View reservation not released', {
+            code: releaseError.code ?? releaseError.name,
+          });
+        }),
+      ),
+    );
     return { counted: false, reason: 'store_unavailable' };
   }
 }

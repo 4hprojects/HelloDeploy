@@ -12,8 +12,14 @@ const BROWSER = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/130 S
 // Assembled so the placeholder never reads as a literal credential.
 const HMAC_KEY = ['article', 'stats', 'test', 'key'].join('-');
 
-function view(redis, { articleId = 'a1', sessionId = 's1', userAgent = BROWSER } = {}) {
-  return recordArticleView({ articleId, sessionId, userAgent }, { redis, secret: HMAC_KEY });
+function view(
+  redis,
+  { articleId = 'a1', sessionId = 's1', sourceIp = undefined, userAgent = BROWSER } = {},
+) {
+  return recordArticleView(
+    { articleId, sessionId, sourceIp, userAgent },
+    { redis, secret: HMAC_KEY },
+  );
 }
 
 async function viewsOf(articleId) {
@@ -156,5 +162,42 @@ describe('Learning Hub article stats', () => {
   it('refuses an unknown share platform', async () => {
     const result = await recordShareClick({ articleId: 'a1', platform: '__proto__' });
     assert.equal(result.reason, 'unknown_platform');
+  });
+
+  it('counts fresh sessions from one address only once per window', async () => {
+    const redis = createFakeRedis();
+    await Promise.all(
+      Array.from({ length: 10 }, (_, i) =>
+        view(redis, { sessionId: `minted-${i}`, sourceIp: '203.0.113.7' }),
+      ),
+    );
+    assert.equal(await viewsOf('a1'), 1);
+  });
+
+  it('counts readers on different addresses separately', async () => {
+    const redis = createFakeRedis();
+    await view(redis, { sessionId: 's1', sourceIp: '203.0.113.7' });
+    await view(redis, { sessionId: 's2', sourceIp: '198.51.100.4' });
+    assert.equal(await viewsOf('a1'), 2);
+  });
+
+  it('never stores the raw address in Redis', async () => {
+    const redis = createFakeRedis();
+    await view(redis, { sourceIp: '203.0.113.7' });
+    assert.doesNotMatch([...redis.store.keys()].join(' '), /203\.0\.113\.7/);
+  });
+
+  it('releases both reservations when the increment fails', async () => {
+    const redis = createFakeRedis();
+    const failingStat = {
+      updateOne: async () => {
+        throw new Error('write failed');
+      },
+    };
+    await recordArticleView(
+      { articleId: 'a1', sessionId: 's1', sourceIp: '203.0.113.7', userAgent: BROWSER },
+      { redis, Stat: failingStat, secret: HMAC_KEY },
+    );
+    assert.equal(redis.store.size, 0);
   });
 });

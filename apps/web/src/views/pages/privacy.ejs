@@ -46,7 +46,7 @@
 
     <h3>Learning Hub (blog) Data</h3>
     <ul>
-      <li><strong>Article views</strong> — when you open an article, a keyed hash of your session identifier is kept in our cache for 30 minutes so a reload does not count twice. Only a total per article is stored. No IP address, account, or session identifier is stored with the count.</li>
+      <li><strong>Article views</strong> — when you open an article, keyed hashes of your session identifier and of your IP address are kept in our cache for 30 minutes so a reload does not count twice. Only a total per article is stored. No IP address, account, or session identifier is stored with the count.</li>
       <li><strong>Share buttons</strong> — a click on a share or copy-link button adds one to a per-article, per-button total. We do not learn whether you finished sharing.</li>
       <li><strong>Guest comments, when enabled on an article</strong> — the display name and comment text you submit are published on the article. We do not ask for an email address or account. Each submission is checked by Cloudflare Turnstile and by automated spam and safety checks before it is published. Submissions that are refused are kept for 7 days for abuse investigation, then deleted.</li>
       <li><strong>Comment reports</strong> — the reason you choose and a keyed hash of your session identifier, so one reader counts once. Kept for 90 days.</li>

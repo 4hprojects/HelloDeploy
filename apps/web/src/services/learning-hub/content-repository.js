@@ -90,7 +90,7 @@ export function getContentRepository() {
   if (!defaultRepository) {
     defaultRepository = createContentRepository();
     for (const error of defaultRepository.errors) {
-      logger.error({ error }, 'Learning Hub article rejected');
+      logger.error('[learning-hub] Article rejected', { error });
     }
   }
   return defaultRepository;

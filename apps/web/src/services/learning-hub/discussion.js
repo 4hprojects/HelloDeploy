@@ -3,9 +3,13 @@ import { randomBytes } from 'node:crypto';
 import { logger } from '@hellodeploy/observability';
 
 import { evaluateCommentAvailability, getCommentSettings } from './comment-settings.service.js';
-import { listCommentThreads } from './comment.service.js';
+import { findPublishedComment, listCommentThreads } from './comment.service.js';
 
 const OBJECT_ID = /^[a-f0-9]{24}$/;
+// Mongoose queues queries while disconnected (10 s by default); the article
+// must not wait that long for its discussion.
+const STORE_TIMEOUT_MS = 2_000;
+const PAUSED = Object.freeze({ submissionsPaused: true, pausedArticleIds: [], readable: false });
 
 /**
  * Everything the article page needs for its discussion section, assembled so
@@ -19,6 +23,8 @@ export function createDiscussion({
   isModerationConfigured,
   getSettings = getCommentSettings,
   listThreads = listCommentThreads,
+  findComment = findPublishedComment,
+  timeoutMs = STORE_TIMEOUT_MS,
 }) {
   async function getAvailability(article) {
     if (!featureEnabled || !article.commentsEnabled) {
@@ -27,7 +33,8 @@ export function createDiscussion({
     return evaluateCommentAvailability({
       article,
       featureEnabled,
-      settings: await getSettings(),
+      // An unanswered settings read counts as paused: it must never open comments.
+      settings: await withTimeout(getSettings(), timeoutMs).catch(() => PAUSED),
       isTurnstileConfigured,
       isModerationConfigured,
     });
@@ -39,19 +46,26 @@ export function createDiscussion({
       return { availability };
     }
     try {
-      const listing = await listThreads({
-        articleId: article.id,
-        page: parsePage(page),
-        expandThreadId: OBJECT_ID.test(thread ?? '') ? thread : null,
-      });
-      const replyTarget = findComment(listing.threads, replyTo);
+      const [listing, replyTarget] = await withTimeout(
+        Promise.all([
+          listThreads({
+            articleId: article.id,
+            page: parsePage(page),
+            expandThreadId: OBJECT_ID.test(thread ?? '') ? thread : null,
+          }),
+          OBJECT_ID.test(replyTo ?? '')
+            ? findComment({ articleId: article.id, id: replyTo })
+            : null,
+        ]),
+        timeoutMs,
+      );
       return {
         availability,
         ...listing,
         turnstileSiteKey,
         canReport: Boolean(isTurnstileConfigured),
         submissionKey: randomBytes(18).toString('base64url'),
-        replyTarget,
+        replyTarget: replyTarget ?? null,
         form: form ?? { displayName: '', body: '', errors: {} },
       };
     } catch (error) {
@@ -71,18 +85,10 @@ function parsePage(value) {
   return Number.isInteger(number) && number > 0 ? number : 1;
 }
 
-function findComment(threads, id) {
-  if (!OBJECT_ID.test(id ?? '')) {
-    return null;
-  }
-  for (const thread of threads) {
-    if (thread.comment.id === id) {
-      return thread.comment;
-    }
-    const reply = thread.replies.find((item) => item.id === id);
-    if (reply) {
-      return reply;
-    }
-  }
-  return null;
+function withTimeout(promise, timeoutMs) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error('comment store timed out')), timeoutMs);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
 }

@@ -12,11 +12,11 @@
     <ol class="hub-threads" role="list">
       <% discussionState.threads.forEach((thread) => { %>
       <li class="hub-thread">
-        <%- include('comment', { comment: thread.comment, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey }) %>
+        <%- include('comment', { comment: thread.comment, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey, commentsPage: discussionState.page }) %>
         <% if (thread.replies.length > 0) { %>
         <ol class="hub-replies" role="list" aria-label="Replies to <%= thread.comment.displayName %>">
           <% thread.replies.forEach((reply) => { %>
-          <li><%- include('comment', { comment: reply, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey }) %></li>
+          <li><%- include('comment', { comment: reply, article, canReport: discussionState.canReport, turnstileSiteKey: discussionState.turnstileSiteKey, commentsPage: discussionState.page }) %></li>
           <% }) %>
         </ol>
         <% } %>

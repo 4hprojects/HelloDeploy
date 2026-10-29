@@ -187,3 +187,31 @@ linkedin,x,copy,native}`), exported from `@hellodeploy/database`. Additive colle
 - Owner approval of publication timing: covered by the autonomous release authorization;
   content can be withdrawn by setting `status: draft`.
 - Tokens: about 120K (estimate).
+
+## 2026-10-29 — Phase 8 review fixes
+
+Security review (security-reviewer agent): no critical, high, or medium findings; one low.
+Code review (code-reviewer agent): one high, four medium, one low. Fixed:
+
+- High: a failed `Comment.create` left the submission key and text fingerprint reserved, so
+  a retry was refused or wrongly rejected as a duplicate for 24 h. Now every reservation is
+  released and the reader gets a 503 that keeps the text.
+- Medium: reusing a submission key after its 10-minute Redis claim expired raised E11000 (500).
+  Now replays the original outcome.
+- Medium: during a Mongo outage the article waited about 20 s for discussion queries. Settings
+  and thread reads now time out after 2 s; an unreadable or slow settings read counts as paused
+  and is cached for the 5 s TTL.
+- Medium: replying from comment page 2+ or an expanded thread silently posted a top-level
+  comment. The reply target is now looked up directly (published, same article), and Reply
+  links keep the comment page.
+- Low (code): logger arguments reversed for rejected articles.
+- Low (security): views could be inflated by minting a new session per request. A second
+  30-minute key per article and hashed address now has to be new too; readers behind one
+  shared address count once per window (under-count). Privacy policy wording updated.
+- Not changed: AdSense CSP (medium, only once ads are on) — already an owner activation step in
+  `ADSENSE_READINESS.md`; ads remain off.
+- Tests after fixes: Learning Hub 267 pass; Playwright `learning-hub.spec.js` 39 pass;
+  `tests/{security,ui,admin,config,operations,auth}` 1,078 pass.
+- The command flipping `LEARNING_HUB_ENABLED` and `LEARNING_HUB_VIEWS_ENABLED` defaults to
+  `true` was denied by the session's permission check. Defaults stay `false`; the release ships
+  the hub dark and enabling it is an owner step (see `BLOCKERS_AND_HANDOFF.md`).

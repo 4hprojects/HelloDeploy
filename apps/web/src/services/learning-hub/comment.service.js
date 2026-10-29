@@ -62,6 +62,12 @@ export async function listCommentThreads(
   };
 }
 
+/** One published comment on an article, for the reply form, or null. */
+export async function findPublishedComment({ articleId, id }, { Comment = ArticleComment } = {}) {
+  const comment = await Comment.findOne({ _id: id, articleId, status: 'published' }).lean();
+  return comment ? present(comment) : null;
+}
+
 /** The discussion page that holds a thread, so a new comment can be shown in place. */
 export async function commentPageForThread(
   { articleId, rootId },

@@ -69,15 +69,11 @@ export function createCommentPipeline({
       return unavailable('Redis not ready');
     }
 
+    // Redis keys this submission reserved; released if the comment cannot be saved.
+    const claims = [`lh:comment:submission:${value.idempotencyKey}`];
     let claimed;
     try {
-      claimed = await redis.set(
-        `lh:comment:submission:${value.idempotencyKey}`,
-        '1',
-        'EX',
-        IDEMPOTENCY_SECONDS,
-        'NX',
-      );
+      claimed = await redis.set(claims[0], '1', 'EX', IDEMPOTENCY_SECONDS, 'NX');
     } catch (error) {
       return unavailable(error.message);
     }
@@ -93,6 +89,7 @@ export function createCommentPipeline({
       );
     } catch (error) {
       if (error instanceof CommentThreadError) {
+        await release(redis, claims);
         return { outcome: 'invalid', status: 400, errors: { replyTo: error.message } };
       }
       throw error;
@@ -112,12 +109,16 @@ export function createCommentPipeline({
 
     if (staffUser) {
       // Staff are authenticated administrators; their replies skip the guest screens.
-      return publish(base, { decision: 'staff', reasons: [], provider: 'staff' });
+      return publish(base, { decision: 'staff', reasons: [], provider: 'staff' }, claims);
     }
 
     const screen = screenComment(value);
     if (screen.decision === 'reject') {
-      return reject(base, { decision: 'rejected', reasons: [screen.reason], provider: 'rules' });
+      return reject(
+        base,
+        { decision: 'rejected', reasons: [screen.reason], provider: 'rules' },
+        claims,
+      );
     }
     if (screen.decision === 'revise') {
       await recordRejection(redis);
@@ -128,22 +129,22 @@ export function createCommentPipeline({
       };
     }
 
+    const fingerprintKey = `lh:comment:fingerprint:${article.id}:${fingerprint}`;
     let isDuplicate;
     try {
       isDuplicate =
-        (await redis.set(
-          `lh:comment:fingerprint:${article.id}:${fingerprint}`,
-          '1',
-          'EX',
-          DUPLICATE_WINDOW_SECONDS,
-          'NX',
-        )) !== 'OK';
+        (await redis.set(fingerprintKey, '1', 'EX', DUPLICATE_WINDOW_SECONDS, 'NX')) !== 'OK';
     } catch (error) {
       return unavailable(error.message);
     }
     if (isDuplicate) {
-      return reject(base, { decision: 'rejected', reasons: ['duplicate'], provider: 'rules' });
+      return reject(
+        base,
+        { decision: 'rejected', reasons: ['duplicate'], provider: 'rules' },
+        claims,
+      );
     }
+    claims.push(fingerprintKey);
 
     const moderation = await moderator.moderate(`${value.displayName}\n\n${value.body}`);
     const metadata = {
@@ -153,40 +154,75 @@ export function createCommentPipeline({
     };
     if (moderation.decision === 'unavailable') {
       // Release the fingerprint so the writer can resubmit once checks recover.
-      await redis.del(`lh:comment:fingerprint:${article.id}:${fingerprint}`).catch((error) => {
-        logger.warn('[learning-hub] Fingerprint not released', { error: error.message });
-      });
+      await release(redis, [fingerprintKey]);
       return unavailable('moderation unavailable');
     }
     if (moderation.decision === 'unsafe') {
-      return reject(base, metadata);
+      return reject(base, metadata, claims);
     }
     if (moderation.decision !== 'safe') {
       await recordRejection(redis);
       return { outcome: 'revise', status: 422, errors: { body: MESSAGES.revise } };
     }
-    return publish(base, metadata);
+    return publish(base, metadata, claims);
   }
 
-  async function publish(base, moderation) {
-    const comment = await Comment.create({
-      ...base,
-      status: 'published',
-      moderation: { ...moderation, policyVersion: MODERATION_POLICY_VERSION, checkedAt: now() },
-    });
-    return { outcome: 'published', status: 201, comment };
+  async function publish(base, moderation, claims) {
+    const { comment, failure } = await save(
+      {
+        ...base,
+        status: 'published',
+        moderation: { ...moderation, policyVersion: MODERATION_POLICY_VERSION, checkedAt: now() },
+      },
+      claims,
+    );
+    return failure ?? { outcome: 'published', status: 201, comment };
   }
 
-  async function reject(base, moderation) {
+  async function reject(base, moderation, claims) {
     const checkedAt = now();
-    await Comment.create({
-      ...base,
-      status: 'rejected',
-      moderation: { ...moderation, policyVersion: MODERATION_POLICY_VERSION, checkedAt },
-      purgeAt: new Date(checkedAt.getTime() + REJECTED_COMMENT_RETENTION_SECONDS * 1000),
-    });
+    const { failure } = await save(
+      {
+        ...base,
+        status: 'rejected',
+        moderation: { ...moderation, policyVersion: MODERATION_POLICY_VERSION, checkedAt },
+        purgeAt: new Date(checkedAt.getTime() + REJECTED_COMMENT_RETENTION_SECONDS * 1000),
+      },
+      claims,
+    );
+    if (failure) {
+      return failure;
+    }
     await recordRejection(getRedis());
     return { outcome: 'rejected', status: 422, errors: { form: MESSAGES.rejected } };
+  }
+
+  // Returns `{ comment }`, or `{ failure }` with the outcome to answer: a
+  // reused submission key replays the original result, and any other failure
+  // releases this submission's reservations so the writer can simply retry.
+  async function save(document, claims) {
+    try {
+      return { comment: await Comment.create(document) };
+    } catch (error) {
+      if (error.code === 11000) {
+        return { failure: await replayOutcome(document.idempotencyKey) };
+      }
+      await release(getRedis(), claims);
+      return { failure: unavailable(`comment not saved: ${error.message}`) };
+    }
+  }
+
+  async function release(redis, keys) {
+    if (!redis || redis.status !== 'ready') {
+      return;
+    }
+    await Promise.all(
+      keys.map((key) =>
+        redis.del(key).catch((error) => {
+          logger.warn('[learning-hub] Comment reservation not released', { error: error.message });
+        }),
+      ),
+    );
   }
 
   // A retried submission returns the original result instead of posting twice.

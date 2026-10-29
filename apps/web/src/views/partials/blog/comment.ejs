@@ -9,7 +9,7 @@
   <% } %>
   <p class="hub-comment__body"><%= comment.body %></p>
   <div class="hub-comment__actions">
-    <a class="hub-comment__action" href="/blog/<%= article.slug %>?replyTo=<%= comment.id %>#comment-form">Reply<span class="sr-only"> to <%= comment.displayName %></span></a>
+    <a class="hub-comment__action" href="/blog/<%= article.slug %>?<%= new URLSearchParams({ ...(locals.commentsPage > 1 ? { commentsPage: String(locals.commentsPage) } : {}), replyTo: comment.id }) %>#comment-form">Reply<span class="sr-only"> to <%= comment.displayName %></span></a>
     <% if (canReport) { %>
     <details class="hub-report">
       <summary class="hub-comment__action">Report<span class="sr-only"> comment by <%= comment.displayName %></span></summary>

@@ -156,6 +156,7 @@ export function createBlogController({
     const result = await stats.recordArticleView({
       articleId: article.id,
       sessionId: req.sessionID,
+      sourceIp: req.ip,
       userAgent: req.get('user-agent'),
     });
     res.status(202).json({ counted: result.counted });
