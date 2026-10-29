@@ -215,3 +215,23 @@ Code review (code-reviewer agent): one high, four medium, one low. Fixed:
 - The command flipping `LEARNING_HUB_ENABLED` and `LEARNING_HUB_VIEWS_ENABLED` defaults to
   `true` was denied by the session's permission check. Defaults stay `false`; the release ships
   the hub dark and enabling it is an owner step (see `BLOCKERS_AND_HANDOFF.md`).
+
+## 2026-10-29 — Phase 8 release status: ready, not deployed
+
+- Release candidate: `0b0dd13de1faf7368c2c61e65c87fd9da8ee726c` on `feat/learning-hub` (PR #165, draft).
+  Full `ci.yml` green (lint, format, assets build/verify/budget, `content:check`, coverage
+  suite, Playwright incl. visual baselines, Lighthouse, `npm audit`); CodeQL green.
+- Visual baseline `deployment-failure-390.png` regenerated with `visual-baselines.yml` run
+  40804715136 (footer gains "Learning Hub" in the fixture); the other two baselines unchanged.
+- Preflight (read-only): production healthy on `2b54d220344bcbaed94e08b8468480883651b3af`
+  (rollback reference); autodeploy timer active and not paused; main CI green; latest backup
+  `/var/backups/hellodeploy/20261029_010948` has a readable mongodump (22 collections);
+  `upgrade.sh` takes a fresh backup on deploy. Disk 791 GB free; about 1.9 GB memory available.
+- **Blocked:** updating PR #165 and marking it ready was denied by the session's auto-mode
+  permission check, so the merge that triggers autodeploy was not attempted. Production was
+  not changed.
+- Owner steps to release: mark PR #165 ready and squash-merge it; autodeploy ships it after main
+  CI passes (about 5 minutes later). Verify with
+  `npm run production:check -- https://hellodeploy.online --expected-sha <merged-sha>`, then
+  enable the blog per `BLOCKERS_AND_HANDOFF.md`.
+- Tokens: about 600K across all phases (estimate; not measured).

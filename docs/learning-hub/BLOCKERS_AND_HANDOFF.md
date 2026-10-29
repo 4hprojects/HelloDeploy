@@ -3,6 +3,21 @@
 Updated 2026-10-29. The code and five articles ship to production with every Learning Hub
 capability **off**. Each item below needs the owner; none is blocked by code.
 
+## 0. Merge the release (owner)
+
+Release candidate `0b0dd13de1faf7368c2c61e65c87fd9da8ee726c` passed full CI. The session was
+not permitted to update or merge PR #165. To release:
+
+```sh
+gh pr ready 165
+gh pr merge 165 --squash
+```
+
+Autodeploy deploys the merged `main` commit after `ci.yml` passes on it (with its own backup
+and automatic rollback). Confirm with `journalctl -u hellodeploy-autodeploy.service -n 20` and
+`npm run production:check -- https://hellodeploy.online --expected-sha <merged-sha>`.
+Rollback reference: `2b54d220344bcbaed94e08b8468480883651b3af`.
+
 ## 1. Turn on the public blog (owner, about 2 minutes)
 
 The session could not change the code defaults (the command was denied), so `/blog` stays 404
