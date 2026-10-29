@@ -17,6 +17,7 @@ import adminRoutes from './routes/pages/admin.routes.js';
 import githubRoutes from './routes/pages/github.routes.js';
 import webhookRoutes from './routes/api/webhook.routes.js';
 import deployHookRoutes from './routes/api/deploy-hook.routes.js';
+import { createBlogRouter } from './routes/pages/blog.routes.js';
 import helmet from 'helmet';
 import { getDashboard, getDashboardStatusJson } from './controllers/dashboard.controller.js';
 import { getPlanDefaults } from '@hellodeploy/database';
@@ -24,6 +25,7 @@ import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
+import { getContentRepository } from './services/learning-hub/content-repository.js';
 import {
   getDocsIndex,
   getDocsTopic,
@@ -44,7 +46,10 @@ function cspNonceMiddleware(_req, res, next) {
   next();
 }
 
-export function createApp({ readinessCheck = checkWebReadiness } = {}) {
+export function createApp({
+  readinessCheck = checkWebReadiness,
+  learningHub = { enabled: env.LEARNING_HUB_ENABLED, getRepository: getContentRepository },
+} = {}) {
   const app = express();
 
   // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare).
@@ -120,7 +125,7 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.set('views', join(__dirname, 'views'));
   app.use(expressEjsLayouts);
   app.set('layout', 'layouts/main');
-  Object.assign(app.locals, applicationLocals());
+  Object.assign(app.locals, applicationLocals(), { learningHubEnabled: learningHub.enabled });
 
   // Static assets (served before rate limiting to avoid counting static hits).
   // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.
@@ -185,6 +190,9 @@ export function createApp({ readinessCheck = checkWebReadiness } = {}) {
   app.get('/status', getPublicStatus);
   app.get('/robots.txt', getRobots);
   app.get('/sitemap.xml', getSitemap);
+  if (learningHub.enabled) {
+    app.use('/blog', createBlogRouter({ getRepository: learningHub.getRepository }));
+  }
 
   app.get('/dashboard', requireAuth, getDashboard);
   app.get('/dashboard/status', requireAuth, getDashboardStatusJson);

@@ -1,0 +1,21 @@
+<div class="hub">
+  <nav class="hub-breadcrumb" aria-label="Breadcrumb">
+    <ol>
+      <li><a href="/blog">Learning Hub</a></li>
+      <li aria-current="page"><%= category.name %></li>
+    </ol>
+  </nav>
+  <header class="hub-intro">
+    <h1 class="hub-intro__title"><%= category.name %></h1>
+    <p class="hub-intro__lead"><%= category.description %></p>
+  </header>
+
+  <%- include('../../partials/blog/category-nav', { categories, activeCategory: category.slug }) %>
+
+  <section class="hub-section" aria-labelledby="hub-category-heading">
+    <h2 class="hub-section__title" id="hub-category-heading">Articles</h2>
+    <div class="hub-grid"><% articles.forEach((article) => { %><%- include('../../partials/blog/article-card', { article }) %><% }) %></div>
+  </section>
+
+  <%- include('../../partials/blog/pagination', { pagination }) %>
+</div>

@@ -231,6 +231,9 @@ export const env = {
   // Off by default: every project waits for an admin unless this is turned on.
   AUTO_APPROVAL_ENABLED: optional('AUTO_APPROVAL_ENABLED', 'false') === 'true',
 
+  // Learning Hub public blog at /blog. Off serves the routes as 404s.
+  LEARNING_HUB_ENABLED: optional('LEARNING_HUB_ENABLED', 'false') === 'true',
+
   isProduction: () => process.env.NODE_ENV === 'production',
   isDevelopment: () => process.env.NODE_ENV !== 'production',
   isGoogleAuthConfigured: () =>

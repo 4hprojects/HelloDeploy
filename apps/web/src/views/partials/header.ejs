@@ -18,6 +18,7 @@
         <a href="/#product">Product</a>
         <a href="/how-it-works" <%- _path === '/how-it-works' ? 'aria-current="page"' : '' %>>How It Works</a>
         <a href="/docs" <%- _path.startsWith('/docs') ? 'aria-current="page"' : '' %>>Docs</a>
+        <% if (locals.learningHubEnabled) { %><a href="/blog" <%- _path.startsWith('/blog') ? 'aria-current="page"' : '' %>>Blog</a><% } %>
         <a href="/supported-apps" <%- _path === '/supported-apps' ? 'aria-current="page"' : '' %>>Supported Apps</a>
         <a href="/status" <%- _path === '/status' ? 'aria-current="page"' : '' %>>Status</a>
         <a href="/auth/sign-in" <%- _path === '/auth/sign-in' ? 'aria-current="page"' : '' %>>Sign In</a>

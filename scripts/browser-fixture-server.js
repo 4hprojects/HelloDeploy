@@ -20,6 +20,7 @@ process.env.BUILDER_CONTROL_ENABLED = 'true';
 
 const { mkdir, rm } = await import('node:fs/promises');
 const { join } = await import('node:path');
+const { fileURLToPath } = await import('node:url');
 const { tmpdir } = await import('node:os');
 const { MongoMemoryServer } = await import('mongodb-memory-server');
 const fixtureDatabasePath = join(tmpdir(), 'hellodeploy-browser-fixture-db');
@@ -236,6 +237,12 @@ await Deployment.create({
 });
 
 const { createApp } = await import('../apps/web/src/app.js');
+const { createContentRepository } =
+  await import('../apps/web/src/services/learning-hub/content-repository.js');
+// Synthetic articles, so browser checks do not depend on published content.
+const learningHubRepository = createContentRepository({
+  directory: fileURLToPath(new URL('../tests/fixtures/learning-hub/articles', import.meta.url)),
+});
 const { default: compression } = await import('compression');
 const { default: express } = await import('express');
 // Production responses are compressed at the Cloudflare edge; without the same
@@ -249,6 +256,7 @@ app.use(
       ready: true,
       checks: { database: 'ok', queue: 'ok', worker: 'ok' },
     }),
+    learningHub: { enabled: true, getRepository: () => learningHubRepository },
   }),
 );
 const server = app.listen(Number(process.env.PORT), process.env.HOST, () => {

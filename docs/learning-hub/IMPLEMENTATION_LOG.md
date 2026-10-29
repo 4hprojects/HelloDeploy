@@ -30,3 +30,28 @@ Append-only. Token figures are estimates unless marked measured.
 - Resource change: articles held in memory; size scales with content (five articles, well
   under 1 MB).
 - Tokens: about 45K (estimate).
+
+## 2026-10-29 — Phase 2 public UI
+
+- Routes `/blog`, `/blog/category/:slug`, `/blog/:slug` (`routes/pages/blog.routes.js`,
+  `controllers/blog.controller.js`), mounted only when `LEARNING_HUB_ENABLED=true` (default
+  false); otherwise they fall through to the normal 404. `createApp({ learningHub })` accepts an
+  injected repository for tests and the browser fixture.
+- Templates `views/pages/blog/{index,category,article}.ejs` and partials
+  `views/partials/blog/{article-card,category-nav,pagination}.ejs`. Header gains a "Blog" link
+  and the footer a "Learning Hub" link, both only while the hub is enabled.
+- `main.css` was 16 bytes under its 110 KB budget, so the blog has its own hashed bundles
+  (`css/learning-hub.css` 9.9 KB, `js/learning-hub.js` 2.6 KB) loaded only on `/blog` pages
+  through new `pageStyles` / `pageScripts` locals. Budgets 20 KB / 10 KB added.
+- `head.ejs`: `og:type` override and `article:published_time` / `modified_time`.
+- Behaviour: drafts, unknown articles, empty categories, and out-of-range or non-numeric pages
+  return 404; mapped old slugs return 301; search and page > 1 are `noindex,follow`.
+- Tests: `NODE_ENV=test node --test tests/learning-hub/blog-routes.test.js` → 22 pass.
+  `npx playwright test tests/browser/learning-hub.spec.js` → 27 pass (no page overflow at
+  320/375/768/1024/1440 on index, article, category; zero axe violations light and dark; article
+  readable with JavaScript disabled; TOC open on wide screens, collapsed and keyboard-operable on
+  phones; copy button copies and announces; code scrolls in its own region). 200% zoom is
+  covered by the 320–768px widths (a 1280px window at 200% is 640 CSS px).
+- Known: the browser fixture now enables the hub, so the header on `landing-1440.png` gains
+  "Blog". The visual baselines are regenerated in Phase 8 with the final header.
+- Tokens: about 70K (estimate).

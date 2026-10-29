@@ -14,5 +14,6 @@
   </div>
   <%- include('../partials/footer') %>
   <script src="<%= assetPath('js/app.js') %>" defer></script>
+  <% (locals.pageScripts || []).forEach((script) => { %><script src="<%= assetPath(script) %>" defer></script><% }) %>
 </body>
 </html>
