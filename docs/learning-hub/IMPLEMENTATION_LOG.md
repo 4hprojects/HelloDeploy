@@ -261,3 +261,26 @@ Code review (code-reviewer agent): one high, four medium, one low. Fixed:
   URL, two JSON-LD blocks (`BlogPosting`, `BreadcrumbList`), and the hashed hub bundles. Social
   images return 200. No GA4 or AdSense markup and no comment form are rendered. Homepage and
   `/health` unaffected.
+
+## 2026-10-30 — Policy pages refresh (PR #167)
+
+- Merged as `647ed0ca2ca7b4ac86675ff07a31a555d5c0cd40`; autodeploy shipped it at about 01:56
+  host time after main CI passed. `production:check` 12/12 pass; `css/legal.css` returns 200.
+- Contact: every policy page links to `4hprojects@proton.me`, rendered from
+  `LEGAL_CONTACT_EMAIL` in `apps/web/src/config/legal-policies.js`. The personal Gmail address
+  no longer appears on any served page (it remains in git history). Policies name
+  **4H Projects** as the operator. Cloudflare Email Obfuscation encodes the address in the raw
+  HTML; browsers decode it.
+- Privacy policy expanded for the Philippine Data Privacy Act (RA 10173) with GDPR basics:
+  controller, purposes and legal basis, recipients, processing outside the Philippines,
+  automated decisions, data subject rights and how to exercise them, NPC complaints, 72-hour
+  breach notice, children, and changes. The provider list is unchanged and was checked against
+  live connections (Redis local, MongoDB on Atlas). Live responses set only `hellodeploy.sid`.
+- UI: page-scoped `css/legal.css` (6.9 KB, budget 10 KB), contents sidebar collapsed on phones,
+  "At a glance" summaries, tables that stack into labelled rows on phones, related-policy
+  navigation, and a card-grid legal index. `PAGE_SCOPED_ASSET_KEYS` includes the new bundle.
+- Tests: `tests/ui/legal-pages.test.js` (12) and `tests/browser/legal-pages.spec.js` (41, axe
+  in light and dark at 320 and 1440 px); related folders 550 pass.
+- Owner accepted the wording for now and will refine it. Open owner decisions: one spelling of
+  the operator name (policies say "4H Projects"; footer and homepage say
+  "Henson Sagorsor / 4HProjects"), and a named governing law in the Terms.
