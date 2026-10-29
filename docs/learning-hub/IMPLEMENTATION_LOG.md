@@ -250,3 +250,14 @@ Code review (code-reviewer agent): one high, four medium, one low. Fixed:
   returns 404 as intended (flags off); `/dashboard` redirects (302) to sign-in.
 - The tracker had not been updated for Phases 1–8 before the merge; corrected in the same
   follow-up.
+
+## 2026-10-29 — Public blog enabled
+
+- Owner set `LEARNING_HUB_ENABLED=true` and `LEARNING_HUB_VIEWS_ENABLED=true` in
+  `/opt/hellodeploy/.env` and restarted `hellodeploy-web` (release still `3309c51`).
+- After-enable checks pass: `/blog`, all five articles, `/blog/category/deployment-guides`, and
+  `/blog?q=nginx` return 200; an unknown slug returns 404. `/sitemap.xml` lists the hub index,
+  five categories, and five articles. The article page has `og:type` `article`, a canonical
+  URL, two JSON-LD blocks (`BlogPosting`, `BreadcrumbList`), and the hashed hub bundles. Social
+  images return 200. No GA4 or AdSense markup and no comment form are rendered. Homepage and
+  `/health` unaffected.
