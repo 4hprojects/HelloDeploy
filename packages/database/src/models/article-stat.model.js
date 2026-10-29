@@ -2,7 +2,15 @@ import mongoose from 'mongoose';
 
 const { Schema } = mongoose;
 
-export const SHARE_PLATFORMS = Object.freeze(['facebook', 'linkedin', 'x', 'copy', 'native']);
+export const SHARE_PLATFORMS = Object.freeze([
+  'facebook',
+  'linkedin',
+  'x',
+  'reddit',
+  'email',
+  'copy',
+  'native',
+]);
 
 // Keyed by the article's immutable id from its front matter, never its slug,
 // so a renamed article keeps its counts.

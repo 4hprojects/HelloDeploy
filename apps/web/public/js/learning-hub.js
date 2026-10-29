@@ -167,7 +167,10 @@
 
         if (platform === 'copy') {
           copyText(url).then(
-            () => announce('Link copied to clipboard.'),
+            () => {
+              showCopied(control);
+              announce('Link copied to clipboard.');
+            },
             () => {
               fallback.hidden = false;
               const input = fallback.querySelector('input');
@@ -184,6 +187,18 @@
         }
       });
     });
+  }
+
+  function showCopied(button) {
+    const idle = button.querySelector('[data-share-copy-idle]');
+    const done = button.querySelector('[data-share-copy-done]');
+    idle.hidden = true;
+    done.hidden = false;
+    clearTimeout(button.copiedTimer);
+    button.copiedTimer = setTimeout(() => {
+      idle.hidden = false;
+      done.hidden = true;
+    }, 2500);
   }
 
   function enhanceCommentForm() {
