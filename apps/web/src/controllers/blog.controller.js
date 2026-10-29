@@ -185,6 +185,7 @@ export function createBlogController({
 /** Share targets built from the canonical URL; each is a plain link that works without JavaScript. */
 export function shareLinks(canonicalUrl, title) {
   const url = encodeURIComponent(canonicalUrl);
+  const text = encodeURIComponent(title);
   return [
     {
       platform: 'facebook',
@@ -199,7 +200,19 @@ export function shareLinks(canonicalUrl, title) {
     {
       platform: 'x',
       label: 'X',
-      href: `https://x.com/intent/post?url=${url}&text=${encodeURIComponent(title)}`,
+      href: `https://x.com/intent/post?url=${url}&text=${text}`,
+    },
+    {
+      platform: 'reddit',
+      label: 'Reddit',
+      href: `https://www.reddit.com/submit?url=${url}&title=${text}`,
+    },
+    {
+      platform: 'email',
+      label: 'Email',
+      // Opens the reader's own mail app; nothing passes through HelloDeploy.
+      href: `mailto:?subject=${text}&body=${text}%0A%0A${url}`,
+      isExternal: false,
     },
   ];
 }

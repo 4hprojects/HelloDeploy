@@ -1,11 +1,19 @@
-<div class="hub-share" data-share-row data-share-url="<%= canonicalUrl %>" data-share-title="<%= article.title %>">
-  <p class="hub-share__label" id="share-label-<%= placement %>">Share this guide</p>
+<% const isCompact = placement === 'top'; %>
+<div class="hub-share hub-share--<%= isCompact ? 'compact' : 'full' %>" data-share-row data-share-url="<%= canonicalUrl %>" data-share-title="<%= article.title %>">
+  <% if (isCompact) { %>
+  <p class="hub-share__label" id="share-label-<%= placement %>">Share</p>
+  <% } else { %>
+  <div class="hub-share__intro">
+    <h2 class="hub-share__heading" id="share-label-<%= placement %>">Share this guide</h2>
+    <p class="hub-share__lede">Know someone deploying their first app? Send it their way.</p>
+  </div>
+  <% } %>
   <ul class="hub-share__list" role="list" aria-labelledby="share-label-<%= placement %>">
-    <% shareLinks.forEach((link) => { %>
-    <li><a class="hub-share__button" href="<%= link.href %>" target="_blank" rel="noopener noreferrer" data-share-platform="<%= link.platform %>">Share on <%= link.label %><span class="sr-only"> (opens in a new tab)</span></a></li>
+    <li hidden data-share-native-item><button type="button" class="hub-share__button hub-share__button--primary" data-share-platform="native"><%- include('share-icon', { name: 'native' }) %><span class="hub-share__text">Share&hellip;</span></button></li>
+    <% shareLinks.forEach((link) => { const isExternal = link.isExternal !== false; %>
+    <li><a class="hub-share__button" href="<%= link.href %>"<% if (isExternal) { %> target="_blank" rel="noopener noreferrer"<% } %> data-share-platform="<%= link.platform %>"<% if (isCompact) { %> aria-label="Share on <%= link.label %><%= isExternal ? ' (opens in a new tab)' : '' %>" title="Share on <%= link.label %>"<% } %>><%- include('share-icon', { name: link.platform }) %><span class="hub-share__text"><%= link.label %></span><% if (!isCompact && isExternal) { %><span class="sr-only"> (opens in a new tab)</span><% } %></a></li>
     <% }) %>
-    <li hidden data-share-copy-item><button type="button" class="hub-share__button" data-share-platform="copy">Copy link</button></li>
-    <li hidden data-share-native-item><button type="button" class="hub-share__button" data-share-platform="native">More sharing options</button></li>
+    <li hidden data-share-copy-item><button type="button" class="hub-share__button" data-share-platform="copy"<% if (isCompact) { %> aria-label="Copy link" title="Copy link"<% } %>><span class="hub-share__swap" data-share-copy-idle><%- include('share-icon', { name: 'copy' }) %><span class="hub-share__text">Copy link</span></span><span class="hub-share__swap" hidden data-share-copy-done><%- include('share-icon', { name: 'check' }) %><span class="hub-share__text">Copied</span></span></button></li>
   </ul>
   <div class="hub-share__fallback" hidden data-share-fallback>
     <label for="share-fallback-<%= placement %>">Article link</label>

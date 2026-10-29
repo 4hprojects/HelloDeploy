@@ -223,17 +223,42 @@ describe('Learning Hub routes', () => {
     );
   });
 
-  it('opens share links without passing the opener or referrer', async () => {
+  it('opens every social share link without passing the opener or referrer', async () => {
     const html = await (await get('/blog/sample-article')).text();
-    assert.equal(html.match(/data-share-platform="(?:facebook|linkedin|x)"/g)?.length, 6);
+    const links = html.match(/<a [^>]*data-share-platform="(?:facebook|linkedin|x|reddit)"/g);
+    assert.deepEqual(
+      links.filter((link) => !link.includes('target="_blank" rel="noopener noreferrer"')),
+      [],
+    );
   });
 
-  it('places share links at the top and the end of the article', async () => {
+  it('places each social share link at the top and the end of the article', async () => {
     const html = await (await get('/blog/sample-article')).text();
     assert.equal(
       html.match(/target="_blank" rel="noopener noreferrer" data-share-platform/g)?.length,
-      6,
+      8,
     );
+  });
+
+  it('shares the encoded title and URL on Reddit', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.match(
+      html,
+      /href="https:\/\/www.reddit.com\/submit\?url=https%3A%2F%2Fexample.test%2Fblog%2Fsample-article&amp;title=/,
+    );
+  });
+
+  it('puts the article URL in the body of the email share', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.match(
+      html,
+      /href="mailto:\?subject=[^"]+%0A%0Ahttps%3A%2F%2Fexample.test%2Fblog%2Fsample-article"/,
+    );
+  });
+
+  it('opens the email share in the mail app, not a new tab', async () => {
+    const html = await (await get('/blog/sample-article')).text();
+    assert.doesNotMatch(html, /<a [^>]*href="mailto:[^"]*"[^>]*target="_blank"/);
   });
 
   it('shows the approximate view total when views are enabled', async () => {

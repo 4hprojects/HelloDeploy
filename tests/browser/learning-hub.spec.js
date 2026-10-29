@@ -91,6 +91,23 @@ test('copy link announces success', async ({ page, context }) => {
   await expect(page.getByRole('status')).toHaveText('Link copied to clipboard.');
 });
 
+test('copy link shows a copied state on the button', async ({ page, context }) => {
+  await context.grantPermissions(['clipboard-read', 'clipboard-write']);
+  await page.goto(ARTICLE);
+  const button = page.locator('.hub-share--full [data-share-platform="copy"]');
+  await button.click();
+  await expect(button).toContainText('Copied');
+});
+
+test('top share row shows icon buttons with accessible names', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await expect(
+    page
+      .locator('.hub-share--compact')
+      .getByRole('link', { name: 'Share on Reddit (opens in a new tab)' }),
+  ).toBeVisible();
+});
+
 test('copy link falls back to a selected link field when the clipboard is unavailable', async ({
   page,
 }) => {
@@ -107,7 +124,7 @@ test('native share stays hidden where Web Share is unsupported', async ({ page }
     delete globalThis.Navigator.prototype.share;
   });
   await page.goto(ARTICLE);
-  await expect(page.getByRole('button', { name: 'More sharing options' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Share…' })).toHaveCount(0);
 });
 
 test('native share appears where Web Share is supported', async ({ page }) => {
@@ -115,7 +132,7 @@ test('native share appears where Web Share is supported', async ({ page }) => {
     globalThis.Navigator.prototype.share = () => Promise.resolve();
   });
   await page.goto(ARTICLE);
-  await expect(page.getByRole('button', { name: 'More sharing options' }).first()).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Share…' }).first()).toBeVisible();
 });
 
 test('share links are reachable by keyboard and open a new tab safely', async ({ page }) => {
