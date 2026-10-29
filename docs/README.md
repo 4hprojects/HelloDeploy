@@ -48,6 +48,9 @@ document. Status and "what's next" live in exactly one place: [Priorities](PRIOR
   [multi-runtime/STATUS.md](multi-runtime/STATUS.md).
 - [Docker optimization](docker-optimization/README.md) - opt-in `optimized-v1` image templates
   (P0–P1 done); cache, metrics, retention, and rollout phases not started.
+- [Learning Hub](learning-hub/00_MASTER_PLAN.md) - public `/blog` with Markdown tutorials, views,
+  sharing, and fail-closed guest comments. Status in
+  [learning-hub/13_PHASE_TRACKER.md](learning-hub/13_PHASE_TRACKER.md).
 
 ## Design notes
 
