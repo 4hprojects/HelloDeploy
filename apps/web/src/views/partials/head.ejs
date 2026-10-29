@@ -74,4 +74,6 @@
 
   <link rel="stylesheet" href="<%= assetPath('css/main.css') %>" />
   <% (locals.pageStyles || []).forEach((style) => { %><link rel="stylesheet" href="<%= assetPath(style) %>" /><% }) %>
+  <% (meta.structuredData || []).forEach((data) => { %><script type="application/ld+json" nonce="<%= cspNonce %>"><%- JSON.stringify(data).replace(/</g, '\\u003c') %></script><% }) %>
+  <% if (locals.analytics) { %><%- include('analytics', { analytics: locals.analytics }) %><% } %>
 </head>

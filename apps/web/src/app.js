@@ -26,6 +26,7 @@ import { env } from './config/env.js';
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
 import { getContentRepository } from './services/learning-hub/content-repository.js';
+import { analyticsCspSources } from './services/learning-hub/page-integrations.js';
 import {
   getDocsIndex,
   getDocsTopic,
@@ -97,6 +98,8 @@ export function createApp({
   // Security headers. Inline scripts are blocked except the per-request nonce
   // used by the early theme bootstrap. Inline styles remain temporarily allowed
   // while legacy style attributes are migrated into CSS classes.
+  // Empty unless GA4 is configured and the owner confirmed consent handling.
+  const analyticsSources = analyticsCspSources();
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -108,13 +111,14 @@ export function createApp({
             "'self'",
             (_req, res) => `'nonce-${res.locals.cspNonce}'`,
             'https://challenges.cloudflare.com',
+            ...analyticsSources.script,
           ],
           scriptSrcAttr: ["'none'"],
           styleSrc: ["'self'"],
           styleSrcAttr: ["'none'"],
-          imgSrc: ["'self'", 'data:'],
+          imgSrc: ["'self'", 'data:', ...analyticsSources.img],
           fontSrc: ["'self'"],
-          connectSrc: ["'self'", 'https://challenges.cloudflare.com'],
+          connectSrc: ["'self'", 'https://challenges.cloudflare.com', ...analyticsSources.connect],
           frameSrc: ['https://challenges.cloudflare.com'],
           formAction: ["'self'"],
           frameAncestors: ["'none'"],
@@ -129,7 +133,10 @@ export function createApp({
   app.set('views', join(__dirname, 'views'));
   app.use(expressEjsLayouts);
   app.set('layout', 'layouts/main');
-  Object.assign(app.locals, applicationLocals(), { learningHubEnabled: learningHub.enabled });
+  Object.assign(app.locals, applicationLocals(), {
+    learningHubEnabled: learningHub.enabled,
+    learningHubRepository: learningHub.enabled ? learningHub.getRepository : null,
+  });
 
   // Static assets (served before rate limiting to avoid counting static hits).
   // Modest cache TTL — filenames are not content-hashed, so avoid long/immutable.

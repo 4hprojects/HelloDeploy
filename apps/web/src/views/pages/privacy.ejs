@@ -1,6 +1,6 @@
 <div class="page-header">
   <h1 class="page-header__title">Privacy Policy</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/cookies">Cookies</a> &middot; <a href="/acceptable-use">Acceptable Use</a> &middot; <a href="/service-limits">Service Limits</a></p>
+  <p class="page-header__subtitle">Effective 30 June 2026, updated 29 October 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/cookies">Cookies</a> &middot; <a href="/acceptable-use">Acceptable Use</a> &middot; <a href="/service-limits">Service Limits</a></p>
 </div>
 
 <div class="card">
@@ -44,6 +44,16 @@
       <li><strong>Product and performance events</strong> — allowlisted account, project, deployment milestone counts and bounded LCP, INP, and CLS measurements. These first-party events may include an account or project identifier when you are signed in, but never an IP address, repository name, URL, credential, environment value, or secret.</li>
     </ul>
 
+    <h3>Learning Hub (blog) Data</h3>
+    <ul>
+      <li><strong>Article views</strong> — when you open an article, a keyed hash of your session identifier is kept in our cache for 30 minutes so a reload does not count twice. Only a total per article is stored. No IP address, account, or session identifier is stored with the count.</li>
+      <li><strong>Share buttons</strong> — a click on a share or copy-link button adds one to a per-article, per-button total. We do not learn whether you finished sharing.</li>
+      <li><strong>Guest comments, when enabled on an article</strong> — the display name and comment text you submit are published on the article. We do not ask for an email address or account. Each submission is checked by Cloudflare Turnstile and by automated spam and safety checks before it is published. Submissions that are refused are kept for 7 days for abuse investigation, then deleted.</li>
+      <li><strong>Comment reports</strong> — the reason you choose and a keyed hash of your session identifier, so one reader counts once. Kept for 90 days.</li>
+      <li><strong>Comment drafts</strong> — an unsent comment is kept in your browser&rsquo;s session storage on your own device and is not sent to us until you submit it.</li>
+    </ul>
+    <p>Guest comments are currently switched off. Before they are switched on with an external automated moderation service, this policy will name that service and the data it receives.</p>
+
     <h2>Data Retention</h2>
     <table class="table">
       <thead>
@@ -58,6 +68,10 @@
         <tr><td>Product and Web Vital events</td><td>90 days, then automatically deleted</td></tr>
         <tr><td>Account and project data</td><td>Until account deletion is requested</td></tr>
         <tr><td>Session data</td><td>24 hours of inactivity, or until sign-out</td></tr>
+        <tr><td>Published blog comments</td><td>Until removed by the writer&rsquo;s request or by moderation</td></tr>
+        <tr><td>Refused blog comment submissions</td><td>7 days, then automatically deleted</td></tr>
+        <tr><td>Blog comment reports</td><td>90 days, then automatically deleted</td></tr>
+        <tr><td>Article view deduplication</td><td>30 minutes</td></tr>
       </tbody>
     </table>
 
@@ -72,6 +86,7 @@
         <tr><td>Google</td><td>Optional account authentication</td><td>Authentication request; Google returns your stable account identifier, verified email, and profile name</td></tr>
         <tr><td>Resend</td><td>Transactional email</td><td>Your email address and name</td></tr>
         <tr><td>Cloudflare</td><td>DNS, TLS, and tunnel ingress</td><td>IP addresses and HTTP request metadata</td></tr>
+        <tr><td>Cloudflare Turnstile</td><td>Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td>Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
       </tbody>
     </table>
     <p>We do not sell your data or share it with any other third party. Product measurement is processed server-side by HelloDeploy; no third-party analytics script is loaded.</p>

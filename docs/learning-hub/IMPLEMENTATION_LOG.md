@@ -138,3 +138,29 @@ linkedin,x,copy,native}`), exported from `@hellodeploy/database`. Additive colle
   The harsh-criticism and Filipino cases prove the rules do not block them; whether a real
   provider classifies Filipino abuse correctly is untested. Guest comments stay off.
 - Tokens: about 150K for Phases 4–5 (estimate).
+
+## 2026-10-29 — Phase 6 SEO, analytics, AdSense readiness
+
+- `BlogPosting` and `BreadcrumbList` JSON-LD from the same values the page shows, emitted with
+  the CSP nonce and `<` escaped as `\u003c`; `og:type=article` and article times (Phase 2).
+- Sitemap appends `/blog`, non-empty categories, and published articles with `lastmod`
+  (`updatedAt` or `publishedAt`); unchanged when the hub is off. Robots unchanged (blog
+  allowed; search, later pages, and comment views are `noindex,follow`).
+- GA4: `partials/analytics.ejs` on Learning Hub pages only, gated on `GA4_MEASUREMENT_ID` and
+  `LEARNING_HUB_ANALYTICS_CONSENT_READY`; CSP gains Google hosts only when active. Events carry
+  only the article id and fixed labels.
+- AdSense: `partials/blog/ad-slot.ejs` and `articleAdSlot()`; off unless `ADSENSE_ENABLED`, valid
+  ids, and `adEligible`, and never beside a visible discussion. No CSP for ad hosts (documented
+  as an activation step) and no `ads.txt`.
+- Privacy and cookie policies: added Learning Hub data (views, share clicks, comments when
+  enabled, reports, drafts), retention rows, and Cloudflare Turnstile as a processor (it was
+  already used on sign-in but not listed). Marked "updated 29 October 2026". **Owner should
+  review this legal text.**
+- `docs/learning-hub/ADSENSE_READINESS.md` with a live status check of public pages:
+  `/about`, `/contact`, `/ads.txt` 404; all other public pages 200.
+- Tests: `seo.test.js` 23 pass (headline, dates, author match the page; crafted title cannot
+  break out of JSON-LD; breadcrumb; unique descriptions; sitemap lastmod, draft and empty
+  category exclusion, hub-off; no GA4/ad markup or CSP hosts by default; gating truth tables;
+  event payload keys). `tests/ui/how-it-works.test.js` and `tests/security/csp.test.js` pass.
+- Social images: produced in Phase 7 with the articles.
+- Tokens: about 45K (estimate).

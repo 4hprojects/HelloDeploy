@@ -2,6 +2,7 @@ import { ARTICLES_PER_PAGE } from '../config/learning-hub.js';
 import { env } from '../config/env.js';
 import { normalizeSearchQuery } from '../services/learning-hub/content-repository.js';
 import * as articleStats from '../services/learning-hub/article-stats.service.js';
+import { articleAdSlot, learningHubAnalytics } from '../services/learning-hub/page-integrations.js';
 
 const PAGE_STYLES = ['css/learning-hub.css'];
 const PAGE_SCRIPTS = ['js/learning-hub.js'];
@@ -19,6 +20,7 @@ export function createBlogController({
   viewsEnabled = false,
   stats = articleStats,
   discussion = null,
+  analytics = learningHubAnalytics(),
 }) {
   function getIndex(req, res, next) {
     const repository = getRepository();
@@ -43,6 +45,7 @@ export function createBlogController({
       }),
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
+      analytics,
       query,
       featured: showFeatured ? present(repository, featured) : null,
       articles: page.items.map((article) => present(repository, article)),
@@ -76,6 +79,7 @@ export function createBlogController({
       }),
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
+      analytics,
       category,
       articles: page.items.map((article) => present(repository, article)),
       pagination: paginationLinks(page, (number) =>
@@ -128,9 +132,12 @@ export function createBlogController({
         ogType: 'article',
         publishedTime: article.publishedAt.toISOString(),
         modifiedTime: (article.updatedAt ?? article.publishedAt).toISOString(),
+        structuredData: articleStructuredData(repository, article, canonicalUrl),
       }),
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
+      analytics,
+      adSlot: articleAdSlot({ article, discussionVisible: comments.availability.visible }),
       article: present(repository, article),
       canonicalUrl,
       shareLinks: shareLinks(canonicalUrl, article.title),
@@ -193,6 +200,76 @@ export function shareLinks(canonicalUrl, title) {
       label: 'X',
       href: `https://x.com/intent/post?url=${url}&text=${encodeURIComponent(title)}`,
     },
+  ];
+}
+
+/**
+ * BlogPosting and BreadcrumbList data. Every value repeats what the page
+ * shows (title, author, dates, image); nothing is added that a reader
+ * cannot see.
+ */
+export function articleStructuredData(repository, article, canonicalUrl) {
+  const category = repository.findCategory(article.category);
+  const author = repository.findAuthor(article.authorId);
+  const image = absoluteUrl(
+    article.socialImage ?? article.heroImage?.src ?? '/assets/social/hellodeploy-og-image.png',
+  );
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BlogPosting',
+      headline: article.title,
+      description: article.description,
+      datePublished: article.publishedAt.toISOString(),
+      dateModified: (article.updatedAt ?? article.publishedAt).toISOString(),
+      author: { '@type': 'Person', name: author.name },
+      publisher: {
+        '@type': 'Organization',
+        name: 'HelloDeploy',
+        logo: { '@type': 'ImageObject', url: absoluteUrl('/assets/icons/icon-512.png') },
+      },
+      mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },
+      image,
+      articleSection: category.name,
+      keywords: article.tags.join(', '),
+      wordCount: article.wordCount,
+      inLanguage: 'en',
+    },
+    {
+      '@context': 'https://schema.org',
+      '@type': 'BreadcrumbList',
+      itemListElement: [
+        { '@type': 'ListItem', position: 1, name: HUB_TITLE, item: absoluteUrl('/blog') },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          name: category.name,
+          item: absoluteUrl(`/blog/category/${category.slug}`),
+        },
+        { '@type': 'ListItem', position: 3, name: article.title, item: canonicalUrl },
+      ],
+    },
+  ];
+}
+
+/** Indexable Learning Hub URLs for the sitemap, each with a meaningful lastmod. */
+export function learningHubSitemapEntries(repository) {
+  const articles = repository.listPublished();
+  if (articles.length === 0) {
+    return [];
+  }
+  const modified = (article) => article.updatedAt ?? article.publishedAt;
+  const newest = (list) => new Date(Math.max(...list.map((article) => modified(article))));
+  return [
+    { loc: absoluteUrl('/blog'), lastmod: newest(articles) },
+    ...repository.listActiveCategories().map((category) => ({
+      loc: absoluteUrl(`/blog/category/${category.slug}`),
+      lastmod: newest(repository.listByCategory(category.slug)),
+    })),
+    ...articles.map((article) => ({
+      loc: absoluteUrl(`/blog/${article.slug}`),
+      lastmod: modified(article),
+    })),
   ];
 }
 

@@ -2,6 +2,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { checkWebReadiness } from '../services/readiness.service.js';
 import { DOC_SECTIONS, PUBLIC_DOC_TOPICS, PUBLIC_PAGES } from '../config/public-pages.js';
 import { env } from '../config/env.js';
+import { learningHubSitemapEntries } from './blog.controller.js';
 
 const TOPIC_CONTENT = Object.freeze({
   domains: [
@@ -333,13 +334,20 @@ export function getRobots(_req, res) {
     );
 }
 
-export function getSitemap(_req, res) {
-  const urls = PUBLIC_PAGES.map(
+export function getSitemap(req, res) {
+  const pages = PUBLIC_PAGES.map(
     (page) => `  <url><loc>https://${env.PLATFORM_DOMAIN}${page.path}</loc></url>`,
-  ).join('\n');
+  );
+  const getRepository = req.app?.locals?.learningHubRepository;
+  const articles = getRepository
+    ? learningHubSitemapEntries(getRepository()).map(
+        (entry) =>
+          `  <url><loc>${entry.loc}</loc><lastmod>${entry.lastmod.toISOString().slice(0, 10)}</lastmod></url>`,
+      )
+    : [];
   res
     .type('application/xml')
     .send(
-      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`,
+      `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${[...pages, ...articles].join('\n')}\n</urlset>\n`,
     );
 }

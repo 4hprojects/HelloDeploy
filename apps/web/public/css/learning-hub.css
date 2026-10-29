@@ -768,3 +768,17 @@
   flex-wrap: wrap;
   gap: var(--space-2);
 }
+
+.hub-ad {
+  max-width: var(--hub-measure);
+  margin: var(--space-6) 0;
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.hub-ad__label {
+  color: var(--color-text-on-muted);
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}

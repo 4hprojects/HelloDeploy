@@ -13,6 +13,7 @@
   recordViewWhenVisible();
   enhanceCommentForm();
   renderVerificationWidgets();
+  trackRelatedClicks();
 
   function createStatusRegion() {
     const region = document.createElement('p');
@@ -77,6 +78,31 @@
     });
   }
 
+  // GA4 events carry the article id and a fixed label only: never names,
+  // comment text, URLs typed by readers, or visitor identifiers.
+  function track(name, params) {
+    if (typeof window.gtag !== 'function' || !article) {
+      return;
+    }
+    window.gtag(
+      'event',
+      name,
+      Object.assign({ article_id: article.getAttribute('data-article-id') }, params),
+    );
+  }
+
+  function trackRelatedClicks() {
+    const related = document.querySelector('.hub-related');
+    if (!related) {
+      return;
+    }
+    related.addEventListener('click', (event) => {
+      if (event.target.closest('a')) {
+        track('related_click', {});
+      }
+    });
+  }
+
   function csrfToken() {
     const meta = document.querySelector('meta[name="csrf-token"]');
     return meta ? meta.getAttribute('content') : '';
@@ -137,6 +163,7 @@
         const platform = control.getAttribute('data-share-platform');
         // Records the click only; whether the reader finished sharing is unknown.
         postBeacon(shareEndpoint, { platform });
+        track(platform === 'copy' ? 'article_copy_link' : 'article_share_click', { platform });
 
         if (platform === 'copy') {
           copyText(url).then(
@@ -167,6 +194,10 @@
     const error = form.querySelector('[data-form-error]');
     if (error) {
       error.focus();
+      track('comment_submit_outcome', { outcome: 'refused' });
+    }
+    if (/^#comment-[a-f0-9]{24}$/.test(window.location.hash)) {
+      track('comment_submit_outcome', { outcome: 'published' });
     }
     const body = form.querySelector('textarea[name="body"]');
     const key = form.getAttribute('data-draft-key');

@@ -1,0 +1,8 @@
+<% if (adSlot) { %>
+<aside class="hub-ad" aria-label="Advertisement">
+  <p class="hub-ad__label">Advertisement</p>
+  <ins class="adsbygoogle" data-ad-client="<%= adSlot.clientId %>" data-ad-slot="<%= adSlot.slotId %>" data-ad-format="auto" data-full-width-responsive="true"></ins>
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=<%= adSlot.clientId %>" crossorigin="anonymous"></script>
+  <script nonce="<%= cspNonce %>">(window.adsbygoogle = window.adsbygoogle || []).push({});</script>
+</aside>
+<% } %>
