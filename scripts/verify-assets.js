@@ -5,7 +5,13 @@ import { readFile } from 'node:fs/promises';
 
 const path = new URL('../apps/web/public/asset-manifest.json', import.meta.url);
 const manifest = JSON.parse(await readFile(path, 'utf8'));
-for (const key of ['css/main.css', 'js/app.js', 'css/learning-hub.css', 'js/learning-hub.js']) {
+for (const key of [
+  'css/main.css',
+  'js/app.js',
+  'css/learning-hub.css',
+  'js/learning-hub.js',
+  'css/legal.css',
+]) {
   const value = manifest.assets?.[key];
   if (!/^\/assets-dist\/[a-z0-9.-]+\.[0-9a-f]{16}\.(?:css|js)$/.test(value ?? '')) {
     throw new Error(`Asset manifest entry is invalid or missing: ${key}`);

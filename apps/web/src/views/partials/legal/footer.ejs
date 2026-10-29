@@ -1,0 +1,14 @@
+<footer class="legal-footer">
+  <section class="legal-contact" aria-labelledby="legal-contact-title">
+    <h2 id="legal-contact-title" class="legal-contact__title">Questions about this policy?</h2>
+    <p>Email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>. We aim to reply within 30 days.</p>
+  </section>
+  <nav class="legal-related" aria-label="Legal policies">
+    <h2 class="legal-related__title">Other policies</h2>
+    <ul class="legal-related__list" role="list">
+      <% legalPolicies.forEach((item) => { %>
+        <li><a href="/<%= item.slug %>"<% if (item.slug === policy.slug) { %> aria-current="page"<% } %>><%= item.title %></a></li>
+      <% }) %>
+    </ul>
+  </nav>
+</footer>

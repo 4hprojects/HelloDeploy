@@ -8,8 +8,12 @@ const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=lax'];
 const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
 const REQUIRED_READY_CHECKS = ['email', 'mongodb', 'queue', 'redis'];
-// Loaded only on Learning Hub pages, so the homepage never references them.
-const PAGE_SCOPED_ASSET_KEYS = new Set(['css/learning-hub.css', 'js/learning-hub.js']);
+// Loaded only on Learning Hub and policy pages, so the homepage never references them.
+const PAGE_SCOPED_ASSET_KEYS = new Set([
+  'css/learning-hub.css',
+  'js/learning-hub.js',
+  'css/legal.css',
+]);
 
 function exactKeys(value, expected) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {

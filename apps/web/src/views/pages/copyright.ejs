@@ -1,15 +1,23 @@
-<div class="page-header">
-  <h1 class="page-header__title">Copyright Policy</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/acceptable-use">Acceptable Use</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'respect-for-copyright', title: 'Respect for copyright' },
+    { id: 'reporting-copyright-infringement', title: 'Reporting copyright infringement' },
+    { id: 'counter-notice', title: 'Counter-Notice' },
+    { id: 'repeat-infringers', title: 'Repeat infringers' },
+    { id: 'important-notice', title: 'Important notice' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Respect for Copyright</h2>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
+
+  <article class="legal__prose">
+    <h2 id="respect-for-copyright">Respect for copyright</h2>
     <p>HelloDeploy users must have the rights necessary to deploy their repositories and hosted content. Copyright infringement is prohibited by the <a href="/acceptable-use">Acceptable Use Policy</a>.</p>
 
-    <h2>Reporting Copyright Infringement</h2>
-    <p>To report allegedly infringing content hosted through HelloDeploy, email <strong>hensonsagorsor@gmail.com</strong> with:</p>
+    <h2 id="reporting-copyright-infringement">Reporting copyright infringement</h2>
+    <p>To report allegedly infringing content hosted through HelloDeploy, email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a> with:</p>
     <ul>
       <li>Your name and contact information.</li>
       <li>A description of the copyrighted work you claim is infringed.</li>
@@ -19,13 +27,15 @@
       <li>Your physical or electronic signature.</li>
     </ul>
 
-    <h2>Counter-Notice</h2>
+    <h2 id="counter-notice">Counter-Notice</h2>
     <p>If your content was removed or disabled because of a copyright complaint and you believe the action was mistaken, email a counter-notice with your contact information, the removed material, the reason you believe removal was mistaken, and your physical or electronic signature.</p>
 
-    <h2>Repeat Infringers</h2>
+    <h2 id="repeat-infringers">Repeat infringers</h2>
     <p>HelloDeploy may suspend or terminate accounts or projects that repeatedly infringe copyright or repeatedly receive valid copyright complaints.</p>
 
-    <h2>Important Notice</h2>
+    <h2 id="important-notice">Important notice</h2>
     <p>This policy is a practical pilot process and is not a substitute for formal legal advice. If HelloDeploy is operated as a public service in the United States, the operator should consider registering a DMCA designated agent with the U.S. Copyright Office.</p>
-  </div>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>

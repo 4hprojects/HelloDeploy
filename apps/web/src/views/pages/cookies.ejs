@@ -1,60 +1,79 @@
-<div class="page-header">
-  <h1 class="page-header__title">Cookie Policy</h1>
-  <p class="page-header__subtitle">Effective 30 June 2026, updated 29 October 2026 &middot; <a href="/legal">Legal</a> &middot; <a href="/terms">Terms</a> &middot; <a href="/privacy">Privacy</a></p>
-</div>
+<%
+  const sections = [
+    { id: 'at-a-glance', title: 'At a glance' },
+    { id: 'cookies-we-use', title: 'Cookies we use' },
+    { id: 'browser-storage', title: 'Browser storage' },
+    { id: 'third-party', title: 'Third-party checks' },
+    { id: 'consent', title: 'Consent' },
+    { id: 'managing-cookies', title: 'Managing cookies' },
+    { id: 'changes', title: 'Changes' },
+  ];
+%>
+<%- include('../partials/legal/header') %>
 
-<div class="card">
-  <div class="card__body">
-    <h2>Overview</h2>
-    <p>HelloDeploy uses only cookies and browser storage that are necessary to provide authentication, session security, CSRF protection, and user interface preferences. We do not use advertising cookies, cross-site tracking cookies, analytics cookies, or marketing pixels.</p>
+<div class="legal">
+  <%- include('../partials/legal/toc', { sections }) %>
 
-    <h2>Cookies We Use</h2>
-    <table class="table">
+  <article class="legal__prose">
+    <section class="legal-summary" aria-labelledby="at-a-glance">
+      <h2 id="at-a-glance">At a glance</h2>
+      <ul>
+        <li>HelloDeploy sets one cookie, <code>hellodeploy.sid</code>, which keeps you signed in and protects forms.</li>
+        <li>Two browser storage keys remember your theme and keep an unsent blog comment on your device.</li>
+        <li>No advertising, analytics, or tracking cookies, so there is nothing to opt out of.</li>
+      </ul>
+    </section>
+
+    <h2 id="cookies-we-use">Cookies we use</h2>
+    <table class="table legal-table">
       <thead>
         <tr><th scope="col">Name</th><th scope="col">Purpose</th><th scope="col">Duration</th><th scope="col">Type</th></tr>
       </thead>
       <tbody>
         <tr>
-          <td><code>hellodeploy.sid</code></td>
-          <td>Maintains your authenticated session and connects requests to server-side session state.</td>
-          <td>24 hours of inactivity, sign-out, or session destruction</td>
-          <td>Strictly necessary</td>
+          <td data-label="Name"><code>hellodeploy.sid</code></td>
+          <td data-label="Purpose">Maintains your authenticated session and connects requests to server-side session state, including the form protection (CSRF) token kept on the server. Set <code>HttpOnly</code>, <code>Secure</code>, and <code>SameSite=Lax</code>.</td>
+          <td data-label="Duration">24 hours of inactivity, sign-out, or session destruction</td>
+          <td data-label="Type">Strictly necessary</td>
         </tr>
       </tbody>
     </table>
 
-    <h2>Browser Storage</h2>
-    <table class="table">
+    <h2 id="browser-storage">Browser storage</h2>
+    <p>These keys are stored by your browser on your device. They are never sent to HelloDeploy.</p>
+    <table class="table legal-table">
       <thead>
         <tr><th scope="col">Key</th><th scope="col">Purpose</th><th scope="col">Duration</th><th scope="col">Type</th></tr>
       </thead>
       <tbody>
         <tr>
-          <td><code>hd-theme</code></td>
-          <td>Remembers your light or dark theme preference on the same browser.</td>
-          <td>Until you clear browser storage or change preference</td>
-          <td>Preference storage</td>
+          <td data-label="Key"><code>hd-theme</code></td>
+          <td data-label="Purpose">Remembers your light or dark theme preference on the same browser.</td>
+          <td data-label="Duration">Until you clear browser storage or change preference</td>
+          <td data-label="Type">Preference storage</td>
         </tr>
         <tr>
-          <td><code>lh-draft-&lt;article&gt;</code></td>
-          <td>Keeps an unsent Learning Hub comment on your device if submitting fails.</td>
-          <td>Until the browser tab is closed or the comment is published</td>
-          <td>Session storage</td>
+          <td data-label="Key"><code>lh-draft-&lt;article&gt;</code></td>
+          <td data-label="Purpose">Keeps an unsent Learning Hub comment on your device if submitting fails.</td>
+          <td data-label="Duration">Until the browser tab is closed or the comment is published</td>
+          <td data-label="Type">Session storage</td>
         </tr>
       </tbody>
     </table>
 
-    <h2>Consent</h2>
-    <p>The session cookie is strictly necessary to provide the service you request after signing in. Because HelloDeploy does not currently set optional analytics, advertising, or tracking cookies, there is no optional cookie category to accept or reject.</p>
+    <h2 id="third-party">Third-party checks</h2>
+    <p>Sign-in and account forms load Cloudflare Turnstile from <code>challenges.cloudflare.com</code> to tell people from bots. Turnstile runs in its own frame under Cloudflare&rsquo;s control, and Cloudflare&rsquo;s own privacy policy covers any storage it uses there. HelloDeploy receives only a pass or fail token. See <a href="/privacy#recipients">Who receives your data</a>.</p>
+
+    <h2 id="consent">Consent</h2>
+    <p>The session cookie is strictly necessary to provide the service you ask for, so the law does not require your consent for it. The theme key only stores a preference you set yourself. Because HelloDeploy does not set optional analytics, advertising, or tracking cookies, there is no optional category to accept or reject.</p>
     <p>HelloDeploy records a small, allowlisted set of first-party product milestones and Web Vitals on the server. This measurement does not set an analytics cookie, load a third-party analytics script, or store page URLs, repository names, credentials, or secret values.</p>
 
-    <h2>Managing Cookies</h2>
-    <p>You can block or delete cookies in your browser settings. If you block the session cookie, you will not be able to sign in or use authenticated HelloDeploy features.</p>
+    <h2 id="managing-cookies">Managing cookies</h2>
+    <p>You can block or delete cookies and site storage in your browser settings. If you block the session cookie, you will not be able to sign in or use authenticated HelloDeploy features. Reading the blog still works.</p>
 
-    <h2>Changes</h2>
-    <p>If HelloDeploy adds analytics, marketing, or other optional cookies in the future, this policy will be updated and a consent control will be added before those cookies are set where required.</p>
-
-    <h2>Contact</h2>
-    <p>Questions about cookies: <strong>hensonsagorsor@gmail.com</strong></p>
-  </div>
+    <h2 id="changes">Changes</h2>
+    <p>If HelloDeploy adds analytics, advertising, or other optional cookies in the future, this policy will be updated first, and a consent control will be added before those cookies are set.</p>
+  </article>
 </div>
+
+<%- include('../partials/legal/footer') %>

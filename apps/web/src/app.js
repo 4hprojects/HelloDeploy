@@ -23,6 +23,7 @@ import { getDashboard, getDashboardStatusJson } from './controllers/dashboard.co
 import { getPlanDefaults } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 import { env } from './config/env.js';
+import { LEGAL_CONTACT_EMAIL, LEGAL_OPERATOR, LEGAL_POLICIES } from './config/legal-policies.js';
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
 import { getContentRepository } from './services/learning-hub/content-repository.js';
@@ -136,6 +137,9 @@ export function createApp({
   Object.assign(app.locals, applicationLocals(), {
     learningHubEnabled: learningHub.enabled,
     learningHubRepository: learningHub.enabled ? learningHub.getRepository : null,
+    legalContactEmail: LEGAL_CONTACT_EMAIL,
+    legalOperator: LEGAL_OPERATOR,
+    legalPolicies: LEGAL_POLICIES,
   });
 
   // Static assets (served before rate limiting to avoid counting static hits).
@@ -210,23 +214,18 @@ export function createApp({
   app.post('/telemetry/web-vitals', postWebVital);
 
   // ── Public policy pages ────────────────────────────────────────────────────
-  app.get('/legal', (_req, res) => res.render('pages/legal', { title: 'Legal' }));
-  app.get('/terms', (_req, res) => res.render('pages/terms', { title: 'Terms of Service' }));
-  app.get('/privacy', (_req, res) => res.render('pages/privacy', { title: 'Privacy Policy' }));
-  app.get('/cookies', (_req, res) => res.render('pages/cookies', { title: 'Cookie Policy' }));
-  app.get('/acceptable-use', (_req, res) =>
-    res.render('pages/acceptable-use', { title: 'Acceptable Use Policy' }),
+  app.get('/legal', (_req, res) =>
+    res.render('pages/legal', { title: 'Legal', pageStyles: ['css/legal.css'] }),
   );
-  app.get('/service-limits', (_req, res) =>
-    res.render('pages/service-limits', { title: 'Service Limits' }),
-  );
-  app.get('/data-processing', (_req, res) =>
-    res.render('pages/data-processing', { title: 'Data Processing Terms' }),
-  );
-  app.get('/copyright', (_req, res) =>
-    res.render('pages/copyright', { title: 'Copyright Policy' }),
-  );
-  app.get('/security', (_req, res) => res.render('pages/security', { title: 'Security Policy' }));
+  for (const policy of LEGAL_POLICIES) {
+    app.get(`/${policy.slug}`, (_req, res) =>
+      res.render(`pages/${policy.slug}`, {
+        title: policy.title,
+        policy,
+        pageStyles: ['css/legal.css'],
+      }),
+    );
+  }
 
   // ── Error pages ────────────────────────────────────────────────────────────
   app.use((_req, res) => {

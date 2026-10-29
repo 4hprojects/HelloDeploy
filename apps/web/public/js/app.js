@@ -299,6 +299,21 @@
     });
   }
 
+  // Policy pages keep their contents list collapsed on phones so the policy is
+  // the first thing on screen; wide layouts show it as a sidebar.
+  function initLegalToc() {
+    const toc = document.querySelector('[data-legal-toc]');
+    if (!toc || !window.matchMedia) {
+      return;
+    }
+    const query = window.matchMedia('(min-width: 64rem)');
+    const sync = () => {
+      toc.open = query.matches;
+    };
+    sync();
+    query.addEventListener('change', sync);
+  }
+
   function initScrollTop() {
     const button = document.getElementById('scroll-top-button');
     if (!button) {
@@ -2122,6 +2137,7 @@
     initSidebarDrawer();
     initTooltips();
     initScrollTop();
+    initLegalToc();
     initConfirmationModal();
     initPageModal();
     initPendingForms();
