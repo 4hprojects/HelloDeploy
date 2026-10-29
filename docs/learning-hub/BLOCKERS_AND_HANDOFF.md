@@ -5,8 +5,8 @@ capability **off**. Each item below needs the owner; none is blocked by code.
 
 ## 0. Merge the release (owner)
 
-Release candidate `0b0dd13de1faf7368c2c61e65c87fd9da8ee726c` passed full CI. The session was
-not permitted to update or merge PR #165. To release:
+Done 2026-10-29: merged as `3309c51` and deployed by autodeploy. Kept for reference. Release
+candidate `0b0dd13de1faf7368c2c61e65c87fd9da8ee726c` passed full CI. To release:
 
 ```sh
 gh pr ready 165
@@ -60,7 +60,9 @@ Cloudflare Turnstile. Please read and confirm the wording.
 
 ## Release record
 
-Filled in at release; see the final entry of [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md).
+Deployed 2026-10-29 as `3309c51d2c4b5c62016446d612dc4d422d70ef72`; backup
+`/var/backups/hellodeploy/20261029_230800`; rollback reference `2b54d22`. Details in the final
+entry of [IMPLEMENTATION_LOG.md](IMPLEMENTATION_LOG.md).
 
 ### After enabling
 
