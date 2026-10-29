@@ -56,7 +56,9 @@ Also add truthful `/about` and `/contact` pages before applying.
 ## 5. Review legal text
 
 `/privacy` and `/cookies` were updated on 2026-10-29 for Learning Hub data and to list
-Cloudflare Turnstile. Please read and confirm the wording.
+Cloudflare Turnstile. All policy pages were expanded on 2026-10-30 (PR #167). The owner accepted
+the wording for now and will send refinements. Still open: one spelling of the operator name,
+and a named governing law in the Terms.
 
 ## Release record
 
