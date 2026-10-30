@@ -36,6 +36,7 @@ import {
   getPilot,
   getAbout,
   getFeatures,
+  getContact,
   getPremium,
   getPublicStatus,
   getRobots,
@@ -206,6 +207,9 @@ export function createApp({
   app.get('/pricing', (_req, res) => res.redirect(301, '/pilot'));
   app.get('/about', getAbout);
   app.get('/features', getFeatures);
+  app.get('/contact', getContact);
+  app.get('/faq', (_req, res) => res.redirect(301, '/docs/faq'));
+  app.get('/help', (_req, res) => res.redirect(301, '/docs'));
   app.get('/premium', getPremium);
   app.get('/status', getPublicStatus);
   app.get('/robots.txt', getRobots);

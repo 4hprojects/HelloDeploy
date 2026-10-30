@@ -8,7 +8,7 @@ const { startTestDb, stopTestDb } = await import('../helpers/worker-db.js');
 const { createApp } = await import('../../apps/web/src/app.js');
 const { LEGAL_OPERATOR } = await import('../../apps/web/src/config/legal-policies.js');
 
-const PATHS = ['/', '/about', '/features', '/pilot', '/premium', '/sitemap.xml'];
+const PATHS = ['/', '/about', '/features', '/pilot', '/premium', '/contact', '/sitemap.xml'];
 
 describe('Public product pages', () => {
   let app;
@@ -88,5 +88,29 @@ describe('Public product pages', () => {
 
   it('states there are no paid plans on the pilot page', () => {
     assert.match(pages.get('/pilot').html, /There are no paid plans\./);
+  });
+
+  it('redirects /faq and /help permanently into the docs', async () => {
+    const responses = await Promise.all(
+      ['/faq', '/help'].map((path) => fetch(`${baseUrl}${path}`, { redirect: 'manual' })),
+    );
+    assert.deepEqual(
+      responses.map((response) => [response.status, response.headers.get('location')]),
+      [
+        [301, '/docs/faq'],
+        [301, '/docs'],
+      ],
+    );
+  });
+
+  it('warns support emailers never to send secrets', () => {
+    assert.match(pages.get('/contact').html, /<strong>Never send secrets<\/strong>/);
+  });
+
+  it('points vulnerability reports to the security policy', () => {
+    assert.match(
+      pages.get('/contact').html,
+      /<h2>Security vulnerabilities<\/h2>\s*<p>Report vulnerabilities privately as described in the <a href="\/security">/,
+    );
   });
 });
