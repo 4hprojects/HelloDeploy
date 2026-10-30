@@ -34,6 +34,8 @@ import {
   getHowItWorks,
   getSupportedApps,
   getPilot,
+  getAbout,
+  getFeatures,
   getPremium,
   getPublicStatus,
   getRobots,
@@ -201,6 +203,9 @@ export function createApp({
   app.get('/docs/:topic', getDocsTopic);
   app.get('/supported-apps', getSupportedApps);
   app.get('/pilot', getPilot);
+  app.get('/pricing', (_req, res) => res.redirect(301, '/pilot'));
+  app.get('/about', getAbout);
+  app.get('/features', getFeatures);
   app.get('/premium', getPremium);
   app.get('/status', getPublicStatus);
   app.get('/robots.txt', getRobots);

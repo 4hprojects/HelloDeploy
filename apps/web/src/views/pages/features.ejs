@@ -1,0 +1,80 @@
+<%
+  const STATUS = {
+    available: { label: 'Available', tone: 'success' },
+    limited: { label: 'Limited', tone: 'warning' },
+    unavailable: { label: 'Not available', tone: 'neutral' },
+  };
+  const groups = [
+    {
+      id: 'connect',
+      title: 'Connect and configure',
+      features: [
+        ['available', 'GitHub repositories', 'Deploy a public HTTPS repository, or install the HelloDeploy GitHub App for private repositories you choose.'],
+        ['available', 'App detection', 'HelloDeploy reads your repository and suggests the app type, build command, and start command for you to confirm.'],
+        ['available', 'Environment variables', 'Values are encrypted at rest. Only the project owner can reveal them, and each reveal is recorded.'],
+        ['limited', 'Supported runtimes', 'Static sites, Node.js and Express, React and Vue static builds, and legacy Next.js. Other runtimes are invitation-only and paused.'],
+      ],
+    },
+    {
+      id: 'deploy',
+      title: 'Deploy and run',
+      features: [
+        ['available', 'Deploy and redeploy', 'Deploy from the dashboard, automatically on push for GitHub App repositories, or from CI with a secret deploy hook.'],
+        ['available', 'Health checks before traffic', 'A new release only receives traffic after it starts and passes its health check. Otherwise the previous release stays live.'],
+        ['available', 'Live deployment logs', 'Watch build and start-up output as it happens, with common secret patterns redacted. Logs are kept for 30 days.'],
+        ['available', 'Rollback', `Return to one of your last ${planDefaults.maxRollbackReleases} healthy releases from deployment history.`],
+        ['limited', 'Resources', `Each app gets ${planDefaults.memoryMb} MB of memory and ${planDefaults.cpuCores} CPU by default, with ${planDefaults.maxRunningApps} running app${planDefaults.maxRunningApps === 1 ? '' : 's'} per account during the pilot.`],
+        ['limited', 'Project approval', 'New projects go through an approval step before their first deployment during the pilot.'],
+      ],
+    },
+    {
+      id: 'publish',
+      title: 'Publish and manage',
+      features: [
+        ['available', 'Live URL with HTTPS', 'Every project gets a platform address after its first healthy deployment.'],
+        ['limited', 'Custom domains', `Up to ${planDefaults.maxCustomDomains} custom domain${planDefaults.maxCustomDomains === 1 ? '' : 's'} by default, after DNS ownership is verified and an administrator approves it.`],
+        ['available', 'Team members', `Up to ${planDefaults.maxProjectMembers} members per project by default, each with a defined role.`],
+        ['available', 'Activity history', 'Important project and configuration actions are recorded, and you can export the project activity log.'],
+        ['available', 'Delete a project', 'Deleting a project stops it and removes its containers, images, secrets, and deployment history.'],
+      ],
+    },
+    {
+      id: 'not-yet',
+      title: 'Not available today',
+      features: [
+        ['unavailable', 'Managed databases', 'Use an external provider such as MongoDB Atlas or Supabase and store its connection string as an environment variable.'],
+        ['unavailable', 'Two-factor sign-in', 'Accounts use a password or Google sign-in.'],
+        ['unavailable', 'Self-service account deletion', 'Email us to close your account. See the Privacy Policy for what is deleted and when.'],
+        ['unavailable', 'Paid plans and uptime guarantees', 'HelloDeploy is a free pilot without a service-level agreement.'],
+      ],
+    },
+  ];
+%>
+<section class="hero public-hero" aria-labelledby="features-title">
+  <div class="hero__content">
+    <p class="section-eyebrow">Features</p>
+    <h1 class="hero__title" id="features-title">What HelloDeploy does today.</h1>
+    <p class="hero__subtitle">Each feature is marked Available, Limited, or Not available, based on what the platform does now, not on plans.</p>
+    <div class="button-group mt-6">
+      <a href="/auth/create-account" class="button button--primary button--lg">Get started</a>
+      <a href="/how-it-works" class="button button--secondary button--lg">How it works</a>
+    </div>
+  </div>
+</section>
+
+<% groups.forEach((group) => { %>
+<section class="public-section" aria-labelledby="features-<%= group.id %>">
+  <h2 id="features-<%= group.id %>"><%= group.title %></h2>
+  <div class="compatibility-grid mt-4">
+    <% group.features.forEach(([status, name, detail]) => { %>
+    <div class="card"><div class="card__body">
+      <h3><%= name %></h3>
+      <p><span class="status-badge status-badge--<%= STATUS[status].tone %>"><%= STATUS[status].label %></span></p>
+      <p class="text-sm text-muted"><%= detail %></p>
+    </div></div>
+    <% }) %>
+  </div>
+</section>
+<% }) %>
+
+<section class="public-cta"><h2>Check the limits before you rely on it</h2><div class="button-group"><a href="/service-limits" class="button button--secondary">Service limits</a><a href="/supported-apps" class="button button--primary">Supported applications</a></div></section>
