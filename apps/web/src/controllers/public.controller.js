@@ -1,3 +1,5 @@
+import { getPlanDefaults } from '@hellodeploy/database';
+
 import { asyncHandler } from '../utils/async-handler.js';
 import { checkWebReadiness } from '../services/readiness.service.js';
 import { DOC_SECTIONS, PUBLIC_DOC_TOPICS, PUBLIC_PAGES } from '../config/public-pages.js';
@@ -301,14 +303,22 @@ export function getHowItWorks(_req, res) {
   res.render('pages/how-it-works', { title: 'How It Works' });
 }
 
-// Placeholder until Premium sign-up exists; linked from the monthly deployment
-// limit message.
+// Premium is granted by an administrator, never sold; the page is linked from
+// the monthly deployment limit message.
 export function getPremium(_req, res) {
   res.render('pages/premium', { title: 'HelloDeploy Premium' });
 }
 
 export function getPilot(_req, res) {
-  res.render('pages/pilot', { title: 'Pilot and Pricing' });
+  res.render('pages/pilot', { title: 'Pilot and Pricing', planDefaults: getPlanDefaults() });
+}
+
+export function getAbout(_req, res) {
+  res.render('pages/about', { title: 'About' });
+}
+
+export function getFeatures(_req, res) {
+  res.render('pages/features', { title: 'Features', planDefaults: getPlanDefaults() });
 }
 
 export const getPublicStatus = asyncHandler(async (_req, res) => {

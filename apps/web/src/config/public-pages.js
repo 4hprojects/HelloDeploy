@@ -110,12 +110,19 @@ export const PUBLIC_PAGES = Object.freeze([
     path: '/pilot',
     title: 'Pilot and Pricing',
     description:
-      'Understand HelloDeploy’s free pilot status, limits, availability, recovery scope, and support expectations.',
+      'HelloDeploy is free during the pilot, with no paid plans. See what the free pilot includes, its limits, and support expectations.',
   },
   {
-    path: '/premium',
-    title: 'HelloDeploy Premium',
-    description: 'What a HelloDeploy Premium account includes and how to get one.',
+    path: '/features',
+    title: 'Features',
+    description:
+      'See which HelloDeploy features are available, limited, or not available today, from GitHub deploys and logs to custom domains.',
+  },
+  {
+    path: '/about',
+    title: 'About',
+    description:
+      'Why HelloDeploy exists, who it is for, and what to expect from a free deployment pilot built in the Philippines.',
   },
   {
     path: '/status',
