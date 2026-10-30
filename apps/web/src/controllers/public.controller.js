@@ -7,33 +7,180 @@ import { env } from '../config/env.js';
 import { learningHubSitemapEntries } from './blog.controller.js';
 
 const TOPIC_CONTENT = Object.freeze({
-  domains: [
-    'Every project receives a platform address after its first healthy deployment.',
-    'A custom domain requires a DNS ownership record and routing setup.',
-    'The Domains page always shows the next required action and the exact DNS fields.',
-  ],
-  'deploy-hooks': [
-    'A deploy hook is a secret URL that starts a deployment.',
-    'The raw URL is shown once; HelloDeploy stores only its hash.',
-    'Revoke and regenerate a hook immediately if it may have been exposed.',
-  ],
-  rollback: [
-    'Choose a retained healthy release from deployment history.',
-    'HelloDeploy starts and checks it before switching traffic.',
-    'The rollback is recorded as a new operation and identifies the restored release.',
-  ],
-  troubleshooting: [
-    'Start with the plain-language failure summary and recommended action.',
-    'Check the start command, port, required variables, and health path when an app does not become healthy.',
-    'Use redacted technical logs when the summary is not enough.',
-  ],
   'service-limits': [
-    'The public pilot uses bounded project, deployment, memory, CPU, storage, domain, and retention limits.',
+    'The public pilot uses bounded project, deployment, memory, CPU, domain, and retention limits.',
     'Review the complete current limits before relying on the service for a project.',
   ],
 });
 
 const CORE_TOPIC_CONTENT = Object.freeze({
+  domains: {
+    lead: 'Every project gets a platform address, and you can add a verified custom domain.',
+    sections: [
+      {
+        title: 'Your platform address',
+        paragraphs: [
+          'A project receives its permanent address when you create it. The address starts serving traffic after the first healthy deployment, over HTTPS.',
+        ],
+      },
+      {
+        title: 'Add a custom domain',
+        ordered: true,
+        items: [
+          'Open the project and select Domains, then enter the hostname you own.',
+          'Create the DNS TXT record shown on the Domains page at your DNS provider. HelloDeploy stores only a hash of the token.',
+          'Select Verify. DNS changes can take time to appear, so try again later if the record is not found yet.',
+          'Wait for an administrator to approve the verified domain during the pilot.',
+          'Follow the routing step shown on the Domains page to point the hostname at HelloDeploy.',
+        ],
+        note: {
+          title: 'Limits',
+          body: 'The pilot allows one custom domain by default. The Domains page always shows the next required action.',
+        },
+      },
+    ],
+  },
+  'deploy-hooks': {
+    lead: 'A deploy hook is a secret URL that starts a deployment, for example from CI after tests pass.',
+    sections: [
+      {
+        title: 'Create a hook',
+        ordered: true,
+        items: [
+          'Open the project, then Deploy hook. Only the project owner can manage it.',
+          'Generate the hook and copy the URL straight away. It is shown once; HelloDeploy stores only its hash.',
+          'Store the URL as a secret in your CI system, never in the repository.',
+        ],
+      },
+      {
+        title: 'Call the hook',
+        paragraphs: [
+          'Send an HTTP POST request to the hook URL. Each call starts a deployment of the project branch and counts toward the monthly deployment limit. Calls are rate-limited.',
+        ],
+      },
+      {
+        title: 'If the URL leaks',
+        paragraphs: [
+          'Revoke the hook on the same page, then generate a new one. The old URL stops working at once.',
+        ],
+      },
+    ],
+  },
+  rollback: {
+    lead: 'Rollback restores a recent healthy release without a new build.',
+    sections: [
+      {
+        title: 'Which releases you can restore',
+        paragraphs: [
+          'HelloDeploy keeps your most recent healthy releases, 3 by default. Older release images are deleted automatically, so they cannot be restored.',
+        ],
+      },
+      {
+        title: 'Roll back',
+        ordered: true,
+        items: [
+          'Open Deployments and find a retained healthy release.',
+          'Select Rollback and confirm.',
+          'HelloDeploy starts the old release and health-checks it before switching traffic. If the check fails, the current release stays live.',
+        ],
+        note: {
+          title: 'What does not roll back',
+          body: 'Rollback restores your application image. It does not undo changes to environment variables or to data in an external database.',
+        },
+      },
+    ],
+  },
+  troubleshooting: {
+    lead: 'Start with the plain-language summary on the failed deployment, then work through the checks below.',
+    sections: [
+      {
+        title: 'The build failed',
+        items: [
+          'Commit a lockfile (package-lock.json) that matches package.json, and make sure the install runs on Node.js 22.',
+          'Check the build command in App setup. Run it locally on a clean checkout to reproduce the error.',
+          'If the logs mention a missing module or build output, confirm the output folder in App setup matches what the build produces.',
+        ],
+      },
+      {
+        title: 'The app built but never became healthy',
+        items: [
+          'Listen on the port in the PORT environment variable. HelloDeploy always sets it, and a different port fails the health check.',
+          'Make sure the start command keeps a server running. A command that exits counts as a crash.',
+          'Add every required environment variable. Missing values are a common cause of a crash at start-up.',
+          'If the app uses a database, allow connections from the internet and use the provider\u2019s connection string, not localhost.',
+        ],
+      },
+      {
+        title: 'The app keeps restarting',
+        paragraphs: [
+          'Restarts during the health window count as a crash loop and fail the release. Check the last lines of the runtime log for the error, and check memory use against the per-app limit.',
+        ],
+      },
+      {
+        title: 'Still stuck',
+        paragraphs: [
+          'Email the address on the Contact page with the project name and the deployment number. Do not send passwords, tokens, or secret values, and remove them from any log you share.',
+        ],
+      },
+    ],
+  },
+  logs: {
+    lead: 'Each deployment keeps its own build and runtime logs.',
+    sections: [
+      {
+        title: 'Where to find them',
+        paragraphs: [
+          'Open Deployments and select Logs on any deployment. While a deployment runs, new lines appear live.',
+        ],
+      },
+      {
+        title: 'What is hidden',
+        paragraphs: [
+          'Common secret formats, such as GitHub and AWS tokens, bearer tokens, private keys, and key=value pairs that look like secrets, are redacted before logs are stored. Redaction is a safety net, not a guarantee: never print secret values from your app.',
+        ],
+      },
+      {
+        title: 'How long logs are kept',
+        paragraphs: [
+          'Logs are deleted automatically after 30 days. Copy anything you need to keep before then.',
+        ],
+      },
+    ],
+  },
+  'stop-and-delete': {
+    lead: 'What happens when you delete a project or disconnect GitHub, and what you are responsible for keeping.',
+    sections: [
+      {
+        title: 'Delete a project',
+        paragraphs: [
+          'Only the project owner can delete a project, and you must type the project slug in Settings to confirm. Deletion cannot be undone.',
+        ],
+        items: [
+          'Stopped and removed: the running app, its containers, release images, and its network and platform route.',
+          'Deleted: environment variables, domains, deployment history and logs, members, and the project itself.',
+          'Kept for a limited time: activity records expire after 90 days, and server backups age out on the schedule in the Privacy Policy.',
+        ],
+      },
+      {
+        title: 'Disconnect GitHub',
+        paragraphs: [
+          'Disconnecting a repository from a project, or uninstalling the GitHub App on GitHub, stops new deployments from that repository. The app that is already running keeps running until you delete the project.',
+        ],
+      },
+      {
+        title: 'Your backups',
+        paragraphs: [
+          'HelloDeploy does not back up your application data or any database your app uses. Keep your source in GitHub and back up external databases with their provider.',
+        ],
+      },
+      {
+        title: 'Close your account',
+        paragraphs: [
+          'Email the contact address to close your account. Your projects are deleted as described above, and account data is removed within 30 days.',
+        ],
+      },
+    ],
+  },
   'getting-started': {
     lead: 'Follow this path from a new account to the first healthy release of a supported application.',
     sections: [
@@ -261,6 +408,23 @@ const FAQ = Object.freeze([
     'Does a failed deployment take down my live release?',
     'No; traffic stays on the previous healthy release.',
   ],
+  ['Are there paid plans?', 'No. HelloDeploy is free during the pilot and nothing is for sale.'],
+  [
+    'Who owns the code I deploy?',
+    'You do. HelloDeploy only builds and runs it to provide the service.',
+  ],
+  [
+    'How do I close my account?',
+    'Email the contact address. Projects are deleted and account data is removed within 30 days.',
+  ],
+  [
+    'How do I get help?',
+    'Email the address on the Contact page. Support is best-effort, and you should never send passwords, tokens, or secret values.',
+  ],
+  [
+    'Where do I report a security problem?',
+    'Follow the Security Policy. Please report privately and do not test against other users\u2019 apps.',
+  ],
 ]);
 
 export function getDocsIndex(_req, res) {
@@ -315,6 +479,10 @@ export function getPilot(_req, res) {
 
 export function getAbout(_req, res) {
   res.render('pages/about', { title: 'About' });
+}
+
+export function getContact(_req, res) {
+  res.render('pages/contact', { title: 'Contact and Support' });
 }
 
 export function getFeatures(_req, res) {

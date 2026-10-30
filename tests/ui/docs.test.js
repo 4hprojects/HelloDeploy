@@ -4,7 +4,11 @@ import { describe, it } from 'node:test';
 
 import ejs from 'ejs';
 
-import { DOC_SECTIONS, PUBLIC_DOC_TOPICS } from '../../apps/web/src/config/public-pages.js';
+import {
+  DOC_SECTIONS,
+  PUBLIC_DOC_TOPICS,
+  PUBLIC_PAGES,
+} from '../../apps/web/src/config/public-pages.js';
 import { getDocsIndex, getDocsTopic } from '../../apps/web/src/controllers/public.controller.js';
 
 const viewsDir = new URL('../../apps/web/src/views/pages/docs/', import.meta.url);
@@ -42,7 +46,9 @@ describe('docs structure', () => {
         'domains',
         'deploy-hooks',
         'rollback',
+        'logs',
         'troubleshooting',
+        'stop-and-delete',
         'service-limits',
         'faq',
       ],
@@ -101,9 +107,35 @@ describe('docs topic controller', () => {
   });
 
   it('keeps secondary topics on the concise points path', () => {
-    const topic = renderTopic('domains').locals.topic;
+    const topic = renderTopic('service-limits').locals.topic;
     assert.equal(topic.content, null);
     assert.ok(topic.points.length > 0);
+  });
+});
+
+describe('operating guides', () => {
+  it('gives the operating and publishing guides structured content', () => {
+    assert.deepEqual(
+      ['domains', 'deploy-hooks', 'rollback', 'logs', 'troubleshooting', 'stop-and-delete'].filter(
+        (slug) => !renderTopic(slug).locals.topic.content?.sections.length,
+      ),
+      [],
+    );
+  });
+
+  it('tells readers HelloDeploy does not back up their databases', () => {
+    const sections = renderTopic('stop-and-delete').locals.topic.content.sections;
+    assert.match(
+      sections.find((section) => section.title === 'Your backups').paragraphs[0],
+      /does not back up your application data/,
+    );
+  });
+
+  it('gives every docs topic its own meta description', () => {
+    const descriptions = PUBLIC_PAGES.filter((page) => page.path.startsWith('/docs/')).map(
+      (page) => page.description,
+    );
+    assert.equal(new Set(descriptions).size, PUBLIC_DOC_TOPICS.length);
   });
 });
 
@@ -177,7 +209,10 @@ describe('docs views', () => {
   });
 
   it('keeps the concise list renderer for a secondary guide', async () => {
-    const html = await renderView('topic', { ...renderTopic('domains').locals, user: null });
+    const html = await renderView('topic', {
+      ...renderTopic('service-limits').locals,
+      user: null,
+    });
     assert.match(html, /class="docs-points"/);
     assert.doesNotMatch(html, /class="docs-guide__lead"/);
   });

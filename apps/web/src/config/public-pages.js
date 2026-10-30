@@ -53,9 +53,19 @@ export const DOC_SECTIONS = Object.freeze([
         summary: 'Restore a retained healthy release from deployment history.',
       },
       {
+        slug: 'logs',
+        title: 'Deployment Logs',
+        summary: 'Find build and runtime logs, what is redacted, and how long they are kept.',
+      },
+      {
         slug: 'troubleshooting',
         title: 'Troubleshooting',
-        summary: 'What to check when an app does not become healthy.',
+        summary: 'What to check when a build fails or an app does not become healthy.',
+      },
+      {
+        slug: 'stop-and-delete',
+        title: 'Delete and Disconnect',
+        summary: 'What deleting a project or disconnecting GitHub removes, and what you keep.',
       },
     ],
   },
@@ -95,11 +105,13 @@ export const PUBLIC_PAGES = Object.freeze([
     description:
       'Learn how to connect, configure, deploy, publish, and troubleshoot an application with HelloDeploy.',
   },
-  ...PUBLIC_DOC_TOPICS.map(([slug, title]) => ({
-    path: `/docs/${slug}`,
-    title,
-    description: `${title} guidance for the HelloDeploy deployment platform.`,
-  })),
+  ...DOC_SECTIONS.flatMap((section) =>
+    section.topics.map(({ slug, title, summary }) => ({
+      path: `/docs/${slug}`,
+      title,
+      description: `${summary} HelloDeploy documentation.`,
+    })),
+  ),
   {
     path: '/supported-apps',
     title: 'Supported Applications',
@@ -117,6 +129,12 @@ export const PUBLIC_PAGES = Object.freeze([
     title: 'Features',
     description:
       'See which HelloDeploy features are available, limited, or not available today, from GitHub deploys and logs to custom domains.',
+  },
+  {
+    path: '/contact',
+    title: 'Contact and Support',
+    description:
+      'How to reach HelloDeploy for deployment help, privacy requests, appeals, and abuse reports, and how to report a vulnerability.',
   },
   {
     path: '/about',

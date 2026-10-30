@@ -51,12 +51,20 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   }
 });
 
-test('about, features, and pilot pages pass axe in dark mode and fit a phone', async ({ page }) => {
+test('public product and support pages pass axe in dark mode and fit a phone', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 900 });
   await page.goto('/about');
   await page.getByRole('button', { name: /dark theme/i }).click();
 
-  for (const path of ['/about', '/features', '/pilot', '/premium']) {
+  for (const path of [
+    '/about',
+    '/features',
+    '/pilot',
+    '/premium',
+    '/contact',
+    '/docs/stop-and-delete',
+    '/docs/troubleshooting',
+  ]) {
     await page.goto(path);
     const results = await new AxeBuilder({ page }).analyze();
     expect(
