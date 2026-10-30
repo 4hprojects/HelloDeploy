@@ -1,0 +1,37 @@
+<section class="hero public-hero" aria-labelledby="about-title">
+  <div class="hero__content">
+    <p class="section-eyebrow">About</p>
+    <h1 class="hero__title" id="about-title">A small deployment platform built in the Philippines.</h1>
+    <p class="hero__subtitle">HelloDeploy helps students, indie developers, and small teams put a web app from GitHub online without setting up servers themselves.</p>
+  </div>
+</section>
+
+<section class="public-section" aria-labelledby="why-title">
+  <h2 id="why-title">Why HelloDeploy exists</h2>
+  <div class="card prose mt-4"><div class="card__body">
+    <p>Getting a first project online usually means learning servers, containers, DNS, and TLS before anyone can see your work. HelloDeploy handles those steps for supported projects, so you can connect a repository, check the setup, and get a live address.</p>
+    <p>It started as a capstone project and runs today as a free, active pilot on infrastructure operated by <strong><%= legalOperator %></strong>. HelloDeploy is one of the Hello projects. Each one runs separately, and HelloDeploy does not share your account data with them.</p>
+  </div></div>
+</section>
+
+<section class="public-section" aria-labelledby="who-title">
+  <h2 id="who-title">Who it is for</h2>
+  <div class="compatibility-grid mt-4">
+    <div class="card"><div class="card__body"><h3>A good fit</h3><ul><li>Students sharing coursework and portfolio projects</li><li>Indie developers testing an idea</li><li>Small teams running demos and internal tools</li></ul></div></div>
+    <div class="card"><div class="card__body"><h3>Not a good fit yet</h3><ul><li>Production workloads that need an uptime guarantee</li><li>Apps that need a managed database on the same platform</li><li>Runtimes outside the <a href="/supported-apps">supported list</a></li></ul></div></div>
+  </div>
+</section>
+
+<section class="public-section" aria-labelledby="honest-title">
+  <h2 id="honest-title">What to expect</h2>
+  <div class="card prose mt-4"><div class="card__body">
+    <ul>
+      <li>HelloDeploy is free during the pilot, within the published <a href="/service-limits">service limits</a>. There are no paid plans.</li>
+      <li>It runs on a single shared server. There is no service-level agreement, and maintenance or outages can happen.</li>
+      <li>You keep ownership of your code. HelloDeploy does not back up databases your app uses.</li>
+      <li>Features and limits can change while the pilot runs. The <a href="/features">features page</a> shows what is available today.</li>
+    </ul>
+  </div></div>
+</section>
+
+<section class="public-cta"><h2>Questions or feedback?</h2><div class="button-group"><a href="mailto:<%= legalContactEmail %>" class="button button--secondary">Email <%= legalContactEmail %></a><a href="/how-it-works" class="button button--primary">See how it works</a></div></section>
