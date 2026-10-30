@@ -5,6 +5,7 @@ import {
   signInLimiter,
   resendVerificationLimiter,
   passwordResetLimiter,
+  passwordResetStepLimiter,
 } from '../../middleware/rate-limit.js';
 
 const router = Router();
@@ -35,8 +36,8 @@ router.get('/google/reauthenticate', signInLimiter, authCtrl.getGoogleReauthenti
 router.get('/forgot-password', authCtrl.getForgotPassword);
 router.post('/forgot-password', passwordResetLimiter, authCtrl.postForgotPassword);
 router.get('/verify-reset-code', authCtrl.getVerifyResetCode);
-router.post('/verify-reset-code', authCtrl.postVerifyResetCode);
+router.post('/verify-reset-code', passwordResetStepLimiter, authCtrl.postVerifyResetCode);
 router.get('/new-password', authCtrl.getNewPassword);
-router.post('/new-password', authCtrl.postNewPassword);
+router.post('/new-password', passwordResetStepLimiter, authCtrl.postNewPassword);
 
 export default router;

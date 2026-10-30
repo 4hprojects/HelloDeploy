@@ -120,4 +120,26 @@ describe('Legal pages', () => {
     );
     assert.deepEqual(unlabeled, []);
   });
+
+  it('gives users an appeal route in the acceptable use policy', () => {
+    assert.match(pages.get('/acceptable-use').html, /<h3 id="appeals">Appeals<\/h3>/);
+  });
+
+  it('restricts sexually explicit services in the acceptable use policy', () => {
+    assert.match(
+      pages.get('/acceptable-use').html,
+      /<strong>Sexually explicit services\.<\/strong>/,
+    );
+  });
+
+  it('no longer says resource suspensions happen without notice', () => {
+    assert.doesNotMatch(pages.get('/acceptable-use').html, /suspended without notice/);
+  });
+
+  it('licenses HelloDeploy to host and run what users deploy', () => {
+    assert.match(
+      pages.get('/terms').html,
+      /store, build, host, run, restart, roll back, and serve/,
+    );
+  });
 });

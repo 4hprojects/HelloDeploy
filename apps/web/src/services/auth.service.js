@@ -2,7 +2,7 @@ import { randomInt, createHash, timingSafeEqual } from 'node:crypto';
 import { User } from '@hellodeploy/database';
 import { hashPassword, verifyPassword, generateToken, hashToken } from '@hellodeploy/auth';
 import { AuditOutcome, UserStatus, PlatformRole } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import {
   createNotificationDraft,
   queueEmailNotification,
@@ -11,6 +11,7 @@ import {
 import { env } from '../config/env.js';
 import { recordProductEvent } from './product-analytics.service.js';
 import { claimPendingInvitations } from './project.service.js';
+import { revokeUserSessions } from './session-revocation.service.js';
 
 const VERIFICATION_TOKEN_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -451,6 +452,16 @@ export async function completePasswordReset(
   if (!user) {
     return { success: false, error: 'Unable to complete reset. Please start over.' };
   }
+
+  // A reset usually means the old password is no longer trusted, so any browser
+  // still signed in with it must sign in again.
+  await revokeUserSessions(user._id).catch((error) => {
+    logger.warn('Password reset: sessions could not be revoked', {
+      error: error.message,
+      userId: user._id.toString(),
+      correlationId,
+    });
+  });
 
   await writeAuditEvent({
     action: 'auth.password_reset_completed',

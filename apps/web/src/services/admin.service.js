@@ -35,6 +35,7 @@ import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 import { initiatePasswordReset, resendVerificationEmail } from './auth.service.js';
 import { deleteProject } from './project.service.js';
+import { revokeUserSessions } from './session-revocation.service.js';
 import { countDeploymentsThisMonth } from './quota.service.js';
 
 const ADMIN_SEARCH_MAX_LENGTH = 200;
@@ -210,33 +211,6 @@ function auditUserAction(
     correlationId,
     metadata,
   });
-}
-
-/**
- * Delete a user's server-side sessions so a suspension takes effect at once.
- *
- * `requireAuth` reads status from the session's own copy of the user rather than
- * the record, so suspending alone leaves every signed-in browser working. The
- * cookie is rolling, so an active tab renews it indefinitely and the suspension
- * never lands. Dropping the stored sessions is what ends access.
- *
- * Returns the number of sessions removed; a store that is not reachable is not
- * allowed to fail the suspension itself.
- */
-async function revokeUserSessions(userId) {
-  const collection = mongoose.connection.db?.collection('sessions');
-  if (!collection) {
-    return 0;
-  }
-
-  // connect-mongo serialises the session to a JSON string, so the user id is
-  // matched inside it. An ObjectId's hex carries no regex metacharacters, and
-  // normalising through ObjectId keeps anything else out of the pattern.
-  const id = new mongoose.Types.ObjectId(String(userId)).toString();
-  const { deletedCount } = await collection.deleteMany({
-    session: { $regex: `"id":"${id}"` },
-  });
-  return deletedCount ?? 0;
 }
 
 const SUSPENDABLE_STATUSES = [UserStatus.ACTIVE, UserStatus.PENDING_VERIFICATION];
