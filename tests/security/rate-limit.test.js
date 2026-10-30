@@ -7,6 +7,10 @@ const rateLimitSource = await readFile(
   new URL('../../apps/web/src/middleware/rate-limit.js', import.meta.url),
   'utf8',
 );
+const authRoutesSource = await readFile(
+  new URL('../../apps/web/src/routes/pages/auth.routes.js', import.meta.url),
+  'utf8',
+);
 
 // Test limiters use the default in-memory store (no Redis required).
 // Handler signature matches the production onLimitReached in rate-limit.js.
@@ -251,11 +255,21 @@ describe('brute-force protection — rate limit behaviour', () => {
 
   it('fails closed when the Redis rate-limit store errors', () => {
     const failClosedCount = (rateLimitSource.match(/passOnStoreError: false/g) || []).length;
-    assert.equal(failClosedCount, 13, 'each production limiter should fail closed on store errors');
+    assert.equal(failClosedCount, 14, 'each production limiter should fail closed on store errors');
     assert.match(
       rateLimitSource,
       /export const repositoryInspectLimiter = rateLimit\([\s\S]*?passOnStoreError: false/,
       'public repository inspection must be rate-limited and fail closed on store errors',
+    );
+  });
+
+  it('rate-limits the reset-code and new-password steps', () => {
+    assert.deepEqual(
+      [
+        /router\.post\('\/verify-reset-code', passwordResetStepLimiter,/.test(authRoutesSource),
+        /router\.post\('\/new-password', passwordResetStepLimiter,/.test(authRoutesSource),
+      ],
+      [true, true],
     );
   });
 });

@@ -147,6 +147,17 @@ export const passwordResetLimiter = rateLimit({
   handler: onLimitReached,
 });
 
+/** Reset-code and new-password steps; the per-code attempt cap alone does not bound new codes. */
+export const passwordResetStepLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('pwd-reset-step'),
+  handler: onLimitReached,
+});
+
 /** Deploy hook triggers — token-authenticated external callers (CI systems) */
 export const deployHookLimiter = rateLimit({
   windowMs: 5 * 60 * 1000, // 5 minutes

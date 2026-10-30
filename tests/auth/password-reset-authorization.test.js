@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { User } from '@hellodeploy/database';
+import { mongoose, User } from '@hellodeploy/database';
 import { PlatformRole, UserStatus } from '@hellodeploy/contracts';
 import { hashToken, verifyPassword } from '@hellodeploy/auth';
 import { clearTestDb, startTestDb, stopTestDb } from '../helpers/worker-db.js';
@@ -78,6 +78,45 @@ describe('password reset authorization', () => {
     assert.equal(
       (await User.findById(user._id).select('+passwordHash').lean()).passwordHash,
       'legacy-hash',
+    );
+  });
+
+  it('signs out every other browser when the reset completes', async () => {
+    const userId = new mongoose.Types.ObjectId();
+    const otherId = new mongoose.Types.ObjectId();
+    await User.create({
+      _id: userId,
+      firstName: 'Mary',
+      lastName: 'Jackson',
+      email: 'signed-in-reset@example.test',
+      passwordHash: 'legacy-hash',
+      passwordResetSessionNonceHash: hashToken('live-nonce'),
+      passwordResetSessionExpiresAt: new Date(Date.now() + 60_000),
+      platformRole: PlatformRole.USER,
+      status: UserStatus.ACTIVE,
+    });
+    const sessions = mongoose.connection.db.collection('sessions');
+    await sessions.insertMany([
+      { _id: 'signed-in', session: JSON.stringify({ user: { id: userId.toString() } }) },
+      {
+        _id: 'resetting',
+        session: JSON.stringify({ passwordResetAuthorization: { userId: userId.toString() } }),
+      },
+      { _id: 'someone-else', session: JSON.stringify({ user: { id: otherId.toString() } }) },
+    ]);
+
+    await completePasswordReset(
+      { userId, resetNonce: 'live-nonce', newPassword: 'NewPassword1' },
+      { queueNotification: async () => ({ status: 'queued' }) },
+    );
+
+    const remaining = await sessions
+      .find({}, { projection: { _id: 1 } })
+      .sort({ _id: 1 })
+      .toArray();
+    assert.deepEqual(
+      remaining.map((doc) => doc._id),
+      ['resetting', 'someone-else'],
     );
   });
 });

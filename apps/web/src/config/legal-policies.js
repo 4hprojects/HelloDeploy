@@ -12,7 +12,7 @@ export const LEGAL_POLICIES = Object.freeze([
     title: 'Terms of Service',
     summary: 'The rules for your account, what you deploy, and what we are responsible for.',
     effective: '2026-06-30',
-    updated: '2026-10-30',
+    updated: '2026-10-31',
   },
   {
     slug: 'privacy',
@@ -33,14 +33,14 @@ export const LEGAL_POLICIES = Object.freeze([
     title: 'Acceptable Use Policy',
     summary: 'What you may and may not deploy, and how violations are handled.',
     effective: '2026-06-29',
-    updated: '2026-10-30',
+    updated: '2026-10-31',
   },
   {
     slug: 'service-limits',
     title: 'Service Limits',
     summary: 'Default quotas, container isolation, and supported runtimes.',
     effective: '2026-06-29',
-    updated: '2026-10-30',
+    updated: '2026-10-31',
   },
   {
     slug: 'data-processing',
