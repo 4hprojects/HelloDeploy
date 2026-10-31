@@ -2,14 +2,14 @@
 
 Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31 (1)/`. One PR per phase; the owner merges and autodeploy ships.
 
-| PR  | Phase                                       | Status    | Branch / SHA                 |
-| --- | ------------------------------------------- | --------- | ---------------------------- |
-| 1   | 0 audit + 1 legal/security                  | Deployed  | `280a9bd` (#170)             |
-| 2   | 2 product pages                             | In review | #173                         |
-| 3   | 3 docs and support                          | In review | #173                         |
-| 4   | 4 navigation, SEO, analytics readiness      | In review | #174                         |
-| 5   | 5 donations (disabled) + account management | In review | `feat/public-content-phase5` |
-| 6   | 6 governance + final QA                     | In review | `feat/public-content-phase6` |
+| PR  | Phase                                       | Status    | Branch / SHA     |
+| --- | ------------------------------------------- | --------- | ---------------- |
+| 1   | 0 audit + 1 legal/security                  | Deployed  | `280a9bd` (#170) |
+| 2   | 2 product pages                             | Deployed  | `5bda4c0` (#173) |
+| 3   | 3 docs and support                          | Deployed  | `5bda4c0` (#173) |
+| 4   | 4 navigation, SEO, analytics readiness      | Deployed  | `9295462` (#174) |
+| 5   | 5 donations (disabled) + account management | In review | #175             |
+| 6   | 6 governance + final QA                     | In review | #176             |
 
 ## PR 1
 
