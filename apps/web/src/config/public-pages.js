@@ -1,3 +1,5 @@
+import { LEGAL_CONTACT_EMAIL, LEGAL_OPERATOR } from './legal-policies.js';
+
 export const DOC_SECTIONS = Object.freeze([
   {
     title: 'Get started',
@@ -205,5 +207,30 @@ export function publicPageMetadata(path, platformDomain) {
     canonicalUrl: `${origin}${page.path}`,
     imageUrl: `${origin}/assets/social/hellodeploy-og-image.png`,
     robots: 'index,follow',
+    ...(page.path === '/' && { structuredData: homeStructuredData(origin) }),
   };
+}
+
+function homeStructuredData(origin) {
+  const organization = {
+    '@type': 'Organization',
+    '@id': `${origin}/#operator`,
+    name: LEGAL_OPERATOR,
+    url: `${origin}/about`,
+    email: LEGAL_CONTACT_EMAIL,
+  };
+  return [
+    {
+      '@context': 'https://schema.org',
+      '@graph': [
+        organization,
+        {
+          '@type': 'WebSite',
+          name: 'HelloDeploy',
+          url: `${origin}/`,
+          publisher: { '@id': organization['@id'] },
+        },
+      ],
+    },
+  ];
 }

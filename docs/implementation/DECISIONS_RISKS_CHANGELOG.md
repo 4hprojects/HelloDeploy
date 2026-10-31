@@ -24,3 +24,4 @@ Carries forward the package's `10_DECISIONS_RISKS_CHANGELOG.md` register. Approv
 - **2026-10-31** Not changed: `docs/FAQ.md` already says pilots are switched off, so it does not contradict the public pages.
 - **2026-10-31** PR 2: `/about`, `/features` (status-badged), `/pricing` → `/pilot` (301). Premium is described as not for sale and leaves the sitemap. Footer and homepage name 4H Projects.
 - **2026-10-31** PR 3: Docs gain full guides for domains, deploy hooks, rollback and troubleshooting, plus new Logs and Delete and Disconnect topics and unique meta descriptions. New email-only `/contact`; `/faq` and `/help` redirect into the docs.
+- **2026-10-31** PR 4: header and four-group footer, `X-Robots-Tag` on private routes, policy `lastmod`, homepage JSON-LD, optional Search Console tag. Consent banner, site-wide GA4 and AdSense deferred until the owner supplies a GA4 ID and authorizes the policy changes.

@@ -4,10 +4,10 @@ Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31
 
 | PR  | Phase                                       | Status      | Branch / SHA                 |
 | --- | ------------------------------------------- | ----------- | ---------------------------- |
-| 1   | 0 audit + 1 legal/security                  | In review   | `feat/public-content-phase1` |
-| 2   | 2 product pages                             | In review   | `feat/public-content-phase2` |
-| 3   | 3 docs and support                          | In review   | `feat/public-content-phase3` |
-| 4   | 4 navigation, SEO, analytics readiness      | Not started | —                            |
+| 1   | 0 audit + 1 legal/security                  | Deployed    | `280a9bd` (#170)             |
+| 2   | 2 product pages                             | In review   | #173                         |
+| 3   | 3 docs and support                          | In review   | #173                         |
+| 4   | 4 navigation, SEO, analytics readiness      | In review   | `feat/public-content-phase4` |
 | 5   | 5 donations (disabled) + account management | Not started | —                            |
 | 6   | 6 governance + final QA                     | Not started | —                            |
 
@@ -54,3 +54,20 @@ Decisions:
 - Contact is email only, with no form. A form would need spam handling and storage of personal data, and email already reaches the same inbox.
 - Every guide claim was checked against code: `PORT` is always injected (`apps/worker/src/deployment/container.js:265-270`), the Node.js 22 images (`dockerfile-generator.js:19-22`), deploy hooks are owner-only and rate-limited, and the TXT verification token is hashed (`domain.service.js:126`).
 - The delete guide does not claim custom-domain routes are removed, because they are not (see the audit backlog).
+
+## PR 4
+
+Files:
+
+- `apps/web/src/views/partials/header.ejs`: signed-out links are Features, How It Works, Docs, Blog, About, Sign In; Supported Apps and Status move to the footer
+- `apps/web/src/views/partials/footer.ejs`, `apps/web/public/css/layout.css`: four groups (Platform, Resources, Company, Legal)
+- `apps/web/src/app.js`: `X-Robots-Tag: noindex, nofollow` on `/dashboard`, `/projects`, `/admin`, `/auth`, `/account`, `/github`
+- `apps/web/src/controllers/public.controller.js`: sitemap `lastmod` for policy pages from `LEGAL_POLICIES[].updated`
+- `apps/web/src/config/public-pages.js`: Organization (4H Projects) + WebSite JSON-LD on `/`
+- `apps/web/src/config/env.js`, `partials/head.ejs`, `docs/ENVIRONMENT.md`: optional `GOOGLE_SITE_VERIFICATION`, rendered on `/` only
+- Tests: new `tests/ui/seo-navigation.test.js`; `tests/ui/header-nav.test.js`; regenerated screenshot baselines
+
+Decisions:
+
+- Consent banner, site-wide GA4 and the AdSense CSP fix are deferred, not built. Each needs `TODO_USER_INPUT_GA4_ID` plus a Cookie and Privacy Policy rewrite that adds analytics as an optional category, which is a legal change the owner has not authorized. Today both policies truthfully say no analytics cookies are set. Building unused consent code would only add JavaScript to every page.
+- JSON-LD carries only the operator name, contact email and URLs: no logo, address or social profiles were supplied.
