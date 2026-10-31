@@ -34,13 +34,13 @@ in [Release record › After enabling](#after-enabling). Safest default if unsur
 
 **Undo:** delete those two lines, restart `hellodeploy-web`.
 
-## 2. Guest comments (owner decision; stays off)
+## 2. Guest comments (provider approved; stays off until enabled)
 
-Missing: an approved contextual moderation provider. The code has a fail-closed adapter
-(`LEARNING_HUB_MODERATION_PROVIDER=openai-moderation` with `OPENAI_MODERATION_API_KEY`), but
-sending reader text to OpenAI needs your privacy decision and a privacy-policy update naming
-it. Real Cloudflare Siteverify and a real provider have not been tested end to end. Steps are
-in [OPERATIONS.md › Enabling guest comments](OPERATIONS.md#enabling-guest-comments-owner-decision).
+2026-11-01: the owner approved OpenAI moderation (`LEARNING_HUB_MODERATION_PROVIDER=openai-moderation`).
+The Privacy Policy now names OpenAI and the data it receives: the display name and comment text only.
+Still missing: `OPENAI_MODERATION_API_KEY` and the enable flags in `/opt/hellodeploy/.env`, then the
+production smoke test. Real Cloudflare Siteverify and the real provider have not been tested end to
+end. Steps are in [OPERATIONS.md › Enabling guest comments](OPERATIONS.md#enabling-guest-comments-owner-decision).
 
 ## 3. GA4 (stays off)
 

@@ -142,4 +142,11 @@ describe('Legal pages', () => {
       /store, build, host, run, restart, roll back, and serve/,
     );
   });
+
+  it('names OpenAI as a recipient of blog comment text', () => {
+    assert.match(
+      pages.get('/privacy').html,
+      /<td data-label="Provider">OpenAI<\/td>.*The display name and text of each submitted comment/,
+    );
+  });
 });

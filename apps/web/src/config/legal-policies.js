@@ -19,7 +19,7 @@ export const LEGAL_POLICIES = Object.freeze([
     title: 'Privacy Policy',
     summary: 'What personal data we collect, why, who receives it, and your rights.',
     effective: '2026-06-30',
-    updated: '2026-10-30',
+    updated: '2026-11-01',
   },
   {
     slug: 'cookies',

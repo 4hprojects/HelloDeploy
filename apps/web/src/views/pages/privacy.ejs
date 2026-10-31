@@ -82,7 +82,7 @@
       <li><strong>Comment reports</strong> — the reason you choose and a keyed hash of your session identifier, so one reader counts once. Kept for 90 days.</li>
       <li><strong>Comment drafts</strong> — an unsent comment is kept in your browser&rsquo;s session storage on your own device and is not sent to us until you submit it.</li>
     </ul>
-    <p>Guest comments are currently switched off. Before they are switched on with an external automated moderation service, this policy will name that service and the data it receives.</p>
+    <p>Comments are open only on articles that show a comment section. Before a comment is published, its display name and text are sent to OpenAI&rsquo;s moderation service, which checks them for harassment, hate, violence, sexual content, self-harm, and illegal activity. Nothing else is sent with it: no IP address, session, or account. If the check is unavailable, the comment is not published.</p>
     <p>We do not ask for, and do not intend to collect, sensitive personal information such as health, religion, government identifiers, or financial account numbers. Please do not put it in project names, environment values, logs, or comments.</p>
 
     <h2 id="purposes-and-legal-basis">Purposes and legal basis</h2>
@@ -137,6 +137,7 @@
         <tr><td data-label="Provider">Resend</td><td data-label="What it does for us">Sends transactional email</td><td data-label="Data it receives">Your email address and name, and the message</td></tr>
         <tr><td data-label="Provider">Cloudflare</td><td data-label="What it does for us">DNS, TLS, and tunnel ingress</td><td data-label="Data it receives">IP addresses and HTTP request metadata</td></tr>
         <tr><td data-label="Provider">Cloudflare Turnstile</td><td data-label="What it does for us">Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td data-label="Data it receives">Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
+        <tr><td data-label="Provider">OpenAI</td><td data-label="What it does for us">Automated safety check on blog comments before they are published</td><td data-label="Data it receives">The display name and text of each submitted comment</td></tr>
       </tbody>
     </table>
     <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. Product measurement is processed by HelloDeploy itself; no third-party analytics script is loaded.</p>
@@ -149,7 +150,7 @@
     <p>HelloDeploy does not use automated decision-making that has legal or similarly significant effects on you. Two automated checks do exist:</p>
     <ul>
       <li>Rate limits and Turnstile can block a request that looks automated. If you are blocked by mistake, wait a few minutes or email us.</li>
-      <li>When guest comments are switched on, automated checks decide whether a comment is published. Readers can report a published comment, and you can email us to ask a person to review any decision about your comment. Comments are currently switched off.</li>
+      <li>On articles that accept comments, automated checks, including OpenAI&rsquo;s moderation service, decide whether a comment is published. Readers can report a published comment, and you can email us to ask a person to review any decision about your comment.</li>
     </ul>
 
     <h2 id="cookies">Cookies</h2>
