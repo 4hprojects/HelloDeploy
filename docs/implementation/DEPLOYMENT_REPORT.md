@@ -12,3 +12,4 @@ Verification after each merge: `npm run production:check -- https://hellodeploy.
 | 2 + 3 | `5bda4c0` | 2026-10-31       | production:check    | New pages 200; `/pricing`, `/faq`, `/help` 301                                 |
 | 4     | `9295462` | 2026-10-31       | production:check    | Footer groups, `X-Robots-Tag`, JSON-LD on `/`                                  |
 | 5     | `7adfae2` | 2026-10-31       | production:check 12 | `/account` 302 to sign-in with `X-Robots-Tag`; no donation section on `/pilot` |
+| 6     | `5c8e793` | 2026-10-31       | production:check 12 | Content register, PR template, internal link test; all phases live             |
