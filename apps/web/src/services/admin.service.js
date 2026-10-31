@@ -29,11 +29,13 @@ import {
   DomainStatus,
   PlatformRole,
 } from '@hellodeploy/contracts';
-import { writeAuditEvent } from '@hellodeploy/observability';
+import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
+import { LEGAL_CONTACT_EMAIL } from '../config/legal-policies.js';
 import { getDeploymentQueue } from '../queue/client.js';
 import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
 import { initiatePasswordReset, resendVerificationEmail } from './auth.service.js';
+import { queueEmailNotification } from './notification.service.js';
 import { deleteProject } from './project.service.js';
 import { revokeUserSessions } from './session-revocation.service.js';
 import { countDeploymentsThisMonth } from './quota.service.js';
@@ -215,7 +217,10 @@ function auditUserAction(
 
 const SUSPENDABLE_STATUSES = [UserStatus.ACTIVE, UserStatus.PENDING_VERIFICATION];
 
-export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp, correlationId }) {
+export async function suspendUser(
+  { userId, adminId, adminRole, reason, sourceIp, correlationId },
+  { queueNotification = queueEmailNotification } = {},
+) {
   const { user, error } = await findManageableUser({ userId, adminId, adminRole });
   if (error) {
     return { success: false, error };
@@ -243,6 +248,24 @@ export async function suspendUser({ userId, adminId, adminRole, reason, sourceIp
     { userId, adminId, adminRole, sourceIp, correlationId },
     { reason: reason?.trim() || null, revokedSessions },
   );
+
+  // The suspension already stands; a mail outage must not undo or hide it.
+  await queueNotification({
+    userId: user._id,
+    kind: 'account-suspended',
+    payload: {
+      firstName: user.firstName,
+      contactEmail: LEGAL_CONTACT_EMAIL,
+      reason: reason?.trim() || null,
+    },
+    correlationId,
+  }).catch((error) => {
+    logger.warn('Suspension email could not be queued', {
+      error: error.message,
+      userId: user._id.toString(),
+      correlationId,
+    });
+  });
 
   return { success: true, user };
 }

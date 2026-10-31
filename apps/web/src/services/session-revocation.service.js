@@ -9,10 +9,11 @@ import { mongoose } from '@hellodeploy/database';
  * cookie is rolling, so an active tab renews it indefinitely and the suspension
  * never lands. Dropping the stored sessions is what ends access.
  *
- * Returns the number of sessions removed; a store that is not reachable is not
+ * `exceptSessionId` keeps the caller's own session, for a change the user made
+ * from that browser. Returns the number of sessions removed; a store that is not reachable is not
  * allowed to fail the caller's action.
  */
-export async function revokeUserSessions(userId) {
+export async function revokeUserSessions(userId, { exceptSessionId = null } = {}) {
   const collection = mongoose.connection.db?.collection('sessions');
   if (!collection) {
     return 0;
@@ -24,6 +25,7 @@ export async function revokeUserSessions(userId) {
   const id = new mongoose.Types.ObjectId(String(userId)).toString();
   const { deletedCount } = await collection.deleteMany({
     session: { $regex: `"id":"${id}"` },
+    ...(exceptSessionId && { _id: { $ne: String(exceptSessionId) } }),
   });
   return deletedCount ?? 0;
 }

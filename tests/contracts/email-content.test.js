@@ -18,6 +18,8 @@ const samplePayloads = {
   'email-verification': { firstName: 'Ada', verificationUrl: `${PLATFORM_URL}/verify?t=1` },
   'password-reset': { firstName: 'Ada', resetCode: '123456' },
   'password-changed': { firstName: 'Ada' },
+  'account-closure-requested': { firstName: 'Ada', contactEmail: 'support@example.test' },
+  'account-suspended': { firstName: 'Ada', contactEmail: 'support@example.test', reason: 'Spam' },
   'project-paused': { firstName: 'Ada', projectName: 'App', projectUrl: `${PLATFORM_URL}/p` },
   'approval-requested': {
     firstName: 'Ada',
@@ -78,6 +80,24 @@ describe('buildEmailContent layout', () => {
       text,
       /Accept invitation: https:\/\/deploy\.example\.test\/create-account[\s\S]*expires in 14 days/,
     );
+  });
+
+  it('tells a suspended user where to send an appeal', () => {
+    const { text } = buildEmailContent('account-suspended', samplePayloads['account-suspended']);
+    assert.match(text, /To appeal, email support@example\.test/);
+  });
+
+  it('shows the suspension reason when one was recorded', () => {
+    const { text } = buildEmailContent('account-suspended', samplePayloads['account-suspended']);
+    assert.match(text, /Reason[\s\S]*Spam/);
+  });
+
+  it('escapes a suspension reason in the HTML body', () => {
+    const { html } = buildEmailContent('account-suspended', {
+      ...samplePayloads['account-suspended'],
+      reason: '<b>x</b>',
+    });
+    assert.doesNotMatch(html, /<b>x<\/b>/);
   });
 
   it('marks a failed deployment with its plain-language reason', () => {

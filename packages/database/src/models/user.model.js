@@ -117,6 +117,12 @@ const userSchema = new Schema(
       default: null,
     },
 
+    // Set when the user asks to close the account; an admin completes the deletion.
+    closureRequestedAt: {
+      type: Date,
+      default: null,
+    },
+
     // Incremented whenever configuration changes require re-auth notice
     configVersion: {
       type: Number,

@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { checkWebReadiness } from '../services/readiness.service.js';
 import { DOC_SECTIONS, PUBLIC_DOC_TOPICS, PUBLIC_PAGES } from '../config/public-pages.js';
 import { env } from '../config/env.js';
+import { donationOptions } from '../config/donations.js';
 import { LEGAL_POLICIES } from '../config/legal-policies.js';
 import { learningHubSitemapEntries } from './blog.controller.js';
 
@@ -177,7 +178,7 @@ const CORE_TOPIC_CONTENT = Object.freeze({
       {
         title: 'Close your account',
         paragraphs: [
-          'Email the contact address to close your account. Your projects are deleted as described above, and account data is removed within 30 days.',
+          'Request closure from the Close account section of your Account page, or email the contact address. An administrator completes the request: your projects are deleted as described above, and account data is removed within 30 days.',
         ],
       },
     ],
@@ -475,7 +476,11 @@ export function getPremium(_req, res) {
 }
 
 export function getPilot(_req, res) {
-  res.render('pages/pilot', { title: 'Pilot and Pricing', planDefaults: getPlanDefaults() });
+  res.render('pages/pilot', {
+    title: 'Pilot and Pricing',
+    planDefaults: getPlanDefaults(),
+    donations: donationOptions(),
+  });
 }
 
 export function getAbout(_req, res) {
