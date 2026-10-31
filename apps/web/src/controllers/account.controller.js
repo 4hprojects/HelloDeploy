@@ -15,6 +15,9 @@ const SENSITIVE_AUTH_MAX_AGE_MS = 10 * 60 * 1000;
 
 async function renderAccount(req, res, extra = {}) {
   const account = await getAccountOverview(req.session.user.id);
+  if (!account) {
+    return req.session.destroy(() => res.redirect('/auth/sign-in'));
+  }
   res.status(extra.status ?? 200).render('pages/account', {
     title: 'Account',
     account,
