@@ -621,6 +621,7 @@ test('authenticated dark-mode views meet critical and serious accessibility chec
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
     '/projects/northstar-notes/activity',
+    '/account',
   ]) {
     await page.goto(path);
     await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
@@ -641,6 +642,7 @@ test('authenticated workflows do not overflow a narrow mobile viewport', async (
     '/projects/northstar-notes/deployments',
     '/projects/northstar-notes/environment',
     '/projects/northstar-notes/activity',
+    '/account',
   ]) {
     await page.goto(path);
     const overflow = await page.evaluate(

@@ -172,6 +172,16 @@
   <div class="sidebar__section">
     <ul class="sidebar__nav" role="list">
       <li>
+        <a
+          href="/account"
+          class="sidebar__link"
+          <%- _path === '/account' ? 'aria-current="page"' : '' %>
+        >
+          <%- include('icon', { name: 'settings', className: 'sidebar__icon' }) %>
+          <span>Account</span>
+        </a>
+      </li>
+      <li>
         <form
           method="POST"
           action="/auth/sign-out"

@@ -46,6 +46,9 @@ const ROLE_LABELS = { USER: 'User', ADMIN: 'Admin', SUPER_ADMIN: 'Super admin' }
         <% if (isLocked) { %>
         <span class="status-badge status-badge--warning">Locked until <%= formatDate(target.lockedUntil) %></span>
         <% } %>
+        <% if (target.closureRequestedAt) { %>
+        <span class="status-badge status-badge--warning">Closure requested <%= formatDate(target.closureRequestedAt) %></span>
+        <% } %>
         <% if (target.status === 'SUSPENDED' && target.suspensionReason) { %>
         <span class="text-muted text-xs d-block">Reason: <%= target.suspensionReason %></span>
         <% } %>

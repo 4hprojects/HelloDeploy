@@ -251,6 +251,25 @@ export const env = {
   GOOGLE_SITE_VERIFICATION: /^[A-Za-z0-9_-]{20,100}$/.test(optional('GOOGLE_SITE_VERIFICATION', ''))
     ? optional('GOOGLE_SITE_VERIFICATION', '')
     : '',
+  // Voluntary donations. Off until the owner supplies and verifies a destination;
+  // a destination that fails its pattern is dropped rather than shown.
+  DONATIONS_ENABLED: optional('DONATIONS_ENABLED', 'false') === 'true',
+  PAYPAL_DONATE_URL:
+    /^https:\/\/www\.paypal\.com\/donate\/?\?hosted_button_id=[A-Z0-9]{8,20}$/.test(
+      optional('PAYPAL_DONATE_URL', ''),
+    )
+      ? optional('PAYPAL_DONATE_URL', '')
+      : '',
+  DONATION_GCASH_QR_PATH: /^\/assets\/support\/[a-z0-9-]+\.(png|webp)$/.test(
+    optional('DONATION_GCASH_QR_PATH', ''),
+  )
+    ? optional('DONATION_GCASH_QR_PATH', '')
+    : '',
+  DONATION_BANK_QR_PATH: /^\/assets\/support\/[a-z0-9-]+\.(png|webp)$/.test(
+    optional('DONATION_BANK_QR_PATH', ''),
+  )
+    ? optional('DONATION_BANK_QR_PATH', '')
+    : '',
   // AdSense stays off until the site is approved and the owner authorizes it.
   ADSENSE_ENABLED: optional('ADSENSE_ENABLED', 'false') === 'true',
   ADSENSE_CLIENT_ID: /^ca-pub-\d{16}$/.test(optional('ADSENSE_CLIENT_ID', ''))

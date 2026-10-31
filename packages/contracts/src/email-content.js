@@ -72,6 +72,43 @@ export function buildEmailContent(kind, payload, { platformUrl } = {}) {
       }),
     };
   }
+  if (kind === 'account-closure-requested') {
+    return {
+      subject: 'We received your request to close your HelloDeploy account',
+      ...renderEmail({
+        platformUrl,
+        preheader: 'An administrator will review and complete your account closure.',
+        heading: 'Account closure requested',
+        greeting,
+        paragraphs: [
+          'We received your request to close your HelloDeploy account. An administrator will review it and delete the account, your projects, and their deployments.',
+          'Until then you can still sign in. Download anything you want to keep from your repositories and databases, because deletion cannot be undone.',
+        ],
+        notes: [
+          [
+            { strong: 'Changed your mind or did not ask for this?' },
+            ` Email ${payload.contactEmail} before the account is deleted.`,
+          ],
+        ],
+      }),
+    };
+  }
+  if (kind === 'account-suspended') {
+    return {
+      subject: 'Your HelloDeploy account has been suspended',
+      ...renderEmail({
+        platformUrl,
+        preheader: 'Your HelloDeploy account was suspended. You can appeal by email.',
+        heading: 'Your account was suspended',
+        greeting,
+        paragraphs: [
+          'An administrator suspended your HelloDeploy account, and you have been signed out.',
+          `To appeal, email ${payload.contactEmail} with your account email and any information that helps us review the decision.`,
+        ],
+        details: payload.reason ? [['Reason', payload.reason]] : [],
+      }),
+    };
+  }
   if (kind === 'project-paused') {
     return {
       subject: `Auto-deploy paused for ${sanitizeEmailSubject(payload.projectName)}`,

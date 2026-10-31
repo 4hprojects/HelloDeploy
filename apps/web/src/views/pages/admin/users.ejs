@@ -80,6 +80,9 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
           <% if (u.lockedUntil && new Date(u.lockedUntil) > now) { %>
           <span class="status-badge status-badge--warning" data-tooltip="Too many failed sign-ins. Unlock from the user page.">Locked</span>
           <% } %>
+          <% if (u.closureRequestedAt) { %>
+          <span class="status-badge status-badge--warning" data-tooltip="The user asked to close this account. A Super Admin completes it from the user page.">Closure requested</span>
+          <% } %>
           <% if (u.status === 'SUSPENDED' && u.suspensionReason) { %>
           <span class="text-muted text-xs d-block">Reason: <%= u.suspensionReason %></span>
           <% } %>

@@ -14,5 +14,12 @@
   <p>This is shared pilot infrastructure without a service-level agreement. The operator maintains platform recovery procedures, but HelloDeploy does not back up or administer databases used by deployed applications.</p>
   <h2>Support</h2>
   <p>Support is best-effort by email at <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>. Features, limits, and availability may change during the pilot.</p>
+  <% if (locals.donations) { %>
+  <h2 id="support-hellodeploy">Support HelloDeploy</h2>
+  <p>If HelloDeploy helps you, you can make a voluntary donation toward server costs. A donation does not change your limits, approval, support priority, or the outcome of any review or appeal, and it does not guarantee availability. HelloDeploy is not a registered charity, and donations are not tax-deductible.</p>
+  <% if (donations.paypalUrl) { %><p><a href="<%= donations.paypalUrl %>" class="button button--secondary" rel="noopener noreferrer" target="_blank">Donate with PayPal</a></p><% } %>
+  <% if (donations.gcashQrPath) { %><figure><img src="<%= donations.gcashQrPath %>" alt="GCash QR code for donations to <%= legalOperator %>" width="240" height="240" loading="lazy"><figcaption>GCash</figcaption></figure><% } %>
+  <% if (donations.bankQrPath) { %><figure><img src="<%= donations.bankQrPath %>" alt="Bank transfer QR code for donations to <%= legalOperator %>" width="240" height="240" loading="lazy"><figcaption>Bank transfer</figcaption></figure><% } %>
+  <% } %>
   <p><a href="/features">Features</a> · <a href="/status">Current service status</a> · <a href="/terms">Terms</a></p>
 </div></div>

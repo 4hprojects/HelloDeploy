@@ -2,14 +2,14 @@
 
 Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31 (1)/`. One PR per phase; the owner merges and autodeploy ships.
 
-| PR  | Phase                                       | Status      | Branch / SHA                 |
-| --- | ------------------------------------------- | ----------- | ---------------------------- |
-| 1   | 0 audit + 1 legal/security                  | Deployed    | `280a9bd` (#170)             |
-| 2   | 2 product pages                             | In review   | #173                         |
-| 3   | 3 docs and support                          | In review   | #173                         |
-| 4   | 4 navigation, SEO, analytics readiness      | In review   | `feat/public-content-phase4` |
-| 5   | 5 donations (disabled) + account management | Not started | —                            |
-| 6   | 6 governance + final QA                     | Not started | —                            |
+| PR  | Phase                                       | Status      | Branch / SHA     |
+| --- | ------------------------------------------- | ----------- | ---------------- |
+| 1   | 0 audit + 1 legal/security                  | Deployed    | `280a9bd` (#170) |
+| 2   | 2 product pages                             | Deployed    | `5bda4c0` (#173) |
+| 3   | 3 docs and support                          | Deployed    | `5bda4c0` (#173) |
+| 4   | 4 navigation, SEO, analytics readiness      | Deployed    | `9295462` (#174) |
+| 5   | 5 donations (disabled) + account management | In review   | #175             |
+| 6   | 6 governance + final QA                     | Not started | —                |
 
 ## PR 1
 
@@ -71,3 +71,24 @@ Decisions:
 
 - Consent banner, site-wide GA4 and the AdSense CSP fix are deferred, not built. Each needs `TODO_USER_INPUT_GA4_ID` plus a Cookie and Privacy Policy rewrite that adds analytics as an optional category, which is a legal change the owner has not authorized. Today both policies truthfully say no analytics cookies are set. Building unused consent code would only add JavaScript to every page.
 - JSON-LD carries only the operator name, contact email and URLs: no logo, address or social profiles were supplied.
+
+## PR 5
+
+Files:
+
+- New `/account` (`routes/pages/account.routes.js`, `controllers/account.controller.js`, `services/account.service.js`, `validators/account.validator.js`, `views/pages/account.ejs`): edit your name, change your password, see sign-in methods and GitHub App status, and request account closure. Sidebar link added.
+- `packages/database` `User.closureRequestedAt`; admin user list and detail show "Closure requested".
+- `services/session-revocation.service.js`: `exceptSessionId` keeps the browser that changed the password signed in.
+- `services/admin.service.js` `suspendUser`: emails the reason and the appeal address.
+- `packages/contracts` email kinds `account-closure-requested`, `account-suspended`.
+- Donations: `config/donations.js` and `env.js` (`DONATIONS_ENABLED`, `PAYPAL_DONATE_URL`, `DONATION_GCASH_QR_PATH`, `DONATION_BANK_QR_PATH`), with a section on `/pilot` that renders only when enabled and a valid destination is set.
+- Closure wording in the docs Delete and Disconnect guide and on `/contact`.
+- Tests: new `tests/account/account-settings.test.js` and `tests/ui/donations.test.js`; `tests/contracts/email-content.test.js`; `/account` added to the signed-in axe and phone checks in `tests/browser/ui-ux.spec.js`; regenerated baselines.
+
+Decisions:
+
+- Closure only records a request. A Super Admin completes it with the existing `deleteUserPermanently`, so deletion semantics do not change (owner decision, 2026-10-31). The 30-day completion window is the one the Terms already promise.
+- Re-authentication follows the ownership-transfer pattern: the current password, or for Google-only accounts a Google reconfirmation in the last 10 minutes. The password and closure posts share the sign-in rate limit.
+- Email address changes stay manual by email. Self-service would need a verify-new-address flow, which is not built.
+- Two-factor authentication is shown as "Not available yet", with no promised date.
+- Donations stay off in production. No destination has been supplied (`TODO_USER_INPUT_PAYPAL_LINK`, `_GCASH_QR`, `_BANK_QR`, `_DONATIONS_APPROVAL`). The copy states that a donation changes no limits, priority or appeals, and is neither charity nor tax-deductible.

@@ -1,0 +1,93 @@
+<div class="page-header"><h1 class="page-header__title">Account</h1><p class="page-header__subtitle">Your name, sign-in methods, password, and connected services.</p></div>
+
+<div class="card mb-6" id="profile">
+  <div class="card__body">
+    <h2 class="card__title mb-4">Profile</h2>
+    <form method="POST" action="/account/profile" novalidate>
+      <%- include('../partials/csrf-field') %>
+      <div class="form-row">
+        <%- include('../partials/form-field', { fieldId: 'firstName', label: 'First name', type: 'text', name: 'firstName', value: account.firstName, autocomplete: 'given-name', required: true, error: profileErrors.firstName }) %>
+        <%- include('../partials/form-field', { fieldId: 'lastName', label: 'Last name', type: 'text', name: 'lastName', value: account.lastName, autocomplete: 'family-name', required: true, error: profileErrors.lastName }) %>
+      </div>
+      <dl class="detail-list mt-4">
+        <dt>Email</dt>
+        <dd><%= account.email %></dd>
+      </dl>
+      <p class="form-hint mt-2">To change your email address, email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a> from the address you sign in with.</p>
+      <div class="form-actions mt-4"><button type="submit" class="button button--primary">Save name</button></div>
+    </form>
+  </div>
+</div>
+
+<div class="card mb-6" id="sign-in-methods">
+  <div class="card__body">
+    <h2 class="card__title mb-4">Sign-in methods</h2>
+    <dl class="detail-list">
+      <dt>Password</dt>
+      <dd><%= account.hasPassword ? 'Set' : 'Not set' %></dd>
+      <dt>Google</dt>
+      <dd><%= account.hasGoogle ? 'Linked' : 'Not linked' %></dd>
+      <dt>Two-factor authentication</dt>
+      <dd>Not available yet</dd>
+    </dl>
+  </div>
+</div>
+
+<% if (account.hasPassword) { %>
+<div class="card mb-6" id="password">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Change password</h2>
+    <p class="text-sm text-muted mb-4">Every other browser signed in to your account will be signed out. This one stays signed in.</p>
+    <form method="POST" action="/account/password" novalidate>
+      <%- include('../partials/csrf-field') %>
+      <%- include('../partials/password-field', { fieldId: 'currentPassword', fieldName: 'currentPassword', label: 'Current password', autocomplete: 'current-password', error: passwordErrors.currentPassword }) %>
+      <%- include('../partials/password-field', { fieldId: 'password', fieldName: 'password', label: 'New password', autocomplete: 'new-password', error: passwordErrors.password }) %>
+      <%- include('../partials/password-requirements') %>
+      <%- include('../partials/password-field', { fieldId: 'confirmPassword', fieldName: 'confirmPassword', label: 'Confirm new password', autocomplete: 'new-password', error: passwordErrors.confirmPassword }) %>
+      <div class="form-actions mt-4"><button type="submit" class="button button--primary">Change password</button></div>
+    </form>
+  </div>
+</div>
+<% } %>
+
+<div class="card mb-6" id="github">
+  <div class="card__body">
+    <h2 class="card__title mb-2">GitHub</h2>
+    <% if (account.hasGithubApp) { %>
+    <p>The HelloDeploy GitHub App is installed for your account.</p>
+    <p class="text-sm text-muted">To remove it, open <a href="https://github.com/settings/installations" rel="noopener noreferrer" target="_blank">GitHub installed apps</a> and uninstall HelloDeploy. Apps that are already live keep running, but HelloDeploy can no longer read private repositories, so new deployments from them stop.</p>
+    <% } else { %>
+    <p>The HelloDeploy GitHub App is not installed. Public repositories work without it. See <a href="/docs/github-connection">GitHub connection</a> to deploy a private repository.</p>
+    <% } %>
+  </div>
+</div>
+
+<div class="card card--danger" id="close-account">
+  <div class="card__body">
+    <h2 class="card__title mb-2">Close account</h2>
+    <% if (account.closureRequestedAt) { %>
+    <p>You asked to close this account on <time datetime="<%= account.closureRequestedAt.toISOString() %>"><%= account.closureRequestedAt.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) %></time>. An administrator will review the request and delete the account within 30 days.</p>
+    <p class="text-sm text-muted">Changed your mind? Email <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a> before the account is deleted.</p>
+    <% } else { %>
+    <p class="mb-2">Send a request to delete your account. An administrator reviews it, then within 30 days permanently deletes the account, your projects, their deployments, and stored environment variables.</p>
+    <p class="text-sm text-muted mb-4">Deletion cannot be undone. HelloDeploy does not back up databases your apps use, so export anything you want to keep first. See <a href="/docs/stop-and-delete">Delete and disconnect</a> for what is removed.</p>
+    <% if (!account.hasPassword && !sensitiveAuthRecent) { %>
+      <p class="mb-4">Reconfirm the Google account linked to HelloDeploy before requesting closure.</p>
+      <%- include('../partials/google-auth-button', { href: `/auth/google/reauthenticate?returnTo=${encodeURIComponent('/account#close-account')}`, label: 'Reconfirm with Google' }) %>
+    <% } else { %>
+    <form method="POST" action="/account/close"
+          data-confirm="Request permanent deletion of your account and all of its projects?"
+          data-confirm-title="Close account"
+          data-confirm-accept-label="Request closure"
+          data-confirm-pending-label="Sending…"
+          data-confirm-variant="danger">
+      <%- include('../partials/csrf-field') %>
+      <% if (account.hasPassword) { %>
+      <%- include('../partials/password-field', { fieldId: 'closeCurrentPassword', fieldName: 'currentPassword', label: 'Current password', autocomplete: 'current-password' }) %>
+      <% } %>
+      <div class="form-actions mt-4"><button type="submit" class="button button--danger">Request account closure</button></div>
+    </form>
+    <% } %>
+    <% } %>
+  </div>
+</div>
