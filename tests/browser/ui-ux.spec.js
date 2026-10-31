@@ -36,6 +36,9 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
 
   for (const path of [
     '/how-it-works',
+    '/features',
+    '/about',
+    '/pricing',
     '/docs',
     '/supported-apps',
     '/pilot',
@@ -45,6 +48,35 @@ test('public discovery, metadata, theme, and accessibility', async ({ page }) =>
   ]) {
     const response = await page.request.get(path);
     expect(response.ok(), `${path} should be publicly available`).toBeTruthy();
+  }
+});
+
+test('public product and support pages pass axe in dark mode and fit a phone', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 900 });
+  await page.goto('/about');
+  await page.getByRole('button', { name: /dark theme/i }).click();
+
+  for (const path of [
+    '/about',
+    '/features',
+    '/pilot',
+    '/premium',
+    '/contact',
+    '/docs/stop-and-delete',
+    '/docs/troubleshooting',
+  ]) {
+    await page.goto(path);
+    const results = await new AxeBuilder({ page }).analyze();
+    expect(
+      results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+      `${path} should have no critical or serious axe violations`,
+    ).toEqual([]);
+    const overflow = await page.evaluate(
+      () =>
+        globalThis.document.documentElement.scrollWidth -
+        globalThis.document.documentElement.clientWidth,
+    );
+    expect(overflow, `${path} should fit the viewport`).toBeLessThanOrEqual(1);
   }
 });
 
