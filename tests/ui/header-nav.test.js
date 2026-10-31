@@ -38,6 +38,27 @@ describe('shared header navigation', () => {
     assert.match(html, /<a href="\/how-it-works" aria-current="page">How It Works<\/a>/);
   });
 
+  it('lists the product pages signed-out visitors need first', async () => {
+    const html = await renderHeader({ learningHubEnabled: true });
+    const links = [...html.matchAll(/<a href="([^"]+)"[^>]*>[A-Z][^<]*<\/a>/g)].map(
+      (match) => match[1],
+    );
+    assert.deepEqual(links, [
+      '/features',
+      '/how-it-works',
+      '/docs',
+      '/blog',
+      '/about',
+      '/auth/sign-in',
+      '/auth/create-account',
+    ]);
+  });
+
+  it('marks the about page as current', async () => {
+    const html = await renderHeader({ currentPath: '/about' });
+    assert.match(html, /<a href="\/about" aria-current="page">About<\/a>/);
+  });
+
   it('marks sign-in as current on the sign-in page', async () => {
     const html = await renderHeader({ currentPath: '/auth/sign-in' });
     assert.match(html, /<a href="\/auth\/sign-in" aria-current="page">Sign In<\/a>/);

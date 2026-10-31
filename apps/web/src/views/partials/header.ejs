@@ -15,12 +15,11 @@
     <nav class="header__nav" aria-label="Primary navigation">
       <% if (!locals.user) { %>
       <div class="header__links" id="public-nav">
-        <a href="/#product">Product</a>
+        <a href="/features" <%- _path === '/features' ? 'aria-current="page"' : '' %>>Features</a>
         <a href="/how-it-works" <%- _path === '/how-it-works' ? 'aria-current="page"' : '' %>>How It Works</a>
         <a href="/docs" <%- _path.startsWith('/docs') ? 'aria-current="page"' : '' %>>Docs</a>
         <% if (locals.learningHubEnabled) { %><a href="/blog" <%- _path.startsWith('/blog') ? 'aria-current="page"' : '' %>>Blog</a><% } %>
-        <a href="/supported-apps" <%- _path === '/supported-apps' ? 'aria-current="page"' : '' %>>Supported Apps</a>
-        <a href="/status" <%- _path === '/status' ? 'aria-current="page"' : '' %>>Status</a>
+        <a href="/about" <%- _path === '/about' ? 'aria-current="page"' : '' %>>About</a>
         <a href="/auth/sign-in" <%- _path === '/auth/sign-in' ? 'aria-current="page"' : '' %>>Sign In</a>
       </div>
       <a href="/auth/create-account" class="button button--primary button--sm" <%- _path === '/auth/create-account' ? 'aria-current="page"' : '' %>>Create Account</a>

@@ -247,6 +247,10 @@ export const env = {
     : '',
   LEARNING_HUB_ANALYTICS_CONSENT_READY:
     optional('LEARNING_HUB_ANALYTICS_CONSENT_READY', 'false') === 'true',
+  // Search Console HTML-tag verification token; the meta tag is omitted while unset.
+  GOOGLE_SITE_VERIFICATION: /^[A-Za-z0-9_-]{20,100}$/.test(optional('GOOGLE_SITE_VERIFICATION', ''))
+    ? optional('GOOGLE_SITE_VERIFICATION', '')
+    : '',
   // AdSense stays off until the site is approved and the owner authorizes it.
   ADSENSE_ENABLED: optional('ADSENSE_ENABLED', 'false') === 'true',
   ADSENSE_CLIENT_ID: /^ca-pub-\d{16}$/.test(optional('ADSENSE_CLIENT_ID', ''))

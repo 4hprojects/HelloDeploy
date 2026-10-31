@@ -225,7 +225,7 @@
 
 .footer__links {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: var(--space-8);
   max-width: var(--content-max-width);
   margin: 0 auto var(--space-6);

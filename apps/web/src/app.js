@@ -45,6 +45,7 @@ import {
 import { postWebVital } from './controllers/telemetry.controller.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const PRIVATE_PATH_PREFIXES = ['/dashboard', '/projects', '/admin', '/auth', '/account', '/github'];
 
 function cspNonceMiddleware(_req, res, next) {
   res.locals.cspNonce = randomBytes(16).toString('base64');
@@ -140,6 +141,7 @@ export function createApp({
   Object.assign(app.locals, applicationLocals(), {
     learningHubEnabled: learningHub.enabled,
     learningHubRepository: learningHub.enabled ? learningHub.getRepository : null,
+    googleSiteVerification: env.GOOGLE_SITE_VERIFICATION,
     legalContactEmail: LEGAL_CONTACT_EMAIL,
     legalOperator: LEGAL_OPERATOR,
     legalPolicies: LEGAL_POLICIES,
@@ -163,6 +165,18 @@ export function createApp({
 
   // ── Core middleware stack ──────────────────────────────────────────────────
   app.use(correlationIdMiddleware);
+  // robots.txt only stops crawling; the header also keeps a private page out
+  // of search results when someone links to it.
+  app.use((req, res, next) => {
+    if (
+      PRIVATE_PATH_PREFIXES.some(
+        (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`),
+      )
+    ) {
+      res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+    }
+    next();
+  });
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 

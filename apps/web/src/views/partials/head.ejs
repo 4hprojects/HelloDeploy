@@ -4,6 +4,7 @@
   <% const meta = locals.pageMetadata || {}; %>
   <meta name="description" content="<%= meta.description || 'Manage application deployments with HelloDeploy.' %>" />
   <meta name="robots" content="<%= meta.robots || 'noindex,nofollow' %>" />
+  <% if (locals.googleSiteVerification && locals.currentPath === '/') { %><meta name="google-site-verification" content="<%= googleSiteVerification %>" /><% } %>
   <% if (meta.canonicalUrl) { %><link rel="canonical" href="<%= meta.canonicalUrl %>" /><% } %>
   <title><%= title ? `${title} — HelloDeploy` : 'HelloDeploy' %></title>
 

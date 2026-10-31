@@ -4,6 +4,7 @@ import { asyncHandler } from '../utils/async-handler.js';
 import { checkWebReadiness } from '../services/readiness.service.js';
 import { DOC_SECTIONS, PUBLIC_DOC_TOPICS, PUBLIC_PAGES } from '../config/public-pages.js';
 import { env } from '../config/env.js';
+import { LEGAL_POLICIES } from '../config/legal-policies.js';
 import { learningHubSitemapEntries } from './blog.controller.js';
 
 const TOPIC_CONTENT = Object.freeze({
@@ -513,9 +514,14 @@ export function getRobots(_req, res) {
 }
 
 export function getSitemap(req, res) {
-  const pages = PUBLIC_PAGES.map(
-    (page) => `  <url><loc>https://${env.PLATFORM_DOMAIN}${page.path}</loc></url>`,
+  const policyUpdated = new Map(
+    LEGAL_POLICIES.map((policy) => [`/${policy.slug}`, policy.updated]),
   );
+  const pages = PUBLIC_PAGES.map((page) => {
+    const updated = policyUpdated.get(page.path);
+    const lastmod = updated ? `<lastmod>${updated}</lastmod>` : '';
+    return `  <url><loc>https://${env.PLATFORM_DOMAIN}${page.path}</loc>${lastmod}</url>`;
+  });
   const getRepository = req.app?.locals?.learningHubRepository;
   const articles = getRepository
     ? learningHubSitemapEntries(getRepository()).map(
