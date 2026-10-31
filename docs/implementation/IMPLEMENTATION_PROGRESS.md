@@ -2,14 +2,14 @@
 
 Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31 (1)/`. One PR per phase; the owner merges and autodeploy ships.
 
-| PR  | Phase                                       | Status      | Branch / SHA     |
-| --- | ------------------------------------------- | ----------- | ---------------- |
-| 1   | 0 audit + 1 legal/security                  | Deployed    | `280a9bd` (#170) |
-| 2   | 2 product pages                             | Deployed    | `5bda4c0` (#173) |
-| 3   | 3 docs and support                          | Deployed    | `5bda4c0` (#173) |
-| 4   | 4 navigation, SEO, analytics readiness      | Deployed    | `9295462` (#174) |
-| 5   | 5 donations (disabled) + account management | In review   | #175             |
-| 6   | 6 governance + final QA                     | Not started | —                |
+| PR  | Phase                                       | Status    | Branch / SHA     |
+| --- | ------------------------------------------- | --------- | ---------------- |
+| 1   | 0 audit + 1 legal/security                  | Deployed  | `280a9bd` (#170) |
+| 2   | 2 product pages                             | Deployed  | `5bda4c0` (#173) |
+| 3   | 3 docs and support                          | Deployed  | `5bda4c0` (#173) |
+| 4   | 4 navigation, SEO, analytics readiness      | Deployed  | `9295462` (#174) |
+| 5   | 5 donations (disabled) + account management | Deployed  | `7adfae2` (#175) |
+| 6   | 6 governance + final QA                     | In review | #176             |
 
 ## PR 1
 
@@ -92,3 +92,15 @@ Decisions:
 - Email address changes stay manual by email. Self-service would need a verify-new-address flow, which is not built.
 - Two-factor authentication is shown as "Not available yet", with no promised date.
 - Donations stay off in production. No destination has been supplied (`TODO_USER_INPUT_PAYPAL_LINK`, `_GCASH_QR`, `_BANK_QR`, `_DONATIONS_APPROVAL`). The copy states that a donation changes no limits, priority or appeals, and is neither charity nor tax-deductible.
+
+## PR 6
+
+Files:
+
+- New `docs/implementation/CONTENT_REGISTER.md`: owner, source of truth, review dates and status for each public page, plus a monthly smoke check and a quarterly review
+- New `.github/pull_request_template.md`: checkboxes for public content, docs, policy and screenshot-baseline impact, and safety checks
+- New `tests/ui/public-links.test.js`: renders every sitemap page and requests each internal link; currently 34 unique links, all resolving
+
+## Handoff
+
+Open owner inputs are in `USER_INPUT_REQUIRED.md`. Until they are supplied, these stay off or unpublished: donations, GA4 and the consent banner, AdSense, Search Console verification, the governing law and liability cap, and the GitHub App permission list on the Privacy Policy. Infrastructure gaps (open egress, possible root in owner images, no disk quota, no scheduled backups, custom-domain routes left after delete) are in the audit backlog and are described honestly on the public pages, not fixed.
