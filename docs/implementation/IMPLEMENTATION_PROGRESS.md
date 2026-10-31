@@ -8,7 +8,7 @@ Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31
 | 2   | 2 product pages                             | Deployed  | `5bda4c0` (#173) |
 | 3   | 3 docs and support                          | Deployed  | `5bda4c0` (#173) |
 | 4   | 4 navigation, SEO, analytics readiness      | Deployed  | `9295462` (#174) |
-| 5   | 5 donations (disabled) + account management | In review | #175             |
+| 5   | 5 donations (disabled) + account management | Deployed  | `7adfae2` (#175) |
 | 6   | 6 governance + final QA                     | In review | #176             |
 
 ## PR 1
