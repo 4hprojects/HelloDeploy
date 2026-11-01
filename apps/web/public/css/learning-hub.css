@@ -887,10 +887,14 @@
   letter-spacing: 0.05em;
 }
 
-/* Native <dialog> centres itself; undo the shared modal's relative position. */
+/* The global reset zeroes margins, so restore the native dialog's centring. */
 .hub-comment-dialog {
   position: fixed;
+  inset: 0;
+  margin: auto;
   padding: 0;
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow: auto;
 }
 
 .hub-comment-dialog::backdrop {
@@ -898,5 +902,17 @@
 }
 
 .hub-comment-dialog ul {
-  padding-left: var(--space-5);
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+  padding: 0;
+  list-style: none;
+}
+
+/* Phones: a bottom sheet, like the shared confirm modal. */
+@media (max-width: 30rem) {
+  .hub-comment-dialog {
+    margin: auto 0 0;
+    max-width: 100%;
+  }
 }
