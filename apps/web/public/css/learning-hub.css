@@ -917,6 +917,10 @@
   list-style: none;
 }
 
+.hub-comment-dialog .confirm-modal__message + .confirm-modal__message {
+  margin-top: var(--space-2);
+}
+
 /* Phones: a bottom sheet, like the shared confirm modal. */
 @media (max-width: 30rem) {
   .hub-comment-dialog {

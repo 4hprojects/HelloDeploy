@@ -401,6 +401,25 @@ describe('Comment pipeline', () => {
     assert.ok(result.errors.displayName);
   });
 
+  it('marks profanity as a policy breach', async () => {
+    const result = await submit(pipelineWith(), { body: 'what the fuck is this guide' });
+    assert.equal(result.breaksPolicy, true);
+  });
+
+  it('marks an unsafe moderation verdict as a policy breach', async () => {
+    const unsafe = createModerator({
+      provider: 'injected',
+      classify: async () => ({ decision: 'unsafe', categories: ['harassment'] }),
+    });
+    const result = await submit(pipelineWith({ moderator: unsafe }));
+    assert.equal(result.breaksPolicy, true);
+  });
+
+  it('does not mark a link as a policy breach', async () => {
+    const result = await submit(pipelineWith(), { body: 'Visit cheaphosting.com for more help.' });
+    assert.equal(result.breaksPolicy, false);
+  });
+
   it('rejects promotional spam outright', async () => {
     const result = await submit(pipelineWith(), {
       body: 'Buy cheap followers now, message me on telegram for promo.',

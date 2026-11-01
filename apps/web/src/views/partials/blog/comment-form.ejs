@@ -30,15 +30,23 @@
 <% if (errorMessages.length > 0) { %>
 <dialog class="hub-comment-dialog confirm-modal__dialog" aria-labelledby="comment-dialog-title" data-comment-dialog>
   <div class="confirm-modal__body">
+    <% if (state.form.breaksPolicy) { %>
+    <p class="confirm-modal__eyebrow">Acceptable Use Policy</p>
+    <h2 class="confirm-modal__title" id="comment-dialog-title">This comment breaks our rules</h2>
+    <% } else { %>
     <p class="confirm-modal__eyebrow">Not posted</p>
     <h2 class="confirm-modal__title" id="comment-dialog-title">Your comment was not posted</h2>
+    <% } %>
     <ul class="confirm-modal__message">
       <% errorMessages.forEach((message) => { %><li><%= message %></li><% }) %>
     </ul>
+    <% if (state.form.breaksPolicy) { %>
+    <p class="confirm-modal__message">Comments must follow the <a href="/acceptable-use">Acceptable Use Policy</a>, so this one was not published.</p>
+    <% } %>
     <p class="confirm-modal__message">Your text is kept in the form so you can edit it.</p>
   </div>
   <form method="dialog" class="confirm-modal__actions">
-    <button type="submit" class="button button--primary">Edit comment</button>
+    <button type="submit" class="button button--primary" autofocus>Edit comment</button>
   </form>
 </dialog>
 <% } %>

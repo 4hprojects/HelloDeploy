@@ -175,6 +175,10 @@ describe('Learning Hub comment routes', () => {
     );
   });
 
+  it('does not call a link refusal a policy breach', () => {
+    assert.doesNotMatch(revisionHtml, /This comment breaks our rules/);
+  });
+
   it('rate-limits a fourth submission within ten minutes', async () => {
     const res = await postComment(open, { body: 'One more comment from the same address.' });
     assert.equal(res.status, 429);
