@@ -113,14 +113,24 @@ export function createCommentPipeline({
       // readers to docs, but a stolen or careless admin session must not
       // publish abuse, so the wording checks still apply.
       if (hasProfanity(value.body)) {
-        return { outcome: 'revise', status: 422, errors: { body: MESSAGES.profanity } };
+        return {
+          outcome: 'revise',
+          status: 422,
+          breaksPolicy: true,
+          errors: { body: MESSAGES.profanity },
+        };
       }
       const moderation = await moderator.moderate(value.body);
       if (moderation.decision === 'unavailable') {
         return unavailable('moderation unavailable');
       }
       if (moderation.decision !== 'safe') {
-        return { outcome: 'revise', status: 422, errors: { body: MESSAGES.revise } };
+        return {
+          outcome: 'revise',
+          status: 422,
+          breaksPolicy: true,
+          errors: { body: MESSAGES.revise },
+        };
       }
       return publish(
         base,
@@ -142,6 +152,7 @@ export function createCommentPipeline({
       return {
         outcome: 'revise',
         status: 422,
+        breaksPolicy: screen.reason === 'profanity',
         errors: { [screen.field]: MESSAGES[screen.reason] ?? MESSAGES.revise },
       };
     }
@@ -179,7 +190,12 @@ export function createCommentPipeline({
     }
     if (moderation.decision !== 'safe') {
       await recordRejection(redis);
-      return { outcome: 'revise', status: 422, errors: { body: MESSAGES.revise } };
+      return {
+        outcome: 'revise',
+        status: 422,
+        breaksPolicy: true,
+        errors: { body: MESSAGES.revise },
+      };
     }
     return publish(base, metadata, claims);
   }
@@ -211,7 +227,12 @@ export function createCommentPipeline({
       return failure;
     }
     await recordRejection(getRedis());
-    return { outcome: 'rejected', status: 422, errors: { form: MESSAGES.rejected } };
+    return {
+      outcome: 'rejected',
+      status: 422,
+      breaksPolicy: true,
+      errors: { form: MESSAGES.rejected },
+    };
   }
 
   // Returns `{ comment }`, or `{ failure }` with the outcome to answer: a

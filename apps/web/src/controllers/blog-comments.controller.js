@@ -60,7 +60,7 @@ export function createBlogCommentsController({
     }
     return renderArticle(req, res, article, {
       status: result.status,
-      form: formState(req.body, result.errors),
+      form: formState(req.body, result.errors, result.breaksPolicy),
     });
   }
 
@@ -110,12 +110,13 @@ function staffUser(user) {
 }
 
 // Echo back what the reader typed so a refused submission loses nothing.
-function formState(body, errors) {
+function formState(body, errors, breaksPolicy = false) {
   const text = (value, max) => (typeof value === 'string' ? value.slice(0, max) : '');
   return {
     displayName: text(body?.displayName, 60),
     body: text(body?.body, 2000),
     replyTo: text(body?.replyTo, 24),
     errors: errors ?? {},
+    breaksPolicy,
   };
 }
