@@ -858,6 +858,14 @@
   min-height: 44px;
 }
 
+/* Grows with the text and resizes only vertically, so the form never widens the page. */
+.hub-comment-form .form-textarea {
+  field-sizing: content;
+  min-height: 9rem;
+  max-height: 60vh;
+  resize: vertical;
+}
+
 /* ── Admin moderation page ─────────────────────────────────────── */
 
 .hub-check {
