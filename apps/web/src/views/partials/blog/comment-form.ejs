@@ -1,4 +1,5 @@
 <% const errors = state.form.errors || {}; %>
+<% const errorMessages = [errors.form || errors.replyTo, errors.displayName, errors.body].filter(Boolean); %>
 <form class="hub-comment-form" id="comment-form" method="post" action="/blog/<%= article.slug %>/comments" novalidate data-comment-form data-draft-key="lh-draft-<%= article.id %>">
   <h3 class="hub-comment-form__title"><%= state.replyTarget ? `Reply to ${state.replyTarget.displayName}` : 'Join the discussion' %></h3>
   <% if (errors.form || errors.replyTo) { %>
@@ -26,3 +27,18 @@
   <noscript><p class="form-hint">Posting a comment needs JavaScript for the verification check. Reading works without it.</p></noscript>
   <button type="submit" class="button button--primary">Post comment</button>
 </form>
+<% if (errorMessages.length > 0) { %>
+<dialog class="hub-comment-dialog confirm-modal__dialog" aria-labelledby="comment-dialog-title" data-comment-dialog>
+  <div class="confirm-modal__body">
+    <p class="confirm-modal__eyebrow">Not posted</p>
+    <h2 class="confirm-modal__title" id="comment-dialog-title">Your comment was not posted</h2>
+    <ul class="confirm-modal__message">
+      <% errorMessages.forEach((message) => { %><li><%= message %></li><% }) %>
+    </ul>
+    <p class="confirm-modal__message">Your text is kept in the form so you can edit it.</p>
+  </div>
+  <form method="dialog" class="confirm-modal__actions">
+    <button type="submit" class="button button--primary">Edit comment</button>
+  </form>
+</dialog>
+<% } %>

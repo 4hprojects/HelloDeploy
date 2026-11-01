@@ -193,3 +193,17 @@ test('a refused comment keeps the text and announces the error', async ({ page }
     'Read more at https://spam.example today.',
   );
 });
+
+test('a refused comment opens a dialog that returns to the field to fix', async ({ page }) => {
+  await page.goto(ARTICLE);
+  await page.getByLabel('Display name').fill('Browser reader');
+  await page
+    .getByLabel('Comment', { exact: true })
+    .fill('Read more at https://spam.example today.');
+  await page.getByRole('button', { name: 'Post comment' }).click();
+  await page
+    .getByRole('dialog', { name: 'Your comment was not posted' })
+    .getByRole('button', { name: 'Edit comment' })
+    .click();
+  await expect(page.getByLabel('Comment', { exact: true })).toBeFocused();
+});

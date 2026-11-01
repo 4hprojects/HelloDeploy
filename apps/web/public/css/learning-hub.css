@@ -886,3 +886,17 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+/* Native <dialog> centres itself; undo the shared modal's relative position. */
+.hub-comment-dialog {
+  position: fixed;
+  padding: 0;
+}
+
+.hub-comment-dialog::backdrop {
+  background: rgb(15 23 42 / 0.62);
+}
+
+.hub-comment-dialog ul {
+  padding-left: var(--space-5);
+}
