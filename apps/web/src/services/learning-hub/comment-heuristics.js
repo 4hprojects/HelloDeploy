@@ -103,6 +103,12 @@ export function foldForScreening(text) {
     .join('');
 }
 
+/** Whether text contains swearing, after folding lookalike characters. */
+export function hasProfanity(text) {
+  const folded = foldForScreening(text);
+  return PROFANITY.some((word) => word.test(folded));
+}
+
 /**
  * Deterministic pre-moderation checks. Returns the first finding:
  * `revise` asks the writer to edit, `reject` refuses outright.
@@ -118,14 +124,14 @@ export function screenComment({ displayName, body }) {
   if (outbound(name) || EMAIL.test(name) || PHONE.test(name)) {
     return { decision: 'revise', reason: 'name_contact', field: 'displayName' };
   }
-  if (PROFANITY.some((word) => word.test(name))) {
+  if (hasProfanity(displayName)) {
     return { decision: 'revise', reason: 'profanity', field: 'displayName' };
   }
   const promotionHits = PROMOTION_TERMS.filter((term) => term.test(text)).length;
   if (promotionHits >= 2) {
     return { decision: 'reject', reason: 'promotion' };
   }
-  if (PROFANITY.some((word) => word.test(text))) {
+  if (hasProfanity(body)) {
     return { decision: 'revise', reason: 'profanity', field: 'body' };
   }
   if (outbound(text)) {

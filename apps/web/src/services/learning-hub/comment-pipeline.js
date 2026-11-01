@@ -1,7 +1,7 @@
 import { ArticleComment, REJECTED_COMMENT_RETENTION_SECONDS } from '@hellodeploy/database';
 import { logger } from '@hellodeploy/observability';
 
-import { commentFingerprint, screenComment } from './comment-heuristics.js';
+import { commentFingerprint, hasProfanity, screenComment } from './comment-heuristics.js';
 import { parseCommentInput } from './comment-input.js';
 import { CommentThreadError, resolveReplyTarget } from './comment.service.js';
 import { MODERATION_POLICY_VERSION } from './moderation.js';
@@ -109,8 +109,24 @@ export function createCommentPipeline({
     };
 
     if (staffUser) {
-      // Staff are authenticated administrators; their replies skip the guest screens.
-      return publish(base, { decision: 'staff', reasons: [], provider: 'staff' }, claims);
+      // Staff skip Turnstile and the link and contact rules so they can point
+      // readers to docs, but a stolen or careless admin session must not
+      // publish abuse, so the wording checks still apply.
+      if (hasProfanity(value.body)) {
+        return { outcome: 'revise', status: 422, errors: { body: MESSAGES.profanity } };
+      }
+      const moderation = await moderator.moderate(value.body);
+      if (moderation.decision === 'unavailable') {
+        return unavailable('moderation unavailable');
+      }
+      if (moderation.decision !== 'safe') {
+        return { outcome: 'revise', status: 422, errors: { body: MESSAGES.revise } };
+      }
+      return publish(
+        base,
+        { decision: 'staff', reasons: [], provider: moderator.provider },
+        claims,
+      );
     }
 
     const screen = screenComment(value);
