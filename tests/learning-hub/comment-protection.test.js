@@ -335,6 +335,46 @@ describe('Comment pipeline', () => {
     assert.equal(result.comment.authorType, 'staff');
   });
 
+  it('lets an administrator post a link in a reply', async () => {
+    const result = await submit(
+      pipelineWith(),
+      { body: 'See https://hellodeploy.online/docs/logs for the steps.' },
+      { staffUser: { id: '0123456789abcdef01234567', name: 'Henson Sagorsor' } },
+    );
+    assert.equal(result.outcome, 'published');
+  });
+
+  it('asks an administrator to remove profanity', async () => {
+    const result = await submit(
+      pipelineWith(),
+      { body: 'what the fuck, you stupid loser' },
+      { staffUser: { id: '0123456789abcdef01234567', name: 'Henson Sagorsor' } },
+    );
+    assert.equal(result.outcome, 'revise');
+  });
+
+  it('keeps an administrator reply the moderator flags out of public view', async () => {
+    const unsafe = createModerator({
+      provider: 'injected',
+      classify: async () => ({ decision: 'unsafe', categories: ['harassment'] }),
+    });
+    await submit(
+      pipelineWith({ moderator: unsafe }),
+      { body: 'You are a stupid loser and should quit.' },
+      { staffUser: { id: '0123456789abcdef01234567', name: 'Henson Sagorsor' } },
+    );
+    assert.equal(await publishedCount(), 0);
+  });
+
+  it('refuses an administrator reply when moderation is unavailable', async () => {
+    const result = await submit(
+      pipelineWith({ moderator: createModerator({ provider: 'none' }) }),
+      {},
+      { staffUser: { id: '0123456789abcdef01234567', name: 'Henson Sagorsor' } },
+    );
+    assert.equal(result.status, 503);
+  });
+
   for (const [label, body] of [
     ['a plain link', 'Check https://cheap-hosting.example for more.'],
     ['a bare domain', 'Visit cheaphosting.com for more help.'],
