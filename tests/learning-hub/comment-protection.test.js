@@ -345,12 +345,21 @@ describe('Comment pipeline', () => {
     ['an obfuscated email address', 'Email me: reader (at) example (dot) org please.'],
     ['a Philippine mobile number', 'Text me at 0917 123 4567 for the config.'],
     ['an international phone number', 'Call +1 415 555 0100 if it breaks.'],
+    ['English profanity', 'what the fuck'],
+    ['masked profanity', 'This f*cking config never works.'],
+    ['Filipino profanity', 'Putangina, ayaw gumana ng nginx.'],
+    ['run-together Filipino profanity', 'Tanginamo, sira na naman ang build.'],
   ]) {
     it(`asks for revision of ${label}`, async () => {
       const result = await submit(pipelineWith(), { body });
       assert.equal(result.outcome, 'revise');
     });
   }
+
+  it('asks for revision of a profane display name', async () => {
+    const result = await submit(pipelineWith(), { displayName: 'dick' });
+    assert.ok(result.errors.displayName);
+  });
 
   it('rejects promotional spam outright', async () => {
     const result = await submit(pipelineWith(), {
@@ -380,6 +389,11 @@ describe('Comment pipeline', () => {
     ['a localhost URL', 'It works at http://localhost:3000 but not behind nginx.'],
     ['a file name that looks like a domain', 'My server.js and package.json match the guide.'],
     ['quoted HTML', 'I see <script> tags rendered literally in my EJS output.'],
+    [
+      'words that contain a swear word',
+      'Press the F key, then read the class assessment in Dickens.',
+    ],
+    ['the Filipino word for mother', 'Sabi ng ina mo tama yung PORT config sa guide.'],
   ]) {
     it(`publishes ${label}`, async () => {
       const result = await submit(pipelineWith(), { body });

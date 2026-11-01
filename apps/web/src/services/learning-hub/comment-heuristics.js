@@ -73,6 +73,28 @@ const PROMOTION_TERMS = [
   /\bkumita\b/,
 ];
 const CHARACTER_FLOOD = /(.)\1{24,}/u;
+// Plain swearing is not aimed at a person, so the contextual moderator lets it
+// through; the blog asks for it to be removed. English and Filipino.
+const PROFANITY = [
+  /\bf+[u*@]*c*k+(?:ing|in|er|ers|ed|s)?\b/,
+  /motherf+[u*@]*c*k/,
+  /\bsh[i1!*]t+(?:s|ty|ting|head)?\b/,
+  /\bbitch(?:es|y)?\b/,
+  /\bcunts?\b/,
+  /\bdicks?(?:head)?\b/,
+  /\bass\s?holes?\b/,
+  /\bbastards?\b/,
+  /\b(?:wtf|stfu)\b/,
+  /\b(?:p[u*]ta|ta)ng\s?ina(?:\s?mo)?\b/,
+  /\bputa\b/,
+  /\bgago\b/,
+  /\bulol\b/,
+  /\btarantado\b/,
+  /\bpak\s?(?:yu|shet)\b/,
+  /\bkupal\b/,
+  /\bhindot\b/,
+  /\bkantot\b/,
+];
 
 /** Text reduced to what a reader actually sees, for pattern checks only. */
 export function foldForScreening(text) {
@@ -96,9 +118,15 @@ export function screenComment({ displayName, body }) {
   if (outbound(name) || EMAIL.test(name) || PHONE.test(name)) {
     return { decision: 'revise', reason: 'name_contact', field: 'displayName' };
   }
+  if (PROFANITY.some((word) => word.test(name))) {
+    return { decision: 'revise', reason: 'profanity', field: 'displayName' };
+  }
   const promotionHits = PROMOTION_TERMS.filter((term) => term.test(text)).length;
   if (promotionHits >= 2) {
     return { decision: 'reject', reason: 'promotion' };
+  }
+  if (PROFANITY.some((word) => word.test(text))) {
+    return { decision: 'revise', reason: 'profanity', field: 'body' };
   }
   if (outbound(text)) {
     return { decision: 'revise', reason: 'link', field: 'body' };
