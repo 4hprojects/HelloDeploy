@@ -20,6 +20,7 @@ const MESSAGES = Object.freeze({
     'Please remove email addresses, phone numbers, or other contact details and submit again.',
   name_contact: 'Display names cannot contain links or contact details.',
   flood: 'Please shorten repeated characters and submit again.',
+  profanity: 'Please remove profanity and submit again.',
   revise:
     'This comment could not be posted as written. Please rephrase it so it follows the community guidelines.',
   rejected: 'This comment was not posted because it does not meet the community guidelines.',
