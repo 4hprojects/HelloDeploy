@@ -2,7 +2,7 @@
   <header class="hub-comment__header">
     <p class="hub-comment__author" id="comment-author-<%= comment.id %>"><%= comment.displayName %></p>
     <% if (comment.isStaff) { %><span class="hub-comment__badge">HelloDeploy team</span><% } %>
-    <time class="hub-comment__date" datetime="<%= new Date(comment.createdAt).toISOString() %>"><%= new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC' }).format(new Date(comment.createdAt)) %></time>
+    <time class="hub-comment__date" datetime="<%= new Date(comment.createdAt).toISOString() %>"><%= new Intl.DateTimeFormat('en-US', { year: 'numeric', month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', timeZone: 'Asia/Manila', timeZoneName: 'short' }).format(new Date(comment.createdAt)) %></time>
   </header>
   <% if (comment.replyToCommentId && comment.replyToCommentId !== comment.parentId) { %>
   <p class="hub-comment__context"><a href="#comment-<%= comment.replyToCommentId %>">Replying to @<%= comment.replyToDisplayName %></a></p>
