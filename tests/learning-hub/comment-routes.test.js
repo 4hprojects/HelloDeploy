@@ -180,6 +180,18 @@ describe('Learning Hub comment routes', () => {
     assert.match(html, /&lt;img src=x onerror=alert\(1\)&gt; in my logs/);
   });
 
+  it('shows when a comment was posted in Philippine time', async () => {
+    await ArticleComment.create({
+      articleId: 'sample-1',
+      displayName: 'Reader',
+      body: 'Worked on my server, thanks.',
+      status: 'published',
+      createdAt: new Date('2026-11-01T05:24:00Z'),
+    });
+    const html = await page(open);
+    assert.match(html, />Nov 1, 2026, 1:24 PM GMT\+8<\/time>/);
+  });
+
   it('shows a reply to a reply at the same level with its reply context', async () => {
     const root = await ArticleComment.create({
       articleId: 'sample-1',
