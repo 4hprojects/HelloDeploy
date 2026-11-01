@@ -207,9 +207,21 @@
       return;
     }
     const error = form.querySelector('[data-form-error]');
-    if (error) {
-      error.focus();
+    const dialog = document.querySelector('[data-comment-dialog]');
+    const fixFirst = () => {
+      const target = form.querySelector('[aria-invalid="true"]') || error;
+      if (target) {
+        target.focus();
+      }
+    };
+    if (dialog) {
       track('comment_submit_outcome', { outcome: 'refused' });
+      if (dialog.showModal) {
+        dialog.addEventListener('close', fixFirst);
+        dialog.showModal();
+      } else {
+        fixFirst();
+      }
     }
     if (/^#comment-[a-f0-9]{24}$/.test(window.location.hash)) {
       track('comment_submit_outcome', { outcome: 'published' });

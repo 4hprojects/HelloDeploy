@@ -159,9 +159,20 @@ describe('Learning Hub comment routes', () => {
     assert.equal(res.status, 303);
   });
 
+  // Shared so the rate-limit test below still sees exactly three earlier posts.
+  let revisionHtml;
+
   it('keeps the writer text when asking for a revision', async () => {
     const res = await postComment(open, { body: 'See https://spam.example for answers.' });
-    assert.match(await res.text(), /See https:\/\/spam.example for answers.<\/textarea>/);
+    revisionHtml = await res.text();
+    assert.match(revisionHtml, /See https:\/\/spam.example for answers.<\/textarea>/);
+  });
+
+  it('explains a refused comment in a dialog', () => {
+    assert.match(
+      revisionHtml,
+      /<dialog[^>]*data-comment-dialog[\s\S]*<li>Links and web addresses cannot be posted/,
+    );
   });
 
   it('rate-limits a fourth submission within ten minutes', async () => {
