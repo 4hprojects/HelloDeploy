@@ -406,6 +406,16 @@ describe('Comment pipeline', () => {
     assert.equal(result.breaksPolicy, true);
   });
 
+  it('marks a profane comment too short to pass the length check as a policy breach', async () => {
+    const result = await submit(pipelineWith(), { body: 'fuck you' });
+    assert.equal(result.breaksPolicy, true);
+  });
+
+  it('asks a too-short profane comment to remove profanity, not to add length', async () => {
+    const result = await submit(pipelineWith(), { body: 'fuck you' });
+    assert.equal(result.errors.body, 'Please remove profanity and submit again.');
+  });
+
   it('marks an unsafe moderation verdict as a policy breach', async () => {
     const unsafe = createModerator({
       provider: 'injected',
