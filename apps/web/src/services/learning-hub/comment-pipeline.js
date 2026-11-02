@@ -43,6 +43,15 @@ export function createCommentPipeline({
   async function submit({ article, body, turnstileToken, sourceIp, staffUser = null }) {
     const { value, errors } = parseCommentInput(body);
     if (Object.keys(errors).length > 0) {
+      // A swear too short to pass the length check is still a policy breach;
+      // reporting only the length would invite the writer to pad it out.
+      const profaneFields = ['displayName', 'body'].filter((field) => hasProfanity(value[field]));
+      if (profaneFields.length > 0) {
+        for (const field of profaneFields) {
+          errors[field] = MESSAGES.profanity;
+        }
+        return { outcome: 'invalid', status: 400, breaksPolicy: true, errors };
+      }
       return { outcome: 'invalid', status: 400, errors };
     }
 
