@@ -1,7 +1,8 @@
 # Learning Hub — Blockers and Owner Handoff
 
-Updated 2026-10-29. The code and five articles ship to production with every Learning Hub
-capability **off**. Each item below needs the owner; none is blocked by code.
+Updated 2026-11-03. The blog and view counts are on (2026-10-29), and guest comments are on
+with OpenAI moderation (2026-11-01). GA4 and AdSense stay off. Each open item below needs the
+owner; none is blocked by code.
 
 ## 0. Merge the release (owner)
 
@@ -18,29 +19,20 @@ and automatic rollback). Confirm with `journalctl -u hellodeploy-autodeploy.serv
 `npm run production:check -- https://hellodeploy.online --expected-sha <merged-sha>`.
 Rollback reference: `2b54d220344bcbaed94e08b8468480883651b3af`.
 
-## 1. Turn on the public blog (owner, about 2 minutes)
+## 1. Turn on the public blog (done)
 
-The session could not change the code defaults (the command was denied), so `/blog` stays 404
-until the owner sets the flags on the production host:
+Done 2026-10-29: `/blog` serves the five articles. **Undo:** remove `LEARNING_HUB_ENABLED=true`
+and `LEARNING_HUB_VIEWS_ENABLED=true` from `/opt/hellodeploy/.env` and restart
+`hellodeploy-web`. Post-enable checks are in [Release record › After enabling](#after-enabling).
 
-```sh
-sudo sh -c 'printf "\nLEARNING_HUB_ENABLED=true\nLEARNING_HUB_VIEWS_ENABLED=true\n" >> /opt/hellodeploy/.env'
-sudo systemctl restart hellodeploy-web
-curl -fsS https://hellodeploy.online/blog -o /dev/null -w '%{http_code}\n'   # expect 200
-```
+## 2. Guest comments (live)
 
-`/opt/hellodeploy/.env` sits outside Git and survives upgrades. Then run the post-enable checks
-in [Release record › After enabling](#after-enabling). Safest default if unsure: leave it off.
-
-**Undo:** delete those two lines, restart `hellodeploy-web`.
-
-## 2. Guest comments (provider approved; stays off until enabled)
-
-2026-11-01: the owner approved OpenAI moderation (`LEARNING_HUB_MODERATION_PROVIDER=openai-moderation`).
-The Privacy Policy now names OpenAI and the data it receives: the display name and comment text only.
-Still missing: `OPENAI_MODERATION_API_KEY` and the enable flags in `/opt/hellodeploy/.env`, then the
-production smoke test. Real Cloudflare Siteverify and the real provider have not been tested end to
-end. Steps are in [OPERATIONS.md › Enabling guest comments](OPERATIONS.md#enabling-guest-comments-owner-decision).
+Live since 2026-11-01. The owner approved OpenAI moderation, set the provider, key and enable
+flags in `/opt/hellodeploy/.env`, and restarted the web service. Owner tests on the live site
+confirmed published comments, the profanity filter (guests and staff, #179 and #181), Philippine
+time stamps (#180), and the refusal dialog with the Acceptable Use Policy notice (#182 to #186).
+Still to confirm: a guest comment with a link is refused, and the per-article pause takes effect
+after **Save controls**. Emergency stop: [OPERATIONS.md](OPERATIONS.md#emergency-stop-guest-comments).
 
 ## 3. GA4 (stays off)
 

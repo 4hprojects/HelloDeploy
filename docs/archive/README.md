@@ -11,20 +11,21 @@ Each file keeps the date it describes; the dates below are the period it covers.
 
 ## Status trackers and plans (superseded by Priorities)
 
-| Document                                                                                   | Covers        | What it was                                                                    |
-| ------------------------------------------------------------------------------------------ | ------------- | ------------------------------------------------------------------------------ |
-| [Priorities, previous version](PRIORITIES_2026-10-15.md)                                   | to 2026-10-15 | The earlier punch list, with its long "recently resolved" history              |
-| [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md)                            | to 2026-10-16 | Batch-by-batch production-readiness monitor                                    |
-| [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) | to 2026-08-18 | P0–P6 cutover plan and live evidence log                                       |
-| [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md)                            | to 2026-08-14 | Eight-phase release-gate checklist                                             |
-| [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md)                          | to 2026-08-18 | Passed/Failed/Blocked matrix for public, owner and operator workflows          |
-| [Second-Site Deployment Checklist](SECOND_SITE_DEPLOYMENT_CHECKLIST.md)                    | to 2026-08-31 | "Ready to onboard a second site?" pre-flight and pilot tracker                 |
-| [Project Status Review](PROJECT_STATUS_REVIEW.md)                                          | 2026-08-18    | Architecture, quality and completion-estimate snapshot                         |
-| [Full Project Review](FULL_PROJECT_REVIEW_2026-07-12.md)                                   | 2026-07-12    | Dated NO-GO assessment                                                         |
-| [Full Implementation Overview](FULL_IMPLEMENTATION_OVERVIEW.md)                            | to 2026-07    | Human-readable phase map                                                       |
-| [Phase Task Tracker](PHASE_TASK_TRACKER.md)                                                | to 2026-07    | Earlier P8–P12 tracker                                                         |
-| [P9–P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md)                                | 2026-07       | Handoff notes for custom domains, admin operations, hardening and distribution |
-| [Hardening and Pilot Report](HARDENING_AND_PILOT_REPORT.md)                                | 2026-07       | Early local measurements and pilot checklist                                   |
+| Document                                                                                   | Covers        | What it was                                                                                     |
+| ------------------------------------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------- |
+| [Priorities, 2026-10-28 version](PRIORITIES_2026-10-28.md)                                 | to 2026-11-03 | Multi-runtime pause, builder pilot watch, and the decisions closed on 2026-10-21 and 2026-10-22 |
+| [Priorities, previous version](PRIORITIES_2026-10-15.md)                                   | to 2026-10-15 | The earlier punch list, with its long "recently resolved" history                               |
+| [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md)                            | to 2026-10-16 | Batch-by-batch production-readiness monitor                                                     |
+| [HelloDeploy and HelloUniversity Production Plan](HELLODEPLOY_HELLORUN_PRODUCTION_PLAN.md) | to 2026-08-18 | P0–P6 cutover plan and live evidence log                                                        |
+| [Deployment Readiness Roadmap](DEPLOYMENT_READINESS_ROADMAP.md)                            | to 2026-08-14 | Eight-phase release-gate checklist                                                              |
+| [Live Workflow Acceptance Checklist](LIVE_WORKFLOW_ACCEPTANCE.md)                          | to 2026-08-18 | Passed/Failed/Blocked matrix for public, owner and operator workflows                           |
+| [Second-Site Deployment Checklist](SECOND_SITE_DEPLOYMENT_CHECKLIST.md)                    | to 2026-08-31 | "Ready to onboard a second site?" pre-flight and pilot tracker                                  |
+| [Project Status Review](PROJECT_STATUS_REVIEW.md)                                          | 2026-08-18    | Architecture, quality and completion-estimate snapshot                                          |
+| [Full Project Review](FULL_PROJECT_REVIEW_2026-07-12.md)                                   | 2026-07-12    | Dated NO-GO assessment                                                                          |
+| [Full Implementation Overview](FULL_IMPLEMENTATION_OVERVIEW.md)                            | to 2026-07    | Human-readable phase map                                                                        |
+| [Phase Task Tracker](PHASE_TASK_TRACKER.md)                                                | to 2026-07    | Earlier P8–P12 tracker                                                                          |
+| [P9–P12 Maintenance Summary](P9_P12_MAINTENANCE_SUMMARY.md)                                | 2026-07       | Handoff notes for custom domains, admin operations, hardening and distribution                  |
+| [Hardening and Pilot Report](HARDENING_AND_PILOT_REPORT.md)                                | 2026-07       | Early local measurements and pilot checklist                                                    |
 
 ## Audits and reviews (all items resolved)
 

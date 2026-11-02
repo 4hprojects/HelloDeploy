@@ -121,6 +121,8 @@ Needs the owner (cannot be verified by the agent): GitHub App permission list, T
 
 ## 4. Remediation backlog (outside this package's text work)
 
+Superseded on 2026-11-03: the ranked list now lives in [docs/PRIORITIES.md](../PRIORITIES.md), which adds two gaps found later. Suspending a user stops no apps and does not block their deploys, and archiving a project leaves its app live.
+
 - P1 infra: block or limit container egress; force non-root for owner-supplied images; disk quota. Required before opening to wider untrusted use.
 - P2: project delete should remove custom-domain routes, Cloudflare hostnames, Repository and Invitation records.
 - P2: mask project secret values in captured deploy logs.

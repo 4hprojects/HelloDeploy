@@ -9,10 +9,10 @@ All phases initially `NOT STARTED`. Phase SHAs are `feat/learning-hub` commits, 
 | 2     | Public UI             | DONE 2026-10-29 (`f80db0f`)                                                              | Responsive/a11y tests                                                 |
 | 3     | Views and sharing     | DONE 2026-10-29 (`012ad25`)                                                              | Dedup/share tests                                                     |
 | 4     | Comments core         | DONE 2026-10-29 (`5c840f5`)                                                              | Disabled route and threading tests                                    |
-| 5     | Moderation/reporting  | CODE DONE 2026-10-29 (`5c840f5`); live comments blocked, see BLOCKERS_AND_HANDOFF.md     | Fail-closed/adversarial suite                                         |
+| 5     | Moderation/reporting  | CODE DONE 2026-10-29 (`5c840f5`); comments live 2026-11-01 (OpenAI moderation)           | Fail-closed/adversarial suite                                         |
 | 6     | SEO, GA4, AdSense     | DONE 2026-10-29 (`8b5c734`); GA4 and AdSense off                                         | Rendered SEO and privacy review                                       |
 | 7     | Five tutorials        | DONE 2026-10-29 (`4fb5549`) — see ARTICLE_VERIFICATION.md                                | Editorial and technical checks                                        |
-| 8     | Release QA            | DEPLOYED 2026-10-29 as `3309c51` (PR #165); hub flags off                                | Regression and release report                                         |
+| 8     | Release QA            | DEPLOYED 2026-10-29 as `3309c51` (PR #165); blog on 2026-10-29, comments on 2026-11-01   | Regression and release report                                         |
 
 ## Rough pre-audit effort (non-binding)
 
