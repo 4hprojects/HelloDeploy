@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-10-21
+Updated: 2026-11-03
 
 Start here. The top-level [README](../README.md) stays short; this file maps every current
 document. Status and "what's next" live in exactly one place: [Priorities](PRIORITIES.md).
@@ -49,8 +49,13 @@ document. Status and "what's next" live in exactly one place: [Priorities](PRIOR
 - [Docker optimization](docker-optimization/README.md) - opt-in `optimized-v1` image templates
   (P0–P1 done); cache, metrics, retention, and rollout phases not started.
 - [Learning Hub](learning-hub/00_MASTER_PLAN.md) - public `/blog` with Markdown tutorials, views,
-  sharing, and fail-closed guest comments. Status in
-  [learning-hub/13_PHASE_TRACKER.md](learning-hub/13_PHASE_TRACKER.md).
+  sharing, and moderated guest comments (live since 2026-11-01). Running it:
+  [learning-hub/OPERATIONS.md](learning-hub/OPERATIONS.md); owner items:
+  [learning-hub/BLOCKERS_AND_HANDOFF.md](learning-hub/BLOCKERS_AND_HANDOFF.md).
+- [Public content package](implementation/IMPLEMENTATION_PROGRESS.md) - the 2026-10-31 legal,
+  product, docs, SEO and account work (#170–#176). Owner inputs still needed:
+  [implementation/USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md); page owners and
+  review dates: [implementation/CONTENT_REGISTER.md](implementation/CONTENT_REGISTER.md).
 
 ## Design notes
 

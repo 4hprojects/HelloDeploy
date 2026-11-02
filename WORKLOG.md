@@ -2551,3 +2551,22 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   sidebar (Domains link with its waiting count), the admin overview headings and badges, the
   confirm dialog's optional reason field with Escape returning focus, the collapsed Advanced
   deployment section, and the Previous release label.
+
+## 2026-10-29 to 2026-11-02 — Learning Hub, Public Content and Comments Go Live
+
+- Learning Hub released as `3309c51` (#165) on 2026-10-29. The owner turned on `/blog` and view
+  counts the same day. Details are in
+  [learning-hub/IMPLEMENTATION_LOG.md](docs/learning-hub/IMPLEMENTATION_LOG.md).
+- Public content package #170 to #176 (legal fixes, `/about`, `/features`, `/contact`, fuller
+  docs, SEO, `/account`, a disabled donation scaffold, governance), all deployed and verified on
+  2026-10-31. The record is in [implementation/DEPLOYMENT_REPORT.md](docs/implementation/DEPLOYMENT_REPORT.md).
+- Guest comments went live on 2026-11-01 with OpenAI moderation (#178 names OpenAI in the Privacy
+  Policy). Owner testing found staff replies skipped every check and that profanity passed. Fixes:
+  a profanity filter for guests and staff (#179, #181), time of day on comments (#180), a refusal
+  dialog (#182 to #184), and an Acceptable Use Policy notice for comments that break the rules,
+  short ones included (#185, #186).
+- 2026-11-02: main CI failed after #186 in `article-stats.test.js` (23 !== 25), which froze
+  autodeploy. The cause was the unique index still building while tests raced concurrent upserts.
+  #187 makes `startTestDb` await every model's `init()`. #188 added a password strength bar, removed
+  the Google button's white icon tile in dark mode, and fixed the dark info-alert contrast (4.41:1).
+  Production `94c27be` passed all 12 checks.

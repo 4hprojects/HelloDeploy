@@ -5,13 +5,13 @@ For operators of hellodeploy.online. Environment variables are in
 
 ## What is on in production
 
-| Capability            | Control                                                               | State shipped                               |
-| --------------------- | --------------------------------------------------------------------- | ------------------------------------------- |
-| Blog pages at `/blog` | `LEARNING_HUB_ENABLED`                                                | On after the Phase 8 release (code default) |
-| View counts           | `LEARNING_HUB_VIEWS_ENABLED`                                          | On after the Phase 8 release (code default) |
-| Guest comments        | `LEARNING_HUB_COMMENTS_ENABLED` + provider + Turnstile + admin switch | **Off**                                     |
-| GA4 analytics         | `GA4_MEASUREMENT_ID`                                                  | **Off** (no id, no consent mechanism)       |
-| AdSense ads           | `ADSENSE_ENABLED`                                                     | **Off** (not approved)                      |
+| Capability            | Control                                                               | State                                   |
+| --------------------- | --------------------------------------------------------------------- | --------------------------------------- |
+| Blog pages at `/blog` | `LEARNING_HUB_ENABLED`                                                | On since 2026-10-29                     |
+| View counts           | `LEARNING_HUB_VIEWS_ENABLED`                                          | On since 2026-10-29                     |
+| Guest comments        | `LEARNING_HUB_COMMENTS_ENABLED` + provider + Turnstile + admin switch | On since 2026-11-01 (OpenAI moderation) |
+| GA4 analytics         | `GA4_MEASUREMENT_ID`                                                  | **Off** (no id, no consent mechanism)   |
+| AdSense ads           | `ADSENSE_ENABLED`                                                     | **Off** (not approved)                  |
 
 ## Emergency: stop guest comments
 
