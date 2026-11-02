@@ -7,6 +7,10 @@ let mongod = null;
 export async function startTestDb() {
   mongod = await MongoMemoryServer.create();
   await connectDatabase(mongod.getUri('hellodeploy-test'));
+  // autoIndex builds unique indexes in the background; tests that race
+  // concurrent writes against one (views, reports) flaked under CI load
+  // when they ran before the build finished.
+  await Promise.all(Object.values(mongoose.models).map((model) => model.init()));
 }
 
 /** Disconnect and stop the in-memory MongoDB. */
