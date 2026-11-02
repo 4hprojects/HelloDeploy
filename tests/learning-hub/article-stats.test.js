@@ -27,12 +27,7 @@ async function viewsOf(articleId) {
 }
 
 describe('Learning Hub article stats', () => {
-  before(async () => {
-    await startTestDb();
-    // The concurrent-upsert test relies on the unique articleId index, which
-    // autoIndex builds in the background; under CI load it was not ready yet.
-    await ArticleStat.init();
-  });
+  before(startTestDb);
   after(stopTestDb);
   beforeEach(clearTestDb);
 
