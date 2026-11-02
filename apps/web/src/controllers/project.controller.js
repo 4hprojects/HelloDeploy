@@ -378,6 +378,7 @@ async function membersPageData(req, extra = {}) {
   ]);
   return {
     title: `Members – ${req.project.name}`,
+    pageStyles: ['css/auth.css'],
     project: req.project,
     members,
     invitations,

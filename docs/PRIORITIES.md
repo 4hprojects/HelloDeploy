@@ -44,8 +44,6 @@ Keep this file short. Put evidence in the worklog, not here.
    unset (`turnstile.service.js`), and `config:check` still passes.
 6. **Account closure queue.** Show requests with days left against the 30-day promise in the
    admin users list; today there is only a badge.
-7. **Asset headroom.** `css/main.css` has 97 bytes left and `js/app.js` 127. Move `auth.css` into
-   a page-scoped bundle before the next auth or dashboard change.
 
 ## Now — owner
 
@@ -58,8 +56,6 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Branch protection on `main`** (#62): none is set. The repository is public, so it is free.
   Recommended: require the `Lint & Test (22.x)` and CodeQL checks, with no required review so
   merges stay self-service.
-- **Housekeeping**: close the GitHub items already done or overtaken (PRs #118, #69, #55, #56,
-  #70, #49, #7; issues #60, #61, #63, #64). The session's attempt was blocked.
 - **#88**: keep study records for 5 years, or indefinitely as `main` does since #116.
 
 ## Next
@@ -75,6 +71,10 @@ Keep this file short. Put evidence in the worklog, not here.
   Handle GitHub App `unsuspend`, and stop apps on uninstall.
 - **Test gaps**: `env-secret.service.js`, `approval-readiness.service.js`,
   `session-revocation.service.js`, `oci-image.js`, `project-route-lock.js`.
+- **Script headroom**: `js/app.js` has 127 bytes left. Move a page-specific part (for example
+  the password strength bar or the repository branch loader) into a page-scoped script before the
+  next dashboard script change. `css/main.css` has 3.4 KB again since `auth.css` became its own
+  bundle.
 - **Renew the GHCR production token by 2027-01-09** (expires about 2027-01-23). Follow the
   lessons from the 2026-10-25 renewal outage
   ([evidence](multi-runtime/EVIDENCE.md)).

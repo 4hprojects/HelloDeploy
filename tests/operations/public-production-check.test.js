@@ -152,6 +152,7 @@ describe('public production check', () => {
           'css/learning-hub.css': '/assets-dist/learning-hub.1.css',
           'js/learning-hub.js': '/assets-dist/learning-hub.1.js',
           'css/legal.css': '/assets-dist/legal.1.css',
+          'css/auth.css': '/assets-dist/auth.1.css',
         },
       }),
     );

@@ -13,6 +13,7 @@ const PAGE_SCOPED_ASSET_KEYS = new Set([
   'css/learning-hub.css',
   'js/learning-hub.js',
   'css/legal.css',
+  'css/auth.css',
 ]);
 
 function exactKeys(value, expected) {
