@@ -52,6 +52,10 @@ describe('Google authentication UI', () => {
     assert.match(authCss, /background: #131314/);
   });
 
+  it('shows the Google mark without a white tile so it blends into the dark button', () => {
+    assert.doesNotMatch(authCss, /\.google-auth-button__icon \{[^}]*background/);
+  });
+
   it('requires policy consent and Turnstile when completing a Google account', () => {
     assert.match(completion, /policy-consent/);
     assert.match(completion, /cf-turnstile/);

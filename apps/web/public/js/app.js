@@ -743,36 +743,34 @@
 
   function initPasswordRequirements() {
     const input = document.getElementById('password');
-    const items = document.querySelectorAll('.password-req');
-    if (!input || !items.length) {
+    const meter = document.querySelector('[data-password-strength]');
+    if (!input || !meter) {
       return;
     }
-
-    const checks = {
-      length(value) {
-        return value.length >= 8;
-      },
-      uppercase(value) {
-        return /[A-Z]/.test(value);
-      },
-      lowercase(value) {
-        return /[a-z]/.test(value);
-      },
-      digit(value) {
-        return /[0-9]/.test(value);
-      },
-    };
+    const text = meter.querySelector('.password-strength__text');
+    const hint = text.textContent;
+    const rules = [
+      [/.{8}/, 'at least 8 characters'],
+      [/[A-Z]/, 'an uppercase letter'],
+      [/[a-z]/, 'a lowercase letter'],
+      [/[0-9]/, 'a number'],
+    ];
 
     input.addEventListener('input', () => {
-      items.forEach((item) => {
-        const req = item.dataset.req;
-        const met = checks[req] && checks[req](input.value);
-        item.classList.toggle('password-req--met', met);
-        const icon = item.querySelector('.password-req__icon');
-        if (icon) {
-          icon.textContent = met ? '✓' : '○';
-        }
-      });
+      const value = input.value;
+      const missing = rules.filter(([pattern]) => !pattern.test(value)).map(([, label]) => label);
+      const score = value ? rules.length - missing.length : 0;
+      meter.dataset.score = score;
+      if (!value) {
+        text.textContent = hint;
+        return;
+      }
+      // Meeting the minimum is only "Good"; an 8-character Password1 is not strong.
+      const strength =
+        score === 4 ? (value.length >= 12 ? 'Strong' : 'Good') : score === 3 ? 'Fair' : 'Weak';
+      text.textContent = missing.length
+        ? `${strength}. Still needed: ${missing.join(', ')}.`
+        : `${strength}. Meets the requirements.`;
     });
   }
 
