@@ -250,6 +250,11 @@
   color: var(--color-info);
 }
 
+/* Links stay underlined, so they can take the text colour that passes contrast. */
+.alert--info a {
+  color: inherit;
+}
+
 .alert--success {
   background: var(--color-green-light);
   color: var(--color-green);

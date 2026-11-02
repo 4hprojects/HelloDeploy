@@ -108,6 +108,22 @@ test('unverified sign-in explains verification once', async ({ page }) => {
   await expect(page.getByText(/verify your email/i)).toHaveCount(1);
 });
 
+test('password strength calls a password meeting only the minimum good', async ({ page }) => {
+  await page.goto('/auth/create-account');
+  await page.getByLabel('Password', { exact: true }).fill('Password1');
+  await expect(page.locator('.password-strength__text')).toHaveText(
+    'Good. Meets the requirements.',
+  );
+});
+
+test('password strength lists what a weak password still needs', async ({ page }) => {
+  await page.goto('/auth/create-account');
+  await page.getByLabel('Password', { exact: true }).fill('abc');
+  await expect(page.locator('.password-strength__text')).toHaveText(
+    'Weak. Still needed: at least 8 characters, an uppercase letter, a number.',
+  );
+});
+
 test('how-it-works is indexable and accessible', async ({ page }) => {
   await page.goto('/how-it-works');
   await expect(page.getByRole('heading', { level: 1 })).toContainText('From a GitHub repository');
