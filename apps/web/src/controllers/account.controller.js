@@ -20,6 +20,7 @@ async function renderAccount(req, res, extra = {}) {
   }
   res.status(extra.status ?? 200).render('pages/account', {
     title: 'Account',
+    pageStyles: ['css/auth.css'],
     account,
     sensitiveAuthRecent:
       Date.now() - Number(req.session.authenticatedAt ?? 0) <= SENSITIVE_AUTH_MAX_AGE_MS,

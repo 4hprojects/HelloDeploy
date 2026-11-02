@@ -3980,3 +3980,89 @@ a.setup-guide__step-link:hover .setup-guide__label {
 .env-import-review__row--removed .env-import-review__name code {
   text-decoration: line-through;
 }
+
+/* ── Form row (side by side) ─────────────────────────────────────── */
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+/* Grid gap already spaces the columns; the sibling margin would push the
+   second field down out of line with the first. */
+.form-row > .form-field + .form-field {
+  margin-top: 0;
+}
+
+.form-row--between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  grid-template-columns: none;
+}
+
+@media (max-width: 30rem) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ── Full-width button ───────────────────────────────────────────── */
+.button--full {
+  width: 100%;
+}
+
+/* ── Password wrapper (input + toggle) ──────────────────────────── */
+.password-wrapper {
+  position: relative;
+  display: flex;
+}
+
+.password-wrapper .password-input {
+  padding-right: 2.5rem;
+}
+
+.password-toggle {
+  position: absolute;
+  right: var(--space-2);
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-1);
+  color: var(--color-text-muted);
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.password-toggle:hover {
+  color: var(--color-text);
+}
+
+/* ── Checkbox field ──────────────────────────────────────────────── */
+.checkbox-field {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+}
+
+.checkbox-input {
+  width: 1rem;
+  height: 1rem;
+  margin-top: 2px;
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: var(--text-sm);
+  color: var(--color-text);
+  cursor: pointer;
+  line-height: var(--leading-normal);
+}
+
+/* ── Text center utility ─────────────────────────────────────────── */
+.text-center {
+  text-align: center;
+}

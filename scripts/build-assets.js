@@ -15,6 +15,7 @@ const sources = [
   'css/learning-hub.css',
   'js/learning-hub.js',
   'css/legal.css',
+  'css/auth.css',
 ];
 
 function stripCssComments(contents) {

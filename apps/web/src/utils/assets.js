@@ -9,6 +9,7 @@ const sourceAssets = {
   'css/learning-hub.css': '/css/learning-hub.css',
   'js/learning-hub.js': '/js/learning-hub.js',
   'css/legal.css': '/css/legal.css',
+  'css/auth.css': '/css/auth.css',
 };
 
 function loadManifest() {

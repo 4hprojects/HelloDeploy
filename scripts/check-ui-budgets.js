@@ -5,8 +5,7 @@ import { readFile, stat } from 'node:fs/promises';
 const publicRoot = new URL('../apps/web/public/', import.meta.url);
 const manifest = JSON.parse(await readFile(new URL('asset-manifest.json', publicRoot), 'utf8'));
 const budgets = {
-  // Raised from 110 KB for the password strength bar.
-  'css/main.css': 110_200,
+  'css/main.css': 110_000,
   // Raised from 65 KB for the .env import review table (#79), then from 70 KB
   // for the confirm modal's reason field, then from 72 KB for the password
   // strength bar; unminified bytes.
@@ -16,6 +15,8 @@ const budgets = {
   'js/learning-hub.js': 10_000,
   // Loaded only on the policy pages.
   'css/legal.css': 10_000,
+  // Loaded only on the sign-in and sign-up pages, account and project members.
+  'css/auth.css': 8_000,
 };
 
 let failed = false;
