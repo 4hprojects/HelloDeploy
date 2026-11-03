@@ -9,7 +9,8 @@ import { createProject } from '../helpers/worker-fixtures.js';
 const { suspendUser, reactivateUser, adminSuspendProjectWithStop, adminReactivateProject } =
   await import('../../apps/web/src/services/admin.service.js');
 
-const noQueue = { getDeploymentQueue: () => null };
+// Suspending a project needs a queue for its stop job; nothing here reads the job.
+const fakeQueue = { getDeploymentQueue: () => ({}), enqueueJob: async () => {} };
 
 // Flash messages need the acted-on record's name/email, not a generic
 // "User suspended." — these tests lock in the return-value contract the
@@ -70,7 +71,7 @@ describe('admin suspend/reactivate result shape', () => {
         adminId: objectId().toString(),
         adminRole: 'SUPER_ADMIN',
       },
-      noQueue,
+      fakeQueue,
     );
 
     assert.equal(result.project.name, 'My App');

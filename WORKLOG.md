@@ -2570,3 +2570,15 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   #187 makes `startTestDb` await every model's `init()`. #188 added a password strength bar, removed
   the Google button's white icon tile in dark mode, and fixed the dark info-alert contrast (4.41:1).
   Production `94c27be` passed all 12 checks.
+
+## 2026-11-03 — Suspending a User Now Stops Their Apps
+
+- Suspending a user changed their status and revoked their sessions, but their apps kept serving
+  and pushes and deploy hooks still deployed. Now `suspendUser` queues a `STOP_PROJECT` for every
+  owned project with a live release and reports any it could not queue. Deploys, retries and
+  rollbacks are refused while the owner is suspended or archived. Retry and rollback also check that
+  the project is active, which they skipped before.
+- Project suspension now refuses when the queue is unavailable and queues the stop before saving,
+  so a queue error no longer leaves a "suspended" project running. Stop job ids are unique per
+  suspension: BullMQ keeps completed jobs, so the fixed `stop-<projectId>` id silently dropped the
+  stop on a second suspension.

@@ -9,7 +9,8 @@ import { createProject } from '../helpers/worker-fixtures.js';
 const { suspendUser, reactivateUser, adminSuspendProjectWithStop, adminReactivateProject } =
   await import('../../apps/web/src/services/admin.service.js');
 
-const noQueue = { getDeploymentQueue: () => null };
+// Suspending a project needs a queue for its stop job; nothing here reads the job.
+const fakeQueue = { getDeploymentQueue: () => ({}), enqueueJob: async () => {} };
 
 async function createUser(overrides = {}) {
   return User.create({
@@ -82,7 +83,7 @@ describe('admin suspension reason', () => {
         adminRole: 'SUPER_ADMIN',
         reason: 'Terms of service violation',
       },
-      noQueue,
+      fakeQueue,
     );
 
     const fresh = await Project.findById(project._id).lean();

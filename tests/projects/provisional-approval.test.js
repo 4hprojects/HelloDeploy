@@ -29,7 +29,8 @@ import {
 
 const COMMIT = 'd'.repeat(40);
 const THIRTY_ONE_MINUTES_MS = 31 * 60 * 1000;
-const NO_QUEUE = { getDeploymentQueue: () => null };
+// Suspending a project needs a queue for its stop job; nothing here reads the job.
+const FAKE_QUEUE = { getDeploymentQueue: () => ({}), enqueueJob: async () => {} };
 
 async function createUser(overrides = {}) {
   return User.create({
@@ -113,7 +114,7 @@ async function settle(request, admin, decision, note = '') {
       adminId: admin._id.toString(),
       adminRole: 'ADMIN',
     },
-    NO_QUEUE,
+    FAKE_QUEUE,
   );
 }
 
