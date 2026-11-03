@@ -53,6 +53,11 @@ describe('admin sidebar', () => {
     assert.match(html, /sidebar__count">3<span class="sr-only"> waiting<\/span>/);
   });
 
+  it('shows how many deleted-project cleanups failed', async () => {
+    const html = await renderSidebar({ failedTeardowns: 2 });
+    assert.match(html, /sidebar__count">2<span class="sr-only"> failed cleanups<\/span>/);
+  });
+
   it('hides queue counts when nothing is waiting', async () => {
     const html = await renderSidebar({ pendingApprovals: 0, pendingDomainApprovals: 0 });
     assert.doesNotMatch(html, /sidebar__count/);

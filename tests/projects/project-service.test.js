@@ -8,10 +8,17 @@ import {
   ProjectInvitation,
   ProjectMembership,
   ProductEvent,
+  ProjectTeardown,
   Quota,
   Repository,
 } from '@hellodeploy/database';
-import { DomainStatus, ProjectStatus, ProjectRole, QuotaScope } from '@hellodeploy/contracts';
+import {
+  DomainStatus,
+  ProjectStatus,
+  ProjectRole,
+  ProjectTeardownStatus,
+  QuotaScope,
+} from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 const { createProject, deleteProject, updateProject } =
@@ -117,6 +124,32 @@ describe('project.service — deleteProject', () => {
       { getDeploymentQueue: () => ({}), enqueueJob: async () => {} },
     );
     assert.equal(await Quota.countDocuments({ scopeId: project._id }), 0);
+  });
+
+  it('records a pending teardown that the job points at', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    const { jobs, deps } = recordingDeps();
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    const teardown = await ProjectTeardown.findById(jobs[0].teardownId).lean();
+    assert.equal(teardown.status, ProjectTeardownStatus.PENDING);
+  });
+
+  it('leaves no teardown record when the job cannot be queued', async () => {
+    const { project, ownerId } = await createDoomedProject();
+
+    await deleteProject(
+      { projectId: project._id, actorId: ownerId },
+      {
+        getDeploymentQueue: () => ({}),
+        enqueueJob: async () => {
+          throw new Error('Redis connection refused');
+        },
+      },
+    );
+
+    assert.equal(await ProjectTeardown.countDocuments({ projectId: project._id }), 0);
   });
 
   it('hands every unremoved custom domain to the teardown job', async () => {

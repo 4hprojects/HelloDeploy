@@ -161,12 +161,24 @@ export async function ensureNetwork(netName) {
 /**
  * Remove a Docker network. Non-fatal — logs a warning on failure.
  */
+/**
+ * Whether a docker error says the container, image or network is already gone. A
+ * retried teardown meets what the previous attempt removed, and that must
+ * count as done or the retry can never succeed.
+ */
+export function isMissingDockerObject(message) {
+  return /No such (container|image)|network \S+ not found/i.test(message ?? '');
+}
+
 export async function removeNetwork(netName) {
   try {
     await runDocker(['network', 'rm', netName]);
     logger.info('Container: removed Docker network', { netName });
     return true;
-  } catch {
+  } catch (err) {
+    if (isMissingDockerObject(err.message)) {
+      return true;
+    }
     logger.warn('Container: failed to remove network (may still have containers)', { netName });
     return false;
   }
@@ -379,6 +391,9 @@ export async function stopAndRemoveContainer(containerIdOrName) {
     logger.info('Container: removed', { container: containerIdOrName });
     return true;
   } catch (err) {
+    if (isMissingDockerObject(err.message)) {
+      return true;
+    }
     logger.warn('Container: failed to remove', {
       container: containerIdOrName,
       error: err.message,

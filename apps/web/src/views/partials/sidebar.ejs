@@ -129,6 +129,9 @@
         >
           <%- include('icon', { name: 'server', className: 'sidebar__icon' }) %>
           <span>Server</span>
+          <% if (_adminCounts.failedTeardowns > 0) { %>
+          <span class="status-badge status-badge--failed sidebar__count"><%= _adminCounts.failedTeardowns %><span class="sr-only"> failed cleanups</span></span>
+          <% } %>
         </a>
       </li>
       <% if (locals.builderControlEnabled) { %>

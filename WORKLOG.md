@@ -2592,3 +2592,9 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   `project.deleted` audit event. Repository, ProjectInvitation and Notification records are
   deleted too. Product events are kept for funnel counts but unlinked from the project. Legacy
   per-domain tunnels made by an administrator still need removing by hand.
+- A failed delete teardown is now retryable. `deleteProject` records a `ProjectTeardown` with the
+  full inventory before queueing, and the worker saves what is left after each attempt, so retries
+  redo only that. After the last attempt the record is `FAILED`, counted in the admin sidebar, and
+  listed on `/admin/server` with a **Retry** button. Container, image and network removal now treat
+  "already gone" as removed. Before this, a retry after a partial teardown could never succeed,
+  because Docker reports a missing container as an error.

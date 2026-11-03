@@ -4,6 +4,7 @@ export { AuditEvent, AUDIT_EVENT_RETENTION_SECONDS } from './models/audit-event.
 export { Project } from './models/project.model.js';
 export { ProjectMembership } from './models/project-membership.model.js';
 export { ProjectInvitation } from './models/project-invitation.model.js';
+export { ProjectTeardown } from './models/project-teardown.model.js';
 export { Quota } from './models/quota.model.js';
 export { ApprovalRequest } from './models/approval-request.model.js';
 export { Repository } from './models/repository.model.js';

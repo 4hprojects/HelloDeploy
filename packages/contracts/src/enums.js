@@ -92,6 +92,13 @@ export const ContainerStatus = Object.freeze({
   REMOVED: 'REMOVED',
 });
 
+/** Infrastructure cleanup left behind by a deleted project */
+export const ProjectTeardownStatus = Object.freeze({
+  PENDING: 'PENDING',
+  FAILED: 'FAILED',
+  DONE: 'DONE',
+});
+
 /** Custom domain verification and activation state */
 export const DomainStatus = Object.freeze({
   PENDING_VERIFICATION: 'PENDING_VERIFICATION',

@@ -5,6 +5,8 @@ import { writeAuditEvent } from '@hellodeploy/observability';
 import {
   getAdminOverview,
   getAdminPendingCounts,
+  getFailedTeardowns,
+  retryProjectTeardown,
   getUsers,
   getUserDetail,
   suspendUser,
@@ -64,12 +66,33 @@ export const getAdminIndex = asyncHandler(async (req, res) => {
 // ─── Server dashboard ──────────────────────────────────────────────────────────
 
 export const getAdminServer = asyncHandler(async (req, res) => {
-  const [server, maintenance] = await Promise.all([collectServerStats(), getMaintenanceMode()]);
+  const [server, maintenance, failedTeardowns] = await Promise.all([
+    collectServerStats(),
+    getMaintenanceMode(),
+    getFailedTeardowns(),
+  ]);
   res.render('pages/admin/server', {
     title: 'Server & Queue',
     server,
     maintenance,
+    failedTeardowns,
   });
+});
+
+export const postRetryProjectTeardown = asyncHandler(async (req, res) => {
+  const result = await retryProjectTeardown({
+    teardownId: req.params.teardownId,
+    adminId: req.session.user.id,
+    adminRole: req.session.user.platformRole,
+    sourceIp: req.ip,
+    correlationId: req.correlationId,
+  });
+  if (!result.success) {
+    req.flash('error', result.error);
+  } else {
+    req.flash('success', `Cleanup for ${result.teardown.projectSlug} queued again.`);
+  }
+  res.redirect('/admin/server#failed-teardowns');
 });
 
 export const getAdminUxMetrics = asyncHandler(async (req, res) => {

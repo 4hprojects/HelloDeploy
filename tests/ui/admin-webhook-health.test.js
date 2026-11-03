@@ -7,8 +7,9 @@ const serverPagePath = fileURLToPath(
   new URL('../../apps/web/src/views/pages/admin/server.ejs', import.meta.url),
 );
 
-function renderServerPage(webhooks) {
+function renderServerPage(webhooks, failedTeardowns = []) {
   return ejs.renderFile(serverPagePath, {
+    failedTeardowns,
     title: 'Server & Queue',
     csrfToken: 'csrf',
     maintenance: { enabled: false, message: '' },
@@ -52,5 +53,31 @@ describe('admin server page — GitHub webhooks', () => {
   it('says when webhook health cannot be read', async () => {
     const html = await renderServerPage(null);
     assert.match(html, /Webhook health could not be read/);
+  });
+});
+
+describe('admin server page — failed project cleanups', () => {
+  const healthyWebhooks = { isFailing: false, rejectedSinceAccepted: 0, lastAcceptedAt: null };
+
+  it('offers a CSRF-protected retry for a failed cleanup', async () => {
+    const html = await renderServerPage(healthyWebhooks, [
+      {
+        _id: 'aaaaaaaaaaaaaaaaaaaaaaaa',
+        projectSlug: 'gone-app',
+        projectName: 'Gone App',
+        failures: ['route:gone-app'],
+        attempts: 3,
+        lastAttemptAt: '2026-11-03T00:00:00Z',
+      },
+    ]);
+    assert.match(
+      html,
+      /action="\/admin\/server\/teardowns\/aaaaaaaaaaaaaaaaaaaaaaaa\/retry"[\s\S]*?name="_csrf"/,
+    );
+  });
+
+  it('says nothing is left behind when no cleanup failed', async () => {
+    const html = await renderServerPage(healthyWebhooks);
+    assert.match(html, /containers, images and routes were removed/);
   });
 });

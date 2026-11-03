@@ -26,15 +26,11 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now — code (in this order, one PR each)
 
-1. **A failed delete teardown cannot be retried.** Database records go as soon as the
-   teardown job is queued. After its 3 attempts fail, leftover containers or routes are recorded
-   only in a `project.infrastructure_teardown` FAILURE audit event, and no admin page retries
-   it. Needs a deleting state that the worker finalises, or an admin retry of failed jobs.
-2. **Mask secret values in deploy logs.** `apps/worker/src/deployment/log-capture.js` only
+1. **Mask secret values in deploy logs.** `apps/worker/src/deployment/log-capture.js` only
    redacts by pattern, so an app that prints a secret value stores it in the logs.
-3. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
+2. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
    unset (`turnstile.service.js`), and `config:check` still passes.
-4. **Account closure queue.** Show requests with days left against the 30-day promise in the
+3. **Account closure queue.** Show requests with days left against the 30-day promise in the
    admin users list; today there is only a badge.
 
 ## Now — owner
