@@ -137,6 +137,24 @@
   border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
+/* ── Live indicator badge ── */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-full);
+  background: var(--color-bg-muted);
+  color: var(--color-text-on-muted);
+  font-weight: var(--font-medium);
+  line-height: 1.5;
+}
+
+.badge--building {
+  background: var(--color-blue-light);
+  color: var(--color-status-building);
+}
+
 /* ── Status badge ────────────────────────────────────────────────── */
 .status-badge {
   display: inline-flex;

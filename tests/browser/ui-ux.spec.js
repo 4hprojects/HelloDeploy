@@ -710,6 +710,19 @@ test('stable authenticated dashboard visual', async ({ page }) => {
   });
 });
 
+test('live indicator drops its live tone when the log stream disconnects', async ({ page }) => {
+  await page.route('**/deployments/*/logs', (route) => route.fulfill({ status: 500 }));
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const runningHref = await page
+    .getByRole('link', { name: '#8', exact: true })
+    .getAttribute('href');
+
+  await page.goto(runningHref);
+
+  await expect(page.locator('#live-indicator')).toHaveClass('badge text-xs');
+});
+
 test('stable deployment failure visual', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);
