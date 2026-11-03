@@ -496,7 +496,12 @@ export async function disableProjectMaintenance({ projectId, actorId, sourceIp, 
   return { success: true };
 }
 
-export async function archiveProject({ projectId, actorId, sourceIp, correlationId }) {
+const ARCHIVE_STOP_UNAVAILABLE_COPY =
+  'The app could not be stopped because the deployment queue is unavailable, so the project was not archived. Try again shortly.';
+
+export async function archiveProject({ projectId, actorId, sourceIp, correlationId }, deps = {}) {
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+  const addJob = deps.enqueueJob ?? enqueueJob;
   const project = await Project.findById(projectId);
   if (!project) {
     return { success: false, error: 'Project not found.' };
@@ -504,6 +509,38 @@ export async function archiveProject({ projectId, actorId, sourceIp, correlation
 
   if (project.status === ProjectStatus.ARCHIVED) {
     return { success: false, error: 'Project is already archived.' };
+  }
+
+  // Queue the stop before saving, so an archived project is never left serving.
+  if (project.activeDeploymentId) {
+    const queue = getQueue();
+    if (!queue) {
+      return { success: false, error: ARCHIVE_STOP_UNAVAILABLE_COPY };
+    }
+    try {
+      await addJob(
+        queue,
+        JobType.STOP_PROJECT,
+        {
+          version: 1,
+          correlationId,
+          actorId: actorId.toString(),
+          actorRole: 'OWNER',
+          projectId: projectId.toString(),
+          reason: 'Project archived by its owner.',
+        },
+        // Unique per archive: BullMQ keeps completed jobs, and a stop id left
+        // by an earlier suspension would turn this one into a silent duplicate.
+        { jobId: `stop-${projectId}-${Date.now()}` },
+      );
+    } catch (error) {
+      logger.error('Project archive could not queue the app stop', {
+        error: error.message,
+        projectId: projectId.toString(),
+        correlationId,
+      });
+      return { success: false, error: ARCHIVE_STOP_UNAVAILABLE_COPY };
+    }
   }
 
   project.status = ProjectStatus.ARCHIVED;

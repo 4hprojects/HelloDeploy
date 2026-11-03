@@ -26,17 +26,15 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now — code (in this order, one PR each)
 
-1. **Archiving a project must stop its app.** `archiveProject` (`project.service.js`) only
-   changes the status; the container and route stay live.
-2. **Delete must clean up everything.** The worker never removes custom-domain nginx routes or
+1. **Delete must clean up everything.** The worker never removes custom-domain nginx routes or
    Cloudflare for SaaS hostnames (`Domain.deleteMany` drops the `cfCustomHostnameId` needed to
    release them). Repository, ProjectInvitation, Notification and ProductEvent records remain.
    Database records go before the teardown job finishes, so a failed teardown cannot be retried.
-3. **Mask secret values in deploy logs.** `apps/worker/src/deployment/log-capture.js` only
+2. **Mask secret values in deploy logs.** `apps/worker/src/deployment/log-capture.js` only
    redacts by pattern, so an app that prints a secret value stores it in the logs.
-4. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
+3. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
    unset (`turnstile.service.js`), and `config:check` still passes.
-5. **Account closure queue.** Show requests with days left against the 30-day promise in the
+4. **Account closure queue.** Show requests with days left against the 30-day promise in the
    admin users list; today there is only a badge.
 
 ## Now — owner
