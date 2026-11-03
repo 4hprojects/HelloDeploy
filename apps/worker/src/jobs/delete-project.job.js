@@ -4,6 +4,7 @@ import { networkName, removeNetwork, stopAndRemoveContainer } from '../deploymen
 import { removeDockerImage } from '../deployment/build.js';
 import { deleteRegistryManifest, isPlatformImageRef } from '../deployment/registry.js';
 import { removeRoute } from '../nginx/helper-client.js';
+import { customDomainRouteSlug } from '../nginx/template.js';
 import { isValidSubdomainLabel } from '../nginx/reserved-subdomains.js';
 import { env } from '../config/env.js';
 
@@ -15,9 +16,10 @@ import { env } from '../config/env.js';
  * Steps:
  *   1. Stop and remove the active container, if any
  *   2. Remove the nginx config for the project's subdomain entirely
+ *   3. Remove the nginx config for each of its custom domains
  *
  * Database record cleanup (Project, Deployment, EnvironmentSecret, Domain,
- * etc.) is handled synchronously by the web app before this job is enqueued —
+ * etc.) is handled synchronously by the web app after this job is enqueued —
  * this job only tears down infrastructure the web app cannot reach directly.
  */
 const defaultDeps = {
@@ -33,6 +35,7 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
   const containerIds = job.data.containerIds ?? [job.data.activeContainerId].filter(Boolean);
   const imageTags = job.data.imageTags ?? [];
   const registryImageRefs = job.data.registryImageRefs ?? [];
+  const customDomainHostnames = job.data.customDomainHostnames ?? [];
   const failures = [];
 
   for (const containerId of [...new Set(containerIds)]) {
@@ -106,6 +109,20 @@ export async function handleDeleteProject(job, deps = defaultDeps) {
       logger.error('DeleteProject: failed to remove nginx route', {
         projectId,
         subdomain,
+        error: err.message,
+      });
+    }
+  }
+
+  for (const hostname of env.NGINX_ENABLED ? [...new Set(customDomainHostnames)] : []) {
+    try {
+      await deps.removeRoute({ slug: customDomainRouteSlug(hostname) });
+      logger.info('DeleteProject: custom domain route removed', { projectId, hostname });
+    } catch (err) {
+      failures.push(`domain-route:${hostname}`);
+      logger.error('DeleteProject: failed to remove custom domain route', {
+        projectId,
+        hostname,
         error: err.message,
       });
     }

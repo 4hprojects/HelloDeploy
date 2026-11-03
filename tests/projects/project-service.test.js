@@ -1,8 +1,17 @@
 import assert from 'node:assert/strict';
 import { describe, it, before, after, beforeEach } from 'node:test';
 
-import { Project, ProjectMembership, Quota } from '@hellodeploy/database';
-import { ProjectStatus, ProjectRole, QuotaScope } from '@hellodeploy/contracts';
+import {
+  Domain,
+  Notification,
+  Project,
+  ProjectInvitation,
+  ProjectMembership,
+  ProductEvent,
+  Quota,
+  Repository,
+} from '@hellodeploy/database';
+import { DomainStatus, ProjectStatus, ProjectRole, QuotaScope } from '@hellodeploy/contracts';
 import { startTestDb, stopTestDb, clearTestDb, objectId } from '../helpers/worker-db.js';
 
 const { createProject, deleteProject, updateProject } =
@@ -109,4 +118,102 @@ describe('project.service — deleteProject', () => {
     );
     assert.equal(await Quota.countDocuments({ scopeId: project._id }), 0);
   });
+
+  it('hands every unremoved custom domain to the teardown job', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    await addDomain(project, 'live.example.test', { status: DomainStatus.ACTIVE });
+    await addDomain(project, 'gone.example.test', { status: DomainStatus.REMOVED });
+    const { jobs, deps } = recordingDeps();
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    assert.deepEqual(jobs[0].customDomainHostnames, ['live.example.test']);
+  });
+
+  it('releases the Cloudflare hostname before dropping the domain', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    await addDomain(project, 'live.example.test', { cfCustomHostnameId: 'cf-hostname-1' });
+    const { released, deps } = recordingDeps();
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    assert.deepEqual(released, ['cf-hostname-1']);
+  });
+
+  it('still deletes the project when Cloudflare refuses the release', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    await addDomain(project, 'live.example.test', { cfCustomHostnameId: 'cf-hostname-1' });
+    const { deps } = recordingDeps({ isReleaseOk: false });
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    assert.equal(await Project.countDocuments({ _id: project._id }), 0);
+  });
+
+  it('removes the repository, invitation and notification records', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    await Promise.all(
+      [Repository, ProjectInvitation, Notification].map((model) =>
+        model.collection.insertOne({ projectId: project._id }),
+      ),
+    );
+    const { deps } = recordingDeps();
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    const remaining = await Promise.all(
+      [Repository, ProjectInvitation, Notification].map((model) =>
+        model.countDocuments({ projectId: project._id }),
+      ),
+    );
+    assert.deepEqual(remaining, [0, 0, 0]);
+  });
+
+  it('keeps product events but unlinks them from the deleted project', async () => {
+    const { project, ownerId } = await createDoomedProject();
+    const { insertedId } = await ProductEvent.collection.insertOne({
+      name: 'project_created',
+      projectId: project._id,
+    });
+    const { deps } = recordingDeps();
+
+    await deleteProject({ projectId: project._id, actorId: ownerId }, deps);
+
+    assert.equal((await ProductEvent.findById(insertedId).lean()).projectId, null);
+  });
 });
+
+async function createDoomedProject() {
+  const ownerId = objectId();
+  const { project } = await createProject({ name: 'Doomed App', ownerId });
+  return { project, ownerId };
+}
+
+function addDomain(project, hostname, overrides = {}) {
+  return Domain.create({
+    projectId: project._id,
+    hostnameNormalized: hostname,
+    addedBy: project.ownerId,
+    status: DomainStatus.ACTIVE,
+    ...overrides,
+  });
+}
+
+function recordingDeps({ isReleaseOk = true } = {}) {
+  const jobs = [];
+  const released = [];
+  return {
+    jobs,
+    released,
+    deps: {
+      getDeploymentQueue: () => ({}),
+      enqueueJob: async (_queue, _jobType, payload) => void jobs.push(payload),
+      customHostnames: {
+        remove: async (id) => {
+          released.push(id);
+          return { ok: isReleaseOk };
+        },
+      },
+    },
+  };
+}

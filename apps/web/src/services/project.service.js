@@ -12,6 +12,8 @@ import {
   Domain,
   Repository,
   Quota,
+  Notification,
+  ProductEvent,
   mongoose,
 } from '@hellodeploy/database';
 import {
@@ -20,6 +22,7 @@ import {
   ApprovalStatus,
   QuotaScope,
   AuditOutcome,
+  DomainStatus,
   JobType,
   normalizeSubdomainLabel,
   isReservedSubdomain,
@@ -42,6 +45,7 @@ import {
   assessInitialApprovalReadiness,
 } from './approval-readiness.service.js';
 import { notifyAdminsOfPendingReview } from './provisional-approval.service.js';
+import { releaseCustomHostname } from './domain.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
 import { sendProjectInviteEmail } from './email.service.js';
 import { queueEmailNotification } from './notification.service.js';
@@ -595,6 +599,12 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     ).values(),
   ];
 
+  // Removed domains already had their route and Cloudflare hostname released.
+  const domains = await Domain.find(
+    { projectId, status: { $ne: DomainStatus.REMOVED } },
+    'hostnameNormalized cfCustomHostnameId',
+  ).lean();
+
   const queue = getQueue();
   if (!queue) {
     return {
@@ -618,6 +628,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
         containerIds,
         imageTags,
         registryImageRefs,
+        customDomainHostnames: domains.map((domain) => domain.hostnameNormalized),
         projectSlug: project.slug,
       },
       { jobId: `delete-${projectId}` },
@@ -629,8 +640,25 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     };
   }
 
+  // The Domain records hold the only copy of each Cloudflare hostname id, so
+  // release them before those records go.
+  const unreleasedHostnames = [];
+  for (const domain of domains) {
+    if (!(await releaseCustomHostname(domain, deps))) {
+      unreleasedHostnames.push({
+        hostname: domain.hostnameNormalized,
+        customHostnameId: domain.cfCustomHostnameId,
+      });
+    }
+  }
+
   await Promise.all([
     ProjectMembership.deleteMany({ projectId }),
+    ProjectInvitation.deleteMany({ projectId }),
+    Repository.deleteMany({ projectId }),
+    Notification.deleteMany({ projectId }),
+    // Product events feed platform-wide funnel counts, so keep them but drop the link.
+    ProductEvent.updateMany({ projectId }, { $set: { projectId: null } }),
     ApprovalRequest.deleteMany({ projectId }),
     EnvironmentSecret.deleteMany({ projectId }),
     RegistryCredential.deleteMany({ projectId }),
@@ -650,7 +678,7 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     targetId: projectId.toString(),
     sourceIp,
     correlationId,
-    metadata: { name: project.name, slug: project.slug },
+    metadata: { name: project.name, slug: project.slug, unreleasedHostnames },
   });
 
   return { success: true };

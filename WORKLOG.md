@@ -2586,3 +2586,9 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   `archiveProject` now queues a `STOP_PROJECT` before saving when the project has a live release,
   and refuses to archive while the queue is unavailable. A release in flight is already refused
   at routing by the pipeline's project-status check.
+- Project deletion now removes each custom domain's nginx route in the worker
+  (`customDomainHostnames` in the `DELETE_PROJECT` payload) and releases its Cloudflare for SaaS
+  hostname before the Domain records go. Any hostname Cloudflare refuses is named in the
+  `project.deleted` audit event. Repository, ProjectInvitation and Notification records are
+  deleted too. Product events are kept for funnel counts but unlinked from the project. Legacy
+  per-domain tunnels made by an administrator still need removing by hand.
