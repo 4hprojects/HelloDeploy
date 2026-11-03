@@ -1478,6 +1478,7 @@
         dot.setAttribute('aria-hidden', 'true');
         dot.textContent = '●';
         indicator.replaceChildren(dot, ' Live');
+        indicator.className = 'badge badge--building text-xs';
       }
 
       source = new EventSource(output.dataset.streamUrl);
@@ -1509,6 +1510,7 @@
       source.addEventListener('timeout', () => {
         if (indicator) {
           indicator.textContent = 'Timed out';
+          indicator.className = 'badge text-xs';
         }
         setReconnectVisible(true);
         source.close();
@@ -1517,6 +1519,7 @@
       source.onerror = function () {
         if (indicator) {
           indicator.textContent = 'Disconnected';
+          indicator.className = 'badge text-xs';
         }
         setReconnectVisible(true);
         source.close();
