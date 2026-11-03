@@ -913,19 +913,20 @@ function storeCustomHostname(domain, result) {
 }
 
 // Best effort: a hostname left on the zone is only a stale entry, and must not
-// block the owner from removing the domain.
-async function releaseCustomHostname(domain, opts) {
+// block the owner from removing the domain. Resolves to false when Cloudflare
+// still holds the hostname.
+export async function releaseCustomHostname(domain, opts = {}) {
   if (!domain.cfCustomHostnameId) {
-    return;
+    return true;
   }
   const client = resolveCustomHostnameClient(opts);
   if (!client) {
-    return;
+    return false;
   }
   const response = await client.remove(domain.cfCustomHostnameId);
   if (!response.ok) {
     logCustomHostnameFailure('remove', domain.hostnameNormalized, response);
-    return;
+    return false;
   }
   await Domain.updateOne(
     { _id: domain._id },
@@ -938,6 +939,7 @@ async function releaseCustomHostname(domain, opts) {
       },
     },
   );
+  return true;
 }
 
 /** Owner action: get the DNS record for a verified domain without an admin. */

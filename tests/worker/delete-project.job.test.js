@@ -6,6 +6,7 @@ process.env.NGINX_ENABLED = 'true';
 process.env.USER_IMAGE_REGISTRY = 'ghcr.io/example/apps';
 
 const { handleDeleteProject } = await import('../../apps/worker/src/jobs/delete-project.job.js');
+const { customDomainRouteSlug } = await import('../../apps/worker/src/nginx/template.js');
 
 function setup(data = {}) {
   const calls = { containers: [], images: [], registryImages: [], networks: [], routes: [] };
@@ -83,5 +84,16 @@ describe('delete-project job', () => {
     });
     await handleDeleteProject(job, deps);
     assert.deepEqual(calls.registryImages, []);
+  });
+
+  it('removes the route of every custom domain', async () => {
+    const { calls, deps, job } = setup({
+      customDomainHostnames: ['a.example.test', 'b.example.test'],
+    });
+    await handleDeleteProject(job, deps);
+    assert.deepEqual(
+      calls.routes.slice(1).map((route) => route.slug),
+      [customDomainRouteSlug('a.example.test'), customDomainRouteSlug('b.example.test')],
+    );
   });
 });
