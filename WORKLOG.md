@@ -2582,3 +2582,7 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   so a queue error no longer leaves a "suspended" project running. Stop job ids are unique per
   suspension: BullMQ keeps completed jobs, so the fixed `stop-<projectId>` id silently dropped the
   stop on a second suspension.
+- Archiving a project only changed its status, although the Settings page says it stops the app.
+  `archiveProject` now queues a `STOP_PROJECT` before saving when the project has a live release,
+  and refuses to archive while the queue is unavailable. A release in flight is already refused
+  at routing by the pipeline's project-status check.
