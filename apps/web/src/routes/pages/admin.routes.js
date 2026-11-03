@@ -24,6 +24,7 @@ import {
   getApprovalRequestsList,
   postReviewApprovalRequest,
   getAdminServer,
+  postRetryProjectTeardown,
   postPauseQueue,
   postResumeQueue,
   postEnableMaintenance,
@@ -115,6 +116,7 @@ router.post('/domains/:domainId/reject', postRejectDomain);
 router.post('/domains/:domainId/tunnel', postSetDomainTunnel);
 
 router.get('/server', getAdminServer);
+router.post('/server/teardowns/:teardownId/retry', postRetryProjectTeardown);
 router.get('/ux-metrics', getAdminUxMetrics);
 // Queue pause/resume is a platform-wide operational lever (stalls every
 // project's deploys), same class of impact as maintenance mode below.

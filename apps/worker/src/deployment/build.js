@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { isIsolatedBuilderEndpoint } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
+import { isMissingDockerObject } from './container.js';
 import { processOutputLines } from './log-capture.js';
 
 /**
@@ -483,11 +484,14 @@ export async function removeDockerImage(imageTag) {
     const proc = spawn('docker', ['rmi', '--force', imageTag], {
       stdio: ['ignore', 'ignore', 'pipe'],
     });
+    const stderr = [];
+    proc.stderr.on('data', (chunk) => stderr.push(chunk));
     proc.on('close', (code) => {
-      if (code !== 0) {
+      const isRemoved = code === 0 || isMissingDockerObject(Buffer.concat(stderr).toString('utf8'));
+      if (!isRemoved) {
         logger.warn('Docker: failed to remove image', { imageTag });
       }
-      resolve(code === 0);
+      resolve(isRemoved);
     });
     proc.on('error', () => resolve(false));
   });

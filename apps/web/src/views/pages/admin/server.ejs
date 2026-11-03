@@ -245,3 +245,63 @@
     </div>
   </div>
 </div>
+
+<!-- Cleanups the worker gave up on after a project was deleted -->
+<% const _failedTeardowns = locals.failedTeardowns || []; %>
+<section class="card mb-6" id="failed-teardowns" aria-labelledby="failed-teardowns-title">
+  <div class="card__header">
+    <h2 class="card__title" id="failed-teardowns-title">Failed project cleanups</h2>
+    <span class="badge <%= _failedTeardowns.length > 0 ? 'badge--warning' : 'badge--success' %>">
+      <%= _failedTeardowns.length > 0 ? _failedTeardowns.length + ' waiting' : 'None' %>
+    </span>
+  </div>
+  <div class="card__body">
+    <% if (_failedTeardowns.length === 0) { %>
+    <p class="text-muted text-sm">Every deleted project's containers, images and routes were removed.</p>
+    <% } else { %>
+    <p class="text-muted text-sm mb-4">These projects are deleted, but the worker could not remove everything they left behind. Retry runs only the items listed.</p>
+    <div class="table-wrapper table-responsive table-responsive--flush">
+    <table class="table table--responsive">
+      <thead>
+        <tr>
+          <th scope="col">Project</th>
+          <th scope="col">Left behind</th>
+          <th scope="col">Last attempt</th>
+          <th scope="col"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% _failedTeardowns.forEach(t => { %>
+        <tr>
+          <td data-label="Project">
+            <%= t.projectName || t.projectSlug %>
+            <span class="text-xs text-muted d-block"><code class="code-inline"><%= t.projectSlug %></code></span>
+          </td>
+          <td class="text-sm" data-label="Left behind">
+            <% t.failures.forEach(failure => { %>
+            <code class="code-inline d-block"><%= failure %></code>
+            <% }) %>
+          </td>
+          <td class="text-muted text-sm" data-label="Last attempt">
+            <%= t.lastAttemptAt ? new Date(t.lastAttemptAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—' %>
+            <span class="text-xs d-block"><%= t.attempts %> <%= t.attempts === 1 ? 'attempt' : 'attempts' %></span>
+          </td>
+          <td class="text-right" data-label="Actions">
+            <form method="POST" action="/admin/server/teardowns/<%= t._id %>/retry"
+                  data-confirm="Retry the cleanup for <%= t.projectSlug %>? The worker removes only the items listed."
+                  data-confirm-title="Retry cleanup"
+                  data-confirm-accept-label="Retry Cleanup"
+                  data-confirm-pending-label="Queueing..."
+                  data-confirm-variant="warning">
+              <%- include('../../partials/csrf-field') %>
+              <button type="submit" class="button button--secondary button--sm" data-tooltip="Queue the cleanup again for only the items left behind.">Retry</button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</section>

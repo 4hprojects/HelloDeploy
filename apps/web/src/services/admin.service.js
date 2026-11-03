@@ -11,6 +11,7 @@ import {
   AuditEvent,
   Notification,
   ProductEvent,
+  ProjectTeardown,
   mongoose,
   getPlanDefaults,
   getQuotaFieldsForScope,
@@ -28,6 +29,7 @@ import {
   DeploymentStatus,
   DomainStatus,
   PlatformRole,
+  ProjectTeardownStatus,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { enqueueJob } from '@hellodeploy/queue';
@@ -61,11 +63,12 @@ export function escapedSearchRegex(value) {
 
 /** Review queues that wait on an administrator; shown on the overview and as sidebar counts. */
 export async function getAdminPendingCounts() {
-  const [pendingApprovals, pendingDomainApprovals] = await Promise.all([
+  const [pendingApprovals, pendingDomainApprovals, failedTeardowns] = await Promise.all([
     ApprovalRequest.countDocuments({ status: ApprovalStatus.PENDING }),
     Domain.countDocuments({ status: DomainStatus.PENDING_ADMIN_APPROVAL }),
+    ProjectTeardown.countDocuments({ status: ProjectTeardownStatus.FAILED }),
   ]);
-  return { pendingApprovals, pendingDomainApprovals };
+  return { pendingApprovals, pendingDomainApprovals, failedTeardowns };
 }
 
 export async function getAdminOverview() {
@@ -1056,6 +1059,87 @@ export async function adminSuspendProjectWithStop(
   });
 
   return { success: true, project };
+}
+
+// ─── Failed project teardowns ─────────────────────────────────────────────────
+
+const TEARDOWN_QUEUE_UNAVAILABLE_COPY =
+  'Deployment queue is unavailable, so the cleanup could not be retried. Check Redis and the worker, then try again.';
+
+export function getFailedTeardowns() {
+  return ProjectTeardown.find({ status: ProjectTeardownStatus.FAILED })
+    .sort({ updatedAt: -1 })
+    .limit(50)
+    .lean();
+}
+
+/** Re-queue a deleted project's cleanup for only what the worker could not remove. */
+export async function retryProjectTeardown(
+  { teardownId, adminId, adminRole, sourceIp, correlationId },
+  deps = {},
+) {
+  const getQueue = deps.getDeploymentQueue ?? getDeploymentQueue;
+  const addJob = deps.enqueueJob ?? enqueueJob;
+  if (!mongoose.isValidObjectId(teardownId)) {
+    return { success: false, error: 'Cleanup not found.' };
+  }
+  const queue = getQueue();
+  if (!queue) {
+    return { success: false, error: TEARDOWN_QUEUE_UNAVAILABLE_COPY };
+  }
+  const teardown = await ProjectTeardown.findOneAndUpdate(
+    { _id: teardownId, status: ProjectTeardownStatus.FAILED },
+    { $set: { status: ProjectTeardownStatus.PENDING } },
+    { new: true },
+  ).lean();
+  if (!teardown) {
+    return { success: false, error: 'This cleanup is no longer waiting for a retry.' };
+  }
+
+  const projectId = teardown.projectId.toString();
+  try {
+    await addJob(
+      queue,
+      JobType.DELETE_PROJECT,
+      {
+        version: 2,
+        correlationId,
+        actorId: adminId,
+        actorRole: adminRole,
+        projectId,
+        teardownId: teardown._id.toString(),
+        projectSlug: teardown.projectSlug,
+        ...teardown.remaining,
+      },
+      // BullMQ keeps failed jobs, so the original delete-<projectId> id is taken.
+      { jobId: `delete-${projectId}-${Date.now()}` },
+    );
+  } catch (error) {
+    logger.error('Project cleanup retry could not be queued', {
+      error: error.message,
+      teardownId: teardown._id.toString(),
+      correlationId,
+    });
+    await ProjectTeardown.updateOne(
+      { _id: teardown._id, status: ProjectTeardownStatus.PENDING },
+      { $set: { status: ProjectTeardownStatus.FAILED } },
+    );
+    return { success: false, error: TEARDOWN_QUEUE_UNAVAILABLE_COPY };
+  }
+
+  await writeAuditEvent({
+    action: 'admin.project_teardown_retried',
+    outcome: AuditOutcome.SUCCESS,
+    actorId: adminId,
+    actorRole: adminRole,
+    targetType: 'project',
+    targetId: projectId,
+    sourceIp,
+    correlationId,
+    metadata: { projectSlug: teardown.projectSlug, failures: teardown.failures },
+  });
+
+  return { success: true, teardown };
 }
 
 // ─── Approval requests ────────────────────────────────────────────────────────

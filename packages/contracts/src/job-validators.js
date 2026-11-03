@@ -144,6 +144,9 @@ const VALIDATORS = {
       if (data.customDomainHostnames !== undefined) {
         requireStringArray(data, 'customDomainHostnames', JobType.DELETE_PROJECT);
       }
+      if (data.teardownId !== undefined) {
+        requireString(data, 'teardownId', JobType.DELETE_PROJECT);
+      }
     }
   },
   [JobType.SET_PROJECT_MAINTENANCE](data) {

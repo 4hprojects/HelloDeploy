@@ -12,6 +12,7 @@ import {
   Domain,
   Repository,
   Quota,
+  ProjectTeardown,
   Notification,
   ProductEvent,
   mongoose,
@@ -614,6 +615,16 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
     };
   }
 
+  const subdomain = project.platformSubdomain ?? project.slug;
+  const customDomainHostnames = domains.map((domain) => domain.hostnameNormalized);
+  const teardown = await ProjectTeardown.create({
+    projectId,
+    projectSlug: project.slug,
+    projectName: project.name,
+    ownerId: project.ownerId,
+    remaining: { containerIds, imageTags, registryImageRefs, subdomain, customDomainHostnames },
+  });
+
   try {
     await addJob(
       queue,
@@ -624,16 +635,18 @@ export async function deleteProject({ projectId, actorId, sourceIp, correlationI
         actorId: actorId.toString(),
         actorRole: 'OWNER',
         projectId: projectId.toString(),
-        subdomain: project.platformSubdomain ?? project.slug,
+        teardownId: teardown._id.toString(),
+        subdomain,
         containerIds,
         imageTags,
         registryImageRefs,
-        customDomainHostnames: domains.map((domain) => domain.hostnameNormalized),
+        customDomainHostnames,
         projectSlug: project.slug,
       },
       { jobId: `delete-${projectId}` },
     );
   } catch {
+    await ProjectTeardown.deleteOne({ _id: teardown._id });
     return {
       success: false,
       error: 'Could not schedule infrastructure teardown. The project was not deleted.',
