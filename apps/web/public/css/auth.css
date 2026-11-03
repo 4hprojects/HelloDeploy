@@ -179,6 +179,7 @@
   height: 4px;
   border-radius: 2px;
   background: var(--color-border);
+  transition: background var(--motion-normal) var(--ease-standard);
 }
 
 [data-score='1'] span:first-child,

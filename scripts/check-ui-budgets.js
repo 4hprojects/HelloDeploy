@@ -8,8 +8,9 @@ const budgets = {
   'css/main.css': 110_000,
   // Raised from 65 KB for the .env import review table (#79), then from 70 KB
   // for the confirm modal's reason field, then from 72 KB for the password
-  // strength bar; unminified bytes.
-  'js/app.js': 72_200,
+  // strength bar, then from 72.2 KB for the dashboard row exit motion;
+  // unminified bytes.
+  'js/app.js': 73_000,
   // Loaded only on /blog pages.
   'css/learning-hub.css': 20_000,
   'js/learning-hub.js': 10_000,
