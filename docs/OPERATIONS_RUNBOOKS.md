@@ -176,7 +176,7 @@ curl -s http://127.0.0.1:<hostPort>/      # app responds
 2. Enable maintenance mode if user mutations could make the incident worse.
 3. Pause the deployment queue if Redis, Docker, Nginx, disk, or worker health is unstable.
 4. Preserve logs and audit event correlation IDs. Do not paste secrets, tokens, database URLs, or private keys into tickets.
-5. Suspend an abusive or unsafe project from `/admin/projects`; the worker should stop the container and serve the neutral suspension route.
+5. Suspend an abusive or unsafe project from `/admin/projects`; the worker should stop the container and serve the neutral suspension route. The suspension is refused while the deployment queue is unreachable, so the project is never marked suspended while still running. Suspending a user from `/admin/users` stops every app they own and refuses their deploys, pushes, deploy hooks, retries and rollbacks until they are reactivated. Stops wait while the queue is paused. Reactivation does not restart apps; the owner deploys again.
 6. Restore the last healthy route or rollback through the deployment UI when a project-specific release caused the incident.
 7. Rotate affected credentials if a secret may have been exposed.
 8. Record the root cause, corrective action, affected projects, and follow-up tests in `WORKLOG.md`.

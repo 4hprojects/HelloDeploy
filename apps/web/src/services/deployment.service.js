@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { Project, Repository, Deployment, EnvironmentSecret } from '@hellodeploy/database';
+import { Project, Repository, Deployment, EnvironmentSecret, User } from '@hellodeploy/database';
 import {
   DeploymentMode,
   DeploymentStatus,
@@ -7,6 +7,7 @@ import {
   JobType,
   AuditOutcome,
   ProjectStatus,
+  UserStatus,
   RepositorySourceType,
   PLATFORM_MANAGED_ENV_NAMES,
   BuildStrategy,
@@ -60,6 +61,20 @@ export function validateProjectDeploymentEligibility(project) {
   }
 
   return null;
+}
+
+/**
+ * Refuse deploys for a project whose owner is suspended or closed. Pushes and
+ * deploy hooks run without a session, so revoking sessions alone stops nothing.
+ */
+export async function findOwnerDeploymentRefusal(project) {
+  const isOwnerBlocked = await User.exists({
+    _id: project.ownerId,
+    status: { $in: [UserStatus.SUSPENDED, UserStatus.ARCHIVED] },
+  });
+  return isOwnerBlocked
+    ? "The project owner's account is suspended, so deployments are paused."
+    : null;
 }
 
 export function buildDeploymentJobPayload({
@@ -242,7 +257,8 @@ export async function createDeployment({
     return { success: false, error: 'Project not found.' };
   }
 
-  const eligibilityError = validateProjectDeploymentEligibility(project);
+  const eligibilityError =
+    validateProjectDeploymentEligibility(project) ?? (await findOwnerDeploymentRefusal(project));
   if (eligibilityError) {
     return { success: false, error: eligibilityError };
   }
@@ -475,6 +491,12 @@ export async function retryDeployment(deploymentId, projectId, actorId, opts = {
     return { success: false, error: `Cannot retry a deployment with status ${original.status}.` };
   }
 
+  const eligibilityError =
+    validateProjectDeploymentEligibility(project) ?? (await findOwnerDeploymentRefusal(project));
+  if (eligibilityError) {
+    return { success: false, error: eligibilityError };
+  }
+
   // A retry builds from the current settings, so it needs the same readiness
   // check as a new deployment.
   const strategyError = validateBuildStrategyReadiness(project, env.isStrategyEnabledFor);
@@ -599,6 +621,16 @@ export async function rollbackDeployment(projectId, targetDeploymentId, actorId,
   const project = await Project.findById(projectId).lean();
   if (!project) {
     return { success: false, error: 'Project not found.' };
+  }
+
+  // A rollback reuses an approved image, so only the live-status checks apply,
+  // not the approval-mode gate.
+  if (project.status !== ProjectStatus.ACTIVE) {
+    return { success: false, error: 'Project must be approved and active before deployment.' };
+  }
+  const ownerRefusal = await findOwnerDeploymentRefusal(project);
+  if (ownerRefusal) {
+    return { success: false, error: ownerRefusal };
   }
 
   // From the request body, so it may not be an id at all. An operator object

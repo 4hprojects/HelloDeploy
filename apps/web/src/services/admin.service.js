@@ -219,7 +219,11 @@ const SUSPENDABLE_STATUSES = [UserStatus.ACTIVE, UserStatus.PENDING_VERIFICATION
 
 export async function suspendUser(
   { userId, adminId, adminRole, reason, sourceIp, correlationId },
-  { queueNotification = queueEmailNotification } = {},
+  {
+    queueNotification = queueEmailNotification,
+    getDeploymentQueue: getQueue = getDeploymentQueue,
+    enqueueJob: addJob = enqueueJob,
+  } = {},
 ) {
   const { user, error } = await findManageableUser({ userId, adminId, adminRole });
   if (error) {
@@ -242,11 +246,15 @@ export async function suspendUser(
   await user.save({ validateModifiedOnly: true });
 
   const revokedSessions = await revokeUserSessions(userId);
+  const { stoppedApps, unstoppedApps } = await stopOwnedApps(
+    { userId, adminId, adminRole, correlationId },
+    { getQueue, addJob },
+  );
 
   await auditUserAction(
     'admin.user_suspended',
     { userId, adminId, adminRole, sourceIp, correlationId },
-    { reason: reason?.trim() || null, revokedSessions },
+    { reason: reason?.trim() || null, revokedSessions, stoppedApps, unstoppedApps },
   );
 
   // The suspension already stands; a mail outage must not undo or hide it.
@@ -267,7 +275,51 @@ export async function suspendUser(
     });
   });
 
-  return { success: true, user };
+  return { success: true, user, stoppedApps, unstoppedApps };
+}
+
+// The suspension stands even when a stop cannot be queued: deploys are already
+// refused for the owner, and the caller reports what is still running.
+async function stopOwnedApps({ userId, adminId, adminRole, correlationId }, { getQueue, addJob }) {
+  const projects = await Project.find({ ownerId: userId, activeDeploymentId: { $ne: null } })
+    .select('_id')
+    .lean();
+  const queue = projects.length > 0 ? getQueue() : null;
+  let stoppedApps = 0;
+  for (const project of projects) {
+    if (!queue) {
+      break;
+    }
+    try {
+      await addJob(
+        queue,
+        JobType.STOP_PROJECT,
+        {
+          version: 1,
+          correlationId,
+          actorId: adminId,
+          actorRole: adminRole,
+          projectId: project._id.toString(),
+          reason: 'Owner account suspended.',
+        },
+        { jobId: stopJobId(project._id) },
+      );
+      stoppedApps += 1;
+    } catch (error) {
+      logger.error('Owner suspension could not queue an app stop', {
+        error: error.message,
+        projectId: project._id.toString(),
+        correlationId,
+      });
+    }
+  }
+  return { stoppedApps, unstoppedApps: projects.length - stoppedApps };
+}
+
+// BullMQ keeps completed jobs, so a fixed id would turn a second suspension
+// of the same project into a silent duplicate of the first.
+function stopJobId(projectId) {
+  return `stop-${projectId}-${Date.now()}`;
 }
 
 export async function reactivateUser({ userId, adminId, adminRole, sourceIp, correlationId }) {
@@ -933,6 +985,9 @@ export async function getQuotaConsumption(scopeType, scopeId) {
 
 // ─── Suspend project with nginx maintenance ────────────────────────────────────
 
+const STOP_QUEUE_UNAVAILABLE_COPY =
+  'Deployment queue is unavailable, so the app cannot be stopped. Check Redis and the worker, then try again.';
+
 /**
  * Suspend a project AND enqueue a STOP_PROJECT job to shut down its container
  * and replace nginx with a maintenance block.
@@ -954,13 +1009,13 @@ export async function adminSuspendProjectWithStop(
     return { success: false, error: 'Cannot suspend an archived project.' };
   }
 
-  project.status = ProjectStatus.SUSPENDED;
-  project.suspendedAt = new Date();
-  project.suspensionReason = reason?.trim() || null;
-  await project.save();
-
+  // Queue the stop first: a project marked suspended must not be left running
+  // because the queue was down.
   const queue = getQueue();
-  if (queue) {
+  if (!queue) {
+    return { success: false, error: STOP_QUEUE_UNAVAILABLE_COPY };
+  }
+  try {
     await addJob(
       queue,
       JobType.STOP_PROJECT,
@@ -972,9 +1027,21 @@ export async function adminSuspendProjectWithStop(
         projectId: projectId.toString(),
         reason: reason?.trim() || 'Suspended by administrator.',
       },
-      { jobId: `stop-${projectId}` },
+      { jobId: stopJobId(projectId) },
     );
+  } catch (error) {
+    logger.error('Project suspension could not queue the app stop', {
+      error: error.message,
+      projectId: projectId.toString(),
+      correlationId,
+    });
+    return { success: false, error: STOP_QUEUE_UNAVAILABLE_COPY };
   }
+
+  project.status = ProjectStatus.SUSPENDED;
+  project.suspendedAt = new Date();
+  project.suspensionReason = reason?.trim() || null;
+  await project.save();
 
   await writeAuditEvent({
     action: 'admin.project_suspended',

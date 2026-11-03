@@ -367,6 +367,12 @@ export const postSuspendUser = asyncHandler(async (req, res) => {
 
   if (!result.success) {
     req.flash('error', result.error);
+  } else if (result.unstoppedApps > 0) {
+    const noun = result.unstoppedApps === 1 ? 'app' : 'apps';
+    req.flash(
+      'error',
+      `${fullName(result.user)} suspended, but ${result.unstoppedApps} ${noun} could not be stopped. Check the worker and queue, then suspend each project from Admin › Projects.`,
+    );
   } else {
     req.flash('success', `${fullName(result.user)} suspended.`);
   }
@@ -380,7 +386,10 @@ export const postReactivateUser = asyncHandler(async (req, res) => {
   if (!result.success) {
     req.flash('error', result.error);
   } else {
-    req.flash('success', `${fullName(result.user)} reactivated.`);
+    req.flash(
+      'success',
+      `${fullName(result.user)} reactivated. Apps stopped by the suspension stay stopped until the owner deploys again.`,
+    );
   }
 
   res.redirect(userReturnPath(req));
