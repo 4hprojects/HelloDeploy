@@ -35,5 +35,24 @@ presentation includes a label, tone, contextual hint, and terminal flag.
 - Test at 320, 360, 390, 768, 1024, and 1440 CSS pixels and at 200% zoom.
 - Avoid color-only status communication and keep text/background contrast compliant.
 
+## Motion
+
+Motion shows a real state change. It is never decoration.
+
+- Use the tokens in `tokens.css`: `--motion-fast` (120ms) for presses,
+  `--motion-normal` (220ms) for menus, disclosures and status changes,
+  `--motion-slow` (280ms) for panels. Ease with `--ease-standard`, or with
+  `--ease-emphasis` for the restrained overshoot on dialogs.
+- Animate `opacity` and the individual `translate`/`scale` properties. They
+  don't clobber a component's own `transform`.
+- Enter keyframes (`motion-fade-in`, `motion-rise-in`, `motion-pop-in`) only
+  declare `from`, so they end on the element's resting style. Snapshots taken
+  with animations disabled therefore match the static design.
+- The only looping motion is the dot pulse on `building`/`deploying` badges,
+  which reflects an in-progress backend state. Log lines don't animate.
+- The global `prefers-reduced-motion` rule makes all of it instant. JS that
+  delays DOM changes for motion (dashboard row exit) checks the same media
+  query and skips the delay. It also skips the delay when the row holds focus.
+
 The browser fixture and snapshots are local deterministic QA evidence. They do not
 replace supported-host, real-device, external DNS, crawler, or production checks.

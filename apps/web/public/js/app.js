@@ -1091,6 +1091,21 @@
     badge.dataset.tooltip = presentation.hint;
   }
 
+  // Matches --motion-normal so the row finishes fading before it is removed.
+  const LEAVE_MS = 220;
+
+  function removeWithMotion(element) {
+    if (
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches ||
+      element.contains(document.activeElement)
+    ) {
+      element.remove();
+      return;
+    }
+    element.classList.add('is-leaving');
+    window.setTimeout(() => element.remove(), LEAVE_MS);
+  }
+
   function initDashboardPolling() {
     const root = document.querySelector('[data-dashboard-status-url]');
     if (!root || Number(root.dataset.dashboardActive) < 1) {
@@ -1127,7 +1142,7 @@
           const status = row?.querySelector('[data-deployment-status]');
           applyStatusPresentation(status, deployment.presentation);
           if (deployment.terminal && row) {
-            row.remove();
+            removeWithMotion(row);
             if (live) {
               live.textContent = `${deployment.project.name} is ${deployment.presentation.label}.`;
               announcedTerminal = true;
@@ -1145,13 +1160,16 @@
           notices.textContent = payload.notices.map((item) => item.message).join(' ');
         }
         const remaining = root.querySelectorAll(
-          '[data-dashboard-active-list] [data-deployment-id]',
+          '[data-dashboard-active-list] [data-deployment-id]:not(.is-leaving)',
         ).length;
         if (remaining > 0) {
           window.setTimeout(poll, 5000);
         } else {
           if (activeList) {
-            activeList.innerHTML = '<p class="text-sm text-muted">No deployments are running.</p>';
+            window.setTimeout(() => {
+              activeList.innerHTML =
+                '<p class="text-sm text-muted">No deployments are running.</p>';
+            }, LEAVE_MS);
           }
           if (live && !live.textContent) {
             live.textContent = 'All active deployments have finished.';
@@ -1414,7 +1432,9 @@
             '[data-deployment-refresh="' + region.dataset.deploymentRefresh + '"]',
           );
           if (replacement) {
-            region.replaceWith(document.importNode(replacement, true));
+            const next = document.importNode(replacement, true);
+            next.classList.add('motion-updated');
+            region.replaceWith(next);
           }
         });
         applySearch();
@@ -1536,6 +1556,7 @@
         return false;
       }
       const nextRow = document.importNode(replacement, true);
+      nextRow.classList.add('motion-updated');
       row.replaceWith(nextRow);
       if (focusedHref) {
         [...nextRow.querySelectorAll('a[href]')]

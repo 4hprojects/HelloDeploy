@@ -21,6 +21,7 @@
     class="form-input<% if (_error) { %> form-input--error<% } %>"
     autocomplete="<%= _autocomplete %>"
     <% if (_required) { %>aria-required="true"<% } %>
+    <% if (_error) { %>aria-invalid="true"<% } %>
     <% if (_error) { %>aria-describedby="<%= fieldId %>-error"<% } else if (_hint) { %>aria-describedby="<%= fieldId %>-hint"<% } %>
     placeholder="<%= _placeholder || ' ' %>"
   />

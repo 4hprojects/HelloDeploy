@@ -141,6 +141,13 @@
   /* ── Transitions ───────────────────────────────────────────── */
   --transition-fast: 150ms ease;
   --transition-normal: 250ms ease;
+
+  /* ── Motion ────────────────────────────────────────────────── */
+  --motion-fast: 120ms;
+  --motion-normal: 220ms;
+  --motion-slow: 280ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-emphasis: cubic-bezier(0.34, 1.25, 0.64, 1);
 }
 
 /* ── Dark theme ───────────────────────────────────────────────── */

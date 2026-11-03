@@ -532,7 +532,7 @@ test('admin server page fits a phone viewport', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
-test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {
+async function routeFinishingDashboardDeployment(page) {
   let requestCount = 0;
   await page.route('**/dashboard/status?*', async (route) => {
     const id = new URL(route.request().url()).searchParams.get('ids').split(',')[0];
@@ -566,6 +566,10 @@ test('dashboard polling announces and removes a deployment after it finishes', a
       }),
     });
   });
+}
+
+test('dashboard polling announces and removes a deployment after it finishes', async ({ page }) => {
+  await routeFinishingDashboardDeployment(page);
 
   await signIn(page);
   const activeList = page.locator('[data-dashboard-active-list]');
@@ -573,6 +577,18 @@ test('dashboard polling announces and removes a deployment after it finishes', a
   await expect(activeList.getByText('Northstar Notes #8')).toBeHidden({ timeout: 12_000 });
   await expect(activeList).toContainText('No deployments are running.');
   await expect(page.locator('[data-dashboard-live]')).toHaveText('Northstar Notes is Live.');
+});
+
+test.describe('with reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('dashboard polling still removes a finished deployment', async ({ page }) => {
+    await routeFinishingDashboardDeployment(page);
+
+    await signIn(page);
+    const activeList = page.locator('[data-dashboard-active-list]');
+    await expect(activeList).toContainText('No deployments are running.', { timeout: 12_000 });
+  });
 });
 
 test('deployment polling preserves canonical status and refreshes terminal actions', async ({

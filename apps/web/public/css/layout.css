@@ -125,7 +125,8 @@
   font-weight: var(--font-medium);
   transition:
     background var(--transition-fast),
-    color var(--transition-fast);
+    color var(--transition-fast),
+    box-shadow var(--motion-normal) var(--ease-standard);
 }
 
 .sidebar__link:hover {
@@ -486,7 +487,7 @@
     z-index: 101;
     overflow-y: auto;
     transform: translateX(-100%);
-    transition: transform var(--transition-normal);
+    transition: transform var(--motion-slow) var(--ease-standard);
     box-shadow: var(--shadow-lg);
   }
   .sidebar--open {
