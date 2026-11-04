@@ -1,0 +1,194 @@
+<%
+  const _p = preferences;
+  const _pol = policyForm;
+  const _L = limits;
+  const _canEdit = canEditPlatform;
+  const _perr = personalErrors || {};
+  const _gerr = platformErrors || {};
+  const _num = (name, label, value, range, hint, unit) => ({ name, label, value, range, hint, unit });
+%>
+<div class="ops-settings">
+  <header class="page-header page-header--actions">
+    <div>
+      <h1 class="page-header__title">Overview settings</h1>
+      <p class="page-header__subtitle">Personal settings change only your view. Platform settings change what the server collects and when it raises alerts, for every administrator.</p>
+    </div>
+    <a href="/admin" class="button button--secondary button--sm">Back to overview</a>
+  </header>
+
+  <section class="card ops-settings__card" aria-labelledby="personal-title">
+    <div class="card__header">
+      <h2 class="card__title" id="personal-title">Dashboard preferences <span class="ops-scope">Personal</span></h2>
+    </div>
+    <form method="POST" action="/admin/overview/settings/personal" class="card__body ops-form" data-ops-settings-form novalidate>
+      <%- include('../../partials/csrf-field') %>
+      <%- include('../../partials/admin-ops/form-errors', { errors: _perr }) %>
+
+      <fieldset class="ops-form__group">
+        <legend>Layout density</legend>
+        <% densities.forEach((density) => { %>
+        <label class="ops-form__choice"><input type="radio" name="density" value="<%= density %>" <%= _p.density === density ? 'checked' : '' %> /> <%= density[0].toUpperCase() + density.slice(1) %><%= density === 'compact' ? ' (default)' : '' %></label>
+        <% }) %>
+      </fieldset>
+
+      <fieldset class="ops-form__group">
+        <legend>Visible panels</legend>
+        <p class="ops-form__hint">Platform health, active incidents and the key indicators always stay visible.</p>
+        <% Object.entries(widgets).forEach(([key, label]) => { %>
+        <label class="ops-form__choice"><input type="checkbox" name="visibleWidgets" value="<%= key %>" <%= _p.hiddenWidgets.includes(key) ? '' : 'checked' %> /> <%= label %></label>
+        <% }) %>
+      </fieldset>
+
+      <div class="ops-form__row">
+        <label class="ops-form__field">
+          <span class="ops-form__label">Refresh this page</span>
+          <select name="refreshSeconds" class="form-input">
+            <% refreshOptions.forEach((seconds) => { %>
+            <option value="<%= seconds %>" <%= _p.refreshSeconds === seconds ? 'selected' : '' %>><%= seconds === 0 ? 'Manual only' : 'Every ' + seconds + ' seconds' %><%= seconds === 15 ? ' (default)' : '' %></option>
+            <% }) %>
+          </select>
+          <span class="ops-form__hint">How often your browser asks for the latest data. The server collects on its own schedule either way, and deployment events still arrive immediately.</span>
+        </label>
+        <label class="ops-form__field">
+          <span class="ops-form__label">History range</span>
+          <select name="historyRange" class="form-input">
+            <% historyRanges.forEach((range) => { %>
+            <option value="<%= range %>" <%= _p.historyRange === range ? 'selected' : '' %>><%= range %><%= range === '1h' ? ' (default)' : '' %></option>
+            <% }) %>
+          </select>
+        </label>
+        <label class="ops-form__field">
+          <span class="ops-form__label">Table rows</span>
+          <select name="tableRows" class="form-input">
+            <% tableRowOptions.forEach((rows) => { %>
+            <option value="<%= rows %>" <%= _p.tableRows === rows ? 'selected' : '' %>><%= rows %><%= rows === 25 ? ' (default)' : '' %></option>
+            <% }) %>
+          </select>
+        </label>
+      </div>
+
+      <input type="hidden" name="sidebarCollapsed" value="false" />
+      <label class="ops-form__choice"><input type="checkbox" name="sidebarCollapsed" value="true" <%= _p.sidebarCollapsed ? 'checked' : '' %> /> Collapse the sidebar on admin pages</label>
+      <p class="ops-form__hint">Theme follows the light/dark switch in the header and is remembered on each device.</p>
+
+      <div class="ops-form__actions">
+        <button type="submit" class="button button--primary">Save preferences</button>
+      </div>
+    </form>
+    <form method="POST" action="/admin/overview/settings/personal/reset" class="card__footer">
+      <%- include('../../partials/csrf-field') %>
+      <button type="submit" class="button button--ghost button--sm">Restore my defaults</button>
+    </form>
+  </section>
+
+  <section class="card ops-settings__card" aria-labelledby="platform-title">
+    <div class="card__header">
+      <h2 class="card__title" id="platform-title">Monitoring policy <span class="ops-scope ops-scope--platform">Platform-wide</span></h2>
+      <span class="ops-form__hint">Revision <%= _pol.revision %><% if (policyUpdatedAt) { %> · changed <%= new Date(policyUpdatedAt).toISOString().slice(0, 16).replace('T', ' ') %> UTC<% } %></span>
+    </div>
+    <% if (!_canEdit) { %>
+    <p class="card__body ops-form__hint">Only a super administrator can change the platform policy. Every change is recorded in the audit log.</p>
+    <% } %>
+    <form method="POST" action="/admin/overview/settings/platform" class="card__body ops-form" data-ops-settings-form novalidate>
+      <%- include('../../partials/csrf-field') %>
+      <input type="hidden" name="revision" value="<%= _pol.revision %>" />
+      <%- include('../../partials/admin-ops/form-errors', { errors: _gerr }) %>
+      <fieldset class="ops-form__fieldset" <%= _canEdit ? '' : 'disabled' %>>
+
+        <h3 class="ops-form__section">Live monitoring</h3>
+        <p class="ops-form__hint">Collection runs on the server whether or not anyone has the dashboard open. Shorter intervals cost more CPU on the shared host.</p>
+        <div class="ops-form__row">
+          <% [
+            _num('intervals.resourceSeconds', 'CPU, memory, network, containers', _pol.intervals.resourceSeconds, _L.intervals.resourceSeconds, 'Default 15', 's'),
+            _num('intervals.diskSeconds', 'Disk', _pol.intervals.diskSeconds, _L.intervals.diskSeconds, 'Default 30', 's'),
+            _num('intervals.serviceSeconds', 'Service checks', _pol.intervals.serviceSeconds, _L.intervals.serviceSeconds, 'Default 30', 's'),
+            _num('intervals.probeSeconds', 'Application probes', _pol.intervals.probeSeconds, _L.intervals.probeSeconds, 'Default 30', 's'),
+          ].forEach((f) => { %><%- include('../../partials/admin-ops/number-field', { f, errors: _gerr }) %><% }) %>
+        </div>
+
+        <h3 class="ops-form__section">Resource monitoring</h3>
+        <% Object.entries(collectors).forEach(([key, label]) => { %>
+        <input type="hidden" name="collectors.<%= key %>" value="false" />
+        <label class="ops-form__choice"><input type="checkbox" name="collectors.<%= key %>" value="true" <%= _pol.collectors[key] ? 'checked' : '' %> /> <%= label %></label>
+        <% }) %>
+        <p class="ops-form__hint">Host CPU, memory, disk, network, worker and queue checks cannot be turned off.</p>
+        <div class="ops-form__row">
+          <% [
+            _num('capacity.memoryReservePercent', 'Memory reserve', _pol.capacity.memoryReservePercent, _L.reservePercent, 'Default 15', '%'),
+            _num('capacity.cpuReservePercent', 'CPU reserve', _pol.capacity.cpuReservePercent, _L.reservePercent, 'Default 10', '%'),
+            _num('capacity.diskReservePercent', 'Disk reserve', _pol.capacity.diskReservePercent, _L.reservePercent, 'Default 15', '%'),
+          ].forEach((f) => { %><%- include('../../partials/admin-ops/number-field', { f, errors: _gerr }) %><% }) %>
+        </div>
+
+        <h3 class="ops-form__section">Alerts</h3>
+        <p class="ops-form__hint">An alert opens only after the value stays above the threshold for the whole duration, and closes only once it drops below the recovery level.</p>
+        <table class="ops-table ops-form__table">
+          <caption class="sr-only">Alert thresholds in percent and sustain duration in seconds</caption>
+          <thead><tr><th scope="col">Rule</th><th scope="col">Warning %</th><th scope="col">Critical %</th><th scope="col">Recovery %</th><th scope="col">Sustained (s)</th></tr></thead>
+          <tbody>
+            <% Object.entries(thresholdRules).forEach(([rule, label]) => { %>
+            <tr>
+              <th scope="row"><%= label %></th>
+              <% ['warning', 'critical', 'clear', 'sustainSeconds'].forEach((part) => { %>
+              <% const _name = 'thresholds.' + rule + '.' + part; %>
+              <td><input class="form-input ops-form__number<%= _gerr[_name] ? ' form-input--error' : '' %>" type="number" inputmode="numeric" name="<%= _name %>" value="<%= _pol.thresholds[rule][part] %>" min="<%= part === 'sustainSeconds' ? _L.sustainSeconds.min : _L.percent.min %>" max="<%= part === 'sustainSeconds' ? _L.sustainSeconds.max : _L.percent.max %>" aria-label="<%= label %> <%= part === 'clear' ? 'recovery' : part === 'sustainSeconds' ? 'sustained seconds' : part %>" required /></td>
+              <% }) %>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <div class="ops-form__row">
+          <%- include('../../partials/admin-ops/number-field', { f: _num('memoryPressureCritical', 'Memory pressure for critical', _pol.memoryPressureCritical, _L.pressure, 'PSI some avg60, default 10', '%'), errors: _gerr }) %>
+          <%- include('../../partials/admin-ops/number-field', { f: _num('probes.failuresBeforeUnhealthy', 'Failed probes before Unhealthy', _pol.probes.failuresBeforeUnhealthy, _L.probeCount, 'Default 3', ''), errors: _gerr }) %>
+          <%- include('../../partials/admin-ops/number-field', { f: _num('probes.successesBeforeHealthy', 'Passing probes before Healthy', _pol.probes.successesBeforeHealthy, _L.probeCount, 'Default 2', ''), errors: _gerr }) %>
+        </div>
+        <div class="ops-form__row">
+          <label class="ops-form__field">
+            <span class="ops-form__label">Mute alert notifications</span>
+            <select name="notifications.muteMinutes" class="form-input">
+              <option value=""><%= mutedUntil ? 'Keep current mute (until ' + mutedUntil.slice(0, 16).replace('T', ' ') + ' UTC)' : 'Not muted' %></option>
+              <% if (mutedUntil) { %><option value="0">End the mute now</option><% } %>
+              <% [[30, '30 minutes'], [60, '1 hour'], [240, '4 hours'], [1440, '24 hours']].forEach(([m, l]) => { %><option value="<%= m %>">Mute for <%= l %></option><% }) %>
+            </select>
+            <span class="ops-form__hint">For planned maintenance. Checks keep running and incidents are still recorded; only live alert notifications are held back.</span>
+          </label>
+          <label class="ops-form__field">
+            <span class="ops-form__label">Mute reason</span>
+            <input class="form-input" type="text" name="notifications.muteReason" maxlength="200" value="<%= _pol.notifications.muteReason %>" />
+          </label>
+        </div>
+
+        <h3 class="ops-form__section">Historical data</h3>
+        <p class="ops-form__hint">Older history is deleted automatically. This never touches the audit log.</p>
+        <div class="ops-form__row">
+          <% [
+            _num('retention.minuteHours', '1-minute samples', _pol.retention.minuteHours, _L.retention.minuteHours, 'Default 24', 'h'),
+            _num('retention.fiveMinuteDays', '5-minute samples', _pol.retention.fiveMinuteDays, _L.retention.fiveMinuteDays, 'Default 7', 'd'),
+            _num('retention.hourlyDays', 'Hourly samples', _pol.retention.hourlyDays, _L.retention.hourlyDays, 'Default 30', 'd'),
+            _num('retention.dailyDays', 'Daily samples', _pol.retention.dailyDays, _L.retention.dailyDays, 'Default 90', 'd'),
+          ].forEach((f) => { %><%- include('../../partials/admin-ops/number-field', { f, errors: _gerr }) %><% }) %>
+        </div>
+
+        <h3 class="ops-form__section">Performance safeguards</h3>
+        <ul class="ops-form__facts">
+          <li>Intervals cannot go below <%= _L.intervals.resourceSeconds.min %> seconds, and history cannot be kept longer than <%= _L.retention.dailyDays.max %> days.</li>
+          <li>One <code>docker stats</code> and one <code>docker ps</code> call per cycle, shared by every viewer.</li>
+          <li>At most 3 application probes run at once, each with a 3-second timeout.</li>
+          <li>Refresh and page views read the shared snapshot; they never start a collection.</li>
+        </ul>
+      </fieldset>
+      <% if (_canEdit) { %>
+      <div class="ops-form__actions">
+        <button type="submit" class="button button--primary">Save platform policy</button>
+      </div>
+      <% } %>
+    </form>
+    <% if (_canEdit) { %>
+    <form method="POST" action="/admin/overview/settings/platform/reset" class="card__footer" data-confirm="Restore every platform monitoring setting to its default?" data-confirm-title="Restore platform defaults" data-confirm-accept-label="Restore defaults" data-confirm-variant="warning">
+      <%- include('../../partials/csrf-field') %>
+      <input type="hidden" name="revision" value="<%= _pol.revision %>" />
+      <button type="submit" class="button button--ghost button--sm">Restore platform defaults</button>
+    </form>
+    <% } %>
+  </section>
+</div>

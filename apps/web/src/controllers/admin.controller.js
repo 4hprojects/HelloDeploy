@@ -3,7 +3,6 @@ import { ApprovalStatus } from '@hellodeploy/contracts';
 import { AuditOutcome } from '@hellodeploy/contracts';
 import { writeAuditEvent } from '@hellodeploy/observability';
 import {
-  getAdminOverview,
   getAdminPendingCounts,
   getFailedTeardowns,
   retryProjectTeardown,
@@ -52,15 +51,6 @@ import { isSafeReturnPath } from '../utils/safe-redirect.js';
 export const loadAdminPendingCounts = asyncHandler(async (req, res, next) => {
   res.locals.adminPendingCounts = await getAdminPendingCounts();
   next();
-});
-
-export const getAdminIndex = asyncHandler(async (req, res) => {
-  const [stats, server] = await Promise.all([getAdminOverview(), collectServerStats()]);
-  res.render('pages/admin/index', {
-    title: 'Admin Overview',
-    stats,
-    server,
-  });
 });
 
 // ─── Server dashboard ──────────────────────────────────────────────────────────

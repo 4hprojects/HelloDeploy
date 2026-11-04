@@ -1,0 +1,4 @@
+<% const _cap = overview.capacity; %>
+<% if (!_cap || !_cap.available) { %>
+<p class="ops-empty">Capacity is Unavailable until the host collector reports physical capacity and usage.</p>
+<% } %>

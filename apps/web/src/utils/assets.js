@@ -10,6 +10,10 @@ const sourceAssets = {
   'js/learning-hub.js': '/js/learning-hub.js',
   'css/legal.css': '/css/legal.css',
   'css/auth.css': '/css/auth.css',
+  'css/admin-shell.css': '/css/admin-shell.css',
+  'js/admin-shell.js': '/js/admin-shell.js',
+  'css/admin-ops.css': '/css/admin-ops.css',
+  'js/admin-ops.js': '/js/admin-ops.js',
 };
 
 function loadManifest() {

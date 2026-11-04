@@ -12,6 +12,10 @@ for (const key of [
   'js/learning-hub.js',
   'css/legal.css',
   'css/auth.css',
+  'css/admin-shell.css',
+  'js/admin-shell.js',
+  'css/admin-ops.css',
+  'js/admin-ops.js',
 ]) {
   const value = manifest.assets?.[key];
   if (!/^\/assets-dist\/[a-z0-9.-]+\.[0-9a-f]{16}\.(?:css|js)$/.test(value ?? '')) {

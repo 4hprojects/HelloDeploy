@@ -1,0 +1,14 @@
+<% const _rows = (overview.activity || []).slice(0, 15); %>
+<% if (_rows.length === 0) { %>
+<p class="ops-empty">No recent activity.</p>
+<% } else { %>
+<ul class="ops-list" role="list">
+  <% _rows.forEach((event) => { %>
+  <li class="ops-list__item">
+    <span class="ops-state ops-tone--<%= event.outcome === 'SUCCESS' ? 'healthy' : event.outcome === 'FAILURE' ? 'critical' : 'warning' %>"><%= event.outcome === 'SUCCESS' ? 'Done' : event.outcome === 'FAILURE' ? 'Failed' : 'Denied' %></span>
+    <span class="ops-list__body"><%= event.label || event.action %><span class="ops-list__detail"><%= event.actorName || 'System' %> · <%- include('time', { at: event.createdAt }) %></span></span>
+  </li>
+  <% }) %>
+</ul>
+<% } %>
+<p class="ops-footnote"><a href="/admin/audit-events">Full audit log</a></p>

@@ -1,0 +1,11 @@
+<% (overview.kpis || []).forEach((kpi) => { %>
+<article class="ops-kpi ops-tone--<%= kpi.tone %>" aria-labelledby="ops-kpi-<%= kpi.key %>">
+  <h3 class="ops-kpi__label" id="ops-kpi-<%= kpi.key %>"><%= kpi.label %></h3>
+  <p class="ops-kpi__value"><%= kpi.display %></p>
+  <p class="ops-kpi__detail"><%= kpi.detail %></p>
+  <% if (kpi.trend && kpi.trend.points) { %>
+  <svg class="ops-spark" viewBox="0 0 100 24" preserveAspectRatio="none" aria-hidden="true" focusable="false"><polyline points="<%= kpi.trend.points %>" /></svg>
+  <% } %>
+  <p class="ops-kpi__source"><span class="sr-only">Source: </span><%= kpi.source %><% if (kpi.collectedAt) { %> · <%- include('time', { at: kpi.collectedAt }) %><% } %></p>
+</article>
+<% }) %>

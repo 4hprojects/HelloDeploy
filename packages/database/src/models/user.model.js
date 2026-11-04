@@ -134,6 +134,14 @@ const userSchema = new Schema(
       type: Number,
       default: null,
     },
+
+    // Admin operations dashboard view preferences. Absent until an
+    // administrator first saves them; readers apply defaults through
+    // normalizeDashboardPreferences, so older accounts need no backfill.
+    dashboardPreferences: {
+      type: mongoose.Schema.Types.Mixed,
+      default: undefined,
+    },
   },
   {
     timestamps: true,

@@ -1,0 +1,9 @@
+<% const _messages = Object.values(errors || {}); %>
+<% if (_messages.length > 0) { %>
+<div class="alert alert--error ops-form__errors" role="alert" tabindex="-1">
+  <div>
+    <strong>Nothing was saved.</strong>
+    <ul><% _messages.forEach((m) => { %><li><%= m %></li><% }) %></ul>
+  </div>
+</div>
+<% } %>

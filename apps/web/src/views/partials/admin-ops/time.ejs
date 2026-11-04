@@ -1,0 +1,1 @@
+<% if (at) { %><time datetime="<%= new Date(at).toISOString() %>" data-ops-age><%= new Date(at).toISOString().slice(11, 19) %> UTC</time><% } else { %><span class="ops-muted">never</span><% } %>

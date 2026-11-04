@@ -1,0 +1,34 @@
+<% const _q = overview.deployments && overview.deployments.queue; %>
+<% if (!_q) { %>
+<p class="ops-empty">Queue unavailable: Redis or BullMQ did not answer.</p>
+<% } else { %>
+<dl class="ops-counts">
+  <div><dt>Active</dt><dd><%= _q.active %></dd></div>
+  <div><dt>Waiting</dt><dd><%= _q.waiting %></dd></div>
+  <div><dt>Delayed</dt><dd><%= _q.delayed %></dd></div>
+  <div class="<%= _q.paused ? 'ops-tone--warning' : '' %>"><dt>Queue</dt><dd><%= _q.paused ? 'Paused' : 'Running' %></dd></div>
+</dl>
+<% if ((overview.deployments.active || []).length > 0) { %>
+<table class="ops-table">
+  <caption class="ops-table__caption">In progress</caption>
+  <thead><tr><th scope="col">Project</th><th scope="col">Stage</th><th scope="col">Elapsed</th></tr></thead>
+  <tbody>
+    <% overview.deployments.active.forEach((row) => { %>
+    <tr><th scope="row"><a href="<%= row.href %>"><%= row.project %></a></th><td><%= row.stage %></td><td><%= row.elapsed %></td></tr>
+    <% }) %>
+  </tbody>
+</table>
+<% } %>
+<% if ((overview.deployments.recent || []).length > 0) { %>
+<table class="ops-table">
+  <caption class="ops-table__caption">Recent results</caption>
+  <thead><tr><th scope="col">Project</th><th scope="col">Result</th><th scope="col">Finished</th></tr></thead>
+  <tbody>
+    <% overview.deployments.recent.forEach((row) => { %>
+    <tr><th scope="row"><a href="<%= row.href %>"><%= row.project %></a></th><td><span class="ops-state ops-tone--<%= row.tone %>"><%= row.result %></span><% if (row.superseded) { %> <span class="ops-muted">(since redeployed)</span><% } %></td><td class="ops-table__nowrap"><%- include('time', { at: row.finishedAt }) %></td></tr>
+    <% }) %>
+  </tbody>
+</table>
+<% } %>
+<p class="ops-footnote"><%= _q.failedRetained %> failed and <%= _q.completedRetained %> completed jobs retained in the queue history. Retained failures are history, not active incidents.</p>
+<% } %>
