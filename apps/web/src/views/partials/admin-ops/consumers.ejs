@@ -1,0 +1,56 @@
+<% const _c = overview.consumers; %>
+<%
+  const _bytes = (b) => { if (typeof b !== 'number') return '–'; const u = ['B','KiB','MiB','GiB']; let i = 0; let v = b; while (v >= 1024 && i < 3) { v /= 1024; i++; } return (v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i]; };
+  const _pct = (v) => typeof v === 'number' ? v.toFixed(1) + '%' : '–';
+%>
+<% if (!_c || !_c.available) { %>
+<p class="ops-empty">Resource use is Unavailable: <%= (_c && _c.reason) || 'no collector snapshot' %>.</p>
+<% } else { %>
+<% if (!_c.dockerAvailable) { %><p class="ops-footnote ops-tone--warning">Docker did not answer: <%= _c.dockerReason %>. Container rows are missing, not idle.</p><% } %>
+<% if (_c.dockerAvailable && !_c.statsAvailable) { %><p class="ops-footnote">Per-container CPU and memory are unavailable (<%= _c.statsReason || 'not collected' %>); container state is still shown.</p><% } %>
+<table class="ops-table">
+  <caption class="sr-only">Actual resource use by platform service and container. Limits are the configured Docker limits, not usage.</caption>
+  <thead>
+    <tr>
+      <th scope="col">Consumer</th>
+      <th scope="col">Type</th>
+      <th scope="col">State</th>
+      <th scope="col" class="ops-table__num">CPU (host)</th>
+      <th scope="col" class="ops-table__num">Memory</th>
+      <th scope="col" class="ops-table__num">Limit</th>
+      <th scope="col" class="ops-table__num">Of limit</th>
+      <th scope="col" class="ops-table__num">Restarts</th>
+      <th scope="col" class="ops-table__num">Up</th>
+    </tr>
+  </thead>
+  <tbody>
+    <% _c.rows.forEach((row) => { %>
+    <tr>
+      <th scope="row"><% if (row.href) { %><a href="<%= row.href %>"><%= row.name %></a><% } else { %><%= row.name %><% } %></th>
+      <td class="ops-table__nowrap"><%= row.kind %></td>
+      <td><%= row.state %></td>
+      <td class="ops-table__num"><%= _pct(row.cpu) %></td>
+      <td class="ops-table__num"><%= _bytes(row.memoryBytes) %></td>
+      <td class="ops-table__num"><%= row.kind === 'Platform service' ? 'n/a' : row.limitBytes ? _bytes(row.limitBytes) : 'Not set' %></td>
+      <td class="ops-table__num <%= typeof row.percentOfLimit === 'number' && row.percentOfLimit >= 80 ? 'ops-tone--warning ops-state' : '' %>"><%= _pct(row.percentOfLimit) %></td>
+      <td class="ops-table__num"><%= typeof row.restarts === 'number' ? row.restarts : '–' %></td>
+      <td class="ops-table__num"><%= row.uptime || '–' %></td>
+    </tr>
+    <% }) %>
+    <% if (_c.others) { %>
+    <tr class="ops-table__aggregate">
+      <th scope="row">Other containers on this host (<%= _c.others.count %>)</th>
+      <td>Not managed</td><td>running</td>
+      <td class="ops-table__num"><%= _pct(_c.others.cpu) %></td>
+      <td class="ops-table__num"><%= _bytes(_c.others.memoryBytes) %></td>
+      <td class="ops-table__num">–</td><td class="ops-table__num">–</td><td class="ops-table__num">–</td><td class="ops-table__num">–</td>
+    </tr>
+    <% } %>
+  </tbody>
+</table>
+<% if (_c.totalRows > _c.rows.length) { %><p class="ops-footnote">Showing <%= _c.rows.length %> of <%= _c.totalRows %>, busiest first. Change the row count in settings.</p><% } %>
+<% if (_c.dockerDiskUsage) { %>
+<p class="ops-footnote">Docker storage: images <%= _bytes(_c.dockerDiskUsage.images && _c.dockerDiskUsage.images.sizeBytes) %>, build cache <%= _bytes(_c.dockerDiskUsage.buildCache && _c.dockerDiskUsage.buildCache.sizeBytes) %>, volumes <%= _bytes(_c.dockerDiskUsage.volumes && _c.dockerDiskUsage.volumes.sizeBytes) %> · measured <%- include('time', { at: _c.dockerDiskUsage.collectedAt }) %></p>
+<% } %>
+<p class="ops-footnote">CPU is a share of the whole host (100% = all cores). Memory is cgroup usage excluding reclaimable cache.</p>
+<% } %>

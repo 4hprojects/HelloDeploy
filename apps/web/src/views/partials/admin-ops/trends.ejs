@@ -1,4 +1,9 @@
 <% const _trends = overview.trends; %>
 <% if (!_trends || !_trends.available) { %>
-<p class="ops-empty">Resource history is Unavailable: no samples have been recorded for this range.</p>
+<p class="ops-empty">Resource history is Unavailable: the collector has not recorded samples for this range yet.</p>
+<% } else { %>
+<div class="ops-charts">
+  <%- include('chart', { chart: _trends.usage, title: 'Host CPU, memory and swap (% of capacity)', format: 'percent', rangeLabel: _trends.rangeLabel }) %>
+  <%- include('chart', { chart: _trends.network, title: 'Network throughput (physical interfaces)', format: 'bitrate', rangeLabel: _trends.rangeLabel }) %>
+</div>
 <% } %>

@@ -28,6 +28,7 @@ import {
   saveMonitoringPolicy,
 } from '../services/admin-ops/monitoring-policy.service.js';
 import { buildOverview } from '../services/admin-ops/overview.service.js';
+import { getMonitoringSnapshot } from '../services/admin-ops/snapshot.service.js';
 
 const LIVE_PANELS = new Set([
   'incidents',
@@ -35,6 +36,7 @@ const LIVE_PANELS = new Set([
   'trends',
   'capacity',
   'apps',
+  'consumers',
   'deployments',
   'services',
   'attention',
@@ -56,7 +58,11 @@ export const getAdminIndex = asyncHandler(async (req, res) => {
   const preferences =
     res.locals.adminPreferences ?? (await getDashboardPreferences(req.session.user.id));
   const policy = await getMonitoringPolicy();
-  const overview = await buildOverview({ policy, preferences, user: req.session.user });
+  const overview = await buildOverview({
+    policy,
+    preferences,
+    deps: req.app.locals.adminOpsDeps,
+  });
   res.render('pages/admin/index', {
     title: 'Admin Operations',
     overview,
@@ -79,7 +85,7 @@ export const getOverviewLive = asyncHandler(async (req, res) => {
   const panels = requested.length > 0 ? [...new Set(requested)] : [...LIVE_PANELS];
   const preferences = await getDashboardPreferences(req.session.user.id);
   const policy = await getMonitoringPolicy();
-  const overview = await buildOverview({ policy, preferences, user: req.session.user, panels });
+  const overview = await buildOverview({ policy, preferences, deps: req.app.locals.adminOpsDeps });
   const rendered = {};
   await Promise.all(
     panels
@@ -94,6 +100,18 @@ export const getOverviewLive = asyncHandler(async (req, res) => {
   );
   res.set('Cache-Control', 'no-store');
   res.json({ generatedAt: overview.generatedAt, status: overview.status, panels: rendered });
+});
+
+/**
+ * The sanitized collector snapshot as JSON, for tooling and diagnostics. It
+ * is the same copy the panels render from: no Docker metadata beyond state,
+ * limits and HelloDeploy's own labels, and no names for unmanaged containers.
+ */
+export const getOverviewSnapshot = asyncHandler(async (req, res) => {
+  const read = req.app.locals.adminOpsDeps?.getMonitoringSnapshot ?? getMonitoringSnapshot;
+  const { snapshot, freshness, ageSeconds, reason } = await read();
+  res.set('Cache-Control', 'no-store');
+  res.json({ freshness, ageSeconds, reason, snapshot });
 });
 
 export const getOverviewSettings = asyncHandler(async (req, res) => {

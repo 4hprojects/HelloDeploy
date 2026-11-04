@@ -85,7 +85,15 @@ describe('dashboard preferences', () => {
       historyRange: '6h',
       refreshSeconds: '0',
       tableRows: '50',
-      visibleWidgets: ['apps', 'services', 'trends', 'capacity', 'deployments', 'attention'],
+      visibleWidgets: [
+        'apps',
+        'consumers',
+        'services',
+        'trends',
+        'capacity',
+        'deployments',
+        'attention',
+      ],
     });
     assert.deepEqual(result.value.hiddenWidgets, ['activity']);
   });

@@ -341,6 +341,9 @@ export const env = {
   PORT_RANGE_END: portRangeEnd,
 
   BUILD_WORKSPACE_ROOT: optional('BUILD_WORKSPACE_ROOT', '/var/lib/hellodeploy/builds'),
+  // Admin operations monitoring collector. On by default; turning it off stops
+  // host and container sampling without affecting deployments.
+  MONITORING_COLLECTOR_ENABLED: optional('MONITORING_COLLECTOR_ENABLED', 'true') !== 'false',
   RELEASE_METADATA_ROOT: optional('RELEASE_METADATA_ROOT', '/var/lib/hellodeploy/releases'),
   PROJECT_VOLUME_ROOT: optional('PROJECT_VOLUME_ROOT', '/var/lib/hellodeploy/projects'),
   NGINX_HELLODEPLOY_CONFIG_DIR: optional(

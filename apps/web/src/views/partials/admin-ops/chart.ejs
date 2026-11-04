@@ -1,0 +1,39 @@
+<%
+  const _fmt = (v) => {
+    if (typeof v !== 'number') return 'Unavailable';
+    if (format === 'percent') return v.toFixed(1) + '%';
+    const bits = v * 8;
+    return bits >= 1e6 ? (bits / 1e6).toFixed(1) + ' Mbps' : bits >= 1e3 ? Math.round(bits / 1e3) + ' kbps' : Math.round(bits) + ' bps';
+  };
+%>
+<figure class="ops-chart">
+  <figcaption class="ops-chart__caption">
+    <span class="ops-chart__title"><%= title %></span>
+    <span class="ops-chart__legend">
+      <% chart.lines.forEach((line, i) => { %><span class="ops-chart__key ops-chart__key--<%= i %>"><%= line.label %> <strong><%= _fmt(line.latest) %></strong></span><% }) %>
+    </span>
+  </figcaption>
+  <div class="ops-chart__plot">
+    <span class="ops-chart__axis ops-chart__axis--top" aria-hidden="true"><%= _fmt(chart.lines[0].max) %></span>
+    <svg class="ops-chart__svg" viewBox="<%= chart.viewBox %>" preserveAspectRatio="none" aria-hidden="true" focusable="false">
+      <line class="ops-chart__grid" x1="0" y1="50" x2="1000" y2="50" />
+      <line class="ops-chart__grid" x1="0" y1="100" x2="1000" y2="100" />
+      <line class="ops-chart__grid" x1="0" y1="150" x2="1000" y2="150" />
+      <% chart.lines.forEach((line, i) => { %><% line.segments.forEach((points) => { %><polyline class="ops-chart__line ops-chart__line--<%= i %>" points="<%= points %>" /><% }) %><% }) %>
+    </svg>
+    <span class="ops-chart__axis ops-chart__axis--bottom" aria-hidden="true">0</span>
+  </div>
+  <p class="ops-chart__meta"><%= rangeLabel %> · <%= chart.sampleCount %> samples<% if (chart.gaps > 0) { %> · <%= chart.gaps %> gap<%= chart.gaps === 1 ? '' : 's' %> in collection (shown as breaks)<% } %> · ends <%- include('time', { at: chart.end }) %></p>
+  <details class="ops-chart__table">
+    <summary>Chart values as a table</summary>
+    <table class="ops-table">
+      <caption class="sr-only"><%= title %> summary</caption>
+      <thead><tr><th scope="col">Series</th><th scope="col" class="ops-table__num">Latest</th><th scope="col" class="ops-table__num">Average</th><th scope="col" class="ops-table__num">Low</th><th scope="col" class="ops-table__num">Peak</th></tr></thead>
+      <tbody>
+        <% chart.lines.forEach((line) => { %>
+        <tr><th scope="row"><%= line.label %></th><td class="ops-table__num"><%= _fmt(line.latest) %></td><td class="ops-table__num"><%= _fmt(line.average) %></td><td class="ops-table__num"><%= _fmt(line.min) %></td><td class="ops-table__num"><%= _fmt(line.peak) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+  </details>
+</figure>
