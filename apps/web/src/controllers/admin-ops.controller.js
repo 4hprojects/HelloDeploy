@@ -32,6 +32,10 @@ import {
 } from '../services/admin-ops/monitoring-policy.service.js';
 import { buildOverview } from '../services/admin-ops/overview.service.js';
 import { getMonitoringSnapshot } from '../services/admin-ops/snapshot.service.js';
+import {
+  IncidentNotFoundError,
+  acknowledgeIncident,
+} from '../services/admin-ops/incidents.service.js';
 import { getRedisConnection } from '../queue/client.js';
 import { subscribeChannel } from '../services/deploy-log-stream.js';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
@@ -314,6 +318,34 @@ export const postPlatformReset = asyncHandler(async (req, res) => {
     req.flash('error', 'Another administrator changed the policy first. Nothing was reset.');
   }
   res.redirect('/admin/overview/settings#platform-title');
+});
+
+/**
+ * Acknowledge an incident. The page posts with fetch and refreshes the strip
+ * in place; without JavaScript the form posts normally and returns here.
+ */
+export const postAcknowledgeIncident = asyncHandler(async (req, res) => {
+  const wantsJson = req.get('accept')?.includes('application/json');
+  try {
+    await acknowledgeIncident({ incidentId: req.params.incidentId, actor: actorFrom(req) });
+  } catch (error) {
+    if (!(error instanceof IncidentNotFoundError)) {
+      throw error;
+    }
+    if (wantsJson) {
+      res.status(409).json({ error: { code: error.code, message: error.message } });
+      return;
+    }
+    req.flash('error', error.message);
+    res.redirect('/admin');
+    return;
+  }
+  if (wantsJson) {
+    res.json({ acknowledged: true });
+    return;
+  }
+  req.flash('success', 'Incident acknowledged. It stays open until it recovers.');
+  res.redirect('/admin');
 });
 
 /** Sidebar toggle from any admin page (JSON, CSRF header). */

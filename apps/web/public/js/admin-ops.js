@@ -428,6 +428,40 @@
   });
   window.addEventListener('pagehide', stepDown);
 
+  // Acknowledge in place; the form still works without JavaScript.
+  root.addEventListener('submit', (event) => {
+    const form = event.target.closest('[data-ops-ack]');
+    if (!form) {
+      return;
+    }
+    event.preventDefault();
+    const button = form.querySelector('button');
+    if (button) {
+      button.disabled = true;
+    }
+    fetch(form.action, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(new FormData(form)),
+    })
+      .then((res) => {
+        if (!res.ok && res.status !== 409) {
+          throw new Error(`HTTP ${res.status}`);
+        }
+        if (document.activeElement) {
+          document.activeElement.blur();
+        }
+        return refreshNow(['incidents', 'attention']);
+      })
+      .catch(() => {
+        showError('The incident could not be acknowledged. Try again.');
+        if (button) {
+          button.disabled = false;
+        }
+      });
+  });
+
   window.HelloDeployOps = { refresh: refreshNow };
   startStream();
 

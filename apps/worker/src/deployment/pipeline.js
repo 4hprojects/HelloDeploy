@@ -9,6 +9,7 @@ import {
   ADMIN_OPS_EVENT_CHANNEL,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
+import { reportDeploymentOutcome } from '../monitoring/registry.js';
 import { getWorkerRedis } from '../queue/worker-redis.js';
 import { redactLogLine } from './log-capture.js';
 import { STATIC_PORT } from './dockerfile-generator.js';
@@ -168,6 +169,16 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   publishDeployEvent(deploymentId, { type: 'status', status: toStatus });
 
   const freshDeployment = await Deployment.findById(deploymentId).lean();
+  if (freshDeployment?.projectId) {
+    reportDeploymentOutcome({
+      projectId: String(freshDeployment.projectId),
+      slug: project?.slug ?? null,
+      deploymentId: String(deploymentId),
+      sequenceNumber: freshDeployment.sequenceNumber ?? null,
+      status: toStatus,
+      failureCode: freshDeployment.failureCode ?? null,
+    });
+  }
   if (
     freshDeployment?.sequenceNumber === 1 &&
     [DeploymentStatus.HEALTHY, DeploymentStatus.FAILED].includes(toStatus)

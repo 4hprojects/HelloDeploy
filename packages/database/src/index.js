@@ -41,3 +41,5 @@ export {
   resolveUserQuota,
   resolveProjectQuota,
 } from './quota.js';
+export { MonitoringSample } from './models/monitoring-sample.model.js';
+export { MonitoringIncident } from './models/monitoring-incident.model.js';

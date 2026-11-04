@@ -62,6 +62,7 @@ import {
   getOverviewSnapshot,
   getOverviewSettings,
   loadAdminShell,
+  postAcknowledgeIncident,
   postPersonalReset,
   postPersonalSettings,
   postPlatformReset,
@@ -95,7 +96,15 @@ router.get(
   loadAdminShell,
 );
 
-for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId', 'commentId']) {
+for (const param of [
+  'userId',
+  'projectId',
+  'requestId',
+  'domainId',
+  'scopeId',
+  'commentId',
+  'incidentId',
+]) {
   router.param(param, validateObjectId);
 }
 
@@ -111,6 +120,7 @@ router.post('/overview/settings/personal', postPersonalSettings);
 router.post('/overview/settings/personal/reset', postPersonalReset);
 router.post('/overview/settings/platform', requireSuperAdmin, postPlatformSettings);
 router.post('/overview/settings/platform/reset', requireSuperAdmin, postPlatformReset);
+router.post('/overview/incidents/:incidentId/acknowledge', postAcknowledgeIncident);
 router.post('/preferences/sidebar', postSidebarPreference);
 
 router.get('/users', getAdminUsers);

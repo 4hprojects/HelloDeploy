@@ -5,7 +5,8 @@ process.env.SESSION_SECRET = ['admin', 'ops', 'route', 'test', 'session'].join('
 process.env.PLATFORM_DOMAIN = 'example.test';
 
 const { startTestDb, stopTestDb } = await import('../helpers/worker-db.js');
-const { AuditEvent, PlatformSetting, User } = await import('@hellodeploy/database');
+const { AuditEvent, MonitoringIncident, PlatformSetting, User } =
+  await import('@hellodeploy/database');
 const { MONITORING_POLICY_DEFAULTS, PlatformRole, UserStatus } =
   await import('@hellodeploy/contracts');
 const { configureAuditService } = await import('@hellodeploy/observability');
@@ -329,5 +330,68 @@ describe('admin overview settings routes', () => {
       await fetch(`${baseUrl}/admin/users`, { headers: { cookie: sessions.other.cookie } })
     ).text();
     assert.match(html, /layout--sidebar-collapsed/);
+  });
+
+  async function openIncident(state = 'active') {
+    return MonitoringIncident.create({
+      fingerprint: `test:${Math.random()}`,
+      rule: 'host.cpu',
+      scope: 'host',
+      severity: 'warning',
+      state,
+      title: 'Host CPU is high',
+      firstSeen: new Date(),
+      lastSeen: new Date(),
+    });
+  }
+
+  it('lets an administrator acknowledge an incident without resolving it', async () => {
+    const incident = await openIncident();
+    await post(
+      sessions.admin,
+      `/admin/overview/incidents/${incident._id}/acknowledge`,
+      withCsrf(sessions.admin, new URLSearchParams()),
+      { accept: 'application/json' },
+    );
+    const stored = await MonitoringIncident.findById(incident._id).lean();
+    assert.deepEqual([stored.state, stored.resolvedAt], ['acknowledged', null]);
+  });
+
+  it('audits an acknowledgement', async () => {
+    const incident = await openIncident();
+    await post(
+      sessions.admin,
+      `/admin/overview/incidents/${incident._id}/acknowledge`,
+      withCsrf(sessions.admin, new URLSearchParams()),
+      { accept: 'application/json' },
+    );
+    assert.equal(
+      await AuditEvent.countDocuments({
+        action: 'admin.incident_acknowledged',
+        targetId: String(incident._id),
+      }),
+      1,
+    );
+  });
+
+  it('refuses to acknowledge a resolved incident', async () => {
+    const incident = await openIncident('resolved');
+    const res = await post(
+      sessions.admin,
+      `/admin/overview/incidents/${incident._id}/acknowledge`,
+      withCsrf(sessions.admin, new URLSearchParams()),
+      { accept: 'application/json' },
+    );
+    assert.equal(res.status, 409);
+  });
+
+  it('refuses an acknowledgement from a non-administrator', async () => {
+    const incident = await openIncident();
+    await post(
+      sessions.user,
+      `/admin/overview/incidents/${incident._id}/acknowledge`,
+      withCsrf(sessions.user, new URLSearchParams()),
+    );
+    assert.equal((await MonitoringIncident.findById(incident._id).lean()).state, 'active');
   });
 });

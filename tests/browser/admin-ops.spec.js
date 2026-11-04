@@ -163,3 +163,31 @@ test('density and sidebar preferences persist for the administrator', async ({ b
   await expect(page.locator('.layout')).not.toHaveClass(/layout--sidebar-collapsed/);
   await context.close();
 });
+
+test('acknowledging an incident updates the strip in place and keeps it open', async ({
+  browser,
+}) => {
+  const { context, page } = await adminPage(browser, { width: 1920, height: 1080 });
+  await page.goto('/admin');
+  await page.evaluate(() => {
+    globalThis.__opsMarker = 'same-document';
+  });
+  const strip = page.locator('[data-ops-panel="incidents"]');
+  await strip.getByRole('button', { name: 'Acknowledge' }).first().click();
+  await expect(strip.getByText(/Acknowledged.*still open/).first()).toBeVisible();
+  expect(await page.evaluate(() => globalThis.__opsMarker)).toBe('same-document');
+  await context.close();
+});
+
+test('longer history ranges read recorded aggregates', async ({ browser }) => {
+  const { context, page } = await adminPage(browser, { width: 1600, height: 900 });
+  await page.goto('/admin/overview/settings');
+  await page.getByLabel('History range').selectOption('24h');
+  await page.getByRole('button', { name: 'Save preferences' }).click();
+  await page.goto('/admin');
+  await expect(page.locator('[data-ops-panel="trends"]')).toContainText('5m averages');
+  await page.screenshot({ path: `${EVIDENCE_DIR}/overview-1600x900-24h.png` });
+  await page.goto('/admin/overview/settings');
+  await page.getByRole('button', { name: 'Restore my defaults' }).click();
+  await context.close();
+});
