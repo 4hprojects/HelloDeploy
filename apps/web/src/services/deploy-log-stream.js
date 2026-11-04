@@ -60,12 +60,19 @@ function getSubscriber() {
  * (callers fall back to DB polling).
  */
 export function subscribeDeployLogs(deploymentId, handler) {
+  return subscribeChannel(`${DEPLOY_LOG_CHANNEL_PREFIX}${deploymentId}`, handler);
+}
+
+/**
+ * Subscribe to any pub/sub channel on the shared subscriber connection, so
+ * every live stream in this process costs one Redis connection in total.
+ */
+export function subscribeChannel(channel, handler) {
   const subscriber = getSubscriber();
   if (!subscriber) {
     return null;
   }
 
-  const channel = `${DEPLOY_LOG_CHANNEL_PREFIX}${deploymentId}`;
   let handlers = channelHandlers.get(channel);
   if (!handlers) {
     handlers = new Set();

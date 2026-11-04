@@ -6,6 +6,7 @@ import {
   AuditOutcome,
   DomainStatus,
   ProjectStatus,
+  ADMIN_OPS_EVENT_CHANNEL,
 } from '@hellodeploy/contracts';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { getWorkerRedis } from '../queue/worker-redis.js';
@@ -84,6 +85,15 @@ function publishDeployEvent(deploymentId, payload) {
   }
 }
 
+// Compact status change for the admin operations stream: ids and status only,
+// never log text. Fire-and-forget like the log push above.
+function publishAdminEvent(payload) {
+  const redis = getWorkerRedis();
+  if (redis && redis.status === 'ready') {
+    redis.publish(ADMIN_OPS_EVENT_CHANNEL, JSON.stringify(payload)).catch(() => {});
+  }
+}
+
 export async function logEvent(deploymentId, stage, level, message, correlationId) {
   const event = await DeploymentEvent.create({
     deploymentId,
@@ -142,6 +152,13 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
     });
     return false;
   }
+
+  publishAdminEvent({
+    type: 'deployment',
+    deploymentId: String(deploymentId),
+    status: toStatus,
+    at: new Date().toISOString(),
+  });
 
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
     return true;

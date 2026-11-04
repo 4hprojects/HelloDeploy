@@ -7,7 +7,7 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
 | 0     | Audit and reconciliation                                 | Done    | `feat/admin-ops-p0-audit`     |
 | 1     | Full-width overview and settings foundation              | Done    | `feat/admin-ops-p1-ui`        |
 | 2     | Trusted collection, snapshot, host and container metrics | Done    | `feat/admin-ops-p2-collector` |
-| 3     | App health, queue, services, builder, SSE                | Pending |                               |
+| 3     | App health, queue, services, builder, SSE                | Done    |                               |
 | 4     | History, alerts, incident lifecycle                      | Pending |                               |
 | 5     | Capacity and attention                                   | Pending |                               |
 | 6     | Validation, performance, docs, rollout                   | Pending |                               |
@@ -236,3 +236,119 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
    - Capacity: Phase 5.
    - The collector's Redis publish was exercised with a fake Redis, not the host's Redis, which is production's.
 10. **Next**: Phase 3, operational integrations.
+
+## Phase 3: Operations integrations
+
+1. **Completed**
+   - **Application health.** The worker probes each live release on its loopback port (`127.0.0.1:<containerPort><healthCheckPath>`):
+     - single GET, 3 s timeout, no redirects, pass below 400, the same rule as the deploy-time check
+     - at most 3 probes at once, on the probe interval
+     - counts consecutive passes and failures, so one dropped request does not flip the status
+   - **Status derivation.** In order of precedence:
+     1. Maintenance, then Stopped (suspended, or no live release). These are intentional and are not counted as outages.
+     2. A missing live container, or one stopped or OOM-killed, is Unhealthy.
+     3. A crash loop is Restarting.
+     4. Probes off, or no probe yet, gives Unknown.
+     5. Failures at the threshold or above give Unhealthy; fewer give Degraded.
+     6. Starting during a 60 s grace period with no pass yet.
+     7. Healthy only after N consecutive passes.
+   - A running container is never Healthy without probe evidence.
+   - Optional public reachability: HTTPS to `<subdomain>.<PLATFORM_DOMAIN>` every 4th probe cycle, off by default. Shown as a separate column.
+   - **Applications panel:** status chips; rows sorted most severe first, then by CPU; evidence, container state and restarts, CPU, memory against limit, uptime, release number, last probe.
+   - **Healthy apps KPI:** shown as `healthy / expected`. Expected leaves out stopped and maintenance apps, and the detail line breaks down failing, degraded and unconfirmed. When the snapshot is stale every app shows Unknown.
+   - **Deployments panel:**
+     - queue counts with a paused-queue explanation
+     - deployments in progress, with stage and elapsed time; a stage running over 30 min is flagged "possibly stuck"
+     - recent results, with failures that a later deploy fixed marked "since redeployed"
+     - unresolved failures: projects whose latest finished attempt in the last 30 days failed. These go to attention.
+     - retained failed queue jobs are labelled history only
+   - **Platform services:**
+     - Nginx, the route helper and both tunnels come from `systemctl show`, collected by the worker without privilege
+     - Nginx adds the helper's `validate` check every 5 min
+     - a unit not installed on the host shows Not supported, not Down
+     - tunnels are marked "local process only"; reachability is checked per app
+   - **Build Service block:**
+     - Disabled when `BUILDER_CONTROL_ENABLED=false`, with the executor mode reported by the worker
+     - otherwise the published builder state, active build, idle stop and last error
+     - Unknown when the published status is stale
+   - **Activity feed:** admin audit events merged with deployment results; a CSS-only filter (All / Deployments / Admin) that survives refreshes; links to the existing pages.
+   - **Attention list**, sorted by severity:
+     - worker missing
+     - monitoring data not current
+     - apps that are unhealthy, restarting or degraded
+     - stuck stages
+     - unresolved deployment failures
+     - paused queue
+     - release identity mismatch
+     - pending reviews
+   - **Live events.** `GET /admin/overview/events` is an SSE stream for admins.
+     - Admin status is checked again in the database on connect and every 2 min; a demoted admin gets 403.
+     - Each admin may hold 2 streams through the existing `sse-limiter`.
+     - Heartbeat every 25 s, `retry: 5000`, sequence ids, `X-Accel-Buffering: no`, flushes through compression, and a 6 min lifetime before reconnecting (inside the limiter's TTL).
+     - Each event type has an allowlist of fields: `deployment` (id, status), `app` (project, from/to), `incident` (Phase 4). Unknown types and any other fields are dropped.
+     - The worker publishes deployment transitions from `updateStatus`, and the collector publishes app health transitions (none on the first snapshot after a start).
+     - The web side reuses the single shared subscriber connection: `subscribeChannel` was extracted from `deploy-log-stream.js`.
+   - **Client:**
+     - one tab per browser holds the stream, elected with a Web Lock, and relays events over a BroadcastChannel
+     - a hidden leader steps down
+     - events are deduplicated by id; bursts are merged into one panel refresh; refreshes requested during a request are queued
+     - reconnect backoff, and after a dropped connection a full refresh in case events were missed
+     - after 5 failures the stream is dropped and polling continues; the stream is retried after 5 min
+     - an `unavailable` event (no pub/sub) leads to polling only; a `forbidden` event stops the page
+     - the header mode shows "· live events"
+2. **Changed files**
+   - New:
+     - `apps/worker/src/monitoring/probes.js`
+     - `apps/web/src/services/admin-ops/deployments.service.js`
+     - `tests/admin-ops/{operations,deployment-activity,events-route}.test.js`
+   - Modified:
+     - `collector.js`: probes, apps, nginx check, health transitions, executor
+     - `pipeline.js`: admin event publish
+     - `runtime.js`
+     - `deploy-log-stream.js`: `subscribeChannel`
+     - the overview service and controller (events endpoint), routes
+     - `views/partials/admin-ops/{apps,deployments,services,activity}.ejs`, `pages/admin/index.ejs` (announcer)
+     - `admin-ops.{css,js}`
+     - the fixture: probe results, maintenance and suspended projects
+3. **Decisions**
+   - Probes run in the collector rather than as BullMQ jobs, so health checks never compete with deployments for the queue's single concurrency slot.
+   - The "unresolved failure" rule looks at each project's latest finished attempt. A failure followed by a successful deploy is history.
+   - SSE events are only triggers for a refresh. They carry no data the page renders directly, so a lost or duplicated event cannot leave wrong values on screen.
+   - In test and fixture processes, which have no Redis connection, the stream does not subscribe. This keeps local runs from listening to the host's production Redis.
+4. **Tests executed**
+   - `node --test tests/admin-ops/*.test.js`
+   - `npm test`
+   - `npx playwright test tests/browser/admin-ops.spec.js`
+   - lint, format, assets
+   - `curl -N` of the event stream on the fixture: headers, `retry`, `hello`
+5. **Results**
+   - `npm test`: 3022 tests. The first run had 1 failure: a Phase 2 assertion that was out of date, and that test also waited 10 s on an unconnected Mongo. Both were fixed. The admin-ops suites then passed 122/122.
+   - The full `npm test` result is recorded under Phase 6.
+   - New cases cover:
+     - a running container with a failing probe is not Healthy
+     - one failure gives Degraded
+     - Healthy needs N passes
+     - suspended gives Stopped; maintenance; a missing container gives Unhealthy; restarting; probes off gives Unknown; never probed gives Unknown
+     - probes against a real local HTTP server: 2xx, 5xx, redirect not followed, timeout
+     - tracker counts, and forgetting removed projects
+     - transitions: none at startup, then emitted
+     - a fixed failure is history; a latest failure is unresolved; a build running over 30 min is stuck, a queued one is not
+     - a paused queue is labelled paused
+     - a disabled builder is not a failure
+     - retained failed jobs are not raised as attention
+     - an uninstalled unit shows Not supported
+     - stale data shows Unknown for every app
+     - SSE: non-admin 403, hello and no buffering, allowlisted fields only (a token in an extra field is not forwarded), unknown types dropped, demoted admin 403, slot released on disconnect
+   - Browser: 17/17 pass.
+   - Budgets: `admin-ops.js` 12.9/16 KB, `admin-ops.css` 16.5/22 KB.
+6. **Performance**
+   - About 6 local HTTP probes per 30 s, at most 3 at once.
+   - One Nginx validate per 5 min.
+   - One shared Redis subscriber per web process.
+   - The deployments panel runs 3 Mongo queries per refresh: two bounded by `_id` order with a limit, and one aggregate limited to 30 days that uses `{projectId, sequenceNumber}`.
+7. **Security**
+   - The stream requires an admin and checks the role again; slots are limited; fields are allowlisted; log text never leaves the project-scoped log stream.
+   - Probes call only loopback ports that the platform allocated. Public probes are opt-in.
+8. **Outstanding**
+   - The stream relays a Phase 4 `incident` event type; incidents themselves come in Phase 4.
+9. **Next**: Phase 4, history and alerts.

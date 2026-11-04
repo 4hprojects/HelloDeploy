@@ -26,6 +26,8 @@ function overviewWith(deps) {
       getAdminOverview: async () => ({ recentActivity: [] }),
       collectServerStats: async () => null,
       getRawSamples: async () => [],
+      getDeploymentActivity: async () => ({ active: [], recent: [], unresolvedFailures: [] }),
+      builderControlEnabled: false,
       ...deps,
     },
   });
@@ -106,10 +108,11 @@ describe('overview from the collector snapshot', () => {
     );
   });
 
-  it('never reports applications as healthy from running containers alone', async () => {
+  it('never reports an application as healthy because its container is running', async () => {
     const { deps } = await createAdminOpsFixture();
     const overview = await overviewWith(deps);
-    assert.equal(overview.kpis.find((k) => k.key === 'apps').display, 'Unknown');
+    const atlas = overview.apps.rows.find((row) => row.slug === 'atlas-api');
+    assert.deepEqual([atlas.containerState, atlas.health], ['running', 'unhealthy']);
   });
 
   it('lists configured limits apart from actual memory use', async () => {

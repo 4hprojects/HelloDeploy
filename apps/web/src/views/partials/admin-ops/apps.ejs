@@ -1,6 +1,54 @@
 <% const _apps = overview.apps; %>
+<%
+  const _bytes = (b) => { if (typeof b !== 'number') return '–'; const u = ['B','KiB','MiB','GiB']; let i = 0; let v = b; while (v >= 1024 && i < 3) { v /= 1024; i++; } return (v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i]; };
+  const _labels = { healthy: 'Healthy', degraded: 'Degraded', unhealthy: 'Unhealthy', starting: 'Starting', restarting: 'Restarting', stopped: 'Stopped', maintenance: 'Maintenance', unknown: 'Unknown' };
+  const _tones = { healthy: 'healthy', degraded: 'warning', unhealthy: 'critical', starting: 'info', restarting: 'critical', stopped: 'muted', maintenance: 'muted', unknown: 'unknown' };
+%>
 <% if (!_apps || !_apps.available) { %>
-<p class="ops-empty">Application health is Unknown: the host collector has not reported container state or health probes. Running containers are not treated as healthy without a probe.</p>
+<p class="ops-empty">Application health is Unknown: <%= (_apps && _apps.reason) || 'no collector evidence' %>. Running containers are not treated as healthy without a probe.</p>
 <% } else { %>
-<%- include("apps-table", { apps: _apps, preferences }) %>
+<ul class="ops-chips" role="list" aria-label="Applications by status">
+  <% Object.entries(_apps.counts).filter(([, n]) => n > 0).forEach(([health, n]) => { %>
+  <li class="ops-chip ops-tone--<%= _tones[health] %>"><span class="ops-state"><%= _labels[health] %></span> <strong><%= n %></strong></li>
+  <% }) %>
+  <% if (_apps.total === 0) { %><li class="ops-chip ops-tone--muted">No active projects</li><% } %>
+</ul>
+<% if (_apps.stale) { %><p class="ops-footnote ops-tone--warning">Collector data is stale, so every status shows Unknown until it reports again.</p><% } %>
+<% if (_apps.rows.length > 0) { %>
+<table class="ops-table">
+  <caption class="sr-only">Applications, most severe first. Health comes from loopback HTTP probes, not from the container running.</caption>
+  <thead>
+    <tr>
+      <th scope="col">Project</th>
+      <th scope="col">Health</th>
+      <th scope="col">Evidence</th>
+      <th scope="col">Container</th>
+      <th scope="col" class="ops-table__num">CPU</th>
+      <th scope="col" class="ops-table__num">Memory / limit</th>
+      <th scope="col" class="ops-table__num">Up</th>
+      <th scope="col" class="ops-table__num">Release</th>
+      <th scope="col">Last probe</th>
+      <% if (_apps.publicChecked) { %><th scope="col">Public</th><% } %>
+    </tr>
+  </thead>
+  <tbody>
+    <% _apps.rows.forEach((app) => { %>
+    <tr>
+      <th scope="row"><a href="<%= app.href %>"><%= app.slug %></a></th>
+      <td><span class="ops-state ops-tone--<%= app.tone %>"><%= app.healthLabel %></span></td>
+      <td class="ops-table__wrap"><%= app.reason %></td>
+      <td class="ops-table__nowrap"><%= app.containerState || 'none' %><% if (app.restartCount) { %> · <%= app.restartCount %> restart<%= app.restartCount === 1 ? '' : 's' %><% } %></td>
+      <td class="ops-table__num"><%= typeof app.cpuPercentOfHost === 'number' ? app.cpuPercentOfHost.toFixed(1) + '%' : '–' %></td>
+      <td class="ops-table__num"><%= _bytes(app.memoryBytes) %> / <%= app.memoryLimitBytes ? _bytes(app.memoryLimitBytes) : 'not set' %></td>
+      <td class="ops-table__num"><%= app.uptime || '–' %></td>
+      <td class="ops-table__num"><%= app.deploymentSequence ? '#' + app.deploymentSequence : '–' %></td>
+      <td class="ops-table__nowrap"><% if (app.lastProbe) { %><%= app.lastProbe.statusCode || 'no answer' %> · <%- include('time', { at: app.lastProbe.at }) %><% } else { %>–<% } %></td>
+      <% if (_apps.publicChecked) { %><td class="ops-table__nowrap"><% if (app.public) { %><span class="ops-state ops-tone--<%= app.public.ok ? 'healthy' : 'critical' %>"><%= app.public.ok ? 'Reachable' : 'Unreachable' %></span><% } else { %>Not checked<% } %></td><% } %>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>
+<% if (_apps.total > _apps.rows.length) { %><p class="ops-footnote">Showing <%= _apps.rows.length %> of <%= _apps.total %>, most severe first.</p><% } %>
+<% } %>
+<p class="ops-footnote">Probes call each live release on its loopback port<%= _apps.publicChecked ? '; Public shows reachability through Cloudflare' : '; public reachability is not checked (enable it in platform settings)' %>.</p>
 <% } %>

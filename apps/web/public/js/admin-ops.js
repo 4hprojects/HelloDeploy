@@ -37,6 +37,7 @@
   let lastSuccessAt = Date.now();
   let failures = 0;
   let inFlight = false;
+  const pendingIds = new Set();
   let timer = null;
   let stopped = false;
 
@@ -99,13 +100,28 @@
         panel.dueAt = 0;
         return;
       }
+      const filter = panel.el.querySelector('input[type="radio"]:checked');
+      const filterValue = filter ? filter.value : null;
       panel.el.innerHTML = html;
       panel.html = html;
+      // Keep a chosen filter across refreshes.
+      if (filterValue) {
+        const restored = panel.el.querySelector(`input[type="radio"][value="${filterValue}"]`);
+        if (restored) {
+          restored.checked = true;
+        }
+      }
     });
   }
 
   function request(ids) {
-    if (inFlight || ids.length === 0 || stopped) {
+    if (ids.length === 0 || stopped) {
+      return Promise.resolve();
+    }
+    // A refresh asked for while one is running is queued, not dropped, so a
+    // live event that lands mid-request still updates its panels.
+    if (inFlight) {
+      ids.forEach((id) => pendingIds.add(id));
       return Promise.resolve();
     }
     inFlight = true;
@@ -153,6 +169,11 @@
           panels[id].el.removeAttribute('aria-busy');
         });
         renderAge();
+        if (pendingIds.size > 0) {
+          const next = [...pendingIds];
+          pendingIds.clear();
+          request(next);
+        }
       });
   }
 
@@ -228,7 +249,187 @@
     refreshNow();
   });
 
+  // ── Live events ──────────────────────────────────────────────────────
+  // One tab per browser holds the event stream (a Web Lock elects it) and
+  // relays events to the others over a BroadcastChannel, so ten open tabs
+  // still cost the server one connection. A hidden leader steps down.
+  const eventsUrl = root.getAttribute('data-events-url');
+  const modeEl = root.querySelector('[data-ops-mode]');
+  const announcer = root.querySelector('[data-ops-announce]');
+  const relay = 'BroadcastChannel' in window ? new BroadcastChannel('hellodeploy-admin-ops') : null;
+  const seenEvents = [];
+  const EVENT_PANELS = {
+    deployment: ['deployments', 'kpis', 'activity', 'attention'],
+    app: ['apps', 'kpis', 'attention', 'incidents'],
+    incident: ['incidents', 'attention', 'kpis'],
+  };
+  let source = null;
+  let streamFailures = 0;
+  let releaseLeadership = null;
+  let reconnectTimer = null;
+  let eventsLive = false;
+  let coalesceTimer = null;
+  const coalesced = new Set();
+
+  function setMode() {
+    if (!modeEl) {
+      return;
+    }
+    const polling = refreshSeconds === 0 ? 'Manual refresh' : `Every ${refreshSeconds}s`;
+    modeEl.textContent = eventsLive ? `${polling} · live events` : polling;
+  }
+
+  function handleEvent(type, data, id) {
+    if (id) {
+      if (seenEvents.includes(id)) {
+        return;
+      }
+      seenEvents.push(id);
+      if (seenEvents.length > 200) {
+        seenEvents.shift();
+      }
+    }
+    (EVENT_PANELS[type] || []).forEach((panelId) => coalesced.add(panelId));
+    if (
+      type === 'incident' &&
+      announcer &&
+      !data.muted &&
+      data.state === 'active' &&
+      data.severity === 'critical'
+    ) {
+      announcer.textContent = `Critical incident: ${data.title}`;
+    }
+    if (!coalesceTimer) {
+      // Bursts (a release swap emits several transitions) become one request.
+      coalesceTimer = window.setTimeout(() => {
+        coalesceTimer = null;
+        const ids = [...coalesced].filter((panelId) => panels[panelId]);
+        coalesced.clear();
+        if (!document.hidden) {
+          refreshNow(ids);
+        }
+      }, 600);
+    }
+  }
+
+  function closeStream() {
+    if (source) {
+      source.close();
+      source = null;
+    }
+    eventsLive = false;
+    setMode();
+  }
+
+  function openStream() {
+    if (source || stopped) {
+      return;
+    }
+    source = new EventSource(eventsUrl);
+    ['deployment', 'app', 'incident'].forEach((type) => {
+      source.addEventListener(type, (event) => {
+        let data = {};
+        try {
+          data = JSON.parse(event.data);
+        } catch {
+          return;
+        }
+        if (relay) {
+          relay.postMessage({ type, data, id: event.lastEventId });
+        }
+        handleEvent(type, data, event.lastEventId);
+      });
+    });
+    source.addEventListener('hello', () => {
+      streamFailures = 0;
+      eventsLive = true;
+      setMode();
+    });
+    source.addEventListener('reconnect', () => {
+      closeStream();
+      openStream();
+    });
+    source.addEventListener('unavailable', () => giveUp(5 * 60_000));
+    source.addEventListener('forbidden', () => {
+      stopped = true;
+      closeStream();
+      showError('You no longer have administrator access. Reload the page.');
+    });
+    source.onerror = () => {
+      closeStream();
+      streamFailures += 1;
+      if (streamFailures >= 5) {
+        giveUp(5 * 60_000);
+        return;
+      }
+      // After a gap, events may have been missed: refresh, then reconnect.
+      refreshNow();
+      reconnectTimer = window.setTimeout(openStream, Math.min(30_000, 2000 * 2 ** streamFailures));
+    };
+  }
+
+  // Polling keeps working on its own; the stream is retried later.
+  function giveUp(retryMs) {
+    closeStream();
+    stepDown();
+    reconnectTimer = window.setTimeout(() => {
+      streamFailures = 0;
+      startStream();
+    }, retryMs);
+  }
+
+  function stepDown() {
+    if (reconnectTimer) {
+      window.clearTimeout(reconnectTimer);
+      reconnectTimer = null;
+    }
+    closeStream();
+    if (releaseLeadership) {
+      releaseLeadership();
+      releaseLeadership = null;
+    }
+  }
+
+  function startStream() {
+    if (!eventsUrl || !('EventSource' in window) || releaseLeadership || document.hidden) {
+      return;
+    }
+    if (!navigator.locks) {
+      releaseLeadership = () => {};
+      openStream();
+      return;
+    }
+    navigator.locks
+      .request('hellodeploy-admin-ops-events', () => {
+        if (document.hidden || stopped) {
+          return undefined;
+        }
+        openStream();
+        return new Promise((resolve) => {
+          releaseLeadership = resolve;
+        });
+      })
+      .catch(() => {});
+  }
+
+  if (relay) {
+    relay.onmessage = (message) => {
+      const { type, data, id } = message.data || {};
+      handleEvent(type, data || {}, id);
+    };
+  }
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stepDown();
+    } else {
+      startStream();
+    }
+  });
+  window.addEventListener('pagehide', stepDown);
+
   window.HelloDeployOps = { refresh: refreshNow };
+  startStream();
 
   scheduleAll(Date.now());
   renderAge();

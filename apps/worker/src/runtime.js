@@ -271,6 +271,9 @@ const monitoringCollector = env.MONITORING_COLLECTOR_ENABLED
       redis,
       logger,
       workspacePath: env.BUILD_WORKSPACE_ROOT,
+      publicDomain: env.PLATFORM_DOMAIN,
+      buildExecutor: env.BUILD_EXECUTOR,
+      validateNginx: env.NGINX_ENABLED ? validateNginxConfig : null,
     })
   : null;
 if (monitoringCollector) {
