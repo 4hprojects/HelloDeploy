@@ -1,4 +1,54 @@
 <% const _cap = overview.capacity; %>
+<%
+  const _b = (b) => { if (typeof b !== 'number') return '–'; const neg = b < 0; let v = Math.abs(b); const u = ['B','KiB','MiB','GiB','TiB']; let i = 0; while (v >= 1024 && i < 4) { v /= 1024; i++; } return (neg ? '−' : '') + (v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)) + ' ' + u[i]; };
+  const _bar = (rects, label) => `<svg class="ops-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="${label}">` + rects.map((r) => `<rect class="ops-bar__${r.key}" x="${r.x}" y="0" width="${r.width}" height="8" />`).join('') + '</svg>';
+%>
 <% if (!_cap || !_cap.available) { %>
-<p class="ops-empty">Capacity is Unavailable until the host collector reports physical capacity and usage.</p>
+<p class="ops-empty">Capacity is Unavailable: <%= (_cap && _cap.reason) || 'no collector snapshot' %>.</p>
+<% } else { %>
+<% if (_cap.stale) { %><p class="ops-footnote ops-tone--warning">Collector data is stale; these figures are from <%- include('time', { at: _cap.collectedAt }) %>.</p><% } %>
+<% const _m = _cap.memory; %>
+<% if (_m) { %>
+<section class="ops-cap" aria-labelledby="ops-cap-memory">
+  <h3 class="ops-cap__title" id="ops-cap-memory">Memory · <%= _b(_m.total) %> physical</h3>
+  <p class="ops-cap__row"><span class="ops-cap__label">Actual use</span><%- _bar(_m.useBar, `Platform and OS ${_b(_m.otherUse)}, apps ${_b(_m.appUse)}, reserve ${_b(_m.reserveBytes)}`) %></p>
+  <p class="ops-cap__row"><span class="ops-cap__label">Allocated limits</span><%- _bar(_m.limitBar, `Platform and OS ${_b(_m.otherUse)}, app limits ${_b(_m.allocated)}, reserve ${_b(_m.reserveBytes)}`) %></p>
+  <dl class="ops-cap__facts">
+    <div><dt>Apps use</dt><dd><%= _b(_m.appUse) %></dd></div>
+    <div><dt>Platform, OS, other</dt><dd><%= _b(_m.otherUse) %></dd></div>
+    <div><dt>App limits (enforced)</dt><dd><%= _b(_m.allocated) %><% if (_cap.unlimitedMemory > 0) { %> · <%= _cap.unlimitedMemory %> unlimited<% } %></dd></div>
+    <div><dt>Policy reserve</dt><dd><%= _b(_m.reserveBytes) %></dd></div>
+    <div class="<%= _m.overcommitted ? 'ops-tone--warning' : '' %>"><dt>Unallocated under policy</dt><dd><%= _b(_m.unallocated) %><%= _m.overcommitted ? ' (overcommitted)' : '' %></dd></div>
+    <div class="<%= _m.reserveBreached ? 'ops-tone--warning' : '' %>"><dt>Headroom now</dt><dd><%= _b(_m.headroomNow) %></dd></div>
+  </dl>
+  <% if (_m.buildBytes) { %><p class="ops-footnote"><% if (_cap.remoteBuilder) { %>Builds run on the remote builder; its memory is not counted here.<% } else { %>A local build may use up to <%= _b(_m.buildBytes) %>: <strong><%= _m.roomForBuildNow ? 'there is room for one now' : 'there is not room for one now without entering the reserve' %></strong>.<% } %></p><% } %>
+</section>
+<% } %>
+<% const _c = _cap.cpu; %>
+<% if (_c) { %>
+<section class="ops-cap" aria-labelledby="ops-cap-cpu">
+  <h3 class="ops-cap__title" id="ops-cap-cpu">CPU · <%= _c.cores %> cores</h3>
+  <% if (_c.bar) { %><p class="ops-cap__row"><span class="ops-cap__label">Actual use</span><%- _bar(_c.bar, `${_c.utilization}% used, ${_c.reservePercent}% reserved`) %></p><% } %>
+  <dl class="ops-cap__facts">
+    <div><dt>In use</dt><dd><%= _c.utilization === null ? 'Unavailable' : _c.utilization + '%' %></dd></div>
+    <div><dt>App limits</dt><dd><%= _c.allocatedCores %> cores (<%= _c.allocatedRatio %>× of cores)<% if (_c.unlimited > 0) { %> · <%= _c.unlimited %> unlimited<% } %></dd></div>
+    <div><dt>Headroom after reserve</dt><dd><%= _c.headroomPercent === null ? 'Unavailable' : _c.headroomPercent + '%' %></dd></div>
+  </dl>
+  <p class="ops-footnote">CPU limits are ceilings on a shared resource: limits above the core count mean contention under load, not failure.</p>
+</section>
+<% } %>
+<% const _d = _cap.disk; %>
+<% if (_d) { %>
+<section class="ops-cap" aria-labelledby="ops-cap-disk">
+  <h3 class="ops-cap__title" id="ops-cap-disk"><%= _d.label %> · <%= _b(_d.total) %></h3>
+  <p class="ops-cap__row"><span class="ops-cap__label">Used</span><%- _bar(_d.bar, `${_b(_d.used)} used, ${_b(_d.reserveBytes)} reserved`) %></p>
+  <dl class="ops-cap__facts">
+    <div><dt>Free</dt><dd><%= _b(_d.available) %></dd></div>
+    <div class="<%= _d.reserveBreached ? 'ops-tone--warning' : '' %>"><dt>Headroom after reserve</dt><dd><%= _b(_d.headroom) %></dd></div>
+    <% if (_d.dockerStorage) { %><div><dt>Docker reclaimable</dt><dd><%= _b(((_d.dockerStorage.images && _d.dockerStorage.images.reclaimableBytes) || 0) + ((_d.dockerStorage.buildCache && _d.dockerStorage.buildCache.reclaimableBytes) || 0)) %></dd></div><% } %>
+  </dl>
+</section>
+<% } %>
+<p class="ops-footnote">Bars: grey is platform, OS and other software; blue is apps (use or limits); amber is the policy reserve.</p>
+<p class="ops-footnote">Limits are what Docker enforces on live releases, not what they use. Quotas are never changed from here; <a href="/admin/projects">review projects</a> to adjust them.</p>
 <% } %>

@@ -85,6 +85,29 @@ export function observe(snapshot, policy) {
     ...memoryObservation,
   });
 
+  // Policy reserve: available memory has fallen into the share held back
+  // for the OS, platform and builds.
+  const memTotal = metric('host.memory.total');
+  const memAvailable = metric('host.memory.available');
+  if (memTotal && memAvailable !== null) {
+    const availablePercent = Math.round((memAvailable / memTotal) * 1000) / 10;
+    const reservePercent = policy.capacity.memoryReservePercent;
+    observations.push({
+      fingerprint: 'capacity:memory:reserve',
+      rule: 'capacity.memory',
+      scope: 'host',
+      title: 'Memory headroom is inside the policy reserve',
+      detail: `${availablePercent}% available, reserve is ${reservePercent}%`,
+      href: '/admin',
+      level: reservePercent > 0 && availablePercent < reservePercent ? 'warning' : null,
+      clear: availablePercent >= reservePercent + 5,
+      value: availablePercent,
+      unit: '%',
+      threshold: reservePercent,
+      sustainSeconds: t.memory.sustainSeconds,
+    });
+  }
+
   for (const disk of snapshot.disks ?? []) {
     observations.push({
       fingerprint: `host:disk:${disk.key}`,

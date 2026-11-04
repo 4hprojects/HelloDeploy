@@ -280,6 +280,7 @@ const monitoringCollector = env.MONITORING_COLLECTOR_ENABLED
       workspacePath: env.BUILD_WORKSPACE_ROOT,
       publicDomain: env.PLATFORM_DOMAIN,
       buildExecutor: env.BUILD_EXECUTOR,
+      buildMemoryMb: env.BUILD_MEMORY_MB,
       validateNginx: env.NGINX_ENABLED ? validateNginxConfig : null,
       deps: {
         readQueue: async () => {

@@ -9,7 +9,7 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
 | 2     | Trusted collection, snapshot, host and container metrics | Done    | `feat/admin-ops-p2-collector` |
 | 3     | App health, queue, services, builder, SSE                | Done    |                               |
 | 4     | History, alerts, incident lifecycle                      | Done    |                               |
-| 5     | Capacity and attention                                   | Pending |                               |
+| 5     | Capacity and attention                                   | Done    |                               |
 | 6     | Validation, performance, docs, rollout                   | Pending |                               |
 
 ## Phase 0: Audit
@@ -466,3 +466,59 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
    - The SSE allowlist for `incident` carries id, fingerprint, severity, state, title, time and the mute flag.
 8. **Outstanding**: none for this phase.
 9. **Next**: Phase 5, capacity and attention.
+
+## Phase 5: Capacity and attention
+
+1. **Completed**
+   - **Capacity panel** (`capacity.js`, built from the snapshot). It keeps four quantities apart: physical capacity, actual use, allocated limits (the memory and CPU limits Docker enforces on running live and candidate releases) and the policy reserve.
+   - **Memory:**
+     - App use, and platform/OS/other use (host used minus app use).
+     - Enforced app limits, plus a count of releases with no limit, shown as "unlimited" rather than as zero.
+     - The reserve.
+     - Unallocated under policy, calculated as total − reserve − other use − limits. Overcommit is flagged together with its ratio.
+     - Headroom now, calculated as MemAvailable − reserve. A breach of the reserve is flagged.
+     - Whether a local build of `BUILD_MEMORY_MB` fits now. When the remote builder is used, builder capacity is not counted against this host.
+     - Two SVG bars: actual use and allocated limits. Rects are used because the CSP forbids inline styles. Each bar has an `aria-label` and a text legend.
+   - **CPU:** use, enforced limits in cores, the ratio of limits to cores, and headroom after the reserve. The panel explains that CPU overcommit means contention, not failure.
+   - **Disk:** free space, headroom after the reserve, and Docker reclaimable space (images + build cache).
+   - The panel gives **no count of "apps that would fit"** and never changes quotas. It links to the existing projects page for that.
+   - **Policy reserve alert rule** (`capacity.memory`): a warning when available memory falls inside the reserve. It clears only once available memory is 5 points above the reserve, and uses the memory rule's sustain time.
+   - **Attention list now includes:**
+     - reserve breaches, overcommit and disk reserve
+     - pending account closures against the 30-day commitment stated on the account page: critical when overdue, warning within 7 days
+     - existing items, ranked by severity
+     - apps already covered by an open incident are not listed twice
+   - Backup evidence stays **Unknown** in the services panel (see Phase 0). It is not shown as an attention item, because there is nothing the panel can act on.
+2. **Changed files**
+   - `apps/web/src/services/admin-ops/capacity.js` (new)
+   - the overview service: capacity, closures, attention de-duplication
+   - `partials/admin-ops/capacity.ejs`
+   - `admin-ops.css`
+   - the worker collector: `buildMemoryMb` in the snapshot
+   - `runtime.js`
+   - `alert-engine.js`: capacity rule
+   - the fixture
+   - `tests/admin-ops/capacity.test.js` (new), plus the test helpers
+3. **Decisions**
+   - Allocation is read from the limits Docker actually enforces on running containers, not recomputed from quota documents. This is what the kernel applies. Quota changes appear after the next release.
+   - "Other use" absorbs everything that is not an app, so capacity under policy stays honest even with unmanaged software on the host.
+4. **Tests and results**
+   - `npm test`: **3063/3063 pass**.
+   - Capacity tests (11), covering:
+     - limits are kept distinct from use
+     - unlimited is counted, not treated as zero
+     - retained releases that are stopped are excluded
+     - overcommit flag
+     - reserve breach
+     - whether a build fits
+     - disk reserve
+     - unavailable without a snapshot
+     - bars clamped to the total
+     - the reserve rule warns, with hysteresis
+   - Attention tests (2): no duplicate when an incident is open; an overdue closure is critical.
+   - Browser: **19/19 pass**, including axe in both themes with the new panel.
+   - Budgets: `admin-ops.css` 17.9/22 KB, `admin-ops.js` 14.0/16 KB.
+5. **Performance**: one extra indexed-free `User` query (closures, limit 50) per refresh of the attention panel group (120 s cadence). All capacity figures come from the snapshot already cached.
+6. **Security**: no new endpoints. Read-only links only. No destructive controls.
+7. **Outstanding**: none for this phase.
+8. **Next**: Phase 6, validation, documentation and rollout.
