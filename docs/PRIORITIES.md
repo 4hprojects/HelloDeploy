@@ -21,6 +21,11 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Public content**: legal fixes, `/about`, `/features`, `/contact`, fuller docs, SEO and
   `/account`, deployed 2026-10-31 (#170–#176). Donations, GA4, AdSense and Search Console stay off
   until the owner supplies inputs.
+- **Admin operations dashboard**: built in seven stacked PRs, #197 to #203. They wait for the
+  owner to merge them in order; autodeploy then ships them. See
+  [implementation/admin-operations-dashboard](implementation/admin-operations-dashboard/IMPLEMENTATION_PROGRESS.md).
+  The overview already lists account closures with days left against the 30-day promise, so
+  item 3 below is now only about the users list.
 - **Multi-runtime**: every pilot flag is off. The builder control pilot runs one
   administrator-owned Next.js project; its 7-day watch ended 2026-11-01.
 
