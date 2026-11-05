@@ -6,11 +6,14 @@ import {
   ServiceState,
 } from '@hellodeploy/contracts';
 
+import { User } from '@hellodeploy/database';
+
 import { env } from '../../config/env.js';
 import { getAdminOverview } from '../admin.service.js';
 import { toActionLabel } from '../audit-search.service.js';
 import { getBuilderStatus } from '../builder-control.service.js';
 import { collectServerStats } from '../server-stats.service.js';
+import { buildCapacity } from './capacity.js';
 import { buildLineChart, buildSparkline } from './charts.js';
 import { getDeploymentActivity } from './deployments.service.js';
 import { getHistory } from './history.service.js';
@@ -47,21 +50,33 @@ export async function buildOverview({ policy, preferences, deps = {} } = {}) {
   const loadOpen = deps.listOpenIncidents ?? listOpenIncidents;
   const loadResolved = deps.listRecentlyResolved ?? listRecentlyResolved;
   const loadHistory = deps.getHistory ?? getHistory;
+  const loadClosures = deps.getPendingClosures ?? getPendingClosures;
   const builderEnabled = deps.builderControlEnabled ?? env.BUILDER_CONTROL_ENABLED;
   const now = deps.now ?? new Date();
   const rangeKey = preferences?.historyRange ?? '1h';
-  const [counts, server, monitoring, samples, activity, builderStatus, open, resolved, history] =
-    await Promise.all([
-      settle(loadCounts()),
-      settle(loadServer()),
-      settle(loadSnapshot()),
-      settle(loadSamples()),
-      settle(loadDeployments({ now })),
-      builderEnabled ? settle(loadBuilder()) : Promise.resolve(null),
-      settle(loadOpen()),
-      settle(loadResolved({ now })),
-      settle(loadHistory(rangeKey, { now })),
-    ]);
+  const [
+    counts,
+    server,
+    monitoring,
+    samples,
+    activity,
+    builderStatus,
+    open,
+    resolved,
+    history,
+    closures,
+  ] = await Promise.all([
+    settle(loadCounts()),
+    settle(loadServer()),
+    settle(loadSnapshot()),
+    settle(loadSamples()),
+    settle(loadDeployments({ now })),
+    builderEnabled ? settle(loadBuilder()) : Promise.resolve(null),
+    settle(loadOpen()),
+    settle(loadResolved({ now })),
+    settle(loadHistory(rangeKey, { now })),
+    settle(loadClosures()),
+  ]);
   const snapshotState = monitoring ?? {
     snapshot: null,
     freshness: MetricFreshness.UNAVAILABLE,
@@ -74,6 +89,7 @@ export async function buildOverview({ policy, preferences, deps = {} } = {}) {
   const deployments = buildDeployments(server, activity);
   const apps = buildApps(snapshotState, preferences);
   const builder = buildBuilder({ builderEnabled, builderStatus, snapshot });
+  const capacity = buildCapacity(snapshotState, policy);
 
   return {
     generatedAt: now.toISOString(),
@@ -98,7 +114,18 @@ export async function buildOverview({ policy, preferences, deps = {} } = {}) {
     services,
     builder,
     deployments,
-    attention: buildAttention({ counts, server, apps, deployments, snapshotState }),
+    capacity,
+    attention: buildAttention({
+      counts,
+      server,
+      apps,
+      deployments,
+      snapshotState,
+      capacity,
+      closures,
+      incidents: open ?? [],
+      now,
+    }),
     counts: counts ?? null,
     activity: buildActivity({ counts, deployments }),
     release: server?.platformRelease ?? null,
@@ -791,8 +818,70 @@ function buildServices(server, snapshotState) {
   ];
 }
 
-function buildAttention({ counts, server, apps, deployments, snapshotState }) {
+// The account page promises deletion within 30 days of a closure request.
+const CLOSURE_DEADLINE_DAYS = 30;
+
+async function getPendingClosures() {
+  return User.find({ closureRequestedAt: { $ne: null } })
+    .select('_id closureRequestedAt')
+    .sort({ closureRequestedAt: 1 })
+    .limit(50)
+    .lean();
+}
+
+function buildAttention({
+  counts,
+  server,
+  apps,
+  deployments,
+  snapshotState,
+  capacity,
+  closures,
+  incidents = [],
+  now = new Date(),
+}) {
   const items = [];
+  // An open incident is already in the strip above; do not list it twice.
+  const covered = new Set(incidents.map((incident) => incident.fingerprint));
+  if (capacity?.available && capacity.memory?.reserveBreached) {
+    items.push({
+      severity: 'warning',
+      title: 'Available memory is inside the policy reserve',
+      detail: 'New builds and releases compete with running apps for memory.',
+      href: '/admin/overview/settings#platform-title',
+    });
+  }
+  if (capacity?.available && capacity.memory?.overcommitted) {
+    items.push({
+      severity: 'warning',
+      title: `Memory limits are overcommitted (${capacity.memory.overcommitRatio}× of what policy allows)`,
+      detail: 'Apps cannot all reach their limits at once. Quotas are not changed automatically.',
+      href: '/admin/projects',
+    });
+  }
+  if (capacity?.available && capacity.disk?.reserveBreached) {
+    items.push({
+      severity: 'warning',
+      title: 'Free disk space is inside the policy reserve',
+      detail: 'Builds and image pulls may fail. Review Docker images and build cache.',
+      href: '/admin/server',
+    });
+  }
+  if ((closures?.length ?? 0) > 0) {
+    const deadline = (c) =>
+      new Date(c.closureRequestedAt).getTime() + CLOSURE_DEADLINE_DAYS * 86_400_000;
+    const soonest = Math.min(...closures.map(deadline));
+    const daysLeft = Math.ceil((soonest - now.getTime()) / 86_400_000);
+    items.push({
+      severity: daysLeft <= 0 ? 'critical' : daysLeft <= 7 ? 'warning' : 'info',
+      title: `${closures.length} account closure request${closures.length === 1 ? '' : 's'} waiting`,
+      detail:
+        daysLeft <= 0
+          ? `The oldest is past the ${CLOSURE_DEADLINE_DAYS}-day deletion commitment.`
+          : `The oldest must be completed within ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
+      href: '/admin/users',
+    });
+  }
   if (server?.worker && !server.worker.ready) {
     items.push({
       severity: 'critical',
@@ -809,8 +898,10 @@ function buildAttention({ counts, server, apps, deployments, snapshotState }) {
       href: '/admin/server',
     });
   }
-  for (const app of (apps.available ? apps.rows : []).filter((row) =>
-    [AppHealth.UNHEALTHY, AppHealth.RESTARTING, AppHealth.DEGRADED].includes(row.health),
+  for (const app of (apps.available ? apps.rows : []).filter(
+    (row) =>
+      [AppHealth.UNHEALTHY, AppHealth.RESTARTING, AppHealth.DEGRADED].includes(row.health) &&
+      !covered.has(`app:health:${row.projectId}`),
   )) {
     items.push({
       severity: app.health === AppHealth.DEGRADED ? 'warning' : 'critical',

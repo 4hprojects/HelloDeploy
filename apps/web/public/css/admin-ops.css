@@ -716,6 +716,73 @@
   display: none;
 }
 
+/* ── Capacity ──────────────────────────────────────────────────────── */
+.ops-cap {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.ops-cap + .ops-cap {
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--color-border);
+}
+
+.ops-cap__title {
+  font-size: var(--text-xs);
+  font-weight: var(--font-semibold);
+}
+
+.ops-cap__row {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  color: var(--color-text-muted);
+}
+
+.ops-bar {
+  width: 100%;
+  height: 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-muted);
+}
+
+.ops-bar__other {
+  fill: var(--color-text-muted);
+}
+
+.ops-bar__apps,
+.ops-bar__allocated {
+  fill: var(--color-blue);
+}
+
+.ops-bar__gap {
+  fill: transparent;
+}
+
+.ops-bar__reserve {
+  fill: var(--color-warning);
+  fill-opacity: 0.45;
+}
+
+.ops-cap__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.ops-cap__facts dt {
+  color: var(--color-text-muted);
+}
+
+.ops-cap__facts dd {
+  font-weight: var(--font-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
 /* ── Counts and lists ──────────────────────────────────────────────── */
 .ops-counts {
   display: grid;

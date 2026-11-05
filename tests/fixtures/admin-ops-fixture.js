@@ -264,6 +264,8 @@ export async function createAdminOpsFixture() {
     redis: null,
     logger: { info() {}, warn() {}, error() {} },
     workspacePath: '/var/lib/hellodeploy/builds',
+    buildExecutor: 'local',
+    buildMemoryMb: 1024,
     now: () => new Date(clock),
     deps: {
       coreCount: 4,
