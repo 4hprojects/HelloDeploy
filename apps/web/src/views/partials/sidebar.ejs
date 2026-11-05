@@ -1,6 +1,19 @@
 <% var _path = locals.currentPath || ''; %>
 <% var _user = locals.user || null; %>
 <nav class="sidebar" id="sidebar" aria-label="Application navigation">
+  <% if (locals.adminPreferences) { %>
+  <button
+    type="button"
+    class="sidebar__collapse"
+    data-sidebar-collapse
+    aria-controls="sidebar"
+    aria-expanded="<%= adminPreferences.sidebarCollapsed ? 'false' : 'true' %>"
+    aria-label="<%= adminPreferences.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar' %>"
+    title="<%= adminPreferences.sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar' %>"
+  >
+    <%- include('icon', { name: 'arrow-right', className: 'sidebar__collapse-icon' }) %>
+  </button>
+  <% } %>
   <ul class="sidebar__nav" role="list">
     <li>
       <a

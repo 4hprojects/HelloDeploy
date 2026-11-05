@@ -242,7 +242,7 @@ test('authentication, dashboard, project, deployment, settings, and admin matric
   await page.context().clearCookies();
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin');
-  await expect(page.getByRole('heading', { name: 'Admin Overview' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Admin Operations' })).toBeVisible();
   const overviewAxe = await new AxeBuilder({ page }).analyze();
   expect(
     overviewAxe.violations.filter((violation) =>

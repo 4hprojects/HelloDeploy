@@ -1,145 +1,65 @@
-<div class="page-header">
-  <h1 class="page-header__title">Admin Overview</h1>
-</div>
-
 <%
-  const workerDown = server?.worker && !server.worker.ready;
-  const queuePaused = server?.queue?.paused;
-  const failedJobs = server?.queue?.failed ?? 0;
-  const needsAttention = workerDown || queuePaused || failedJobs > 0;
-  const OUTCOMES = {
-    SUCCESS: { tone: 'success', label: 'Success' },
-    FAILURE: { tone: 'failed', label: 'Failed' },
-    DENIED: { tone: 'suspended', label: 'Denied' },
-  };
-  const healthRows = [
-    {
-      label: 'Deployment worker',
-      ...(server?.worker?.ready
-        ? { tone: 'healthy', status: 'Ready' }
-        : { tone: 'failed', status: 'Unavailable' }),
-    },
-    {
-      label: 'Queue',
-      ...(server?.queue?.paused
-        ? { tone: 'pending', status: 'Paused' }
-        : server?.queue
-          ? { tone: 'healthy', status: 'Active' }
-          : { tone: 'failed', status: 'Unavailable' }),
-    },
-    {
-      label: 'Release identity',
-      ...(server?.platformRelease?.matchesExpected
-        ? { tone: 'healthy', status: 'Matches expected SHA' }
-        : { tone: 'pending', status: 'Verify metadata' }),
-    },
+  const _prefs = preferences;
+  const _hidden = new Set(_prefs.hiddenWidgets);
+  const _statusLabel = { live: 'Live', degraded: 'Degraded', stale: 'Stale', offline: 'Offline' };
+  const _panel = (id, title, extraClass, opts = {}) => ({ id, title, extraClass, ...opts });
+  const _gridPanels = [
+    _panel('trends', 'Resource trends', 'ops-panel--trends', { optional: true, cadence: 'history', subtitle: 'Range ' + _prefs.historyRange }),
+    _panel('capacity', 'Capacity and allocation', 'ops-panel--capacity', { optional: true, cadence: 'resource' }),
+    _panel('apps', 'Applications', 'ops-panel--apps', { optional: true, cadence: 'resource' }),
+    _panel('deployments', 'Deployments and queue', 'ops-panel--deployments', { optional: true, cadence: 'resource', link: { href: '/admin/server', label: 'Server & Queue' } }),
+    _panel('services', 'Platform services', 'ops-panel--services', { optional: true, cadence: 'service' }),
+    _panel('attention', 'Administrative attention', 'ops-panel--attention', { optional: true, cadence: 'counts' }),
+    _panel('activity', 'Recent activity', 'ops-panel--activity', { optional: true, cadence: 'counts' }),
   ];
 %>
-<% if (needsAttention) { %>
-<div class="alert alert--warning mb-6" role="alert">
-  <div>
-    <strong>Needs attention</strong>
-    <ul class="mt-1">
-      <% if (workerDown) { %><li>No deployment worker is connected — queued jobs will not be processed.</li><% } %>
-      <% if (queuePaused) { %><li>The deployment queue is paused — new deployments will not start.</li><% } %>
-      <% if (failedJobs > 0) { %><li><%= failedJobs %> failed job<%= failedJobs === 1 ? '' : 's' %> in the deployment queue.</li><% } %>
-    </ul>
-    <a href="/admin/server" class="button button--warning button--sm mt-2">Go to Server &amp; Queue</a>
-  </div>
-</div>
-<% } %>
+<div
+  class="ops ops--<%= _prefs.density %>"
+  data-ops-root
+  data-live-url="/admin/overview/live"
+  data-events-url="/admin/overview/events"
+  data-refresh-seconds="<%= _prefs.refreshSeconds %>"
+  data-resource-seconds="<%= policy.intervals.resourceSeconds %>"
+  data-service-seconds="<%= policy.intervals.serviceSeconds %>"
+  data-generated-at="<%= overview.generatedAt %>"
+>
+  <header class="ops-header">
+    <div class="ops-header__title">
+      <h1 class="ops-header__heading">Admin Operations</h1>
+      <span class="ops-badge ops-badge--<%= overview.status %>" data-ops-status role="status" aria-live="polite"><%= _statusLabel[overview.status] || 'Unknown' %></span>
+    </div>
+    <div class="ops-header__actions">
+      <span class="ops-header__updated">Updated <span data-ops-updated><%- include('../../partials/admin-ops/time', { at: overview.generatedAt }) %></span></span>
+      <span class="ops-header__mode" data-ops-mode><%= _prefs.refreshSeconds === 0 ? 'Manual refresh' : 'Every ' + _prefs.refreshSeconds + 's' %></span>
+      <button type="button" class="button button--secondary button--sm" data-ops-refresh>Refresh</button>
+      <a href="/admin/overview/settings" class="button button--secondary button--sm">
+        <%- include('../../partials/icon', { name: 'settings', className: 'ui-icon' }) %>
+        <span>Settings</span>
+      </a>
+    </div>
+  </header>
 
-<div class="dashboard-grid mb-6">
-  <section class="card" aria-labelledby="pending-work-title">
-    <div class="card__header">
-      <h2 class="card__title" id="pending-work-title">Pending work</h2>
-    </div>
-    <div class="card__body">
-      <ul class="activity-list" role="list">
-        <li>
-          <a href="/admin/approval-requests">
-            <strong>Project reviews</strong>
-            <span class="status-badge status-badge--<%= stats.pendingApprovals > 0 ? 'pending' : 'neutral' %>"><%= stats.pendingApprovals %> waiting</span>
-          </a>
-        </li>
-        <li>
-          <a href="/admin/domains">
-            <strong>Domain reviews</strong>
-            <span class="status-badge status-badge--<%= stats.pendingDomainApprovals > 0 ? 'pending' : 'neutral' %>"><%= stats.pendingDomainApprovals %> waiting</span>
-          </a>
-        </li>
-      </ul>
-    </div>
+  <section class="ops-strip" data-ops-panel="incidents" data-ops-cadence="resource" aria-label="Active incidents">
+    <%- include('../../partials/admin-ops/panel', { panel: 'incidents', overview, preferences }) %>
   </section>
-  <section class="card" aria-labelledby="operations-health-title">
-    <div class="card__header">
-      <h2 class="card__title" id="operations-health-title">Operational health</h2>
-    </div>
-    <div class="card__body">
-      <ul class="activity-list" role="list">
-        <% healthRows.forEach(row => { %>
-        <li>
-          <a href="/admin/server">
-            <strong><%= row.label %></strong>
-            <span class="status-badge status-badge--<%= row.tone %>"><%= row.status %></span>
-          </a>
-        </li>
-        <% }) %>
-      </ul>
-    </div>
+
+  <section class="ops-kpis" data-ops-panel="kpis" data-ops-cadence="resource" aria-label="Key indicators">
+    <%- include('../../partials/admin-ops/panel', { panel: 'kpis', overview, preferences }) %>
   </section>
-</div>
 
-<div class="stats-grid mb-6">
-  <a href="/admin/users" class="stat-card stat-card--link">
-    <span class="stat-card__value"><%= stats.totalUsers %></span>
-    <span class="stat-card__label">Total Users</span>
-  </a>
-  <a href="/admin/users?status=ACTIVE" class="stat-card stat-card--link">
-    <span class="stat-card__value"><%= stats.activeUsers %></span>
-    <span class="stat-card__label">Active Users</span>
-  </a>
-  <a href="/admin/projects" class="stat-card stat-card--link">
-    <span class="stat-card__value"><%= stats.totalProjects %></span>
-    <span class="stat-card__label">Active Projects</span>
-  </a>
-  <% if (server?.running !== null && server?.running !== undefined) { %>
-  <a href="/admin/server" class="stat-card stat-card--link">
-    <span class="stat-card__value"><%= server.running %></span>
-    <span class="stat-card__label">Running Containers</span>
-  </a>
-  <% } %>
-  <% if (server?.memory) { %>
-  <a href="/admin/server" class="stat-card stat-card--link<%= server.memory.usedPercent > 85 ? ' stat-card--alert' : '' %>">
-    <span class="stat-card__value"><%= server.memory.usedPercent %>%</span>
-    <span class="stat-card__label">Memory Used</span>
-  </a>
-  <% } %>
+  <div class="ops-grid">
+    <% _gridPanels.filter((p) => !_hidden.has(p.id)).forEach((p) => { %>
+    <section class="ops-panel <%= p.extraClass %>" aria-labelledby="ops-panel-<%= p.id %>">
+      <header class="ops-panel__header">
+        <h2 class="ops-panel__title" id="ops-panel-<%= p.id %>"><%= p.title %></h2>
+        <% if (p.subtitle) { %><span class="ops-panel__subtitle"><%= p.subtitle %></span><% } %>
+        <% if (p.link) { %><a class="ops-panel__link" href="<%= p.link.href %>"><%= p.link.label %></a><% } %>
+      </header>
+      <div class="ops-panel__body" data-ops-panel="<%= p.id %>" data-ops-cadence="<%= p.cadence %>">
+        <%- include('../../partials/admin-ops/panel', { panel: p.id, overview, preferences }) %>
+      </div>
+    </section>
+    <% }) %>
+  </div>
+  <p class="ops-live-error" data-ops-error role="alert" hidden></p>
 </div>
-
-<section class="card" aria-labelledby="recent-admin-title">
-  <div class="card__header">
-    <h2 class="card__title" id="recent-admin-title">Recent admin activity</h2>
-    <a href="/admin/audit-events" class="button button--ghost button--sm">Full audit log</a>
-  </div>
-  <div class="card__body">
-    <% if (!stats.recentActivity.length) { %>
-    <p class="text-sm text-muted">No recent admin actions.</p>
-    <% } else { %>
-    <ul class="activity-list" role="list">
-      <% stats.recentActivity.forEach(event => { %>
-      <% const outcome = OUTCOMES[event.outcome] || { tone: 'neutral', label: event.outcome }; %>
-      <li>
-        <span>
-          <strong><%= event.action.replaceAll('.', ' ') %></strong>
-          <span>
-            <span class="status-badge status-badge--<%= outcome.tone %>"><%= outcome.label %></span>
-            <time datetime="<%= new Date(event.createdAt).toISOString() %>"><%= new Date(event.createdAt).toLocaleString('en-GB') %></time>
-          </span>
-        </span>
-      </li>
-      <% }) %>
-    </ul>
-    <% } %>
-  </div>
-</section>

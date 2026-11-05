@@ -1,0 +1,13 @@
+<% const _items = overview.attention || []; %>
+<% if (_items.length === 0) { %>
+<p class="ops-empty">Nothing needs an administrator right now.</p>
+<% } else { %>
+<ul class="ops-list" role="list">
+  <% _items.forEach((item) => { %>
+  <li class="ops-list__item">
+    <span class="ops-state ops-tone--<%= item.severity === 'critical' ? 'critical' : item.severity === 'warning' ? 'warning' : 'info' %>"><%= item.severity === 'critical' ? 'Critical' : item.severity === 'warning' ? 'Warning' : 'To do' %></span>
+    <span class="ops-list__body"><a href="<%= item.href %>"><%= item.title %></a><% if (item.detail) { %><span class="ops-list__detail"><%= item.detail %></span><% } %></span>
+  </li>
+  <% }) %>
+</ul>
+<% } %>

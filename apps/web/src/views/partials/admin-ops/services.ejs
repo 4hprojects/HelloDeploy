@@ -1,0 +1,16 @@
+<% const _stateLabel = { operational: 'Operational', degraded: 'Degraded', down: 'Down', disabled: 'Disabled', unsupported: 'Not supported', unknown: 'Unknown' }; %>
+<% const _stateTone = { operational: 'healthy', degraded: 'warning', down: 'critical', disabled: 'muted', unsupported: 'muted', unknown: 'unknown' }; %>
+<table class="ops-table ops-table--stack">
+  <caption class="sr-only">Platform services with the evidence behind each status</caption>
+  <thead><tr><th scope="col">Service</th><th scope="col">Status</th><th scope="col">Evidence</th><th scope="col">Checked</th></tr></thead>
+  <tbody>
+    <% (overview.services || []).forEach((service) => { %>
+    <tr>
+      <th scope="row"><%= service.label %></th>
+      <td><span class="ops-state ops-tone--<%= _stateTone[service.state] %>"><%= _stateLabel[service.state] %></span></td>
+      <td class="ops-table__wrap"><%= service.evidence %></td>
+      <td class="ops-table__nowrap"><%- include('time', { at: service.checkedAt }) %></td>
+    </tr>
+    <% }) %>
+  </tbody>
+</table>

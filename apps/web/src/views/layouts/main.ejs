@@ -4,7 +4,7 @@
 <body>
   <a href="#main-content" class="skip-link">Skip to main content</a>
   <%- include('../partials/header') %>
-  <div class="layout<%= locals.user ? '' : ' layout--public' %>">
+  <div class="layout<%= locals.user ? '' : ' layout--public' %><%= locals.layoutModifier ? ' ' + layoutModifier : '' %><%= locals.adminPreferences && adminPreferences.sidebarCollapsed ? ' layout--sidebar-collapsed' : '' %>">
     <% if (locals.user) { %><%- include('../partials/sidebar') %><% } %>
     <div class="sidebar-backdrop" id="sidebar-backdrop" hidden></div>
     <main class="layout__main" id="main-content" tabindex="-1">
@@ -14,6 +14,6 @@
   </div>
   <%- include('../partials/footer') %>
   <script src="<%= assetPath('js/app.js') %>" defer></script>
-  <% (locals.pageScripts || []).forEach((script) => { %><script src="<%= assetPath(script) %>" defer></script><% }) %>
+  <% [...(locals.shellScripts || []), ...(locals.pageScripts || [])].forEach((script) => { %><script src="<%= assetPath(script) %>" defer></script><% }) %>
 </body>
 </html>

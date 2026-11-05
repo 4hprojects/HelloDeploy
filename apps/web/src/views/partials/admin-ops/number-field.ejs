@@ -1,0 +1,5 @@
+<label class="ops-form__field">
+  <span class="ops-form__label"><%= f.label %><% if (f.unit) { %> (<%= f.unit %>)<% } %></span>
+  <input class="form-input ops-form__number<%= errors[f.name] ? ' form-input--error' : '' %>" type="number" inputmode="numeric" name="<%= f.name %>" value="<%= f.value %>" min="<%= f.range.min %>" max="<%= f.range.max %>" required <%- errors[f.name] ? 'aria-invalid="true"' : '' %> />
+  <span class="ops-form__hint"><%= f.hint %> · allowed <%= f.range.min %>–<%= f.range.max %></span>
+</label>

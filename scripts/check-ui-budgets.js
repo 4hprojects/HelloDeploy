@@ -18,6 +18,12 @@ const budgets = {
   'css/legal.css': 10_000,
   // Loaded only on the sign-in and sign-up pages, account and project members.
   'css/auth.css': 8_000,
+  // Loaded on every rendered admin page: sidebar collapse and the wide layout.
+  'css/admin-shell.css': 4_000,
+  'js/admin-shell.js': 2_500,
+  // Loaded only on the admin operations overview and its settings page.
+  'css/admin-ops.css': 22_000,
+  'js/admin-ops.js': 16_000,
 };
 
 let failed = false;

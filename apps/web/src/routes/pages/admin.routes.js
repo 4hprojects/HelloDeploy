@@ -4,7 +4,6 @@ import { requireAdmin } from '../../middleware/require-auth.js';
 import { requireSuperAdmin } from '../../middleware/require-auth.js';
 import {
   loadAdminPendingCounts,
-  getAdminIndex,
   getAdminUsers,
   getAdminUserDetail,
   postSuspendUser,
@@ -56,6 +55,17 @@ import {
   postAdminCommentAction,
   postAdminCommentSettings,
 } from '../../controllers/learning-hub-admin.controller.js';
+import {
+  getAdminIndex,
+  getOverviewLive,
+  getOverviewSettings,
+  loadAdminShell,
+  postPersonalReset,
+  postPersonalSettings,
+  postPlatformReset,
+  postPlatformSettings,
+  postSidebarPreference,
+} from '../../controllers/admin-ops.controller.js';
 import { validateObjectId } from '../../middleware/validate-object-id.js';
 
 const router = Router();
@@ -77,8 +87,10 @@ router.get(
     '/learning-hub',
     '/audit-events',
     '/quotas/:scopeType/:scopeId',
+    '/overview/settings',
   ],
   loadAdminPendingCounts,
+  loadAdminShell,
 );
 
 for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId', 'commentId']) {
@@ -86,6 +98,16 @@ for (const param of ['userId', 'projectId', 'requestId', 'domainId', 'scopeId', 
 }
 
 router.get('/', getAdminIndex);
+// Operations overview. Reading and personal preferences are open to every
+// administrator; the platform-wide monitoring policy changes what the server
+// collects and alerts on for everyone, so it sits with the Super Admin levers.
+router.get('/overview/live', getOverviewLive);
+router.get('/overview/settings', getOverviewSettings);
+router.post('/overview/settings/personal', postPersonalSettings);
+router.post('/overview/settings/personal/reset', postPersonalReset);
+router.post('/overview/settings/platform', requireSuperAdmin, postPlatformSettings);
+router.post('/overview/settings/platform/reset', requireSuperAdmin, postPlatformReset);
+router.post('/preferences/sidebar', postSidebarPreference);
 
 router.get('/users', getAdminUsers);
 router.post('/users/:userId/suspend', postSuspendUser);

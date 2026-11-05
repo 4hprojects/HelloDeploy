@@ -1,0 +1,6 @@
+<% const _apps = overview.apps; %>
+<% if (!_apps || !_apps.available) { %>
+<p class="ops-empty">Application health is Unknown: the host collector has not reported container state or health probes. Running containers are not treated as healthy without a probe.</p>
+<% } else { %>
+<%- include("apps-table", { apps: _apps, preferences }) %>
+<% } %>
