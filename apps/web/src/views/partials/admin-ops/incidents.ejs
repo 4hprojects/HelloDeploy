@@ -1,17 +1,21 @@
-<% const _incidents = overview.incidents || []; %>
-<% if (_incidents.length === 0) { %>
-<p class="ops-strip__ok"><span class="ops-dot ops-tone--<%= overview.incidentsAvailable === false ? 'unknown' : 'healthy' %>" aria-hidden="true"></span><%= overview.incidentsAvailable === false ? 'Alert evaluation is not reporting yet: no incidents can be confirmed or ruled out.' : 'No active incidents.' %></p>
-<% } else { %>
-<h2 class="sr-only">Active incidents</h2>
+<% const _incidents = overview.incidents || []; const _resolved = overview.resolvedIncidents || []; %>
+<% const _sev = { critical: 'Critical', warning: 'Warning', info: 'Info' }; %>
+<% if (!overview.incidentsAvailable) { %>
+<p class="ops-strip__ok"><span class="ops-dot ops-tone--unknown" aria-hidden="true"></span><%= overview.incidentsStored ? 'Alert evaluation is not current (the collector is not reporting): incidents below may be out of date and new ones cannot be detected.' : 'Alert evaluation is not reporting: no incidents can be confirmed or ruled out.' %></p>
+<% } else if (_incidents.length === 0) { %>
+<p class="ops-strip__ok"><span class="ops-dot ops-tone--healthy" aria-hidden="true"></span>No open incidents.</p>
+<% } %>
+<% if (_incidents.length > 0) { %>
+<h2 class="sr-only">Open incidents</h2>
 <ul class="ops-incidents" role="list">
   <% _incidents.forEach((incident) => { %>
-  <li class="ops-incident ops-tone--<%= incident.severity %>">
-    <span class="ops-incident__severity"><%= incident.severity === 'critical' ? 'Critical' : incident.severity === 'warning' ? 'Warning' : 'Info' %></span>
+  <li class="ops-incident ops-tone--<%= incident.severity %><%= incident.state === 'acknowledged' ? ' ops-incident--acknowledged' : '' %>">
+    <span class="ops-incident__severity"><%= _sev[incident.severity] %></span>
     <span class="ops-incident__title"><% if (incident.href) { %><a href="<%= incident.href %>"><%= incident.title %></a><% } else { %><%= incident.title %><% } %></span>
-    <span class="ops-incident__meta"><%= incident.detail %> · since <%- include('time', { at: incident.firstSeen }) %><% if (incident.occurrences > 1) { %> · <%= incident.occurrences %> occurrences<% } %></span>
+    <span class="ops-incident__meta"><% if (incident.detail) { %><%= incident.detail %> · <% } %>since <%- include('time', { at: incident.firstSeen }) %> · last seen <%- include('time', { at: incident.lastSeen }) %><% if (incident.occurrences > 1) { %> · <%= incident.occurrences %> occurrences<% } %></span>
     <% if (incident.state === 'acknowledged') { %>
-    <span class="ops-incident__ack">Acknowledged<% if (incident.acknowledgedByName) { %> by <%= incident.acknowledgedByName %><% } %></span>
-    <% } else if (incident.id) { %>
+    <span class="ops-incident__ack">Acknowledged<% if (incident.acknowledgedByName) { %> by <%= incident.acknowledgedByName %><% } %> · still open</span>
+    <% } else { %>
     <form method="POST" action="/admin/overview/incidents/<%= incident.id %>/acknowledge" class="ops-incident__form" data-ops-ack>
       <%- include('../csrf-field') %>
       <button type="submit" class="button button--secondary button--sm">Acknowledge</button>
@@ -20,4 +24,17 @@
   </li>
   <% }) %>
 </ul>
+<% } %>
+<% if (_resolved.length > 0) { %>
+<details class="ops-resolved">
+  <summary><%= _resolved.length %> resolved in the last 24 hours</summary>
+  <ul class="ops-list" role="list">
+    <% _resolved.forEach((incident) => { %>
+    <li class="ops-list__item">
+      <span class="ops-state ops-tone--muted"><%= incident.resolution === 'cleared' ? 'Cleared' : 'Recovered' %></span>
+      <span class="ops-list__body"><%= incident.title %><span class="ops-list__detail"><%= _sev[incident.severity] %> · <%- include('time', { at: incident.firstSeen }) %> to <%- include('time', { at: incident.resolvedAt }) %><% if (incident.occurrences > 1) { %> · <%= incident.occurrences %> occurrences<% } %></span></span>
+    </li>
+    <% }) %>
+  </ul>
+</details>
 <% } %>

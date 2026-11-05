@@ -306,3 +306,81 @@ export async function createAdminOpsFixture() {
     },
   };
 }
+
+/**
+ * Incidents and recorded history in the fixture database, so the incident
+ * strip and the longer history ranges render through their real queries.
+ */
+export async function seedAdminOpsRecords(
+  { MonitoringIncident, MonitoringSample },
+  end = Date.now(),
+) {
+  const minute = 60_000;
+  await MonitoringIncident.create([
+    {
+      fingerprint: `app:health:${'b'.repeat(24)}`,
+      rule: 'app.health',
+      scope: 'project',
+      entityId: 'b'.repeat(24),
+      entityLabel: 'atlas-api',
+      href: '/projects/atlas-api',
+      severity: 'critical',
+      state: 'active',
+      title: 'atlas-api is unhealthy',
+      detail: 'Health check returned 503',
+      firstSeen: new Date(end - 12 * minute),
+      lastSeen: new Date(end - minute),
+      occurrences: 2,
+    },
+    {
+      fingerprint: 'host:memory',
+      rule: 'host.memory',
+      scope: 'host',
+      severity: 'warning',
+      state: 'acknowledged',
+      title: 'Host memory is running low',
+      detail: '82% used, pressure 0.4%',
+      firstSeen: new Date(end - 95 * minute),
+      lastSeen: new Date(end - minute),
+      acknowledgedAt: new Date(end - 60 * minute),
+    },
+    {
+      fingerprint: 'host:disk:root',
+      rule: 'host.disk',
+      scope: 'host',
+      severity: 'warning',
+      state: 'resolved',
+      title: 'Root filesystem is filling up',
+      detail: '81% used',
+      firstSeen: new Date(end - 300 * minute),
+      lastSeen: new Date(end - 200 * minute),
+      resolvedAt: new Date(end - 200 * minute),
+      resolution: 'recovered',
+      expiresAt: new Date(end + 90 * 86_400_000),
+    },
+  ]);
+  const docs = [];
+  for (let i = 288; i > 0; i -= 1) {
+    if (i > 100 && i < 110) {
+      continue;
+    }
+    const wave = Math.sin(i / 20);
+    const stat = (value) => ({
+      avg: Math.round(value * 10) / 10,
+      max: Math.round(value * 11) / 10,
+    });
+    docs.push({
+      resolution: '5m',
+      bucketStart: new Date(Math.floor((end - i * 5 * minute) / (5 * minute)) * 5 * minute),
+      count: 20,
+      cpu: stat(30 + wave * 15),
+      mem: stat(66 + wave * 4),
+      swap: stat(52),
+      disk: stat(11.8),
+      rx: stat(450_000 + wave * 150_000),
+      tx: stat(140_000 + wave * 40_000),
+      expiresAt: new Date(end + 7 * 86_400_000),
+    });
+  }
+  await MonitoringSample.insertMany(docs);
+}

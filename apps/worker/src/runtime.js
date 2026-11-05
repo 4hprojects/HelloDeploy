@@ -45,7 +45,14 @@ import { setNotificationQueue } from './queue/notification-queue.js';
 import { createBuilderRuntime } from './builder/builder-runtime.js';
 import { setBuilderController } from './builder/builder-registry.js';
 import { failInterruptedBuilderDeployments } from './builder/interrupted-builds.js';
-import { createMonitoringCollector, startMonitoringLoop } from './monitoring/collector.js';
+import {
+  createMonitoringCollector,
+  startMonitoringLoop,
+  toRawSample,
+} from './monitoring/collector.js';
+import { createAlertEngine } from './monitoring/alert-engine.js';
+import { createHistoryWriter } from './monitoring/history.js';
+import { setAlertReporter } from './monitoring/registry.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
   nodeEnv: env.NODE_ENV,
@@ -274,10 +281,29 @@ const monitoringCollector = env.MONITORING_COLLECTOR_ENABLED
       publicDomain: env.PLATFORM_DOMAIN,
       buildExecutor: env.BUILD_EXECUTOR,
       validateNginx: env.NGINX_ENABLED ? validateNginxConfig : null,
+      deps: {
+        readQueue: async () => {
+          const counts = await queue.getJobCounts('waiting', 'active', 'delayed');
+          return { ...counts, paused: await queue.isPaused() };
+        },
+      },
     })
   : null;
 if (monitoringCollector) {
-  stopMonitoring = startMonitoringLoop({ collector: monitoringCollector, logger });
+  const history = createHistoryWriter({ logger });
+  const alerts = createAlertEngine({ redis, logger });
+  setAlertReporter(async (outcome) =>
+    alerts.recordDeployment(outcome, await monitoringCollector.getPolicy()),
+  );
+  stopMonitoring = startMonitoringLoop({
+    collector: monitoringCollector,
+    logger,
+    onSnapshot: async (snapshot) => {
+      const policy = await monitoringCollector.getPolicy();
+      await history.record(toRawSample(snapshot), policy);
+      await alerts.evaluate(snapshot, policy);
+    },
+  });
   logger.info('Worker: monitoring collector started');
 }
 

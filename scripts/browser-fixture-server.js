@@ -38,6 +38,8 @@ const {
   Repository,
   Deployment,
   AuditEvent,
+  MonitoringIncident,
+  MonitoringSample,
 } = await import('@hellodeploy/database');
 const {
   PlatformRole,
@@ -294,8 +296,10 @@ await ArticleComment.create({
   status: 'published',
   createdAt: new Date('2026-10-21T02:00:00Z'),
 });
-const { createAdminOpsFixture } = await import('../tests/fixtures/admin-ops-fixture.js');
+const { createAdminOpsFixture, seedAdminOpsRecords } =
+  await import('../tests/fixtures/admin-ops-fixture.js');
 const adminOpsFixture = await createAdminOpsFixture();
+await seedAdminOpsRecords({ MonitoringIncident, MonitoringSample });
 const { default: compression } = await import('compression');
 const { default: express } = await import('express');
 // Production responses are compressed at the Cloudflare edge; without the same

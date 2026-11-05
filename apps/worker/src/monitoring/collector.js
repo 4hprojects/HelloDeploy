@@ -73,6 +73,7 @@ export function createMonitoringCollector({
     readDockerDiskUsage: deps.readDockerDiskUsage ?? readDockerDiskUsage,
   };
   const units = deps.readUnits ?? readUnits;
+  const readQueue = deps.readQueue ?? null;
   const loadRecords = deps.loadRecords ?? loadContainerRecords;
   const loadPolicy = deps.loadPolicy ?? loadStoredPolicy;
   const coreCount = deps.coreCount ?? cpus().length;
@@ -311,6 +312,8 @@ export function createMonitoringCollector({
       state.sources.dockerDiskUsage = { ok: false, at: collectedAt, reason: 'Disabled by policy' };
     }
 
+    const queue = readQueue ? await guarded('queue', () => readQueue()) : null;
+
     const processCpu = process.cpuUsage();
     const workerCpu =
       state.previousProcessCpu && elapsedSeconds > 0
@@ -334,6 +337,7 @@ export function createMonitoringCollector({
       containers,
       apps,
       nginx: state.nginx,
+      queue,
       units: state.units,
       dockerDiskUsage: state.dockerDiskUsage,
       worker: {
@@ -652,6 +656,7 @@ function buildSnapshot({
   containers,
   apps,
   nginx,
+  queue,
   units,
   dockerDiskUsage,
   worker,
@@ -750,6 +755,7 @@ function buildSnapshot({
     apps: apps ?? null,
     appCounts: apps ? countBy(apps, 'health') : null,
     nginx: nginx ?? null,
+    queue: queue ?? null,
     services: units ?? null,
     worker,
   };

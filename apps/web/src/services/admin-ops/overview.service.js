@@ -13,6 +13,8 @@ import { getBuilderStatus } from '../builder-control.service.js';
 import { collectServerStats } from '../server-stats.service.js';
 import { buildLineChart, buildSparkline } from './charts.js';
 import { getDeploymentActivity } from './deployments.service.js';
+import { getHistory } from './history.service.js';
+import { listOpenIncidents, listRecentlyResolved } from './incidents.service.js';
 import {
   formatBitRate,
   formatBytes,
@@ -42,16 +44,24 @@ export async function buildOverview({ policy, preferences, deps = {} } = {}) {
   const loadSamples = deps.getRawSamples ?? getRawSamples;
   const loadDeployments = deps.getDeploymentActivity ?? getDeploymentActivity;
   const loadBuilder = deps.getBuilderStatus ?? getBuilderStatus;
+  const loadOpen = deps.listOpenIncidents ?? listOpenIncidents;
+  const loadResolved = deps.listRecentlyResolved ?? listRecentlyResolved;
+  const loadHistory = deps.getHistory ?? getHistory;
   const builderEnabled = deps.builderControlEnabled ?? env.BUILDER_CONTROL_ENABLED;
   const now = deps.now ?? new Date();
-  const [counts, server, monitoring, samples, activity, builderStatus] = await Promise.all([
-    settle(loadCounts()),
-    settle(loadServer()),
-    settle(loadSnapshot()),
-    settle(loadSamples()),
-    settle(loadDeployments({ now })),
-    builderEnabled ? settle(loadBuilder()) : Promise.resolve(null),
-  ]);
+  const rangeKey = preferences?.historyRange ?? '1h';
+  const [counts, server, monitoring, samples, activity, builderStatus, open, resolved, history] =
+    await Promise.all([
+      settle(loadCounts()),
+      settle(loadServer()),
+      settle(loadSnapshot()),
+      settle(loadSamples()),
+      settle(loadDeployments({ now })),
+      builderEnabled ? settle(loadBuilder()) : Promise.resolve(null),
+      settle(loadOpen()),
+      settle(loadResolved({ now })),
+      settle(loadHistory(rangeKey, { now })),
+    ]);
   const snapshotState = monitoring ?? {
     snapshot: null,
     freshness: MetricFreshness.UNAVAILABLE,
@@ -76,9 +86,13 @@ export async function buildOverview({ policy, preferences, deps = {} } = {}) {
       durationMs: snapshot?.durationMs ?? null,
     },
     kpis: buildKpis({ server, deployments, policy, snapshotState, rawSamples, apps }),
-    incidents: [],
-    incidentsAvailable: false,
-    trends: buildTrends({ rawSamples, preferences, snapshot, now }),
+    incidents: open ?? [],
+    // Rules run in the worker with the collector: without a fresh snapshot,
+    // "no incidents" cannot be confirmed.
+    incidentsAvailable: open !== null && snapshotState.freshness === MetricFreshness.FRESH,
+    incidentsStored: open !== null,
+    resolvedIncidents: resolved ?? [],
+    trends: buildTrends({ rawSamples, preferences, snapshot, now, history }),
     consumers: buildConsumers(snapshotState, preferences),
     apps,
     services,
@@ -240,13 +254,19 @@ function buildKpis({ server, deployments, policy, snapshotState, rawSamples, app
   ];
 }
 
-function buildTrends({ rawSamples, preferences, snapshot, now }) {
+function buildTrends({ rawSamples, preferences, snapshot, now, history }) {
   const rangeKey = preferences?.historyRange ?? '1h';
   const range = HISTORY_RANGES[rangeKey] ?? HISTORY_RANGES['1h'];
   const end = now.getTime();
-  const start = end - Math.min(range.seconds, 3600) * 1000;
-  const stepSeconds = snapshot?.intervals?.resourceSeconds ?? 15;
-  const usage = buildLineChart(rawSamples, {
+  const fromHistory = range.resolution !== 'raw' && range.seconds > 3600;
+  const points = fromHistory ? (history?.points ?? []) : rawSamples;
+  const start = fromHistory
+    ? end - range.seconds * 1000
+    : end - Math.min(range.seconds, 3600) * 1000;
+  const stepSeconds = fromHistory
+    ? (history?.stepSeconds ?? 300)
+    : (snapshot?.intervals?.resourceSeconds ?? 15);
+  const usage = buildLineChart(points, {
     start,
     end,
     stepSeconds,
@@ -256,7 +276,7 @@ function buildTrends({ rawSamples, preferences, snapshot, now }) {
       { key: 'swap', label: 'Swap', unit: '%', max: 100 },
     ],
   });
-  const network = buildLineChart(rawSamples, {
+  const network = buildLineChart(points, {
     start,
     end,
     stepSeconds,
@@ -267,8 +287,9 @@ function buildTrends({ rawSamples, preferences, snapshot, now }) {
   });
   return {
     available: usage.hasData || network.hasData,
-    rangeLabel:
-      range.seconds > 3600 ? `last hour (longer ranges need recorded history)` : `last ${rangeKey}`,
+    rangeLabel: fromHistory
+      ? `last ${rangeKey}, ${history?.resolution ?? ''} averages`
+      : `last ${rangeKey}, ${stepSeconds}s samples`,
     usage,
     network,
   };

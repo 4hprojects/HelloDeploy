@@ -8,7 +8,7 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
 | 1     | Full-width overview and settings foundation              | Done    | `feat/admin-ops-p1-ui`        |
 | 2     | Trusted collection, snapshot, host and container metrics | Done    | `feat/admin-ops-p2-collector` |
 | 3     | App health, queue, services, builder, SSE                | Done    |                               |
-| 4     | History, alerts, incident lifecycle                      | Pending |                               |
+| 4     | History, alerts, incident lifecycle                      | Done    |                               |
 | 5     | Capacity and attention                                   | Pending |                               |
 | 6     | Validation, performance, docs, rollout                   | Pending |                               |
 
@@ -352,3 +352,117 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
 8. **Outstanding**
    - The stream relays a Phase 4 `incident` event type; incidents themselves come in Phase 4.
 9. **Next**: Phase 4, history and alerts.
+
+## Phase 4: History, alerts and incident lifecycle
+
+1. **Completed**
+   - **History tiers.** New collection `monitoring_samples`, model `MonitoringSample`.
+     - Unique `{resolution, bucketStart}`; TTL on `expiresAt`.
+     - The worker writes one 1 m bucket when each minute closes, holding the weighted average and the maximum of every raw sample in it.
+     - When a coarser bucket closes, the worker rolls the finer tier up into it: 5 m, then 1 h, then 1 d.
+     - Each bucket expires at `bucketStart` plus its tier's retention from the policy: 24 h, 7 d, 30 d and 90 d by default.
+     - Shortening retention removes older aggregates once per policy revision. Only monitoring samples are ever deleted; the audit log is untouched.
+     - Raw 15 s samples stay in Redis.
+   - **History API.** `history.service.js` reads one tier per range, capped at 800 points: 6 h and 24 h from 5 m buckets, 7 d from 1 h, 30 d from 1 d. 15 m and 1 h come from raw samples.
+     - The trends panel labels the resolution in use.
+     - Gaps break the line, using the bucket step.
+   - **Incidents.** New collection `monitoring_incidents`, model `MonitoringIncident`.
+     - A partial unique index on `fingerprint` while the incident is active or acknowledged, so there is one open incident per scope + rule + resource.
+     - Fields: severity, state, `firstSeen`/`lastSeen`, occurrences, measurement, policy revision, acknowledged by and at, resolved at, resolution (`recovered` or `cleared`).
+     - Resolved incidents expire after 90 d.
+   - **Deterministic rule engine** (`apps/worker/src/monitoring/alert-engine.js`). Runs every collector cycle, whether or not a browser is open.
+
+     | Rule                      | Behaviour                                                                                                           |
+     | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+     | Host CPU                  | Critical only with saturation: load per core ≥ 1                                                                    |
+     | Host memory               | Critical only with PSI some60 at or above the policy level, when PSI is available                                   |
+     | Per-filesystem disk       | Threshold rule                                                                                                      |
+     | Container memory vs limit | Only when a limit is set                                                                                            |
+     | App health                | Unhealthy or restarting is critical, degraded is warning. Stopped or maintenance clears the incident as intentional |
+     | Collector sources         | Host and Docker                                                                                                     |
+     | Nginx config validate     | Critical on failure                                                                                                 |
+     | Platform systemd units    | Down is critical                                                                                                    |
+     | Queue stalled             | Waiting with none active, not paused, for 10 min                                                                    |
+     | Deployment failures       | Reported by `updateStatus`: a FAILED deploy opens or adds an occurrence; the next HEALTHY deploy resolves           |
+     - Each rule uses a threshold, a sustain duration and a recovery level (hysteresis).
+     - Severity follows the condition while it is open.
+     - A missing reading is Unknown: it neither opens nor resolves an incident.
+     - A re-breach within 30 min reopens the same incident as another occurrence.
+     - Writes happen only on state changes, plus at most one `lastSeen` write per minute.
+     - On start the engine loads incidents left open by an earlier process.
+     - An acknowledged warning that escalates to critical becomes active again.
+
+   - **Acknowledge.** `POST /admin/overview/incidents/:incidentId/acknowledge`, open to admins.
+     - Audited as `admin.incident_acknowledged`, with SUCCESS or FAILURE.
+     - Returns 409 when the incident is not active.
+     - The page sends it with fetch and refreshes the strip in place; without JavaScript the form posts normally.
+     - The incident stays open until its rule recovers.
+   - **Incident strip.**
+     - Open incidents, most severe first: detail, since, last seen, occurrences, acknowledgement.
+     - A collapsible list of incidents resolved in the last 24 h, labelled Recovered or Cleared.
+     - When the collector is stale, it says incidents may be out of date and new ones cannot be detected.
+   - **Live events.** Incident open, escalate, resolve and acknowledge publish `incident` events.
+     - During a notification mute the event carries `muted: true` and the page does not announce it.
+     - Collection and recording continue during a mute.
+     - A critical active incident is announced through an `aria-live` region.
+
+2. **Changed files**
+   - New:
+     - `packages/database/src/models/monitoring-{sample,incident}.model.js`
+     - `apps/worker/src/monitoring/{history,alert-engine,registry}.js`
+     - `apps/web/src/services/admin-ops/{history,incidents}.service.js`
+     - `tests/admin-ops/history-alerts.test.js`
+   - Modified:
+     - `packages/database/src/index.js`
+     - `runtime.js`: history, alerts, queue counts, reporter
+     - `pipeline.js`: outcome report
+     - `collector.js`: queue in the snapshot
+     - the overview service: incidents, history-based trends
+     - the controller and routes: acknowledge
+     - `partials/admin-ops/incidents.ejs`, `admin-ops.{css,js}`
+     - the fixture: seeded incidents and 24 h of 5 m history
+     - the browser and route specs
+3. **Decisions**
+   - The engine runs in the worker next to the collector, so evaluation never depends on a browser being open.
+   - `observe()` is pure and the lifecycle is a small state machine, which keeps rules testable as data.
+   - Incidents fold repeated breaches into occurrences. A flapping condition reads as one incident, not a notification flood.
+   - Retention changes apply to new buckets through `expiresAt`. A shorter retention also prunes once. A longer retention does not extend buckets already written, and this is documented.
+4. **Tests executed**
+   - `node --test tests/admin-ops/*.test.js`
+   - `npm test`
+   - `npx playwright test tests/browser/admin-ops.spec.js`
+   - lint, format, assets
+5. **Results**
+   - `npm test`: **3050/3050 pass**.
+   - Admin-ops suites: 150 tests.
+     - History: weighted averages; a missing value is absent, not zero; UTC alignment; one 1 m write per minute (10 for 10 min); 5 m rollup (count 20); per-tier expiry; shortened retention prunes only older data.
+     - Rules: CPU needs saturation to be critical; memory needs pressure; a missing reading is unknown.
+     - Lifecycle:
+       - one sample opens nothing
+       - a breach past the sustain duration opens one incident, and only one however long it lasts
+       - a reading between recovery and warning stays open
+       - a reading below recovery resolves
+       - a quick return reopens with occurrence 2
+       - missing readings hold the incident
+       - `lastSeen` is written at most once a minute
+       - an intentional stop is cleared
+       - a deployment fail then success resolves; repeated fails add occurrences
+       - a restarted engine resolves incidents left open
+       - an acknowledged warning escalating to critical reactivates
+     - Acknowledge route: admin acknowledges and the incident stays unresolved; the action is audited; a resolved incident gets 409; a non-admin is refused.
+   - Browser: **19/19 pass**, adding:
+     - acknowledge in place, without a page reload, and the incident stays open
+     - the 24 h range renders 5 m averages from seeded Mongo history
+   - Budgets: `admin-ops.js` 14.0/16 KB, `admin-ops.css` 16.7/22 KB.
+6. **Storage and write bounds (measured)**
+   - One history bucket is 342 bytes (BSON).
+   - At default retention: 1440 + 2016 + 720 + 90 ≈ 4.3k buckets, about **1.5 MB**.
+   - At the policy maximum: about 8.5k buckets, about **2.9 MB**.
+   - Writes: about **1,750 sample writes a day**, plus incident state changes.
+   - Mongo is not touched at the 15 s cadence.
+7. **Security**
+   - Acknowledging is admin-only, CSRF-protected and audited.
+   - Incident documents hold titles and details built from sanitized snapshot fields only.
+   - The SSE allowlist for `incident` carries id, fingerprint, severity, state, title, time and the mute flag.
+8. **Outstanding**: none for this phase.
+9. **Next**: Phase 5, capacity and attention.
