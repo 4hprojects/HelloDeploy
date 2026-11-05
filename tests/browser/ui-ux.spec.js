@@ -453,6 +453,15 @@ test('signed-in app header keeps the sidebar breakpoint independent', async ({ p
   expect(results.violations).toEqual([]);
 });
 
+test('scroll-to-top button stays clickable under its tooltip', async ({ page }) => {
+  await page.goto('/privacy');
+  await page.evaluate(() =>
+    globalThis.scrollTo({ top: globalThis.document.body.scrollHeight, behavior: 'instant' }),
+  );
+  await page.getByRole('button', { name: 'Scroll to top' }).click();
+  await expect.poll(() => page.evaluate(() => globalThis.scrollY)).toBe(0);
+});
+
 test('keyboard focus is visible and returns after confirmation modal', async ({ page }) => {
   await signIn(page);
   await page.goto('/projects/northstar-notes/deployments');
