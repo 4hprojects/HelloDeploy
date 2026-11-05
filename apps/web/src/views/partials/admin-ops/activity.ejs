@@ -1,14 +1,22 @@
-<% const _rows = (overview.activity || []).slice(0, 15); %>
+<% const _rows = (overview.activity || []).slice(0, 20); %>
 <% if (_rows.length === 0) { %>
 <p class="ops-empty">No recent activity.</p>
 <% } else { %>
-<ul class="ops-list" role="list">
-  <% _rows.forEach((event) => { %>
-  <li class="ops-list__item">
-    <span class="ops-state ops-tone--<%= event.outcome === 'SUCCESS' ? 'healthy' : event.outcome === 'FAILURE' ? 'critical' : 'warning' %>"><%= event.outcome === 'SUCCESS' ? 'Done' : event.outcome === 'FAILURE' ? 'Failed' : 'Denied' %></span>
-    <span class="ops-list__body"><%= event.label || event.action %><span class="ops-list__detail"><%= event.actorName || 'System' %> · <%- include('time', { at: event.createdAt }) %></span></span>
-  </li>
-  <% }) %>
-</ul>
+<div class="ops-activity">
+  <fieldset class="ops-filter">
+    <legend class="sr-only">Show activity</legend>
+    <label><input type="radio" name="ops-activity-filter" value="all" checked /> All</label>
+    <label><input type="radio" name="ops-activity-filter" value="deploy" /> Deployments</label>
+    <label><input type="radio" name="ops-activity-filter" value="admin" /> Admin</label>
+  </fieldset>
+  <ul class="ops-list" role="list">
+    <% _rows.forEach((event) => { %>
+    <li class="ops-list__item" data-kind="<%= event.kind %>">
+      <span class="ops-state ops-tone--<%= event.tone %>"><%= event.result %></span>
+      <span class="ops-list__body"><% if (event.href) { %><a href="<%= event.href %>"><%= event.label %></a><% } else { %><%= event.label %><% } %><span class="ops-list__detail"><%= event.actor %><% if (event.detail) { %> · <%= event.detail %><% } %> · <%- include('time', { at: event.createdAt }) %></span></span>
+    </li>
+    <% }) %>
+  </ul>
+</div>
 <% } %>
 <p class="ops-footnote"><a href="/admin/audit-events">Full audit log</a></p>

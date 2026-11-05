@@ -3,7 +3,9 @@ import { cpus } from 'node:os';
 
 import { Deployment, PlatformSetting, Project } from '@hellodeploy/database';
 import {
+  AppHealth,
   ContainerRole,
+  ADMIN_OPS_EVENT_CHANNEL,
   MONITORING_LEASE_KEY,
   MONITORING_POLICY_KEY,
   MONITORING_RAW_SAMPLE_LIMIT,
@@ -17,6 +19,7 @@ import {
 } from '@hellodeploy/contracts';
 
 import { classifyContainers } from './classify.js';
+import { createProbeTracker, deriveAppHealth } from './probes.js';
 import {
   inspectContainers,
   listContainerIds,
@@ -38,6 +41,7 @@ const POLICY_CACHE_MS = 30_000;
 // background, never inside a cycle.
 const DOCKER_DF_INTERVAL_MS = 30 * 60_000;
 const BREAKER_THRESHOLD = 3;
+const NGINX_VALIDATE_INTERVAL_MS = 5 * 60_000;
 const BREAKER_COOLDOWN_MS = 5 * 60_000;
 
 /**
@@ -54,6 +58,9 @@ export function createMonitoringCollector({
   logger,
   workspacePath = null,
   dockerRoot = '/var/lib/docker',
+  publicDomain = null,
+  buildExecutor = null,
+  validateNginx = null,
   deps = {},
   now = () => new Date(),
 }) {
@@ -70,6 +77,7 @@ export function createMonitoringCollector({
   const loadPolicy = deps.loadPolicy ?? loadStoredPolicy;
   const coreCount = deps.coreCount ?? cpus().length;
   const leaseToken = randomUUID();
+  const probes = deps.probeTracker ?? createProbeTracker({ now });
 
   const state = {
     previousCpu: null,
@@ -89,6 +97,12 @@ export function createMonitoringCollector({
     breakers: {},
     sources: {},
     jobs: { lastCompletedAt: null, lastFailedAt: null },
+    lastProbeAt: 0,
+    probeCycles: 0,
+    lastNginxAt: 0,
+    nginx: null,
+    records: null,
+    previousHealth: null,
     cycle: 0,
   };
 
@@ -201,10 +215,56 @@ export function createMonitoringCollector({
         state.sources.containerStats = { ok: false, at: collectedAt, reason: 'Disabled by policy' };
       }
       const records = await loadRecords(inspected);
+      state.records = records;
       return classifyContainers(inspected, records).map((container) =>
         toContainerRow(container, stats?.get(container.id), records, coreCount),
       );
     });
+
+    const probesEnabled = policy.collectors.appProbes;
+    if (
+      probesEnabled &&
+      containers &&
+      state.records &&
+      Date.now() - state.lastProbeAt >= policy.intervals.probeSeconds * 1000
+    ) {
+      state.lastProbeAt = Date.now();
+      state.probeCycles += 1;
+      const checkPublic =
+        policy.collectors.publicReachability &&
+        Boolean(publicDomain) &&
+        state.probeCycles % 4 === 1;
+      await guarded('probes', () =>
+        probes.run(probeTargets(state.records, containers), { publicDomain, checkPublic }),
+      );
+    }
+    const apps =
+      state.records && containers
+        ? buildApps({
+            records: state.records,
+            containers,
+            probes,
+            policy,
+            probesEnabled,
+            nowMs: at.getTime(),
+          })
+        : null;
+
+    if (
+      validateNginx &&
+      policy.collectors.nginxValidate &&
+      Date.now() - state.lastNginxAt >= NGINX_VALIDATE_INTERVAL_MS
+    ) {
+      state.lastNginxAt = Date.now();
+      const ok = await guarded('nginx', () => validateNginx());
+      state.nginx = {
+        ok: ok !== null,
+        at: collectedAt,
+        reason: state.sources.nginx?.reason ?? null,
+      };
+    } else if (!validateNginx || !policy.collectors.nginxValidate) {
+      state.nginx = null;
+    }
 
     if (Date.now() - state.lastUnitsAt >= policy.intervals.serviceSeconds * 1000 || !state.units) {
       const unitSeconds = state.lastUnitsAt ? (Date.now() - state.lastUnitsAt) / 1000 : null;
@@ -272,6 +332,8 @@ export function createMonitoringCollector({
       coreCount,
       disks: state.disks,
       containers,
+      apps,
+      nginx: state.nginx,
       units: state.units,
       dockerDiskUsage: state.dockerDiskUsage,
       worker: {
@@ -280,6 +342,7 @@ export function createMonitoringCollector({
         uptimeSeconds: Math.floor(process.uptime()),
         lastJobCompletedAt: state.jobs.lastCompletedAt,
         lastJobFailedAt: state.jobs.lastFailedAt,
+        buildExecutor,
       },
       policy,
       sources: state.sources,
@@ -292,8 +355,18 @@ export function createMonitoringCollector({
   async function publish(snapshot) {
     const ttl = Math.max(90, snapshot.intervals.resourceSeconds * 4);
     const sample = toRawSample(snapshot);
-    await redis
-      .multi()
+    const transaction = redis.multi();
+    for (const event of healthTransitions(
+      state.previousHealth,
+      snapshot.apps,
+      snapshot.collectedAt,
+    )) {
+      transaction.publish(ADMIN_OPS_EVENT_CHANNEL, JSON.stringify(event));
+    }
+    if (snapshot.apps) {
+      state.previousHealth = new Map(snapshot.apps.map((app) => [app.projectId, app.health]));
+    }
+    await transaction
       .set(MONITORING_SNAPSHOT_KEY, JSON.stringify(snapshot), 'EX', ttl)
       .lpush(MONITORING_SAMPLES_KEY, JSON.stringify(sample))
       .ltrim(MONITORING_SAMPLES_KEY, 0, MONITORING_RAW_SAMPLE_LIMIT - 1)
@@ -401,21 +474,122 @@ async function loadContainerRecords(containers) {
   const labelled = containers
     .map((c) => c.deploymentId)
     .filter((id) => /^[0-9a-f]{24}$/.test(id ?? ''));
-  const [projects, deployments] = await Promise.all([
-    Project.find({ status: { $ne: ProjectStatus.ARCHIVED } })
-      .select('_id slug name status activeDeploymentId maintenanceMode.enabled')
-      .lean(),
-    Deployment.find({
-      $or: [
-        { activeContainerId: { $in: ids } },
-        { candidateContainerId: { $in: ids } },
-        { _id: { $in: labelled } },
-      ],
-    })
-      .select('_id projectId status activeContainerId candidateContainerId sequenceNumber')
-      .lean(),
-  ]);
+  const projects = await Project.find({ status: { $ne: ProjectStatus.ARCHIVED } })
+    .select(
+      '_id slug name status activeDeploymentId platformSubdomain maintenanceMode.enabled buildConfiguration.healthCheckPath',
+    )
+    .lean();
+  const activeIds = projects.map((p) => p.activeDeploymentId).filter(Boolean);
+  const deployments = await Deployment.find({
+    $or: [
+      { activeContainerId: { $in: ids } },
+      { candidateContainerId: { $in: ids } },
+      { _id: { $in: [...labelled, ...activeIds] } },
+    ],
+  })
+    .select(
+      '_id projectId status activeContainerId candidateContainerId containerPort sequenceNumber updatedAt',
+    )
+    .lean();
   return { projects, deployments };
+}
+
+/** Live releases worth probing: an active container on a known loopback port. */
+function probeTargets({ projects, deployments }, containers) {
+  const targets = [];
+  for (const project of projects) {
+    if (
+      !project.activeDeploymentId ||
+      project.maintenanceMode?.enabled ||
+      project.status !== ProjectStatus.ACTIVE
+    ) {
+      continue;
+    }
+    const deployment = deployments.find(
+      (d) => String(d._id) === String(project.activeDeploymentId),
+    );
+    const container = containers.find(
+      (c) => c.role === ContainerRole.ACTIVE && c.projectId === String(project._id) && c.running,
+    );
+    if (!deployment?.containerPort || !container) {
+      continue;
+    }
+    const path = project.buildConfiguration?.healthCheckPath || '/';
+    targets.push({
+      projectId: String(project._id),
+      port: deployment.containerPort,
+      path: path.startsWith('/') ? path : `/${path}`,
+      subdomain: project.platformSubdomain ?? null,
+    });
+  }
+  return targets;
+}
+
+function buildApps({ records, containers, probes, policy, probesEnabled, nowMs }) {
+  return records.projects
+    .filter(
+      (project) =>
+        project.status === ProjectStatus.ACTIVE || project.status === ProjectStatus.SUSPENDED,
+    )
+    .map((project) => {
+      const projectId = String(project._id);
+      const container =
+        containers.find((c) => c.role === ContainerRole.ACTIVE && c.projectId === projectId) ??
+        null;
+      const deployment = records.deployments.find(
+        (d) => String(d._id) === String(project.activeDeploymentId),
+      );
+      const probe = probes.get(projectId);
+      const health = deriveAppHealth({
+        project: {
+          status: project.status,
+          activeDeploymentId: project.activeDeploymentId,
+          maintenance: Boolean(project.maintenanceMode?.enabled),
+        },
+        container,
+        probe,
+        policy,
+        probesEnabled,
+        nowMs,
+      });
+      return {
+        projectId,
+        slug: project.slug,
+        name: project.name ?? project.slug,
+        health: health.status,
+        reason: health.reason,
+        containerState: container ? (container.restarting ? 'restarting' : container.status) : null,
+        startedAt: container?.startedAt ?? null,
+        restartCount: container?.restartCount ?? null,
+        cpuPercentOfHost: container?.cpuPercentOfHost ?? null,
+        memoryBytes: container?.memoryBytes ?? null,
+        memoryLimitBytes: container?.memoryLimitBytes ?? null,
+        cpuLimitCores: container?.cpuLimitCores ?? null,
+        deploymentSequence: deployment?.sequenceNumber ?? null,
+        releasedAt: deployment?.updatedAt ? new Date(deployment.updatedAt).toISOString() : null,
+        lastProbe: probe?.last
+          ? {
+              ok: probe.last.ok,
+              statusCode: probe.last.statusCode,
+              latencyMs: probe.last.latencyMs,
+              at: probe.last.at,
+            }
+          : null,
+        lastSuccessAt: probe?.lastSuccessAt ?? null,
+        lastFailureAt: probe?.lastFailureAt ?? null,
+        public: probe?.public
+          ? { ok: probe.public.ok, statusCode: probe.public.statusCode, at: probe.public.at }
+          : null,
+      };
+    });
+}
+
+function countBy(rows, field) {
+  const counts = Object.fromEntries(Object.values(AppHealth).map((value) => [value, 0]));
+  for (const row of rows) {
+    counts[row[field]] = (counts[row[field]] ?? 0) + 1;
+  }
+  return counts;
 }
 
 async function loadStoredPolicy() {
@@ -476,6 +650,8 @@ function buildSnapshot({
   coreCount,
   disks,
   containers,
+  apps,
+  nginx,
   units,
   dockerDiskUsage,
   worker,
@@ -571,9 +747,33 @@ function buildSnapshot({
       ? { total: containers.length, running: running.length, byRole }
       : null,
     dockerDiskUsage,
+    apps: apps ?? null,
+    appCounts: apps ? countBy(apps, 'health') : null,
+    nginx: nginx ?? null,
     services: units ?? null,
     worker,
   };
+}
+
+/**
+ * App health changes since the last published snapshot, as compact admin
+ * events. The first snapshot after a start has nothing to compare against
+ * and emits none, so a worker restart does not replay every app as new.
+ */
+export function healthTransitions(previous, apps, at) {
+  if (!previous || !apps) {
+    return [];
+  }
+  return apps
+    .filter((app) => previous.has(app.projectId) && previous.get(app.projectId) !== app.health)
+    .map((app) => ({
+      type: 'app',
+      projectId: app.projectId,
+      slug: app.slug,
+      from: previous.get(app.projectId),
+      to: app.health,
+      at,
+    }));
 }
 
 /** The compact point kept for the 15-minute view and sparklines. */

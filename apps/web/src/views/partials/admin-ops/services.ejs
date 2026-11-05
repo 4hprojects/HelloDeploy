@@ -14,3 +14,12 @@
     <% }) %>
   </tbody>
 </table>
+<% const _b = overview.builder; %>
+<% if (_b) { %>
+<div class="ops-builder">
+  <h3 class="ops-builder__title">Build Service</h3>
+  <p><span class="ops-state ops-tone--<%= _b.state === 'disabled' ? 'muted' : _b.state === 'failed' ? 'critical' : _b.state === 'unknown' ? 'unknown' : _b.state === 'building' ? 'info' : 'healthy' %>"><%= _b.label %></span> <span class="ops-muted"><%= _b.detail %></span></p>
+  <% if (_b.lastError) { %><p class="ops-footnote ops-tone--warning">Last error: <%= _b.lastError %></p><% } %>
+  <p class="ops-footnote">Executor: <%= _b.executor === 'remote-buildkit' ? 'remote BuildKit (its capacity is not this host\'s)' : _b.executor === 'local' ? 'local on this host' : 'unknown' %><% if (_b.enabled) { %> · <a href="/admin/builder">Build Service</a><% } %></p>
+</div>
+<% } %>

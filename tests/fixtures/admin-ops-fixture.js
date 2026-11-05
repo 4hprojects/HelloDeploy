@@ -28,24 +28,78 @@ function hostCounters(tick) {
 }
 
 const PROJECTS = [
-  { _id: 'a'.repeat(24), slug: 'northstar-notes', activeDeploymentId: 'd'.repeat(24) },
-  { _id: 'b'.repeat(24), slug: 'atlas-api', activeDeploymentId: 'e'.repeat(24) },
+  {
+    _id: 'a'.repeat(24),
+    slug: 'northstar-notes',
+    name: 'Northstar Notes',
+    status: 'ACTIVE',
+    activeDeploymentId: 'd'.repeat(24),
+    buildConfiguration: { healthCheckPath: '/health' },
+  },
+  {
+    _id: 'b'.repeat(24),
+    slug: 'atlas-api',
+    name: 'Atlas API',
+    status: 'ACTIVE',
+    activeDeploymentId: 'e'.repeat(24),
+    buildConfiguration: { healthCheckPath: '/' },
+  },
+  {
+    _id: 'c'.repeat(24),
+    slug: 'paused-portfolio',
+    name: 'Paused Portfolio',
+    status: 'ACTIVE',
+    activeDeploymentId: '9'.repeat(24),
+    maintenanceMode: { enabled: true },
+  },
+  {
+    _id: '8'.repeat(24),
+    slug: 'old-landing',
+    name: 'Old Landing',
+    status: 'SUSPENDED',
+    activeDeploymentId: null,
+  },
 ];
 const DEPLOYMENTS = [
   {
     _id: 'd'.repeat(24),
     projectId: 'a'.repeat(24),
     activeContainerId: '1'.repeat(64),
+    containerPort: 41001,
     sequenceNumber: 8,
+    updatedAt: new Date('2026-11-04T01:30:00Z'),
   },
   {
     _id: 'e'.repeat(24),
     projectId: 'b'.repeat(24),
     activeContainerId: '2'.repeat(64),
+    containerPort: 41002,
     sequenceNumber: 14,
+    updatedAt: new Date('2026-11-04T01:30:00Z'),
   },
   { _id: 'f'.repeat(24), projectId: 'b'.repeat(24), activeContainerId: null, sequenceNumber: 13 },
+  { _id: '9'.repeat(24), projectId: 'c'.repeat(24), activeContainerId: null, sequenceNumber: 3 },
 ];
+
+// Northstar answers; Atlas has failed its last three probes.
+const PROBES = {
+  ['a'.repeat(24)]: {
+    consecutiveFailures: 0,
+    consecutiveSuccesses: 12,
+    lastSuccessAt: '2026-11-05T00:00:00.000Z',
+    lastFailureAt: null,
+    last: { ok: true, statusCode: 200, latencyMs: 14, at: '2026-11-05T00:00:00.000Z' },
+    public: null,
+  },
+  ['b'.repeat(24)]: {
+    consecutiveFailures: 3,
+    consecutiveSuccesses: 0,
+    lastSuccessAt: '2026-11-04T23:58:30.000Z',
+    lastFailureAt: '2026-11-05T00:00:00.000Z',
+    last: { ok: false, statusCode: 503, latencyMs: 41, at: '2026-11-05T00:00:00.000Z' },
+    public: null,
+  },
+};
 
 function container(id, name, overrides = {}) {
   return {
@@ -232,6 +286,7 @@ export async function createAdminOpsFixture() {
       readUnits: async () => UNITS,
       loadRecords: async () => ({ projects: PROJECTS, deployments: DEPLOYMENTS }),
       loadPolicy: async () => null,
+      probeTracker: { run: async () => {}, get: (projectId) => PROBES[projectId] ?? null },
     },
   });
   await collector.collect();

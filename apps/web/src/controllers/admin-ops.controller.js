@@ -1,4 +1,6 @@
+import { User } from '@hellodeploy/database';
 import {
+  ADMIN_OPS_EVENT_CHANNEL,
   DASHBOARD_DENSITIES,
   DASHBOARD_REFRESH_SECONDS,
   DASHBOARD_TABLE_ROWS,
@@ -8,6 +10,7 @@ import {
   OPTIONAL_DASHBOARD_WIDGETS,
   PlatformRole,
   THRESHOLD_RULES,
+  UserStatus,
   isNotificationMuted,
   validateDashboardPreferencesInput,
   validateMonitoringPolicyInput,
@@ -29,6 +32,9 @@ import {
 } from '../services/admin-ops/monitoring-policy.service.js';
 import { buildOverview } from '../services/admin-ops/overview.service.js';
 import { getMonitoringSnapshot } from '../services/admin-ops/snapshot.service.js';
+import { getRedisConnection } from '../queue/client.js';
+import { subscribeChannel } from '../services/deploy-log-stream.js';
+import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
 
 const LIVE_PANELS = new Set([
   'incidents',
@@ -113,6 +119,128 @@ export const getOverviewSnapshot = asyncHandler(async (req, res) => {
   res.set('Cache-Control', 'no-store');
   res.json({ freshness, ageSeconds, reason, snapshot });
 });
+
+// Inside the limiter's 7-minute slot TTL, so a crashed process never holds a
+// slot longer than one window; the browser reconnects transparently.
+const EVENT_STREAM_MAX_MS = 6 * 60_000;
+const EVENT_HEARTBEAT_MS = 25_000;
+const EVENT_ROLE_RECHECK_MS = 2 * 60_000;
+const EVENT_STREAMS_PER_ADMIN = 2;
+let eventSequence = 0;
+const eventEpoch = Date.now().toString(36);
+
+/** Only these fields of each event type ever reach a browser. */
+const EVENT_FIELDS = {
+  deployment: ['deploymentId', 'status', 'at'],
+  app: ['projectId', 'slug', 'from', 'to', 'at'],
+  incident: ['id', 'fingerprint', 'severity', 'state', 'title', 'at', 'muted'],
+};
+
+/**
+ * Live admin events over SSE: deployment transitions, application health
+ * changes and incidents. Payloads are ids and states only. Every connection
+ * re-checks the administrator's role in the database, because the session
+ * copy can lag a demotion, and again every two minutes while open.
+ */
+export const getOverviewEvents = asyncHandler(async (req, res) => {
+  const userId = req.session.user.id;
+  if (!(await isStillAdmin(userId))) {
+    res.status(403).end();
+    return;
+  }
+  const slotKey = `sse:admin-ops:user:${userId}`;
+  if (!(await acquireStreamSlot(slotKey, EVENT_STREAMS_PER_ADMIN))) {
+    res.set('Retry-After', '30');
+    res.status(429).end();
+    return;
+  }
+
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache, no-store',
+    Connection: 'keep-alive',
+    'X-Accel-Buffering': 'no',
+  });
+  res.flushHeaders?.();
+
+  let closed = false;
+  const send = (type, data) => {
+    if (closed) {
+      return;
+    }
+    eventSequence += 1;
+    res.write(
+      `id: ${eventEpoch}-${eventSequence}\nevent: ${type}\ndata: ${JSON.stringify(data)}\n\n`,
+    );
+    // A compression layer in front would otherwise hold events back.
+    res.flush?.();
+  };
+
+  // Without a Redis connection there is no pub/sub: the page polls instead.
+  const subscribe =
+    req.app.locals.adminOpsDeps?.subscribeChannel ??
+    ((channel, handler) => (getRedisConnection() ? subscribeChannel(channel, handler) : null));
+  const unsubscribe = subscribe(ADMIN_OPS_EVENT_CHANNEL, (payload) => {
+    const fields = EVENT_FIELDS[payload?.type];
+    if (!fields) {
+      return;
+    }
+    send(
+      payload.type,
+      Object.fromEntries(fields.filter((f) => f in payload).map((f) => [f, payload[f]])),
+    );
+  });
+
+  res.write('retry: 5000\n\n');
+  send('hello', { live: Boolean(unsubscribe), at: new Date().toISOString() });
+
+  const heartbeat = setInterval(() => {
+    if (!closed) {
+      res.write(': ping\n\n');
+      res.flush?.();
+    }
+  }, EVENT_HEARTBEAT_MS);
+  const recheck = setInterval(async () => {
+    if (!(await isStillAdmin(userId).catch(() => false))) {
+      send('forbidden', {});
+      finish();
+    }
+  }, EVENT_ROLE_RECHECK_MS);
+  const lifetime = setTimeout(() => {
+    send('reconnect', {});
+    finish();
+  }, EVENT_STREAM_MAX_MS);
+
+  function finish() {
+    if (closed) {
+      return;
+    }
+    closed = true;
+    clearInterval(heartbeat);
+    clearInterval(recheck);
+    clearTimeout(lifetime);
+    unsubscribe?.();
+    releaseStreamSlot(slotKey).catch(() => {});
+    res.end();
+  }
+
+  if (!unsubscribe) {
+    // No pub/sub available: tell the page to rely on polling, and close.
+    send('unavailable', {});
+    finish();
+    return;
+  }
+  req.on('close', finish);
+});
+
+async function isStillAdmin(userId) {
+  const user = await User.findById(userId).select('platformRole status').lean();
+  return (
+    Boolean(user) &&
+    user.status === UserStatus.ACTIVE &&
+    [PlatformRole.ADMIN, PlatformRole.SUPER_ADMIN].includes(user.platformRole)
+  );
+}
 
 export const getOverviewSettings = asyncHandler(async (req, res) => {
   const [preferences, policy] = await Promise.all([

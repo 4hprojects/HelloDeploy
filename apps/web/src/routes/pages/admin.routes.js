@@ -57,6 +57,7 @@ import {
 } from '../../controllers/learning-hub-admin.controller.js';
 import {
   getAdminIndex,
+  getOverviewEvents,
   getOverviewLive,
   getOverviewSnapshot,
   getOverviewSettings,
@@ -104,6 +105,7 @@ router.get('/', getAdminIndex);
 // collects and alerts on for everyone, so it sits with the Super Admin levers.
 router.get('/overview/live', getOverviewLive);
 router.get('/overview/snapshot', getOverviewSnapshot);
+router.get('/overview/events', getOverviewEvents);
 router.get('/overview/settings', getOverviewSettings);
 router.post('/overview/settings/personal', postPersonalSettings);
 router.post('/overview/settings/personal/reset', postPersonalReset);
