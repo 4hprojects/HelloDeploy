@@ -24,6 +24,7 @@
     "config:check": "node scripts/validate-config.js",
     "content:check": "node scripts/check-learning-hub-content.js",
     "host:baseline": "node scripts/capture-host-baseline.js",
+    "monitoring:overhead": "node scripts/measure-monitoring-overhead.js",
     "production:check": "node scripts/check-public-production.js",
     "test": "node scripts/run-tests.js",
     "test:watch": "node scripts/run-tests.js --watch",

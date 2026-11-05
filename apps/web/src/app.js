@@ -60,8 +60,12 @@ export function createApp({
     viewsEnabled: env.LEARNING_HUB_VIEWS_ENABLED,
     getRepository: getContentRepository,
   },
+  // Overview data sources (snapshot reader, server stats); tests and the
+  // browser fixture inject deterministic ones.
+  adminOps = {},
 } = {}) {
   const app = express();
+  app.locals.adminOpsDeps = adminOps.deps ?? {};
 
   // Trust proxy headers (for rate limiting by IP behind Nginx / Cloudflare).
   // Two hops sit in front of the app — cloudflared, then nginx, both on

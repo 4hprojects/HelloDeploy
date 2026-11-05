@@ -58,6 +58,7 @@ import {
 import {
   getAdminIndex,
   getOverviewLive,
+  getOverviewSnapshot,
   getOverviewSettings,
   loadAdminShell,
   postPersonalReset,
@@ -102,6 +103,7 @@ router.get('/', getAdminIndex);
 // administrator; the platform-wide monitoring policy changes what the server
 // collects and alerts on for everyone, so it sits with the Super Admin levers.
 router.get('/overview/live', getOverviewLive);
+router.get('/overview/snapshot', getOverviewSnapshot);
 router.get('/overview/settings', getOverviewSettings);
 router.post('/overview/settings/personal', postPersonalSettings);
 router.post('/overview/settings/personal/reset', postPersonalReset);

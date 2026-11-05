@@ -2,15 +2,15 @@
 
 Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each phase ships as its own PR; the owner merges it and autodeploy releases it.
 
-| Phase | Scope                                                    | Status  | Branch / PR               |
-| ----- | -------------------------------------------------------- | ------- | ------------------------- |
-| 0     | Audit and reconciliation                                 | Done    | `feat/admin-ops-p0-audit` |
-| 1     | Full-width overview and settings foundation              | Done    | `feat/admin-ops-p1-ui`    |
-| 2     | Trusted collection, snapshot, host and container metrics | Pending |                           |
-| 3     | App health, queue, services, builder, SSE                | Pending |                           |
-| 4     | History, alerts, incident lifecycle                      | Pending |                           |
-| 5     | Capacity and attention                                   | Pending |                           |
-| 6     | Validation, performance, docs, rollout                   | Pending |                           |
+| Phase | Scope                                                    | Status  | Branch / PR                   |
+| ----- | -------------------------------------------------------- | ------- | ----------------------------- |
+| 0     | Audit and reconciliation                                 | Done    | `feat/admin-ops-p0-audit`     |
+| 1     | Full-width overview and settings foundation              | Done    | `feat/admin-ops-p1-ui`        |
+| 2     | Trusted collection, snapshot, host and container metrics | Done    | `feat/admin-ops-p2-collector` |
+| 3     | App health, queue, services, builder, SSE                | Pending |                               |
+| 4     | History, alerts, incident lifecycle                      | Pending |                               |
+| 5     | Capacity and attention                                   | Pending |                               |
+| 6     | Validation, performance, docs, rollout                   | Pending |                               |
 
 ## Phase 0: Audit
 
@@ -135,3 +135,104 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
    - The CPU, network, application, trend and capacity panels wait for the trusted collector (Phase 2 and later).
    - Incidents wait for Phase 4.
 10. **Next**: Phase 2, trusted host and container collection in the worker.
+
+## Phase 2: Trusted collection and snapshot
+
+1. **Completed**
+   - A worker-side collector (`apps/worker/src/monitoring/`) runs on the policy interval (default 15 s) whether or not anyone has the dashboard open. A Redis lease (`SET NX EX` with a token) keeps a second worker from running a duplicate collector.
+   - Each cycle reads:
+     - host CPU from `/proc/stat` deltas, normalized over all cores
+     - memory and swap from `/proc/meminfo` MemAvailable
+     - memory PSI
+     - physical-interface network rates from `/proc/net/dev` deltas, with counter-reset and interface-change handling
+     - load and uptime
+     - disks by `statfs`, on the disk interval, deduplicated per filesystem
+   - Each cycle makes three bounded Docker reads: `ps -aq`, one `inspect` of every container (state, restart count, OOM, limits, HelloDeploy labels only), and `stats --no-stream`.
+   - Platform units are read with `systemctl show`, on the service interval: state, cgroup memory, CPU share and restart count.
+   - `docker system df` runs every 30 min in the background.
+   - Containers are classified from Mongo records: active (the project's `activeDeploymentId` container), candidate, retained, orphaned, build, or unmanaged. Unmanaged containers are counted toward host load but never named or attributed.
+   - Every value travels in the metric envelope. A missing reading is `null` with a reason, never 0. Examples: CPU on the first cycle, no swap, PSI absent.
+   - Each source has a timeout, an output cap and a breaker: after 3 consecutive failures it is skipped for 5 min. A Docker failure still publishes host metrics.
+   - The worker publishes the sanitized snapshot to Redis `monitoring:snapshot` (TTL max(90 s, 4 intervals)). It also keeps a capped raw-sample list `monitoring:samples` (240 points, 1 h at 15 s). Both are written in one `MULTI`.
+   - The web side reads these only:
+     - `snapshot.service.js` uses a 2 s shared read cache, freshness, and schema checking.
+     - `GET /admin/overview/snapshot` returns JSON for admins.
+     - The KPIs take CPU, memory, swap, disk and network from the collector, with sparklines. When the snapshot is stale they show a Stale tone; when there is no snapshot they fall back to the web process for memory and disk only.
+     - The trends panel draws server-rendered SVG charts from the raw samples. Gaps and missing values break the line; each chart has one shared axis and a table summary.
+     - A new **Resource consumers** panel shows actual CPU and memory against configured limits, restarts and uptime for platform services and containers, plus an anonymized "other containers" row and Docker storage.
+     - The services panel gains Monitoring collector and Docker rows.
+   - `MONITORING_COLLECTOR_ENABLED` (default `true`) can turn the collector off without a code rollback.
+2. **Changed files**
+   - New:
+     - `apps/worker/src/monitoring/{proc,docker,classify,systemd,collector}.js`
+     - `apps/web/src/services/admin-ops/{snapshot.service,charts}.js`
+     - `views/partials/admin-ops/{chart,consumers}.ejs`
+     - `scripts/measure-monitoring-overhead.js` (`npm run monitoring:overhead`)
+     - `tests/fixtures/admin-ops-fixture.js`
+     - `tests/admin-ops/{collector,overview-view}.test.js`
+   - Modified:
+     - `apps/worker/src/runtime.js`: loop start/stop and job outcome timestamps
+     - `apps/worker/src/config/env.js`
+     - `apps/web/src/app.js`: `adminOps.deps` test seam
+     - the overview service, controller, routes, trends partial and CSS
+     - `packages/contracts/src/monitoring.js`: `ORPHANED`/`BUILD` roles, `consumers` widget
+     - `scripts/browser-fixture-server.js`: deterministic snapshot from the real collector over fake readers
+     - `.env.example`, `docs/ENVIRONMENT.md`, `package.json`
+3. **Decisions**
+   - The collector runs inside the existing worker, which already holds Docker group membership. The web process still gets no privilege.
+   - The `inspect` format string selects fields explicitly. Environment, command lines and mounts are never read into the process that publishes.
+   - `docker system df` took 27.7 s on the first measurement (11.4 s later), because it sizes 19 GB of volumes. It was moved out of the cycle and runs at most every 30 min.
+   - Raw samples stay in Redis, not Mongo, so the 15 s cadence causes no database writes. Mongo history comes in Phase 4.
+4. **Tests executed**
+   - `node --test tests/admin-ops/*.test.js`
+   - `npm test`
+   - `npx playwright test tests/browser/admin-ops.spec.js`
+   - lint, format, config, assets
+   - a host dry run and `npm run monitoring:overhead -- --cycles 8 --interval 15`
+5. **Results**
+   - `npm test`: 2985/2985 pass.
+   - Admin-ops unit and route tests: 85/85 pass. New cases include:
+     - CPU normalization, and iowait counted as idle
+     - the first sample is null
+     - MemAvailable accounting; swap used
+     - only physical interfaces are counted
+     - counter reset gives no negative spike; a new interface gives null
+     - an idle link reads 0, not unavailable
+     - df-style usage
+     - Docker binary and decimal sizes; `--` reads as null; a zero limit means unlimited
+     - foreign labels are dropped
+     - classification: active, retained, candidate, orphaned, build, unmanaged
+     - the breaker opens after 3 failures
+     - the stats collector can be disabled
+     - no lease means no collection
+     - unmanaged containers are anonymized
+     - a stale snapshot greys the tiles; no snapshot shows Unavailable
+     - apps are never Healthy from containers alone
+     - limits are kept distinct from usage
+     - chart gaps and nulls break the line; the axis is shared
+   - Browser: 17/17 pass.
+   - Lint: 0 errors.
+   - Budgets: `admin-ops.css` 15.4/22 KB, `admin-ops.js` 7.0/16 KB.
+6. **Host verification (dry run, real host)**
+   - Memory: MemAvailable 4165 MiB against `free -m` 4180 MiB, read seconds apart.
+   - Container memory and limits matched `docker stats` (for example 103/112 MiB of 256 MiB).
+   - Root and Docker data were deduplicated to one filesystem (11.8%, `df` 12%).
+   - Systemd units read without privilege.
+   - Swap was fully used (4095/4095 MiB) at the time of measurement. That is an operational finding for Phase 4 alerting.
+7. **Performance (production host, 4 cores, 8 cycles at 15 s, `monitoring:overhead`)**
+   - Cycle wall time: p50 2218 ms, p95 2272 ms. Nearly all of it is `docker stats` waiting for the daemon's second sample.
+   - Collector CPU: 22 ms per cycle, **0.04% of the host**.
+   - Docker and containerd CPU during the window: **0.43% of the host**. This is an upper bound, because it includes unrelated daemon work.
+   - RSS: no growth (−6.2 MiB over the run).
+   - `docker system df`: 11.4 s wall (background, every 30 min).
+   - The target was idle CPU under 2% and memory under 100 MiB; both are met.
+8. **Security**
+   - The web process still has no Docker, sudo or shell access, and reads Redis only.
+   - The snapshot is sanitized at the source: there are no names or IDs for unmanaged containers and no environment, command or mount data. Error reasons are cut to one line of 160 characters.
+   - The snapshot endpoint is admin-only and sent with `no-store`.
+9. **Outstanding**
+   - Application health probes, queue stages and the SSE event stream: Phase 3.
+   - Mongo history beyond 1 h, and incidents: Phase 4.
+   - Capacity: Phase 5.
+   - The collector's Redis publish was exercised with a fake Redis, not the host's Redis, which is production's.
+10. **Next**: Phase 3, operational integrations.

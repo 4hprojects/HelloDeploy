@@ -55,6 +55,9 @@ export const ContainerRole = Object.freeze({
   ACTIVE: 'active',
   CANDIDATE: 'candidate',
   RETAINED: 'retained',
+  // Labelled as HelloDeploy's but no deployment record claims it.
+  ORPHANED: 'orphaned',
+  BUILD: 'build',
   UNMANAGED: 'unmanaged',
 });
 
@@ -108,6 +111,7 @@ export const OPTIONAL_DASHBOARD_WIDGETS = Object.freeze({
   trends: 'Resource trends',
   capacity: 'Capacity and allocation',
   apps: 'Applications',
+  consumers: 'Resource consumers',
   deployments: 'Deployments and queue',
   services: 'Platform services',
   attention: 'Administrative attention',
@@ -233,7 +237,8 @@ export const THRESHOLD_RULES = Object.freeze({
 export const OPTIONAL_COLLECTORS = Object.freeze({
   containerStats: 'Per-container CPU and memory (one docker stats call per cycle)',
   appProbes: 'Application HTTP health probes on the loopback port',
-  dockerDiskUsage: 'Docker images, build cache and volumes (docker system df, every 10 min)',
+  dockerDiskUsage:
+    'Docker images, build cache and volumes (docker system df, every 30 min, in the background)',
   nginxValidate: 'Nginx configuration validation through the route helper (every 5 min)',
   publicReachability: 'Public HTTPS reachability of each project subdomain',
 });

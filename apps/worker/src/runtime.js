@@ -45,6 +45,7 @@ import { setNotificationQueue } from './queue/notification-queue.js';
 import { createBuilderRuntime } from './builder/builder-runtime.js';
 import { setBuilderController } from './builder/builder-registry.js';
 import { failInterruptedBuilderDeployments } from './builder/interrupted-builds.js';
+import { createMonitoringCollector, startMonitoringLoop } from './monitoring/collector.js';
 
 logger.info('Worker: starting HelloDeploy deployment worker', {
   nodeEnv: env.NODE_ENV,
@@ -261,11 +262,29 @@ runContainerUptimeSweep();
 const containerUptimeInterval = setInterval(runContainerUptimeSweep, CONTAINER_UPTIME_SWEEP_MS);
 containerUptimeInterval.unref();
 
+// Shared host and container sampling for the admin operations overview.
+// Runs whether or not anyone has the dashboard open; failures stay inside
+// the collector and never reach the deployment queue.
+let stopMonitoring = () => {};
+const monitoringCollector = env.MONITORING_COLLECTOR_ENABLED
+  ? createMonitoringCollector({
+      redis,
+      logger,
+      workspacePath: env.BUILD_WORKSPACE_ROOT,
+    })
+  : null;
+if (monitoringCollector) {
+  stopMonitoring = startMonitoringLoop({ collector: monitoringCollector, logger });
+  logger.info('Worker: monitoring collector started');
+}
+
 worker.on('completed', (job) => {
+  monitoringCollector?.recordJobOutcome('completed');
   logger.info('Worker: job completed', { jobId: job.id, jobType: job.name });
 });
 
 worker.on('failed', (job, err) => {
+  monitoringCollector?.recordJobOutcome('failed');
   logger.error('Worker: job failed', {
     jobId: job?.id,
     jobType: job?.name,
@@ -289,6 +308,7 @@ const shutdown = createGracefulWorkerShutdown({
     clearInterval(notificationSweepInterval);
     clearInterval(studyArchiveInterval);
     clearInterval(containerUptimeInterval);
+    stopMonitoring();
     await Promise.all([queue.close(), notificationQueue.close()]);
     await redis.quit();
   },
