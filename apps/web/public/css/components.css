@@ -1515,6 +1515,12 @@ a.setup-guide__step-link:hover .setup-guide__label {
   display: none;
 }
 
+/* The tooltip marks its trigger position: relative on hover and focus; keep
+   this one pinned or it leaves the corner before it can be clicked. */
+.scroll-top-button.tooltip-anchor {
+  position: fixed;
+}
+
 .scroll-top-button:hover {
   background: var(--color-orange-hover);
   border-color: var(--color-orange-hover);
