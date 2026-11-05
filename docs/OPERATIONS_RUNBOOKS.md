@@ -305,6 +305,69 @@ One-time setup that lets owners connect a custom domain themselves: they point o
 
 Domains connected with a tunnel before this change keep working. Migrate them one at a time: register the hostname (Get my DNS record), switch the owner's CNAME to `customers.hellodeploy.online`, confirm Live, then retire the per-domain connector.
 
+## Admin operations monitoring
+
+The `/admin` overview reads one sanitized snapshot that the **worker** publishes; the web process
+never touches Docker or the host. Design and evidence:
+[implementation/admin-operations-dashboard/](implementation/admin-operations-dashboard/IMPLEMENTATION_PROGRESS.md).
+
+**What runs (worker, read-only, whether or not anyone has the page open):**
+
+| Every                            | What                                                                                                                                  |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
+| resource interval (default 15 s) | `/proc` CPU, memory, swap, PSI, network; `docker ps -aq`, one `docker inspect`, `docker stats --no-stream`; queue counts; alert rules |
+| disk interval (30 s)             | `statfs` on `/`, the build workspace and `/var/lib/docker`                                                                            |
+| service interval (30 s)          | `systemctl show` for the platform units                                                                                               |
+| probe interval (30 s)            | one HTTP GET per live release on `127.0.0.1:<port><healthCheckPath>`, 3 s timeout, 3 at a time                                        |
+| 5 min                            | Nginx helper `validate`                                                                                                               |
+| 30 min, background               | `docker system df`                                                                                                                    |
+
+Redis holds `monitoring:snapshot` (TTL ≥ 90 s), `monitoring:samples` (240 raw points) and the
+collector lease `monitoring:collector:lease`; events go out on `admin-ops:events`. Mongo holds
+`monitoring_samples` (1 m, 5 m, 1 h and 1 d buckets, TTL from the policy, about 1.5 MB at the
+defaults) and `monitoring_incidents` (resolved ones expire after 90 days).
+
+**Settings.** `/admin/overview/settings`: personal view settings for every administrator; the
+platform policy (intervals, thresholds, retention, reserves, optional collectors, notification
+mute) for super administrators only, each change audited as `admin.monitoring_policy_updated` or
+`_reset`. The worker picks up a saved policy within 30 seconds; no restart.
+
+**During planned maintenance** mute notifications in the platform policy (30 min to 24 h). Checks
+keep running and incidents are still recorded; only live announcements are held back. Do not turn
+collectors off for maintenance.
+
+**Reading the page.** _Unknown_ or _Unavailable_ means the evidence is missing, never that things
+are fine. _Stale_ means the snapshot is more than two intervals old: check the worker
+(`journalctl -u hellodeploy-worker -n 100 | grep -i monitoring`) and Redis. Acknowledging an
+incident records that someone is on it; it resolves only when its rule recovers.
+
+**After a release that changes monitoring:**
+
+```bash
+npm run production:check -- https://hellodeploy.online --expected-sha <full sha>
+journalctl -u hellodeploy-worker --since "-10 min" | grep -iE "monitoring|collector"
+npm run monitoring:overhead -- --cycles 8 --interval 15   # as a docker-group user, read-only
+```
+
+Expect the overview badge **Live**, a collector row reporting cycle time, and the overhead report
+near the Phase 2 baseline (collector ≈0.04% host CPU, Docker ≈0.4%, p95 cycle ≈2.3 s).
+
+**Turn it off without a rollback.** Set `MONITORING_COLLECTOR_ENABLED=false` in the worker
+environment and restart `hellodeploy-worker`. Deployments are unaffected; the overview shows the
+collector as Down and falls back to the web process for memory and disk.
+
+**Roll back** with the normal [Rollback](#rollback) procedure if any of these happen after a
+release: deployment throughput or queue latency regresses; worker RSS grows steadily; host memory
+or disk pressure traceable to the collector; the overview shows a wrong critical state; anything
+sensitive appears in `/admin/overview/snapshot` or the event stream; non-admin access to any
+`/admin/overview` route. The new collections and the optional `User.dashboardPreferences` field
+are additive: older code ignores them, so a rollback needs no data change. Never delete monitoring
+records or loosen access as a workaround.
+
+**Known limits.** Backup status shows Unknown: backup manifests are root-only (mode 0600) and
+reading them would need a privilege change the owner has not approved. Public reachability probes
+are off by default.
+
 ## Backup
 
 Back up these assets before upgrades and after major configuration changes:

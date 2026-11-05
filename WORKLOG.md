@@ -2598,3 +2598,30 @@ denied)`: nginx runs as `www-data`, and `/opt/hellodeploy` is `root:hellodeploy-
   listed on `/admin/server` with a **Retry** button. Container, image and network removal now treat
   "already gone" as removed. Before this, a retry after a partial teardown could never succeed,
   because Docker reports a missing container as an error.
+
+## 2026-11-05 — Admin Operations Dashboard (#197–#203)
+
+- Seven stacked PRs, waiting for the owner to merge them in order:
+  - #197: Phase 0 audit
+  - #198: full-width overview and settings
+  - #199: worker collector
+  - #200: application health, deployments and the event stream
+  - #201: history and incidents
+  - #202: capacity and attention
+  - #203: validation and documentation
+- The collector runs inside the existing worker and publishes a sanitized Redis snapshot. The web process gains no privilege. Schema changes are additive only: two new collections and an optional `User.dashboardPreferences`.
+- Measured on the production host (`npm run monitoring:overhead`, 8 cycles × 15 s):
+  - collector 0.04% host CPU (22 ms per cycle)
+  - Docker daemon at most 0.43%
+  - p95 cycle 2.27 s; RSS flat
+  - `docker system df` takes 11–28 s, so it runs every 30 min in the background
+- Fixture load test of `/admin/overview/live` with all panels and no client delay: p95 of 55 ms for 1 dashboard, 111 ms for 3, 347 ms for 10. Throughput saturates around 35 req/s. RSS returned to baseline after idle. Real dashboards send about 0.07 req/s each.
+- History storage: 342 B per bucket, about 1.5 MB at the default retention, about 1,750 writes a day.
+- Checks:
+  - `npm test` 3074/3074 pass (coverage run: 88.9% lines overall)
+  - Playwright 153/155; the 2 failures are the existing `dashboard-1440` and `deployment-failure-390` baselines, which differ only in glyphs on this host and pass in CI on #197–#201
+  - Lighthouse lab passes
+  - `npm audit --omit=dev --audit-level=moderate` passes (4 low-severity findings, all existing)
+  - CI green on #197–#201
+- Host finding while measuring: swap was fully used (4095/4095 MiB) at 02:38 on 2026-11-05. The new memory and capacity rules surface this condition.
+- Backup evidence shows Unknown. The manifests are root-only, and reading them needs an owner decision.

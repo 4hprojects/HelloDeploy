@@ -2,15 +2,15 @@
 
 Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each phase ships as its own PR; the owner merges it and autodeploy releases it.
 
-| Phase | Scope                                                    | Status  | Branch / PR                   |
-| ----- | -------------------------------------------------------- | ------- | ----------------------------- |
-| 0     | Audit and reconciliation                                 | Done    | `feat/admin-ops-p0-audit`     |
-| 1     | Full-width overview and settings foundation              | Done    | `feat/admin-ops-p1-ui`        |
-| 2     | Trusted collection, snapshot, host and container metrics | Done    | `feat/admin-ops-p2-collector` |
-| 3     | App health, queue, services, builder, SSE                | Done    |                               |
-| 4     | History, alerts, incident lifecycle                      | Done    |                               |
-| 5     | Capacity and attention                                   | Done    |                               |
-| 6     | Validation, performance, docs, rollout                   | Pending |                               |
+| Phase | Scope                                                    | Status                              | Branch / PR                   |
+| ----- | -------------------------------------------------------- | ----------------------------------- | ----------------------------- |
+| 0     | Audit and reconciliation                                 | Done                                | `feat/admin-ops-p0-audit`     |
+| 1     | Full-width overview and settings foundation              | Done                                | `feat/admin-ops-p1-ui`        |
+| 2     | Trusted collection, snapshot, host and container metrics | Done                                | `feat/admin-ops-p2-collector` |
+| 3     | App health, queue, services, builder, SSE                | Done                                |                               |
+| 4     | History, alerts, incident lifecycle                      | Done                                |                               |
+| 5     | Capacity and attention                                   | Done                                |                               |
+| 6     | Validation, performance, docs, rollout                   | Done (deploy waits for owner merge) |                               |
 
 ## Phase 0: Audit
 
@@ -522,3 +522,73 @@ Package: `docs/implementation/admin-operations-dashboard/` (`00`–`11`). Each p
 6. **Security**: no new endpoints. Read-only links only. No destructive controls.
 7. **Outstanding**: none for this phase.
 8. **Next**: Phase 6, validation, documentation and rollout.
+
+## Phase 6: Validation, performance, documentation, rollout
+
+1. **Completed**
+   - Full CI-equivalent validation, a load profile, documentation, final screenshot evidence, and rollout readiness.
+   - New reader tests cover:
+     - bounded docker reads: success, non-zero exit, timeout kill, output cap, no shell
+     - systemd reads
+     - the history tier query
+     - the resolved-incident window
+2. **Changed files**
+   - `docs/OPERATIONS_RUNBOOKS.md`: new _Admin operations monitoring_ section covering cadence, storage, settings, maintenance mute, how to read Unknown and Stale, post-release checks, the kill switch, rollback triggers and known limits.
+   - `docs/PRIORITIES.md`, `WORKLOG.md`, this file.
+   - `evidence/*.png`: six screenshots, 128-colour PNGs, 944 KB.
+   - `tests/admin-ops/readers.test.js`.
+3. **Results**
+
+   | Check                                         | Result                                                                                                                                                                                                     |
+   | --------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+   | `npm run lint`                                | 0 errors (1 warning, existing)                                                                                                                                                                             |
+   | `npm run format:check`                        | pass                                                                                                                                                                                                       |
+   | `assets:build/verify/budget`                  | pass: `admin-shell.css` 2.9/4 KB, `admin-shell.js` 1.7/2.5 KB, `admin-ops.css` 17.9/22 KB, `admin-ops.js` 14.0/16 KB. `app.js` and `main.css` unchanged                                                    |
+   | `npm run config:check`                        | pass                                                                                                                                                                                                       |
+   | `npm test`                                    | **3074/3074** pass                                                                                                                                                                                         |
+   | `npm run test:coverage`                       | 88.91% lines and 89.20% branches overall (run before the reader tests were added). New modules range 64–100%; the process wrappers were raised by `readers.test.js`                                        |
+   | `npx playwright test` (full)                  | 153 passed, 2 failed. The failures are the existing `dashboard-1440` and `deployment-failure-390` baselines, which differ only in glyphs on this host and pass in CI. All 19 admin-ops browser checks pass |
+   | `npm run performance:lab`                     | pass (desktop score 1.0, LCP 363 ms, CLS 0, TBT 0)                                                                                                                                                         |
+   | `npm audit --omit=dev --audit-level=moderate` | pass (4 low-severity findings, existing deepmerge)                                                                                                                                                         |
+   | GitHub CI on #197–#201                        | `Lint & Test (22.x)` and CodeQL green                                                                                                                                                                      |
+
+4. **Performance**
+   - **Collector, on the production host:**
+     - collector CPU 0.04% of the host; Docker daemon at most 0.43%
+     - cycle p50 2.22 s, p95 2.27 s
+     - no RSS growth
+   - **Overview endpoint, fixture with Mongo in memory, all 10 panels on every request, no client delay:**
+
+     | Dashboards | Throughput | p50    | p95    |
+     | ---------- | ---------- | ------ | ------ |
+     | 1          | 28 req/s   | 34 ms  | 55 ms  |
+     | 3          | 35 req/s   | 85 ms  | 111 ms |
+     | 10         | 35 req/s   | 283 ms | 347 ms |
+     - Throughput saturates around 35 req/s on one core; every response was 200 and 48 KB of JSON before compression.
+     - RSS rose from 180 to 277 MB during the burst and was back to 182 MB after 30 s idle.
+     - Real use is far lighter: a dashboard requests the resource panels every 15 s and the others every 30–120 s, about 0.07 req/s each. Ten dashboards are about 0.7 req/s, roughly 2% of one core at the measured cost.
+
+   - **Writes:** about 1,750 history writes a day, plus incident changes. Redis gets 1 MULTI per cycle.
+   - **Targets:** idle CPU under 2% and memory under 100 MiB are met.
+
+5. **Screenshots** (`evidence/`): `overview-1366x768-light`, `overview-1920x1080-light`, `overview-1920x1080-dark`, `overview-2560x1440-dark`, `overview-390x844-light`, `overview-1600x900-collapsed`. The full set at every reference size and theme, including 1024 px and the 24 h range, is regenerated by `ADMIN_OPS_SCREENSHOT_DIR=<dir> npx playwright test tests/browser/admin-ops.spec.js`.
+6. **Security review**
+   - The web process gains no Docker access, sudo, shell or helper access. `verify-installation.sh` group checks are unchanged.
+   - Every new route is under `requireAuth` and `requireAdmin`. Platform policy writes need `requireSuperAdmin`. CSRF protects every POST.
+   - The event stream re-checks the role in the database. Its payloads use field allowlists, and no log text is sent.
+   - The snapshot is sanitized at the source: no environment, command or mount data, and no identity for unmanaged containers.
+   - Templates escape all data. The only unescaped output is SVG markup built from numbers and fixed class names.
+   - Policy changes and acknowledgements are audited.
+7. **Production deployment status**
+   - **Not deployed. It waits for the owner to merge**, as decided on 2026-11-05: Claude opens PRs and the owner merges.
+   - The established path then applies: merge to `main`, green `ci.yml`, the autodeploy timer, and `upgrade.sh` (backup, pause-and-drain, detached checkout, verify, automatic rollback).
+   - Merge order: #197, then #198 through #203. Each PR is stacked on the previous one, so merging #203 last carries the whole set. Each merge autodeploys on its own once CI passes.
+   - After deploy, run the runbook checks (_Admin operations monitoring › After a release_).
+   - Rollback triggers and the `MONITORING_COLLECTOR_ENABLED=false` kill switch are documented there.
+8. **Outstanding / limitations**
+   - **Backup evidence is Unknown.** Showing it needs read access to `/var/backups/hellodeploy/*/manifest.json` (root, 0600). That is a privilege change needing owner approval.
+   - **Public reachability probes are off by default.** Enable them under the platform policy if wanted.
+   - **A longer retention does not extend buckets already written.** They keep the expiry they were written with.
+   - **Historical charts at 6 h and beyond show bucket averages.** Peaks are in the table summary.
+   - **Two visual baselines differ locally**, from fonts only. CI is authoritative.
+9. **Next**: owner review and merge of #197–#203, then the post-release checks.
