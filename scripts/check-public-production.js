@@ -14,6 +14,10 @@ const PAGE_SCOPED_ASSET_KEYS = new Set([
   'js/learning-hub.js',
   'css/legal.css',
   'css/auth.css',
+  'css/admin-shell.css',
+  'js/admin-shell.js',
+  'css/admin-ops.css',
+  'js/admin-ops.js',
 ]);
 
 function exactKeys(value, expected) {
