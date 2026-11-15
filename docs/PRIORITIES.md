@@ -58,8 +58,6 @@ Nothing open. Take the next item from **Next**.
 - **GitHub App uninstall** (owner decision): uninstalling marks repositories `REVOKED`, which
   stops new deploys, but apps already running stay up. Decide whether uninstall should also stop
   them.
-- **Test gaps**: `env-secret.service.js`, `approval-readiness.service.js`,
-  `session-revocation.service.js`, `oci-image.js`, `project-route-lock.js`.
 - **Script headroom**: `js/app.js` has 127 bytes left. Move a page-specific part (for example
   the password strength bar or the repository branch loader) into a page-scoped script before the
   next dashboard script change. `css/main.css` has 3.4 KB again since `auth.css` became its own
