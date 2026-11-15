@@ -14,6 +14,7 @@ const {
   markEmailVerified,
   sendUserPasswordReset,
   getUserDetail,
+  getClosureQueue,
 } = await import('../../apps/web/src/services/admin.service.js');
 
 let emailCounter = 0;
@@ -340,6 +341,40 @@ describe('admin user management', () => {
       });
 
       assert.equal(result.success, true);
+    });
+  });
+
+  describe('closure queue', () => {
+    const NOW = new Date('2026-11-15T12:00:00Z');
+    const daysAgo = (days) => new Date(NOW.getTime() - days * 86_400_000);
+
+    it('lists open requests oldest first', async () => {
+      await createUser({ email: 'newer@example.test', closureRequestedAt: daysAgo(2) });
+      await createUser({ email: 'older@example.test', closureRequestedAt: daysAgo(20) });
+      await createUser({ email: 'no-request@example.test' });
+
+      const queue = await getClosureQueue({ now: NOW });
+
+      assert.deepEqual(
+        queue.map((entry) => entry.email),
+        ['older@example.test', 'newer@example.test'],
+      );
+    });
+
+    it('counts the days left against the 30-day promise', async () => {
+      await createUser({ closureRequestedAt: daysAgo(23) });
+
+      const [entry] = await getClosureQueue({ now: NOW });
+
+      assert.equal(entry.daysLeft, 7);
+    });
+
+    it('reports a request past the promise as no days left', async () => {
+      await createUser({ closureRequestedAt: daysAgo(31) });
+
+      const [entry] = await getClosureQueue({ now: NOW });
+
+      assert.equal(entry.daysLeft, -1);
     });
   });
 });

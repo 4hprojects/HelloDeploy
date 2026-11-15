@@ -77,7 +77,7 @@ Decisions:
 Files:
 
 - New `/account` (`routes/pages/account.routes.js`, `controllers/account.controller.js`, `services/account.service.js`, `validators/account.validator.js`, `views/pages/account.ejs`): edit your name, change your password, see sign-in methods and GitHub App status, and request account closure. Sidebar link added.
-- `packages/database` `User.closureRequestedAt`; admin user list and detail show "Closure requested".
+- `packages/database` `User.closureRequestedAt`; admin user list and detail show "Closure requested"; the users list opens with a closure queue showing days left against the 30-day promise.
 - `services/session-revocation.service.js`: `exceptSessionId` keeps the browser that changed the password signed in.
 - `services/admin.service.js` `suspendUser`: emails the reason and the appeal address.
 - `packages/contracts` email kinds `account-closure-requested`, `account-suspended`.

@@ -555,6 +555,23 @@ test('admin server page fits a phone viewport', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
+test('admin users page lists closure requests with days left', async ({ page }) => {
+  await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin/users');
+  await expect(
+    page.locator('#closure-queue').getByRole('row', { name: /Leaving Member.*5 days left/ }),
+  ).toBeVisible();
+});
+
+test('admin users closure queue has no serious accessibility violations', async ({ page }) => {
+  await signIn(page, 'admin@hellodeploy.test');
+  await page.goto('/admin/users');
+  const results = await new AxeBuilder({ page }).include('#closure-queue').analyze();
+  expect(
+    results.violations.filter((violation) => ['critical', 'serious'].includes(violation.impact)),
+  ).toEqual([]);
+});
+
 async function routeFinishingDashboardDeployment(page) {
   let requestCount = 0;
   await page.route('**/dashboard/status?*', async (route) => {

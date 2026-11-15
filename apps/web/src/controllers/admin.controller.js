@@ -7,6 +7,7 @@ import {
   getFailedTeardowns,
   retryProjectTeardown,
   getUsers,
+  getClosureQueue,
   getUserDetail,
   suspendUser,
   reactivateUser,
@@ -325,17 +326,22 @@ export const getAdminUsers = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page) || 1);
   const { status, role, search } = req.query;
 
-  const { users, total, limit } = await getUsers({ page, status, role, search });
+  const now = new Date();
+  const [{ users, total, limit }, closureQueue] = await Promise.all([
+    getUsers({ page, status, role, search }),
+    getClosureQueue({ now }),
+  ]);
 
   res.render('pages/admin/users', {
     title: 'Users',
     users,
+    closureQueue,
     total,
     page,
     limit,
     totalPages: Math.ceil(total / limit),
     filters: { status: status ?? '', role: role ?? '', search: search ?? '' },
-    now: new Date(),
+    now,
   });
 });
 

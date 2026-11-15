@@ -9,7 +9,7 @@ import {
 import { User } from '@hellodeploy/database';
 
 import { env } from '../../config/env.js';
-import { getAdminOverview } from '../admin.service.js';
+import { CLOSURE_DEADLINE_DAYS, getAdminOverview } from '../admin.service.js';
 import { toActionLabel } from '../audit-search.service.js';
 import { getBuilderStatus } from '../builder-control.service.js';
 import { collectServerStats } from '../server-stats.service.js';
@@ -818,9 +818,6 @@ function buildServices(server, snapshotState) {
   ];
 }
 
-// The account page promises deletion within 30 days of a closure request.
-const CLOSURE_DEADLINE_DAYS = 30;
-
 async function getPendingClosures() {
   return User.find({ closureRequestedAt: { $ne: null } })
     .select('_id closureRequestedAt')
@@ -879,7 +876,7 @@ function buildAttention({
         daysLeft <= 0
           ? `The oldest is past the ${CLOSURE_DEADLINE_DAYS}-day deletion commitment.`
           : `The oldest must be completed within ${daysLeft} day${daysLeft === 1 ? '' : 's'}.`,
-      href: '/admin/users',
+      href: '/admin/users#closure-queue',
     });
   }
   if (server?.worker && !server.worker.ready) {

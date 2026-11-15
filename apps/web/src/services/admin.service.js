@@ -124,6 +124,28 @@ export async function getUsers({ page = 1, limit = 20, status, role, search } = 
   return { users, total, page, limit };
 }
 
+// The account page promises deletion within 30 days of a closure request.
+export const CLOSURE_DEADLINE_DAYS = 30;
+const DAY_MS = 86_400_000;
+const CLOSURE_QUEUE_LIMIT = 100;
+
+/**
+ * Open account closure requests, oldest first, each with the date the
+ * 30-day deletion promise runs out and the whole days left until then
+ * (zero or negative once it has passed).
+ */
+export async function getClosureQueue({ now = new Date() } = {}) {
+  const users = await User.find({ closureRequestedAt: { $ne: null } })
+    .select('firstName lastName email closureRequestedAt')
+    .sort({ closureRequestedAt: 1 })
+    .limit(CLOSURE_QUEUE_LIMIT)
+    .lean();
+  return users.map((user) => {
+    const dueAt = new Date(user.closureRequestedAt.getTime() + CLOSURE_DEADLINE_DAYS * DAY_MS);
+    return { ...user, dueAt, daysLeft: Math.ceil((dueAt.getTime() - now.getTime()) / DAY_MS) };
+  });
+}
+
 export async function getUserDetail(userId) {
   const user = await User.findById(userId).select('+passwordHash').lean();
   if (!user) {

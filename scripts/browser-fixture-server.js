@@ -84,6 +84,16 @@ const [user] = await User.create([
     platformRole: PlatformRole.USER,
     status: UserStatus.PENDING_VERIFICATION,
   },
+  {
+    firstName: 'Leaving',
+    lastName: 'Member',
+    email: 'leaving@hellodeploy.test',
+    passwordHash,
+    platformRole: PlatformRole.USER,
+    status: UserStatus.ACTIVE,
+    emailVerifiedAt: new Date('2026-01-01T00:00:00Z'),
+    closureRequestedAt: new Date(Date.now() - 25 * 86_400_000),
+  },
 ]);
 
 const project = await Project.create({
