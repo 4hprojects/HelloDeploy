@@ -7,7 +7,7 @@ const environment = await readFile(
   'utf8',
 );
 const clientScript = await readFile(
-  new URL('../../apps/web/public/js/app.js', import.meta.url),
+  new URL('../../apps/web/public/js/environment.js', import.meta.url),
   'utf8',
 );
 const mainLayout = await readFile(
@@ -83,15 +83,15 @@ describe('.env file upload UI', () => {
   });
 
   it('never builds review rows from HTML strings', () => {
-    const reviewScript = clientScript.slice(
-      clientScript.indexOf('function initEnvFileImport'),
-      clientScript.indexOf('function initSettingsSectionNavigation'),
-    );
-    assert.doesNotMatch(reviewScript, /\.innerHTML = (?!initialStatus)/);
+    assert.doesNotMatch(clientScript, /\.innerHTML = (?!initialStatus)/);
   });
 
-  it('loads the manifest-resolved client bundle so the file listener is current', () => {
-    assert.match(mainLayout, /assetPath\('js\/app\.js'\)/);
+  it('loads page scripts through the manifest so the file listener is current', () => {
+    assert.match(mainLayout, /assetPath\(script\)/);
+  });
+
+  it('loads the import script on the environment page', () => {
+    assert.match(environmentController, /pageScripts: \['js\/environment\.js'\]/);
   });
 
   it('prevents secret-management responses from being browser-cached', () => {

@@ -18,6 +18,12 @@ function preventEnvironmentCaching(res) {
   res.set('Pragma', 'no-cache');
 }
 
+// The .env import is only used here, so it stays out of the shared bundles.
+const ENVIRONMENT_PAGE_ASSETS = Object.freeze({
+  pageScripts: ['js/environment.js'],
+  pageStyles: ['css/environment.css'],
+});
+
 export const getEnvironment = asyncHandler(async (req, res) => {
   const project = req.project;
   const secrets = await listSecretNames(project._id);
@@ -35,6 +41,7 @@ export const getEnvironment = asyncHandler(async (req, res) => {
     bulkValues: {},
     bulkEditMode: req.query.edit === 'all',
     platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
+    ...ENVIRONMENT_PAGE_ASSETS,
   });
 });
 
@@ -67,6 +74,7 @@ async function renderEnvironment(
     bulkEditMode: typeof bulkEditMode === 'boolean' ? bulkEditMode : req.query.edit === 'all',
     revealedValues,
     platformManagedEnvNames: PLATFORM_MANAGED_ENV_NAMES,
+    ...ENVIRONMENT_PAGE_ASSETS,
   });
 }
 

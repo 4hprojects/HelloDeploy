@@ -555,6 +555,27 @@ test('admin server page fits a phone viewport', async ({ page }) => {
   expect(overflow).toBeLessThanOrEqual(1);
 });
 
+test('environment page reviews an uploaded .env file before import', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/environment');
+  await page.getByLabel('.env file').setInputFiles({
+    name: '.env',
+    mimeType: 'text/plain',
+    buffer: Buffer.from('API_BASE_URL=https://api.example.test\n'),
+  });
+  await expect(page.getByText('Review before importing')).toBeVisible();
+  await expect(page.locator('[data-env-file-preview-rows]')).toContainText('API_BASE_URL');
+});
+
+test('environment page loads its own import styles', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/environment');
+  const display = await page
+    .locator('.env-import-review__header')
+    .evaluate((element) => globalThis.getComputedStyle(element).display);
+  expect(display).toBe('flex');
+});
+
 test('admin users page lists closure requests with days left', async ({ page }) => {
   await signIn(page, 'admin@hellodeploy.test');
   await page.goto('/admin/users');
