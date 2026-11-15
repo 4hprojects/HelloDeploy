@@ -54,5 +54,22 @@ Motion shows a real state change. It is never decoration.
   delays DOM changes for motion (dashboard row exit) checks the same media
   query and skips the delay. It also skips the delay when the row holds focus.
 
+### Hello Motion package (reviewed 2026-11-15)
+
+The cross-app Hello Motion specification (2026-11-03, kept outside this repository) maps to
+HelloDeploy as its Phase 03 pilot. #195 covers it, checked against the package's acceptance
+checklist:
+
+- **Met:** badges animate only when polling reports a new backend state; pending buttons are
+  disabled with a text label, so repeated clicks cannot double-submit; everything works with
+  motion off; reduced motion is honoured in CSS and in the one JS delay; a removed row never takes
+  focus with it; field errors are text with `aria-invalid`; enter keyframes end on the resting
+  style, so nothing jumps; a browser test covers reduced motion.
+- **Not pursued:** a performance baseline on low-end hardware, and a feature flag. The motion is
+  CSS plus one short delay, reduced motion turns it off per user, and a revert is the rollback.
+- **No matching UI:** the async toggle (MOT-01), anchored actions menu (MOT-03), sliding tab
+  indicator (MOT-05) and FLIP list reordering (MOT-06). Add them only with a feature that needs
+  them, following the package's contracts.
+
 The browser fixture and snapshots are local deterministic QA evidence. They do not
 replace supported-host, real-device, external DNS, crawler, or production checks.
