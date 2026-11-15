@@ -501,6 +501,20 @@ test('advanced deployment controls stay collapsed below the history', async ({ p
   await expect(page.getByRole('button', { name: 'Deploy Commit' })).toBeHidden();
 });
 
+test('rollback guidance is visible without opening advanced deployment', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(
+    page.getByRole('heading', { level: 2, name: 'Roll back to a previous release' }),
+  ).toBeVisible();
+});
+
+test('a previous release row offers a rollback to that release', async ({ page }) => {
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  await expect(page.getByRole('button', { name: 'Roll back to deployment #4' })).toBeVisible();
+});
+
 test('rollback choices name a rollback that repeats another release', async ({ page }) => {
   await signIn(page);
   await page.goto('/projects/northstar-notes/deployments');

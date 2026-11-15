@@ -17,6 +17,22 @@ describe('deployment row actions name their deployment', () => {
       assert.ok(deploymentsPage.includes(`>${label}${ROW_CONTEXT}<`));
     });
   }
+
+  it('labels "Roll back" with the deployment number it restores', () => {
+    assert.ok(
+      deploymentsPage.includes(
+        '>Roll back<span class="sr-only"> to deployment #<%= d.sequenceNumber %></span><',
+      ),
+    );
+  });
+});
+
+// The advanced disclosure once closed inside the rollback conditional, so a
+// project with no retained release rendered an unclosed <details>.
+describe('advanced deployment disclosure', () => {
+  it('closes outside any rollback conditional', () => {
+    assert.match(deploymentsPage, /<\/div>\n<\/details>\n<% \} %>\n$/);
+  });
 });
 
 const deploymentDetail = await readFile(
