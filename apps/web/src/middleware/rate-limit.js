@@ -170,6 +170,35 @@ export const deployHookLimiter = rateLimit({
 });
 
 /**
+ * Deploy hook triggers per project, whatever the source address, so a leaked
+ * hook URL used from many addresses still queues a bounded number of builds.
+ * Rejected requests (wrong token) are not counted: a stranger guessing tokens
+ * must not use up the project's budget.
+ */
+export const deployHookProjectLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  limit: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  skipFailedRequests: true,
+  keyGenerator: (req) => String(req.params.projectId).slice(0, 64),
+  store: makeStore('deploy-hook-project'),
+  handler: onLimitReached,
+});
+
+/** Resend delivery events, per source address. Resend retries a rejected delivery. */
+export const resendWebhookLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000, // 5 minutes
+  limit: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  passOnStoreError: false,
+  store: makeStore('resend-webhook'),
+  handler: onLimitReached,
+});
+
+/**
  * GitHub webhook deliveries, per source address. Generous: GitHub does not retry a
  * rejected delivery, so a dropped push is a missed deploy. Fails open on a store
  * error for the same reason; every delivery is still signature-checked.

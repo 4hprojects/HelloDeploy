@@ -255,7 +255,7 @@ describe('brute-force protection — rate limit behaviour', () => {
 
   it('fails closed when the Redis rate-limit store errors', () => {
     const failClosedCount = (rateLimitSource.match(/passOnStoreError: false/g) || []).length;
-    assert.equal(failClosedCount, 14, 'each production limiter should fail closed on store errors');
+    assert.equal(failClosedCount, 16, 'each production limiter should fail closed on store errors');
     assert.match(
       rateLimitSource,
       /export const repositoryInspectLimiter = rateLimit\([\s\S]*?passOnStoreError: false/,
@@ -271,5 +271,42 @@ describe('brute-force protection — rate limit behaviour', () => {
       ],
       [true, true],
     );
+  });
+});
+
+describe('per-project deploy hook limit', () => {
+  async function withHookServer(run) {
+    const { default: express } = await import('express');
+    const { deployHookProjectLimiter } =
+      await import('../../apps/web/src/middleware/rate-limit.js');
+    const app = express();
+    // Stands in for the token check: only the token "valid" is accepted.
+    app.post('/:projectId/:token', deployHookProjectLimiter, (req, res) =>
+      res.status(req.params.token === 'valid' ? 202 : 401).end(),
+    );
+    const server = app.listen(0);
+    try {
+      return await run(`http://127.0.0.1:${server.address().port}`);
+    } finally {
+      server.close();
+    }
+  }
+
+  it('stops accepting triggers for a project after ten in the window', async () => {
+    const status = await withHookServer(async (base) => {
+      const trigger = () => fetch(`${base}/project-busy/valid`, { method: 'POST' });
+      await Promise.all(Array.from({ length: 10 }, trigger));
+      return (await trigger()).status;
+    });
+    assert.equal(status, 429);
+  });
+
+  it('does not count rejected tokens against the project', async () => {
+    const status = await withHookServer(async (base) => {
+      const guess = () => fetch(`${base}/project-guessed/wrong`, { method: 'POST' });
+      await Promise.all(Array.from({ length: 15 }, guess));
+      return (await fetch(`${base}/project-guessed/valid`, { method: 'POST' })).status;
+    });
+    assert.equal(status, 202);
   });
 });
