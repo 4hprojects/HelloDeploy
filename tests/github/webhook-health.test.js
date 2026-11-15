@@ -130,3 +130,45 @@ describe('GitHub webhook route body limit', () => {
     }
   });
 });
+
+describe('webhook route limits', () => {
+  async function withWebhookServer(run) {
+    const { default: express } = await import('express');
+    const { default: webhookRoutes } =
+      await import('../../apps/web/src/routes/api/webhook.routes.js');
+    const app = express();
+    app.use('/api/webhooks', webhookRoutes);
+    const server = app.listen(0);
+    try {
+      return await run(`http://127.0.0.1:${server.address().port}/api/webhooks`);
+    } finally {
+      server.close();
+    }
+  }
+
+  it('refuses a GitHub payload larger than the nginx body cap before reading it', async () => {
+    const status = await withWebhookServer(async (base) => {
+      const res = await fetch(`${base}/github`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-hub-signature-256': 'sha256=wrong' },
+        body: JSON.stringify({ padding: 'x'.repeat(10 * 1024 * 1024 + 1) }),
+      });
+      return res.status;
+    });
+    assert.equal(status, 413);
+  });
+
+  it('rate-limits Resend deliveries from one address', async () => {
+    const status = await withWebhookServer(async (base) => {
+      const post = () =>
+        fetch(`${base}/resend`, {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: '{}',
+        });
+      await Promise.all(Array.from({ length: 300 }, post));
+      return (await post()).status;
+    });
+    assert.equal(status, 429);
+  });
+});

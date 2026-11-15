@@ -55,9 +55,8 @@ Nothing open. Take the next item from **Next**.
 - **Container isolation decision** (`TODO_USER_INPUT_ISOLATION_DECISION`): app containers have
   open outbound network access, a writable root filesystem outside static sites, no run-time
   non-root user, and no disk quota. Decide before opening to wider untrusted use.
-- **Webhook hardening**: rate-limit `/api/webhooks/resend`. Make the GitHub webhook limiter fail
-  closed, or cap its body size below 25 MB. Limit deploy hooks per project, not only per IP.
-  Handle GitHub App `unsuspend`, and stop apps on uninstall.
+- **GitHub App lifecycle**: handle `unsuspend` (suspension marks repositories `REVOKED`, and
+  nothing restores them), and decide whether uninstalling the app stops the apps it deployed.
 - **Test gaps**: `env-secret.service.js`, `approval-readiness.service.js`,
   `session-revocation.service.js`, `oci-image.js`, `project-route-lock.js`.
 - **Script headroom**: `js/app.js` has 127 bytes left. Move a page-specific part (for example
