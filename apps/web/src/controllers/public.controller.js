@@ -81,8 +81,8 @@ const CORE_TOPIC_CONTENT = Object.freeze({
         title: 'Roll back',
         ordered: true,
         items: [
-          'Open Deployments and find a retained healthy release.',
-          'Select Rollback and confirm.',
+          'Open Deployments. Releases marked Previous release can be restored.',
+          'Select Roll back on that release, or choose it under Roll back to a previous release, then confirm.',
           'HelloDeploy starts the old release and health-checks it before switching traffic. If the check fails, the current release stays live.',
         ],
         note: {
@@ -382,7 +382,7 @@ const CORE_TOPIC_CONTENT = Object.freeze({
         items: [
           'Open the platform address and confirm the application behaves as expected.',
           'Use deployment history to identify the commit and configuration used for each attempt.',
-          'Roll back to a retained healthy release, listed as Previous release, from Advanced deployment on the Deployments page.',
+          'Roll back to a retained healthy release, listed as Previous release, from the Deployments page.',
           'Use Rebuild Without Cache under Advanced deployment only when stale build layers are a plausible cause of a problem.',
         ],
       },
