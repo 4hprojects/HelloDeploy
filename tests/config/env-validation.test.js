@@ -159,6 +159,36 @@ describe('environment validation', () => {
     assert.match(result.stdout, /TURNSTILE_SECRET_KEY/);
   });
 
+  it('passes a production install without Turnstile keys', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web', '--json'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...productionWebEnv,
+        NODE_ENV: 'production',
+        TURNSTILE_SITE_KEY: '',
+        TURNSTILE_SECRET_KEY: '',
+      },
+    });
+    assert.equal(result.status, 0, result.stdout || result.stderr);
+  });
+
+  it('warns about a production install without Turnstile keys', () => {
+    const validator = new URL('../../scripts/validate-config.js', import.meta.url).pathname;
+    const result = spawnSync(process.execPath, [validator, '--component', 'web'], {
+      encoding: 'utf8',
+      env: {
+        ...process.env,
+        ...productionWebEnv,
+        NODE_ENV: 'production',
+        TURNSTILE_SITE_KEY: '',
+        TURNSTILE_SECRET_KEY: '',
+      },
+    });
+    assert.match(result.stdout, /⚠ Sign-in, sign-up and password reset skip the bot check/);
+  });
+
   it('ignores configured Turnstile keys in test mode', () => {
     assert.deepEqual(readWebTurnstileConfig('test'), { siteKey: '', secretKey: '' });
   });

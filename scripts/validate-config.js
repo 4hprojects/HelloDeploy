@@ -47,13 +47,7 @@ function componentChecks(component, config) {
           process.env.GITHUB_WEBHOOK_SECRET,
         ]),
       },
-      {
-        name: 'turnstile',
-        status:
-          process.env.NODE_ENV === 'production'
-            ? groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY])
-            : 'disabled',
-      },
+      turnstileCheck(),
       {
         name: 'google-auth',
         status: groupStatus([process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET]),
@@ -99,6 +93,23 @@ function componentChecks(component, config) {
   ];
 }
 
+// NOTE: a warning, not a failure: upgrade.sh runs this check, and failing it
+// would stop autodeploy on an install that has been running without the keys.
+function turnstileCheck() {
+  if (process.env.NODE_ENV !== 'production') {
+    return { name: 'turnstile', status: 'disabled' };
+  }
+  const status = groupStatus([process.env.TURNSTILE_SITE_KEY, process.env.TURNSTILE_SECRET_KEY]);
+  return status === 'disabled'
+    ? {
+        name: 'turnstile',
+        status,
+        warning:
+          'Sign-in, sign-up and password reset skip the bot check, and guest comments are refused. Set TURNSTILE_SITE_KEY and TURNSTILE_SECRET_KEY.',
+      }
+    : { name: 'turnstile', status };
+}
+
 const components = [
   ['web', '../apps/web/src/config/env.js'],
   ['worker', '../apps/worker/src/config/env.js'],
@@ -140,6 +151,9 @@ if (json) {
     process.stdout.write(`  ✓ ${result.component}: valid\n`);
     for (const check of result.checks) {
       process.stdout.write(`      ${check.name}: ${check.status}\n`);
+      if (check.warning) {
+        process.stdout.write(`      ⚠ ${check.warning}\n`);
+      }
     }
   }
 }
