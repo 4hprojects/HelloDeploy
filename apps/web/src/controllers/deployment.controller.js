@@ -97,6 +97,8 @@ export const getDeploymentDetail = asyncHandler(async (req, res) => {
     replacedDeployment,
     isCurrentRelease,
     appUrl,
+    // Timeline, console and log styles are only used here.
+    pageStyles: ['css/deployment-detail.css'],
   });
 });
 

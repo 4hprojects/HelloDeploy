@@ -27,6 +27,8 @@ const budgets = {
   // Loaded only on the project Environment page (.env import and review).
   'css/environment.css': 3_000,
   'js/environment.js': 14_000,
+  // Loaded only on the deployment detail page (timeline, console, logs).
+  'css/deployment-detail.css': 10_000,
 };
 
 let failed = false;
