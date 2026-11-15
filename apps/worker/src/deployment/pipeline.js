@@ -19,6 +19,7 @@ import {
   classifyAppLine,
   collapseRepeatedLines,
   diagnoseAppOutput,
+  scrubEnvValues,
   summarizeAppError,
 } from './failure-diagnosis.js';
 import {
@@ -413,14 +414,16 @@ export async function runReleasePipeline({
       correlationId,
     );
   } catch (err) {
+    // The failed docker run carried every value as a --env argument.
+    const startError = scrubEnvValues(err.message, envVars);
     await logEvent(
       deploymentId,
       'DEPLOY',
       'ERROR',
-      `Failed to start container: ${err.message}`,
+      `Failed to start container: ${startError}`,
       correlationId,
     );
-    return fail('CONTAINER_START_FAILED', err.message);
+    return fail('CONTAINER_START_FAILED', startError);
   }
 
   // ── Startup stabilization + crash-loop detection ────────────────────────────
@@ -813,8 +816,15 @@ async function reportAppOutput(deps, cName, deploymentId, correlationId, { appPo
   }
   const lines = await deps.getContainerLogs(cName);
   const { lines: distinctLines, repeats } = collapseRepeatedLines(lines);
+  // Pattern redaction alone misses a secret the app prints as a bare value.
   for (const line of distinctLines) {
-    await logEvent(deploymentId, 'DEPLOY', classifyAppLine(line), `[app] ${line}`, correlationId);
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      classifyAppLine(line),
+      `[app] ${scrubEnvValues(line, envVars)}`,
+      correlationId,
+    );
   }
   if (repeats > 1) {
     await logEvent(

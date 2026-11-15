@@ -5,6 +5,7 @@ import {
   classifyAppLine,
   collapseRepeatedLines,
   diagnoseAppOutput,
+  scrubEnvValues,
   summarizeAppError,
 } from '../../apps/worker/src/deployment/failure-diagnosis.js';
 
@@ -105,6 +106,35 @@ describe('summarizeAppError', () => {
 
   it('returns null when the app printed no error', () => {
     assert.equal(summarizeAppError([SLUG_CRASH[0]], {}), null);
+  });
+});
+
+describe('scrubEnvValues', () => {
+  it('replaces a secret value the app printed bare', () => {
+    assert.equal(
+      scrubEnvValues('connecting with payments-key-7f3a9c', {
+        PAYMENTS_KEY: 'payments-key-7f3a9c',
+      }),
+      'connecting with [value of PAYMENTS_KEY]',
+    );
+  });
+
+  it('replaces a value that contains another one whole', () => {
+    assert.equal(
+      scrubEnvValues('cache at cache-host-41/region-west', {
+        CACHE_REGION: 'region-west',
+        CACHE_URL: 'cache-host-41/region-west',
+      }),
+      'cache at [value of CACHE_URL]',
+    );
+  });
+
+  it('leaves short values that also appear in ordinary text', () => {
+    assert.equal(scrubEnvValues('feature flag is true', { FLAG: 'true' }), 'feature flag is true');
+  });
+
+  it('leaves the platform PORT in place', () => {
+    assert.equal(scrubEnvValues('listening on 300000', { PORT: '300000' }), 'listening on 300000');
   });
 });
 

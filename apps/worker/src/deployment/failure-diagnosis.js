@@ -104,16 +104,30 @@ export function summarizeAppError(lines, envVars = {}) {
     )
     .map(([name]) => name);
 
-  let scrubbed = message;
-  for (const [name, value] of [...entries].sort((a, b) => b[1].length - a[1].length)) {
-    if (value.length >= MIN_SCRUBBED_VALUE_LENGTH) {
-      scrubbed = scrubbed.replaceAll(value, `[value of ${name}]`);
-    }
-  }
-
+  const scrubbed = scrubEnvValues(message, envVars);
   const report =
     scrubbed.length > MAX_REPORT_LENGTH ? `${scrubbed.slice(0, MAX_REPORT_LENGTH)}…` : scrubbed;
   return mentioned.length > 0 ? `${report}${describeMentionedVariables(mentioned)}` : report;
+}
+
+/**
+ * Replace every environment value in app output with "[value of NAME]", so
+ * text the app prints about its own secrets never reaches the deployment
+ * log. Longest values go first so one that contains another is replaced whole.
+ *
+ * @param {string} text
+ * @param {Record<string, string>} [envVars]  the project's environment
+ * @returns {string}
+ */
+export function scrubEnvValues(text, envVars = {}) {
+  const entries = Object.entries(envVars)
+    .filter(([name, value]) => name !== 'PORT' && value.length >= MIN_SCRUBBED_VALUE_LENGTH)
+    .sort((a, b) => b[1].length - a[1].length);
+  let scrubbed = text;
+  for (const [name, value] of entries) {
+    scrubbed = scrubbed.replaceAll(value, `[value of ${name}]`);
+  }
+  return scrubbed;
 }
 
 /**
