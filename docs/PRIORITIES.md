@@ -1,6 +1,7 @@
 # Priorities
 
-Updated 2026-11-03 after a full review of the code, GitHub and the docs. This is the single current
+Updated 2026-11-15 (admin operations dashboard merged); last full review of the code, GitHub and
+the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
 [implementation/USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md), and dated
@@ -21,8 +22,8 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Public content**: legal fixes, `/about`, `/features`, `/contact`, fuller docs, SEO and
   `/account`, deployed 2026-10-31 (#170–#176). Donations, GA4, AdSense and Search Console stay off
   until the owner supplies inputs.
-- **Admin operations dashboard**: built in seven stacked PRs, #197 to #203. They wait for the
-  owner to merge them in order; autodeploy then ships them. See
+- **Admin operations dashboard**: merged in seven stacked PRs, #197 to #203, and shipped by
+  autodeploy. See
   [implementation/admin-operations-dashboard](implementation/admin-operations-dashboard/IMPLEMENTATION_PROGRESS.md).
   The overview already lists account closures with days left against the 30-day promise, so
   item 3 below is now only about the users list.
@@ -74,6 +75,8 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Owner inputs for public pages**: governing law, liability cap, legal review, operator status,
   GitHub App permission list, GA4 and consent, Search Console
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
+- **Motion package review**: check the shipped motion work (#195) against the untracked
+  `docs/todo/HELLO_MOTION_IMPLEMENTATION_PACKAGE/` acceptance checklist, then track or drop it.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
 
