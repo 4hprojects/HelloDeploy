@@ -414,6 +414,36 @@ describe('activate-release job', () => {
     assert.ok(events.some((e) => e.messageRedacted === '[app] Error: MONGODB_URI is not set'));
   });
 
+  it('masks a secret value the app printed before the health check failed', async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({
+      httpHealthCheck: async () => ({ healthy: false, error: 'fetch failed' }),
+      getContainerLogs: async () => ['using api key payments-key-7f3a9c'],
+      getProjectEnvVars: async () => ({ STRIPE_KEY: 'payments-key-7f3a9c' }),
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const events = await DeploymentEvent.find({ deploymentId: deployment._id }).lean();
+    assert.ok(
+      events.some((e) => e.messageRedacted === '[app] using api key [value of STRIPE_KEY]'),
+    );
+  });
+
+  it('masks a secret value echoed in a container start error', async () => {
+    const { project, deployment } = await seed();
+    const { deps } = makeDeps({
+      startContainer: async () => {
+        throw new Error('docker run failed (exit 125): invalid env STRIPE_KEY=payments-key-7f3a9c');
+      },
+      getProjectEnvVars: async () => ({ STRIPE_KEY: 'payments-key-7f3a9c' }),
+    });
+    await handleActivateRelease(makeJob(project, deployment), deps);
+    const fresh = await Deployment.findById(deployment._id).lean();
+    assert.equal(
+      fresh.failureSummary,
+      'docker run failed (exit 125): invalid env STRIPE_KEY=[value of STRIPE_KEY]',
+    );
+  });
+
   describe('an app that crashes during the health check', () => {
     const CRASH = [
       '{"level":30,"msg":"database connected, indexes ensured"}',
@@ -479,7 +509,8 @@ describe('activate-release job', () => {
       await handleActivateRelease(makeJob(project, deployment), crashingDeps());
       const copies = await DeploymentEvent.countDocuments({
         deploymentId: deployment._id,
-        messageRedacted: `[app] ${CRASH[1]}`,
+        messageRedacted:
+          '[app] Error: PRIMARY_EVENT_SLUG="[value of PRIMARY_EVENT_SLUG]" does not identify a published event.',
       });
       assert.equal(copies, 1);
     });

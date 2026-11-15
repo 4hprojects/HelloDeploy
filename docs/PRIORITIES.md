@@ -32,11 +32,9 @@ Keep this file short. Put evidence in the worklog, not here.
 
 ## Now — code (in this order, one PR each)
 
-1. **Mask secret values in deploy logs.** `apps/worker/src/deployment/log-capture.js` only
-   redacts by pattern, so an app that prints a secret value stores it in the logs.
-2. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
+1. **Flag a production install without Turnstile.** Auth Turnstile fails open when the secret is
    unset (`turnstile.service.js`), and `config:check` still passes.
-3. **Account closure queue.** Show requests with days left against the 30-day promise in the
+2. **Account closure queue.** Show requests with days left against the 30-day promise in the
    admin users list; today there is only a badge.
 
 ## Now — owner
