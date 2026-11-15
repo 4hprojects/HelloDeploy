@@ -15,8 +15,8 @@ const deploymentDetailPath = fileURLToPath(
 
 const appJs = await readFile(new URL('../../apps/web/public/js/app.js', import.meta.url), 'utf8');
 
-const componentsCss = await readFile(
-  new URL('../../apps/web/public/css/components.css', import.meta.url),
+const deploymentCss = await readFile(
+  new URL('../../apps/web/public/css/deployment-detail.css', import.meta.url),
   'utf8',
 );
 
@@ -111,14 +111,14 @@ describe('deployment timeline UI', () => {
 
   it('shows only the glyph that matches each step state', () => {
     assert.match(
-      componentsCss,
+      deploymentCss,
       /\.deploy-step--pending \.deploy-step__glyph--pending,\s*\.deploy-step--active \.deploy-step__glyph--active,\s*\.deploy-step--complete \.deploy-step__glyph--complete,\s*\.deploy-step--failed \.deploy-step__glyph--failed \{\s*display: block;/,
     );
   });
 
   it('lays the five steps out in one row on wider screens', () => {
     assert.match(
-      componentsCss,
+      deploymentCss,
       /\.deploy-stepper \{[^}]*grid-template-columns: repeat\(5, minmax\(0, 1fr\)\)/,
     );
   });
@@ -142,7 +142,7 @@ describe('deployment timeline UI', () => {
   });
 
   it('draws the line into a step from its state rather than separate connector elements', () => {
-    assert.match(componentsCss, /\.deploy-step--complete::before,\s*\.deploy-step--active::before/);
+    assert.match(deploymentCss, /\.deploy-step--complete::before,\s*\.deploy-step--active::before/);
   });
 
   it('shows how long each finished stage took', async () => {
@@ -324,5 +324,15 @@ describe('deployment failure explanation', () => {
   it('leaves the box out when the app gave no message', async () => {
     const html = await renderDeployment(crashed);
     assert.doesNotMatch(html, /Message from your app/);
+  });
+});
+
+describe('deployment detail styles', () => {
+  it('loads the timeline and log styles on the deployment detail page', async () => {
+    const controller = await readFile(
+      new URL('../../apps/web/src/controllers/deployment.controller.js', import.meta.url),
+      'utf8',
+    );
+    assert.match(controller, /pageStyles: \['css\/deployment-detail\.css'\]/);
   });
 });

@@ -58,9 +58,6 @@ Nothing open. Take the next item from **Next**.
 - **GitHub App uninstall** (owner decision): uninstalling marks repositories `REVOKED`, which
   stops new deploys, but apps already running stay up. Decide whether uninstall should also stop
   them.
-- **Stylesheet headroom**: `css/main.css` has about 1 KB left of its 110 KB budget (`js/app.js`
-  has 11 KB since the `.env` import moved to `js/environment.js`). Move a page-specific part, such
-  as the deployment log viewer styles, into a page bundle before the next shared style change.
 - **Renew the GHCR production token by 2027-01-09** (expires about 2027-01-23). Follow the
   lessons from the 2026-10-25 renewal outage
   ([evidence](multi-runtime/EVIDENCE.md)).

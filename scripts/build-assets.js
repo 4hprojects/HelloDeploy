@@ -22,6 +22,7 @@ const sources = [
   'js/admin-ops.js',
   'css/environment.css',
   'js/environment.js',
+  'css/deployment-detail.css',
 ];
 
 function stripCssComments(contents) {
