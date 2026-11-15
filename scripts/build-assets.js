@@ -20,6 +20,8 @@ const sources = [
   'js/admin-shell.js',
   'css/admin-ops.css',
   'js/admin-ops.js',
+  'css/environment.css',
+  'js/environment.js',
 ];
 
 function stripCssComments(contents) {

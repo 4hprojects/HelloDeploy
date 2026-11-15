@@ -24,6 +24,9 @@ const budgets = {
   // Loaded only on the admin operations overview and its settings page.
   'css/admin-ops.css': 22_000,
   'js/admin-ops.js': 16_000,
+  // Loaded only on the project Environment page (.env import and review).
+  'css/environment.css': 3_000,
+  'js/environment.js': 14_000,
 };
 
 let failed = false;

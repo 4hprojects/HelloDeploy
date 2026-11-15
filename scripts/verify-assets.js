@@ -16,6 +16,8 @@ for (const key of [
   'js/admin-shell.js',
   'css/admin-ops.css',
   'js/admin-ops.js',
+  'css/environment.css',
+  'js/environment.js',
 ]) {
   const value = manifest.assets?.[key];
   if (!/^\/assets-dist\/[a-z0-9.-]+\.[0-9a-f]{16}\.(?:css|js)$/.test(value ?? '')) {
