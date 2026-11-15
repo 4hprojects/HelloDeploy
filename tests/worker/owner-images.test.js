@@ -90,6 +90,43 @@ describe('resolveImageDigest', () => {
     const { fetchImpl } = fakeRegistry({ status: 404 });
     await assert.rejects(resolveImageDigest(NGINX, { fetchImpl }), /was not found/);
   });
+
+  it('refuses a registry outside the approved list without contacting it', async () => {
+    const { fetchImpl, requests } = fakeRegistry();
+    await assert.rejects(
+      resolveImageDigest({ ...NGINX, registry: 'registry.example' }, { fetchImpl }),
+      /not an approved registry/,
+    );
+    assert.equal(requests.length, 0);
+  });
+
+  it('refuses to send credentials to a token address over plain http', async () => {
+    const { fetchImpl, requests } = fakeRegistry({ realm: 'http://auth.docker.io/token' });
+    await assert.rejects(
+      resolveImageDigest(NGINX, { fetchImpl, credential: PULL_CREDENTIAL }),
+      /unexpected address/,
+    );
+    assert.equal(
+      requests.some((request) => String(request.headers.Authorization).startsWith('Basic ')),
+      false,
+    );
+  });
+
+  it('refuses a manifest response without a sha256 digest', async () => {
+    const fetchImpl = async () => new Response(null, { status: 200 });
+    await assert.rejects(
+      resolveImageDigest(NGINX, { fetchImpl }),
+      /did not return a sha256 manifest digest/,
+    );
+  });
+
+  it('asks the owner to check saved credentials when the registry refuses access', async () => {
+    const { fetchImpl } = fakeRegistry({ status: 403 });
+    await assert.rejects(
+      resolveImageDigest(NGINX, { fetchImpl, credential: PULL_CREDENTIAL }),
+      /Check the saved registry credentials/,
+    );
+  });
 });
 
 describe('registry credentials', () => {
