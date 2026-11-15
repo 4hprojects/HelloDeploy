@@ -24,15 +24,15 @@ Source of truth: [apps/web/src/config/env.js](../apps/web/src/config/env.js) and
 
 ## Security
 
-| Variable                      | Used by     | Required (prod) | Default (dev)   | Purpose                                                                                                                            |
-| ----------------------------- | ----------- | --------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `SESSION_SECRET`              | web         | **yes**         | dev placeholder | Session cookie signing secret                                                                                                      |
-| `HELLODEPLOY_MASTER_KEY`      | web, worker | **yes**         | dev placeholder | Base64-encoded 32-byte master key encrypting environment secrets (`scripts/generate-secrets.js` can create one)                    |
-| `HELLODEPLOY_MASTER_KEY_NEXT` | web, worker | no              | —               | Distinct base64-encoded 32-byte key set only during rotation; startup validates it before secret access                            |
-| `TURNSTILE_SITE_KEY`          | web         | no              | —               | Cloudflare Turnstile site key (bot protection on sign-in, account creation, and password recovery); must be paired with the secret |
-| `TURNSTILE_SECRET_KEY`        | web         | no              | —               | Cloudflare Turnstile server secret; must be paired with the site key                                                               |
-| `GOOGLE_CLIENT_ID`            | web         | no              | —               | Google OAuth 2.0 web client ID; must be paired with `GOOGLE_CLIENT_SECRET`                                                         |
-| `GOOGLE_CLIENT_SECRET`        | web         | no              | —               | Google OAuth 2.0 web client secret; must be paired with `GOOGLE_CLIENT_ID`                                                         |
+| Variable                      | Used by     | Required (prod) | Default (dev)   | Purpose                                                                                                                                  |
+| ----------------------------- | ----------- | --------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `SESSION_SECRET`              | web         | **yes**         | dev placeholder | Session cookie signing secret                                                                                                            |
+| `HELLODEPLOY_MASTER_KEY`      | web, worker | **yes**         | dev placeholder | Base64-encoded 32-byte master key encrypting environment secrets (`scripts/generate-secrets.js` can create one)                          |
+| `HELLODEPLOY_MASTER_KEY_NEXT` | web, worker | no              | —               | Distinct base64-encoded 32-byte key set only during rotation; startup validates it before secret access                                  |
+| `TURNSTILE_SITE_KEY`          | web         | no              | —               | Cloudflare Turnstile site key (bot protection on sign-in, account creation, and password recovery); must be paired with the secret       |
+| `TURNSTILE_SECRET_KEY`        | web         | no              | —               | Cloudflare Turnstile server secret; must be paired with the site key. Production without either key passes `config:check` with a warning |
+| `GOOGLE_CLIENT_ID`            | web         | no              | —               | Google OAuth 2.0 web client ID; must be paired with `GOOGLE_CLIENT_SECRET`                                                               |
+| `GOOGLE_CLIENT_SECRET`        | web         | no              | —               | Google OAuth 2.0 web client secret; must be paired with `GOOGLE_CLIENT_ID`                                                               |
 
 Turnstile is enabled only when `NODE_ENV=production`. In development and test modes, the web application ignores both Turnstile variables so local sessions and automated tests do not render the widget or contact Cloudflare. Production requires the site and secret keys to be configured together: set both or leave both empty.
 
