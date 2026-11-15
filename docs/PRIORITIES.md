@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-11-15 (admin operations dashboard merged); last full review of the code, GitHub and
+Updated 2026-11-15 (code items cleared in #209–#216); last full review of the code, GitHub and
 the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
@@ -64,8 +64,6 @@ Nothing open. Take the next item from **Next**.
 - **Owner inputs for public pages**: governing law, liability cap, legal review, operator status,
   GitHub App permission list, GA4 and consent, Search Console
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
-- **Motion package review**: check the shipped motion work (#195) against the untracked
-  `docs/todo/HELLO_MOTION_IMPLEMENTATION_PACKAGE/` acceptance checklist, then track or drop it.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
 
@@ -90,5 +88,5 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 ## Product decisions
 
-Open: #88 retention period, the backup destination, the container isolation decision, and the
-owner inputs above.
+Open: #88 retention period, the backup destination, the container isolation decision, whether
+uninstalling the GitHub App stops running apps, and the owner inputs above.
