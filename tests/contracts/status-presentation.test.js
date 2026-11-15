@@ -30,3 +30,9 @@ describe('canonical status presentation', () => {
     assert.equal(getStatusPresentation('unknown', 'SOME_STATE').label, 'Some state');
   });
 });
+
+describe('repository access presentation', () => {
+  it('tells the owner a GitHub suspension is lifted on GitHub', () => {
+    assert.match(getStatusPresentation('repository', 'SUSPENDED').hint, /unsuspended on GitHub/);
+  });
+});
