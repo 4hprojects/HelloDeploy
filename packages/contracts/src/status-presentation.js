@@ -158,6 +158,24 @@ export const STATUS_PRESENTATION = Object.freeze({
       true,
     ),
   }),
+  repository: Object.freeze({
+    ACTIVE: define('Connected', 'healthy', 'HelloDeploy can read this repository.'),
+    SUSPENDED: define(
+      'Suspended on GitHub',
+      'suspended',
+      'The GitHub App installation is suspended. Deploys resume when it is unsuspended on GitHub.',
+    ),
+    REVOKED: define(
+      'Access removed',
+      'failed',
+      'The GitHub App no longer has access to this repository. Reconnect it to deploy.',
+    ),
+    INACCESSIBLE: define(
+      'Not reachable',
+      'failed',
+      'HelloDeploy could not read this repository. Check that it still exists.',
+    ),
+  }),
   user: Object.freeze({
     [UserStatus.PENDING_VERIFICATION]: define(
       'Email verification needed',

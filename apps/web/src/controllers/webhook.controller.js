@@ -321,17 +321,33 @@ async function handleInstallationEvent(payload) {
   const { action, installation } = payload;
   const installationId = toInstallationId(installation?.id);
 
-  if (action === 'deleted' || action === 'suspended') {
-    // Mark all repositories for this installation as REVOKED
+  if (action === 'deleted') {
     const result = await Repository.updateMany(
-      { installationId, accessStatus: 'ACTIVE' },
+      { installationId, accessStatus: { $in: ['ACTIVE', 'SUSPENDED'] } },
       { $set: { accessStatus: 'REVOKED', revokedAt: new Date() } },
     );
-
     logger.info('Webhook: installation revoked', {
       installationId,
       reposRevoked: result.modifiedCount,
-      action,
+    });
+  } else if (action === 'suspend') {
+    // Kept apart from REVOKED so that unsuspending restores exactly these.
+    const result = await Repository.updateMany(
+      { installationId, accessStatus: 'ACTIVE' },
+      { $set: { accessStatus: 'SUSPENDED' } },
+    );
+    logger.info('Webhook: installation suspended', {
+      installationId,
+      reposSuspended: result.modifiedCount,
+    });
+  } else if (action === 'unsuspend') {
+    const result = await Repository.updateMany(
+      { installationId, accessStatus: 'SUSPENDED' },
+      { $set: { accessStatus: 'ACTIVE' } },
+    );
+    logger.info('Webhook: installation unsuspended', {
+      installationId,
+      reposRestored: result.modifiedCount,
     });
   }
 }
