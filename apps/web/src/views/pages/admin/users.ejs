@@ -12,6 +12,51 @@ const filterQuery = `status=${encodeURIComponent(filters.status)}&role=${encodeU
   <p class="page-header__subtitle"><%= total %> total</p>
 </div>
 
+<% if (closureQueue.length > 0) { %>
+<section class="card mb-6" id="closure-queue" aria-labelledby="closure-queue-title">
+  <div class="card__header">
+    <h2 class="card__title text-sm" id="closure-queue-title">Closure requests (<%= closureQueue.length %>)</h2>
+  </div>
+  <div class="card__body">
+    <p class="text-sm text-muted mb-4">Each account must be deleted within 30 days of the request. A Super Admin completes it from the user page. Oldest first.</p>
+    <div class="table-wrapper table-responsive">
+      <table class="table table--responsive">
+        <thead>
+          <tr>
+            <th scope="col">User</th>
+            <th scope="col">Requested</th>
+            <th scope="col">Delete by</th>
+            <th scope="col"><span class="sr-only">Actions</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          <% closureQueue.forEach(c => { %>
+          <tr data-closure-row>
+            <td data-label="User">
+              <a href="/admin/users/<%= c._id %>" class="table-link"><strong><%= c.firstName %> <%= c.lastName %></strong></a>
+              <span class="text-muted text-xs d-block"><%= c.email %></span>
+            </td>
+            <td class="text-sm text-muted" data-label="Requested"><%= new Date(c.closureRequestedAt).toLocaleDateString('en-GB') %></td>
+            <td data-label="Delete by">
+              <span class="text-sm"><%= c.dueAt.toLocaleDateString('en-GB') %></span>
+              <% if (c.daysLeft <= 0) { %>
+              <span class="status-badge status-badge--danger">Overdue</span>
+              <% } else { %>
+              <span class="status-badge <%= c.daysLeft <= 7 ? 'status-badge--warning' : 'status-badge--info' %>"><%= c.daysLeft %> day<%= c.daysLeft === 1 ? '' : 's' %> left</span>
+              <% } %>
+            </td>
+            <td class="text-right" data-label="Actions">
+              <a href="/admin/users/<%= c._id %>" class="button button--ghost button--sm">Review<span class="sr-only"> closure for <%= c.email %></span></a>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+<% } %>
+
 <form method="GET" action="/admin/users" class="filter-bar list-filters mb-6" role="search" aria-label="Filter users">
   <div class="list-filters__grid">
     <div class="form-group list-filters__search">

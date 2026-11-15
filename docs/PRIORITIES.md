@@ -25,15 +25,14 @@ Keep this file short. Put evidence in the worklog, not here.
 - **Admin operations dashboard**: merged in seven stacked PRs, #197 to #203, and shipped by
   autodeploy. See
   [implementation/admin-operations-dashboard](implementation/admin-operations-dashboard/IMPLEMENTATION_PROGRESS.md).
-  The overview already lists account closures with days left against the 30-day promise, so
-  item 3 below is now only about the users list.
+  Account closure requests are listed with days left against the 30-day promise on the overview
+  and in a queue at the top of the admin users list.
 - **Multi-runtime**: every pilot flag is off. The builder control pilot runs one
   administrator-owned Next.js project; its 7-day watch ended 2026-11-01.
 
-## Now — code (in this order, one PR each)
+## Now — code
 
-1. **Account closure queue.** Show requests with days left against the 30-day promise in the
-   admin users list; today there is only a badge.
+Nothing open. Take the next item from **Next**.
 
 ## Now — owner
 
