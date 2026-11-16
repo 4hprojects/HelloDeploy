@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-11-16 (code items cleared in #209–#216; #88 decided; `main` protected); last full review of the code, GitHub and
+Updated 2026-11-16 (code items cleared in #209–#216; #88 decided; `main` protected; Turnstile secret confirmed); last full review of the code, GitHub and
 the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
@@ -40,8 +40,6 @@ Nothing open. Take the next item from **Next**.
   cancels, the pilot app healthy) and say whether the watch passed.
 - **Comment checks**: as a signed-out guest, a comment with a link is refused. The PM2 per-article
   pause works after **Save controls**. Remove leftover test comments in `/admin/learning-hub`.
-- **Confirm `TURNSTILE_SECRET_KEY`** is set in `/opt/hellodeploy/.env`
-  (`USER_INPUT_REQUIRED` B).
 
 ## Next
 
