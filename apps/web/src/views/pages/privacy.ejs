@@ -112,7 +112,7 @@
         <tr><td data-label="Data type">Build and deployment logs</td><td data-label="Retention period">30 days</td></tr>
         <tr><td data-label="Data type">Anonymized deployment records, log lines, and project activity</td><td data-label="Retention period">Kept indefinitely for service improvement; unlinkable once the project is deleted</td></tr>
         <tr><td data-label="Data type">Docker images (old releases)</td><td data-label="Retention period">Deleted once a project exceeds its rollback-release limit (3 by default)</td></tr>
-        <tr><td data-label="Data type">Server backups</td><td data-label="Retention period">The 10 most recent, plus one per month for 12 months. A deletion request reaches backups as they age out.</td></tr>
+        <tr><td data-label="Data type">Server backups</td><td data-label="Retention period">Encrypted daily copies, kept for 14 days, then deleted. A deletion request reaches backups within 14 days.</td></tr>
         <tr><td data-label="Data type">Audit events</td><td data-label="Retention period">90 days</td></tr>
         <tr><td data-label="Data type">Product and Web Vital events</td><td data-label="Retention period">90 days, then automatically deleted</td></tr>
         <tr><td data-label="Data type">Account and project data</td><td data-label="Retention period">Until account deletion is requested</td></tr>

@@ -38,10 +38,10 @@ Last updated: 2026-10-31.
 
 ## E. Infrastructure
 
-| ID                                   | Needed                                                                             | Purpose                                | Affects           | Where it goes                             | Priority | Blocks prod? | How to supply            | Status |
-| ------------------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------- | ----------------- | ----------------------------------------- | -------- | ------------ | ------------------------ | ------ |
-| `TODO_USER_INPUT_ISOLATION_DECISION` | Decide on egress limits, forced non-root and disk quota                            | Required before wider untrusted access | worker containers | `apps/worker/src/deployment/container.js` | P1       | No (pilot)   | Choose which to schedule | Open   |
-| `TODO_USER_INPUT_BACKUP_SCHEDULE`    | Confirm whether a scheduled DB backup exists outside the repo (Atlas or host cron) | Privacy retention row "Server backups" | `/privacy`        | `privacy.ejs`                             | P2       | No           | Describe the schedule    | Open   |
+| ID                                   | Needed                                                                             | Purpose                                | Affects           | Where it goes                             | Priority | Blocks prod? | How to supply            | Status                                                                                |
+| ------------------------------------ | ---------------------------------------------------------------------------------- | -------------------------------------- | ----------------- | ----------------------------------------- | -------- | ------------ | ------------------------ | ------------------------------------------------------------------------------------- |
+| `TODO_USER_INPUT_ISOLATION_DECISION` | Decide on egress limits, forced non-root and disk quota                            | Required before wider untrusted access | worker containers | `apps/worker/src/deployment/container.js` | P1       | No (pilot)   | Choose which to schedule | Decided 2026-11-16: deferred until access opens to untrusted users                    |
+| `TODO_USER_INPUT_BACKUP_SCHEDULE`    | Confirm whether a scheduled DB backup exists outside the repo (Atlas or host cron) | Privacy retention row "Server backups" | `/privacy`        | `privacy.ejs`                             | P2       | No           | Describe the schedule    | Decided 2026-11-16: daily encrypted off-host copy, 14 days (owner sets up the bucket) |
 
 ## F. Other decisions
 

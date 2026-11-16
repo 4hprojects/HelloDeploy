@@ -1,0 +1,13 @@
+[Unit]
+Description=HelloDeploy off-host backup
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+# Root: backup.sh reads .env, /var/lib/hellodeploy and the Nginx route files.
+WorkingDirectory=/opt/hellodeploy
+ExecStart=/usr/bin/bash /opt/hellodeploy/infrastructure/backup-offsite.sh
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=2h

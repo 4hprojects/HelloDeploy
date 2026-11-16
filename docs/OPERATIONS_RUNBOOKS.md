@@ -381,6 +381,43 @@ Back up these assets before upgrades and after major configuration changes:
 
 Do not rely on Docker images as the only backup. Source repositories and reproducible builds remain the primary recovery path.
 
+### Scheduled off-host backups
+
+`hellodeploy-backup.timer` runs `infrastructure/backup-offsite.sh` daily at about 03:30. It runs
+`backup.sh` (`.env`, `/var/lib/hellodeploy`, a `mongodump`, Nginx routes), adds `/etc/hellodeploy`
+and `/etc/cloudflared`, and uploads one archive through an rclone `crypt` remote, which encrypts it
+on the host. It refuses any remote that is not `crypt`. After a successful upload it deletes
+uploads and local `/var/backups/hellodeploy/<timestamp>` directories older than
+`BACKUP_RETENTION_DAYS` (default 14), so a failed run never prunes. The privacy page states this
+14-day period; change both together.
+
+Setup (once, as the owner):
+
+1. Create a private bucket with an S3-compatible provider (Backblaze B2 recommended) and an
+   application key limited to that bucket. On B2, set the bucket lifecycle to keep only the last
+   version, or deleted backups stay as hidden versions.
+2. `sudo apt install rclone`, then `sudo rclone config`:
+   - a remote for the bucket (for example `b2store`, type `b2`, with `hard_delete = true`);
+   - a `crypt` remote named `hdbackup` wrapping `b2store:<bucket>`, with generated password and
+     salt.
+3. Save both crypt passwords in your password manager. Without them, no backup can be decrypted,
+   and a dead host takes `/root/.config/rclone/rclone.conf` with it.
+4. `sudo bash infrastructure/install-backup.sh --remote hdbackup:hellodeploy`. It writes
+   `/etc/hellodeploy/backup.conf`, runs the first backup, and enables the timer only if that
+   succeeds.
+
+Check: `sudo rclone lsl hdbackup:hellodeploy` lists the uploads;
+`journalctl -u hellodeploy-backup -n 20` shows the last run; `systemctl list-timers
+hellodeploy-backup.timer` shows the next. A failed run only appears there, so look weekly.
+
+Restore drill (#67), on a clean host with HelloDeploy installed and the same rclone remotes:
+
+1. `sudo rclone copy hdbackup:hellodeploy/<archive>.tar .` and `tar -xf <archive>.tar`.
+2. `sudo bash infrastructure/restore.sh backup` restores `.env`, data, routes and the database.
+3. Unpack `host-config.tar.gz` into `/etc` by hand, keeping `root:hellodeploy-config` and `0640`
+   on files the services read.
+4. Follow **Restore** below from step 6, and record the date and result in the worklog.
+
 ## Restore
 
 1. Put the platform into maintenance mode.
