@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-11-16 (code items cleared in #209–#216; #88 decided; `main` protected; Turnstile secret confirmed); last full review of the code, GitHub and
+Updated 2026-11-16 (owner decisions and off-host backups recorded); last full review of the code, GitHub and
 the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
@@ -43,15 +43,9 @@ Nothing open. Take the next item from **Next**.
 
 ## Next
 
-- **Scheduled backups** (owner picks an off-host destination): `infrastructure/backup.sh` runs
-  only before upgrades. Add a timer, retention and an off-host copy, then do the restore drill on
-  a clean host (#67).
-- **Container isolation decision** (`TODO_USER_INPUT_ISOLATION_DECISION`): app containers have
-  open outbound network access, a writable root filesystem outside static sites, no run-time
-  non-root user, and no disk quota. Decide before opening to wider untrusted use.
-- **GitHub App uninstall** (owner decision): uninstalling marks repositories `REVOKED`, which
-  stops new deploys, but apps already running stay up. Decide whether uninstall should also stop
-  them.
+- **Scheduled backups** (owner, #67): create the bucket and rclone `crypt` remote, then run
+  `install-backup.sh` ([Operations Runbooks › Scheduled off-host backups](OPERATIONS_RUNBOOKS.md#scheduled-off-host-backups)).
+  Then do the restore drill on a clean host.
 - **Renew the GHCR production token by 2027-01-09** (expires about 2027-01-23). Follow the
   lessons from the 2026-10-25 renewal outage
   ([evidence](multi-runtime/EVIDENCE.md)).
@@ -85,5 +79,8 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 Closed 2026-11-16: `main` is protected (both CI checks required, no review, admins may bypass,
 no force push or deletion; #62 keeps the rest of the older release design). Anonymized study
 records are kept indefinitely, as `main` does since #116; #88 (5-year expiry) is closed unmerged.
-Open: the backup destination, the container isolation
-decision, whether uninstalling the GitHub App stops running apps, and the owner inputs above.
+Backups go daily to an encrypted S3-compatible bucket (Backblaze B2 recommended) and are kept 14
+days. Container isolation (egress limits, non-root, disk quota) is deferred until access opens to
+untrusted users. Uninstalling the GitHub App keeps running apps up; only new deploys stop.
+
+Open: the owner inputs above.
