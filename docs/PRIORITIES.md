@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-11-15 (code items cleared in #209–#216); last full review of the code, GitHub and
+Updated 2026-11-16 (code items cleared in #209–#216; #88 decided); last full review of the code, GitHub and
 the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
@@ -45,7 +45,6 @@ Nothing open. Take the next item from **Next**.
 - **Branch protection on `main`** (#62): none is set. The repository is public, so it is free.
   Recommended: require the `Lint & Test (22.x)` and CodeQL checks, with no required review so
   merges stay self-service.
-- **#88**: keep study records for 5 years, or indefinitely as `main` does since #116.
 
 ## Next
 
@@ -88,5 +87,6 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 ## Product decisions
 
-Open: #88 retention period, the backup destination, the container isolation decision, whether
-uninstalling the GitHub App stops running apps, and the owner inputs above.
+Closed 2026-11-16: anonymized study records are kept indefinitely, as `main` does since #116;
+#88 (5-year expiry) is closed unmerged. Open: the backup destination, the container isolation
+decision, whether uninstalling the GitHub App stops running apps, and the owner inputs above.
