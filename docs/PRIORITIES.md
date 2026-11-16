@@ -1,6 +1,6 @@
 # Priorities
 
-Updated 2026-11-16 (code items cleared in #209–#216; #88 decided); last full review of the code, GitHub and
+Updated 2026-11-16 (code items cleared in #209–#216; #88 decided; `main` protected); last full review of the code, GitHub and
 the docs on 2026-11-03. This is the single current
 list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
@@ -42,9 +42,6 @@ Nothing open. Take the next item from **Next**.
   pause works after **Save controls**. Remove leftover test comments in `/admin/learning-hub`.
 - **Confirm `TURNSTILE_SECRET_KEY`** is set in `/opt/hellodeploy/.env`
   (`USER_INPUT_REQUIRED` B).
-- **Branch protection on `main`** (#62): none is set. The repository is public, so it is free.
-  Recommended: require the `Lint & Test (22.x)` and CodeQL checks, with no required review so
-  merges stay self-service.
 
 ## Next
 
@@ -87,6 +84,8 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 ## Product decisions
 
-Closed 2026-11-16: anonymized study records are kept indefinitely, as `main` does since #116;
-#88 (5-year expiry) is closed unmerged. Open: the backup destination, the container isolation
+Closed 2026-11-16: `main` is protected (both CI checks required, no review, admins may bypass,
+no force push or deletion; #62 keeps the rest of the older release design). Anonymized study
+records are kept indefinitely, as `main` does since #116; #88 (5-year expiry) is closed unmerged.
+Open: the backup destination, the container isolation
 decision, whether uninstalling the GitHub App stops running apps, and the owner inputs above.
