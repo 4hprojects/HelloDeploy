@@ -56,8 +56,8 @@ describe('Content Security Policy hardening', () => {
     assert.match(appSource, /\(_req, res\) => `'nonce-\$\{res\.locals\.cspNonce\}'`/);
     assert.match(appSource, /'https:\/\/challenges\.cloudflare\.com'/);
     assert.match(appSource, /scriptSrcAttr: \["'none'"\]/);
-    assert.match(appSource, /styleSrc: \["'self'"\]/);
-    assert.match(appSource, /styleSrcAttr: \["'none'"\]/);
+    assert.match(appSource, /styleSrc: \["'self'", \.\.\.adSources\.style\]/);
+    assert.match(appSource, /styleSrcAttr: adSources\.styleAttr/);
     assert.doesNotMatch(appSource, /'unsafe-inline'/);
     assert.match(head, /<script nonce="<%= cspNonce %>">/);
   });

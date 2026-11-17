@@ -28,7 +28,10 @@ import { LEGAL_CONTACT_EMAIL, LEGAL_OPERATOR, LEGAL_POLICIES } from './config/le
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
 import { getContentRepository } from './services/learning-hub/content-repository.js';
-import { analyticsCspSources } from './services/learning-hub/page-integrations.js';
+import {
+  adsenseCspSources,
+  analyticsCspSources,
+} from './services/learning-hub/page-integrations.js';
 import {
   getDocsIndex,
   getDocsTopic,
@@ -36,6 +39,7 @@ import {
   getSupportedApps,
   getPilot,
   getAbout,
+  getAdsTxt,
   getFeatures,
   getContact,
   getPremium,
@@ -110,6 +114,8 @@ export function createApp({
   // while legacy style attributes are migrated into CSS classes.
   // Empty unless GA4 is configured and the owner confirmed consent handling.
   const analyticsSources = analyticsCspSources();
+  // Empty unless the owner switched ads on with an approved account id.
+  const adSources = adsenseCspSources();
   app.use(
     helmet({
       contentSecurityPolicy: {
@@ -122,14 +128,20 @@ export function createApp({
             (_req, res) => `'nonce-${res.locals.cspNonce}'`,
             'https://challenges.cloudflare.com',
             ...analyticsSources.script,
+            ...adSources.script,
           ],
           scriptSrcAttr: ["'none'"],
-          styleSrc: ["'self'"],
-          styleSrcAttr: ["'none'"],
-          imgSrc: ["'self'", 'data:', ...analyticsSources.img],
-          fontSrc: ["'self'"],
-          connectSrc: ["'self'", 'https://challenges.cloudflare.com', ...analyticsSources.connect],
-          frameSrc: ['https://challenges.cloudflare.com'],
+          styleSrc: ["'self'", ...adSources.style],
+          styleSrcAttr: adSources.styleAttr,
+          imgSrc: ["'self'", 'data:', ...analyticsSources.img, ...adSources.img],
+          fontSrc: ["'self'", ...adSources.font],
+          connectSrc: [
+            "'self'",
+            'https://challenges.cloudflare.com',
+            ...analyticsSources.connect,
+            ...adSources.connect,
+          ],
+          frameSrc: ['https://challenges.cloudflare.com', ...adSources.frame],
           formAction: ["'self'"],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: null,
@@ -147,6 +159,7 @@ export function createApp({
     learningHubEnabled: learningHub.enabled,
     learningHubRepository: learningHub.enabled ? learningHub.getRepository : null,
     googleSiteVerification: env.GOOGLE_SITE_VERIFICATION,
+    adsenseAccount: env.ADSENSE_CLIENT_ID,
     legalContactEmail: LEGAL_CONTACT_EMAIL,
     legalOperator: LEGAL_OPERATOR,
     legalPolicies: LEGAL_POLICIES,
@@ -216,7 +229,10 @@ export function createApp({
     if (req.session?.user) {
       return res.redirect('/dashboard');
     }
-    res.render('pages/index', { title: 'HelloDeploy', planDefaults: getPlanDefaults() });
+    res.render('pages/index', {
+      title: 'Deploy web apps from GitHub',
+      planDefaults: getPlanDefaults(),
+    });
   });
 
   app.get('/how-it-works', getHowItWorks);
@@ -233,6 +249,7 @@ export function createApp({
   app.get('/premium', getPremium);
   app.get('/status', getPublicStatus);
   app.get('/robots.txt', getRobots);
+  app.get('/ads.txt', getAdsTxt);
   app.get('/sitemap.xml', getSitemap);
   if (learningHub.enabled) {
     app.use('/blog', createBlogRouter(learningHub));
