@@ -36,8 +36,8 @@ after **Save controls**. Emergency stop: [OPERATIONS.md](OPERATIONS.md#emergency
 
 ## 3. GA4 (stays off)
 
-Missing: a measurement id and a consent mechanism. Set `GA4_MEASUREMENT_ID` and
-`LEARNING_HUB_ANALYTICS_CONSENT_READY=true` only when both exist.
+GA4 now covers all public pages (not only the blog). Missing: a measurement id and a published
+consent message. Owner steps are in [ADSENSE_READINESS.md](ADSENSE_READINESS.md#google-analytics-4-off-until-the-owner-sets-it-up).
 
 ## 4. AdSense (stays off)
 

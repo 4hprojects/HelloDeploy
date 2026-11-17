@@ -10,7 +10,7 @@ for (const key of [
   'js/app.js',
   'css/learning-hub.css',
   'js/learning-hub.js',
-  'js/ad-consent.js',
+  'js/privacy-controls.js',
   'css/legal.css',
   'css/auth.css',
   'css/admin-shell.css',

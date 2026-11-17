@@ -8,6 +8,7 @@
     { id: 'recipients', title: 'Who receives your data' },
     { id: 'international-transfers', title: 'Processing outside the Philippines' },
     { id: 'automated-decisions', title: 'Automated decisions' },
+    { id: 'analytics', title: 'Analytics' },
     { id: 'advertising', title: 'Advertising' },
     { id: 'cookies', title: 'Cookies' },
     { id: 'your-rights', title: 'Your rights' },
@@ -28,6 +29,7 @@
       <h2 id="at-a-glance">At a glance</h2>
       <ul>
         <li>We collect what we need to run your account and deployments, keep the platform secure, and count blog readers. We do not sell personal data, and we never give your account or project data to advertisers.</li>
+        <li>Public pages, such as the home page, documentation, and blog, may use Google Analytics to count visits. Signed-in pages never do. You can turn it off. See <a href="#analytics">Analytics</a>.</li>
         <li>Learning Hub articles may show ads served by Google. Google can use cookies to choose those ads, and you can turn off personalized ads. See <a href="#advertising">Advertising</a>.</li>
         <li>Your environment secret values are encrypted. Your passwords are hashed. We never store your source code.</li>
         <li>A short list of named service providers receives data so the platform can work. Each is listed below with what it receives.</li>
@@ -139,11 +141,12 @@
         <tr><td data-label="Provider">Resend</td><td data-label="What it does for us">Sends transactional email</td><td data-label="Data it receives">Your email address and name, and the message</td></tr>
         <tr><td data-label="Provider">Cloudflare</td><td data-label="What it does for us">DNS, TLS, and tunnel ingress</td><td data-label="Data it receives">IP addresses and HTTP request metadata</td></tr>
         <tr><td data-label="Provider">Cloudflare Turnstile</td><td data-label="What it does for us">Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td data-label="Data it receives">Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
+        <tr><td data-label="Provider">Google Analytics</td><td data-label="What it does for us">Counts visits to public pages, when analytics is switched on</td><td data-label="Data it receives">Collected by Google directly from your browser: the page address without its query (campaign tags excepted), the referring page, browser and device details, approximate location, and a random cookie identifier. HelloDeploy sends Google no account or project data</td></tr>
         <tr><td data-label="Provider">Google AdSense</td><td data-label="What it does for us">Serves ads on Learning Hub articles, when ads are switched on</td><td data-label="Data it receives">Collected by Google directly from your browser: IP address, browser and device details, the page you are reading, and Google&rsquo;s own cookies or identifiers. HelloDeploy sends Google no account or project data</td></tr>
         <tr><td data-label="Provider">OpenAI</td><td data-label="What it does for us">Automated safety check on blog comments before they are published</td><td data-label="Data it receives">The display name and text of each submitted comment</td></tr>
       </tbody>
     </table>
-    <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. Product measurement is processed by HelloDeploy itself; no third-party analytics script is loaded. The only third-party script on reading pages is Google&rsquo;s ad script, described under <a href="#advertising">Advertising</a>.</p>
+    <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. In-app product measurement is processed by HelloDeploy itself. The only third-party measurement and ad scripts are Google&rsquo;s, they load only on public pages, and they are described under <a href="#analytics">Analytics</a> and <a href="#advertising">Advertising</a>.</p>
     <p>We name these providers because you have a right to know who receives your data. We do not publish how they are configured, such as accounts, regions, or internal addresses.</p>
 
     <h2 id="international-transfers">Processing outside the Philippines</h2>
@@ -154,6 +157,16 @@
     <ul>
       <li>Rate limits and Turnstile can block a request that looks automated. If you are blocked by mistake, wait a few minutes or email us.</li>
       <li>On articles that accept comments, automated checks, including OpenAI&rsquo;s moderation service, decide whether a comment is published. Readers can report a published comment, and you can email us to ask a person to review any decision about your comment.</li>
+    </ul>
+
+    <h2 id="analytics">Analytics</h2>
+    <p>To learn which public pages help people and where visitors come from, public pages may use Google Analytics 4. It never loads on sign-in, account, dashboard, project, admin, or GitHub connection pages.</p>
+    <ul>
+      <li><strong>What Google receives:</strong> the page you view, with its query removed except campaign tags such as <code>utm_source</code>; the page you came from; browser, device, and screen details; approximate location derived from your IP address; and clicks on &ldquo;Create account&rdquo; links. Google Analytics 4 does not log or store IP addresses.</li>
+      <li><strong>What we turned off:</strong> Google signals and ad personalization, so this data is not joined to Google accounts or used for ads.</li>
+      <li><strong>How long it is kept:</strong> 14 months, after which Google deletes event-level data.</li>
+      <li><strong>Legal basis:</strong> in the European Economic Area, the United Kingdom, and Switzerland, your consent through Google&rsquo;s consent message; until you accept, no analytics cookie is set. Elsewhere, our legitimate interest in improving the public site, and you can object at any time.</li>
+      <li><strong>How to turn it off:</strong> use the <strong>Turn off analytics</strong> button in the <a href="/cookies#analytics">Cookie Policy</a>, the <strong>Privacy and cookie settings</strong> link in the footer of measured pages, or Google&rsquo;s <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer">opt-out browser add-on</a>.</li>
     </ul>
 
     <h2 id="advertising">Advertising</h2>
@@ -168,7 +181,7 @@
     <p>Our legal basis for non-personalized ads is our legitimate interest in funding the free service. Personalized ads rely on your consent where the law requires it.</p>
 
     <h2 id="cookies">Cookies</h2>
-    <p>HelloDeploy sets a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. HelloDeploy itself sets no tracking, analytics, or advertising cookies. When ads are shown, Google may set its own advertising cookies as described above. See the <a href="/cookies">Cookie Policy</a> for details.</p>
+    <p>HelloDeploy sets a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. On public pages, Google Analytics may set its own cookies as described under <a href="#analytics">Analytics</a>, and when ads are shown, Google may set advertising cookies as described above. See the <a href="/cookies">Cookie Policy</a> for details.</p>
 
     <h2 id="your-rights">Your rights</h2>
     <p>Under the Data Privacy Act (Sections 16 to 18) you have the rights below. Visitors covered by the GDPR have equivalent rights.</p>

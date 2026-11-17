@@ -3,10 +3,11 @@
     <div><strong>Platform</strong><a href="/features">Features</a><a href="/how-it-works">How It Works</a><a href="/supported-apps">Supported Apps</a><a href="/pilot">Pricing</a><a href="/service-limits">Service Limits</a><a href="/status">Status</a></div>
     <div><strong>Resources</strong><a href="/docs">Documentation</a><a href="/docs/faq">FAQ</a><% if (locals.learningHubEnabled) { %><a href="/blog">Learning Hub</a><% } %></div>
     <div><strong>Company</strong><a href="/about">About</a><a href="/contact">Contact</a><a href="/security">Security</a></div>
-    <div><strong>Legal</strong><a href="/legal">Legal Information</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/acceptable-use">Acceptable Use</a><a href="/data-processing">Data Processing</a><a href="/copyright">Copyright</a><% if (locals.adSlot) { %><button type="button" class="footer__link-button" data-ad-privacy-settings hidden>Privacy and cookie settings</button><% } %></div>
+    <div><strong>Legal</strong><a href="/legal">Legal Information</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href="/cookies">Cookies</a><a href="/acceptable-use">Acceptable Use</a><a href="/data-processing">Data Processing</a><a href="/copyright">Copyright</a><% if (locals.adSlot || locals.analytics) { %><button type="button" class="footer__link-button" data-privacy-settings hidden>Privacy and cookie settings</button><% } %></div>
   </div>
   <p class="footer__text">&copy; <%= new Date().getFullYear() %> HelloDeploy · Active pilot operated by <%= legalOperator %>.</p>
 </footer>
+<% if (locals.adSlot || locals.analytics) { %><script src="<%= assetPath('js/privacy-controls.js') %>" defer></script><% } %>
 
 <div
   class="confirm-modal"

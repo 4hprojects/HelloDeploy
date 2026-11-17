@@ -58,6 +58,14 @@ describe('Legal pages', () => {
     assert.match(pages.get('/cookies').html, /href="https:\/\/adssettings\.google\.com"/);
   });
 
+  it('names Google Analytics in the privacy policy', () => {
+    assert.match(pages.get('/privacy').html, /id="analytics"/);
+  });
+
+  it('lists the Google Analytics cookie in the cookie policy', () => {
+    assert.match(pages.get('/cookies').html, /<code>_ga<\/code>/);
+  });
+
   it('never publishes a personal Gmail address', () => {
     assert.deepEqual(
       PATHS.filter((path) => /gmail/i.test(pages.get(path).html)),

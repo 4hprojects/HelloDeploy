@@ -1,4 +1,4 @@
-# AdSense Readiness Checklist
+# AdSense and Google Analytics Readiness
 
 Checked 2026-10-29; re-audited 2026-11-17. Technical readiness is not approval: Google reviews the whole site and may
 refuse it for reasons this checklist cannot test. **Ads are off** and stay off until the owner
@@ -58,10 +58,46 @@ authorizes activation.
    CSP for AdSense and the consent dialog, and mark chosen articles `adEligible: true`.
 5. Check a live article in a browser for CSP violations in the console.
 
-## GA4 (also off)
+## Google Analytics 4 (off until the owner sets it up)
 
-GA4 loads on Learning Hub pages only when `GA4_MEASUREMENT_ID` is set **and**
-`LEARNING_HUB_ANALYTICS_CONSENT_READY=true`, which the owner sets only after a consent
-mechanism exists. The tag sends its own automatic `page_view` (one source); custom events are
-`article_share_click`, `article_copy_link`, `related_click`, and `comment_submit_outcome`, each
-with the article id and a fixed label only. Internal view counts are not GA4 users.
+GA4 covers **public pages only**. It never loads on `/auth`, `/dashboard`, `/projects`, `/admin`,
+`/account` or `/github` (`PRIVATE_PATH_PREFIXES` in `apps/web/src/services/site-analytics.js`),
+because auth URLs carry one-time tokens and app pages show project and repository names.
+
+How it works, in load order on a measured page (`views/partials/analytics.ejs`):
+
+1. Consent Mode v2 defaults: everything denied in EEA/UK/CH until the visitor accepts in Google's
+   consent message; elsewhere analytics granted, all ad signals denied.
+2. Google's consent tag (`fundingchoicesmessages.google.com/i/<pub-id>`), the same Privacy &
+   messaging CMP used for ads. It updates consent when the visitor chooses.
+3. `gtag.js`, configured with `page_location` reduced to origin + path + `utm_*`, a same-site
+   referrer without its query, a fixed title on blog search, and Google signals and ad
+   personalization off.
+
+Opt-outs: the footer **Privacy and cookie settings** control (reopens the consent message in
+EEA/UK/CH, otherwise opens `/cookies#analytics`), the **Turn off analytics** button on
+`/cookies` (stores `hd-analytics-off` and sets `ga-disable-<id>`), and Google's browser add-on.
+
+Events: automatic `page_view`; `sign_up_click` (fixed `link_location` of `header` or `page`) on
+public "Create account" links; Learning Hub `article_share_click`, `article_copy_link`,
+`related_click`, and `comment_submit_outcome` with the article id and fixed labels only.
+Sign-ups themselves are counted by first-party product analytics, not GA4.
+
+### Owner steps
+
+1. In Google Analytics, create a GA4 property and a web stream for `https://hellodeploy.online`.
+   Copy the `G-…` measurement id.
+2. In GA4 Admin:
+   - Data retention: **14 months**. The privacy policy states this.
+   - Google signals: **off**.
+   - Enhanced measurement: keep page views, scrolls, and outbound clicks; turn **off** site
+     search and form interactions.
+3. Publish the AdSense Privacy & messaging **European regulations** message (see the activation
+   steps above). It covers analytics as well as ads. If Privacy & messaging is unavailable until
+   AdSense approves the site, keep analytics off until then.
+4. Set `GA4_MEASUREMENT_ID`, `ADSENSE_CLIENT_ID`, and `ANALYTICS_CONSENT_READY=true`, then
+   restart `hellodeploy-web`. All three are required; any missing keeps every Google analytics
+   script off.
+5. Check GA4 Realtime for a visit, and Tag Assistant for the consent defaults. From an EEA VPN,
+   confirm the consent message appears and no `_ga` cookie exists before accepting.
+6. After the first `sign_up_click` arrives, mark it as a key event in GA4 Admin → Events.

@@ -240,13 +240,12 @@ export const env = {
   LEARNING_HUB_COMMENTS_ENABLED: optional('LEARNING_HUB_COMMENTS_ENABLED', 'false') === 'true',
   LEARNING_HUB_MODERATION_PROVIDER: optional('LEARNING_HUB_MODERATION_PROVIDER', 'none'),
   OPENAI_MODERATION_API_KEY: optional('OPENAI_MODERATION_API_KEY', ''),
-  // GA4 on Learning Hub pages only, and only once the owner confirms a consent
-  // mechanism is in place. Either missing keeps the tag off.
+  // GA4 on public pages, only once the owner confirms Google's consent message
+  // is published (it also needs ADSENSE_CLIENT_ID). Any missing keeps it off.
   GA4_MEASUREMENT_ID: /^G-[A-Z0-9]{4,12}$/.test(optional('GA4_MEASUREMENT_ID', ''))
     ? optional('GA4_MEASUREMENT_ID', '')
     : '',
-  LEARNING_HUB_ANALYTICS_CONSENT_READY:
-    optional('LEARNING_HUB_ANALYTICS_CONSENT_READY', 'false') === 'true',
+  ANALYTICS_CONSENT_READY: optional('ANALYTICS_CONSENT_READY', 'false') === 'true',
   // Search Console HTML-tag verification token; the meta tag is omitted while unset.
   GOOGLE_SITE_VERIFICATION: /^[A-Za-z0-9_-]{20,100}$/.test(optional('GOOGLE_SITE_VERIFICATION', ''))
     ? optional('GOOGLE_SITE_VERIFICATION', '')

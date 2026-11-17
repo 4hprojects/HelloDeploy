@@ -84,17 +84,17 @@ Status values: **verified** (in code and observed or tested), **partial** (exist
 
 ### SEO, analytics, ads, payments
 
-| Capability                                 | Status   | Evidence                                                                                        | Action                                      |
-| ------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| Per-page title/description/canonical/og    | verified | `partials/head.ejs`, `config/public-pages.js:171-183`                                           | Unique descriptions                         |
-| Default `noindex` for private pages (meta) | verified | `middleware/locals.js:22-44`                                                                    | Add `X-Robots-Tag` header                   |
-| robots.txt / sitemap.xml                   | verified | `public.controller.js:329-353`                                                                  | Add `lastmod` for policies, drop `/premium` |
-| JSON-LD                                    | partial  | blog only                                                                                       | Organization + WebSite on `/`               |
-| GA4                                        | partial  | blog only, needs `GA4_MEASUREMENT_ID` + `LEARNING_HUB_ANALYTICS_CONSENT_READY`; not set in prod | Consent banner + Consent Mode, stays off    |
-| Consent banner                             | absent   | —                                                                                               | PR 4                                        |
-| Search Console verification                | absent   | —                                                                                               | Optional meta tag                           |
-| AdSense                                    | partial  | gated, but CSP lacks `pagead2.googlesyndication.com` (`app.js:111-116`)                         | Fix CSP when configured; stays off          |
-| Donations / payments                       | absent   | no strings in `apps/web/src`                                                                    | Disabled scaffold PR 5                      |
+| Capability                                 | Status   | Evidence                                                                                                    | Action                                      |
+| ------------------------------------------ | -------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| Per-page title/description/canonical/og    | verified | `partials/head.ejs`, `config/public-pages.js:171-183`                                                       | Unique descriptions                         |
+| Default `noindex` for private pages (meta) | verified | `middleware/locals.js:22-44`                                                                                | Add `X-Robots-Tag` header                   |
+| robots.txt / sitemap.xml                   | verified | `public.controller.js:329-353`                                                                              | Add `lastmod` for policies, drop `/premium` |
+| JSON-LD                                    | partial  | blog only                                                                                                   | Organization + WebSite on `/`               |
+| GA4                                        | partial  | public pages, needs `GA4_MEASUREMENT_ID` + `ADSENSE_CLIENT_ID` + `ANALYTICS_CONSENT_READY`; not set in prod | Consent banner + Consent Mode, stays off    |
+| Consent banner                             | absent   | —                                                                                                           | PR 4                                        |
+| Search Console verification                | absent   | —                                                                                                           | Optional meta tag                           |
+| AdSense                                    | partial  | gated, but CSP lacks `pagead2.googlesyndication.com` (`app.js:111-116`)                                     | Fix CSP when configured; stays off          |
+| Donations / payments                       | absent   | no strings in `apps/web/src`                                                                                | Disabled scaffold PR 5                      |
 
 ### Governance
 
