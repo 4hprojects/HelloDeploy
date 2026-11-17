@@ -39,6 +39,7 @@ const ADSENSE_SOURCES = Object.freeze({
   // attributes, so inline styles are allowed while ads are on. This weakens
   // the style policy only; script-src stays nonce- and host-bound.
   style: ["'unsafe-inline'", 'https://fonts.googleapis.com'],
+  styleAttr: ["'unsafe-inline'"],
   font: ['https://fonts.gstatic.com'],
 });
 
@@ -48,6 +49,7 @@ const NO_ADSENSE_SOURCES = Object.freeze({
   connect: [],
   img: [],
   style: [],
+  styleAttr: ["'none'"],
   font: [],
 });
 

@@ -132,7 +132,7 @@ export function createApp({
           ],
           scriptSrcAttr: ["'none'"],
           styleSrc: ["'self'", ...adSources.style],
-          styleSrcAttr: adSources.style.length > 0 ? ["'unsafe-inline'"] : ["'none'"],
+          styleSrcAttr: adSources.styleAttr,
           imgSrc: ["'self'", 'data:', ...analyticsSources.img, ...adSources.img],
           fontSrc: ["'self'", ...adSources.font],
           connectSrc: [

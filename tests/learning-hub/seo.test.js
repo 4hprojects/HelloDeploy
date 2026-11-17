@@ -163,6 +163,11 @@ describe('Learning Hub SEO', () => {
     assert.doesNotMatch(res.headers.get('content-security-policy'), /google/);
   });
 
+  it('keeps inline styles blocked while ads are disabled', async () => {
+    const res = await fetch(`${target.baseUrl}/blog/sample-article`);
+    assert.doesNotMatch(res.headers.get('content-security-policy'), /unsafe-inline/);
+  });
+
   it('serves no ads.txt without an AdSense account id', async () => {
     const res = await fetch(`${target.baseUrl}/ads.txt`);
     assert.equal(res.status, 404);
@@ -234,12 +239,12 @@ describe('Learning Hub analytics and ad gating', () => {
 
   it('allows the AdSense script host once ads are on', () => {
     const sources = adsenseCspSources({ enabled: true, clientId: 'ca-pub-0000000000000000' });
-    assert.ok(sources.script.includes('https://*.googlesyndication.com'));
+    assert.ok(new Set(sources.script).has('https://*.googlesyndication.com'));
   });
 
   it('allows the consent dialog frame once ads are on', () => {
     const sources = adsenseCspSources({ enabled: true, clientId: 'ca-pub-0000000000000000' });
-    assert.ok(sources.frame.includes('https://fundingchoicesmessages.google.com'));
+    assert.ok(new Set(sources.frame).has('https://fundingchoicesmessages.google.com'));
   });
 
   it('writes the ads.txt line with the publisher id and Google certification id', () => {
