@@ -33,21 +33,27 @@ authorizes activation.
 
 ## Remaining gaps (2026-11-17 audit)
 
-| Gap                                                     | Severity    | Notes                                                                                                                                                   |
-| ------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Content volume                                          | **Blocker** | 5 articles, all dated 2026-10-29. "Low-value content" is the most common rejection; aim for ≥15 substantive articles over several weeks before applying |
-| Privacy and cookie policies say there is no advertising | **Blocker** | Must name Google as an ad vendor, its cookies, the opt-out (adssettings.google.com), and US state privacy rights before applying                        |
-| Consent for EEA/UK/CH                                   | **Blocker** | Use AdSense Privacy & messaging (a Google-certified CMP). `adsbygoogle.js` loads it; its hosts are already in the ad CSP                                |
-| Thin pages                                              | Medium      | `/status`, `/premium`, `/supported-apps`, docs topic `service-limits`                                                                                   |
-| Policies labelled "drafts"                              | Medium      | Reads as unfinished to a reviewer; remove once the owner accepts the text                                                                               |
-| User apps share `hellodeploy.online`                    | Risk        | Apps on `*.hellodeploy.online` are user content on the reviewed domain; enforce the acceptable-use policy                                               |
+| Gap                                  | Severity         | Notes                                                                                                                                                                                                            |
+| ------------------------------------ | ---------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Content volume                       | **Blocker**      | 5 articles, all dated 2026-10-29. "Low-value content" is the most common rejection; aim for ≥15 substantive articles over several weeks before applying                                                          |
+| Policies disclose Google advertising | Done             | `/privacy#advertising` and `/cookies#advertising-cookies` name Google as a vendor, its cookies, the opt-outs, the consent message, and US state rights                                                           |
+| Consent for EEA/UK/CH                | **Owner action** | Code done: CSP allows Google's consent tool, and pages with ads get a footer **Privacy and cookie settings** button that reopens it (`js/ad-consent.js`). The messages themselves are created in AdSense (below) |
+| Thin pages                           | Medium           | `/status`, `/premium`, `/supported-apps`, docs topic `service-limits`                                                                                                                                            |
+| Policies labelled "drafts"           | Medium           | Reads as unfinished to a reviewer; remove once the owner accepts the text                                                                                                                                        |
+| User apps share `hellodeploy.online` | Risk             | Apps on `*.hellodeploy.online` are user content on the reviewed domain; enforce the acceptable-use policy                                                                                                        |
 
 ## Activation steps (owner)
 
 1. Close the blockers above.
 2. Apply in AdSense for `hellodeploy.online`. Set `ADSENSE_CLIENT_ID` and restart `hellodeploy-web`:
    the `google-adsense-account` meta tag and `/ads.txt` go live while `ADSENSE_ENABLED` stays `false`.
-3. Configure the Privacy & messaging GDPR message in AdSense.
+3. Create the consent messages in AdSense → Privacy & messaging:
+   - **European regulations** → Create message: site `hellodeploy.online`, English, buttons
+     Consent / Do not consent / Manage options, privacy policy URL
+     `https://hellodeploy.online/privacy`. Publish.
+   - **US state regulations** → Create message → Publish.
+   - The messages appear only on articles that load the ad script, so only once ads are on. To
+     preview one there, add `?fc=alwaysshow&fctype=gdpr` to the article URL.
 4. After approval: set `ADSENSE_ARTICLE_SLOT_ID` and `ADSENSE_ENABLED=true`, which also extends the
    CSP for AdSense and the consent dialog, and mark chosen articles `adEligible: true`.
 5. Check a live article in a browser for CSP violations in the console.

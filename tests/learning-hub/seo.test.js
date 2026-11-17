@@ -271,6 +271,22 @@ describe('Learning Hub analytics and ad gating', () => {
     assert.match(html, /<meta name="google-adsense-account" content="ca-pub-1234567890123456" \/>/);
   });
 
+  const renderFooter = (locals) =>
+    ejs.renderFile(
+      fileURLToPath(new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url)),
+      { legalOperator: '4H Projects', ...locals },
+    );
+
+  it('offers the ad consent settings link on a page that shows ads', async () => {
+    const html = await renderFooter({ adSlot: { clientId: 'ca-pub-0', slotId: '1' } });
+    assert.match(html, /data-ad-privacy-settings/);
+  });
+
+  it('offers no ad consent settings link on a page without ads', async () => {
+    const html = await renderFooter({ adSlot: null });
+    assert.doesNotMatch(html, /data-ad-privacy-settings/);
+  });
+
   it('renders the analytics tag with only the measurement id', async () => {
     const html = await ejs.renderFile(
       fileURLToPath(new URL('../../apps/web/src/views/partials/analytics.ejs', import.meta.url)),

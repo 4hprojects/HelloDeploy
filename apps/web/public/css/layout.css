@@ -244,6 +244,22 @@
   font-size: var(--text-sm);
 }
 
+/* Reopens Google's ad consent message; rendered only on pages that show ads. */
+.footer__link-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--color-text-muted);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.footer__link-button:hover {
+  text-decoration: underline;
+}
+
 /* ── Page header ─────────────────────────────────────────────────── */
 .page-header {
   margin-bottom: var(--space-8);
