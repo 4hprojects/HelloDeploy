@@ -1,7 +1,49 @@
-<script async src="https://www.googletagmanager.com/gtag/js?id=<%= analytics.measurementId %>"></script>
+<%
+  // EEA, UK, and Switzerland: analytics waits for consent from Google's message.
+  const consentRegions = ['AT', 'BE', 'BG', 'HR', 'CY', 'CZ', 'DK', 'EE', 'FI', 'FR', 'DE', 'GR', 'HU', 'IE', 'IT', 'LV', 'LT', 'LU', 'MT', 'NL', 'PL', 'PT', 'RO', 'SK', 'SI', 'ES', 'SE', 'IS', 'LI', 'NO', 'GB', 'CH'];
+  const toScript = (value) => JSON.stringify(value).replace(/</g, '\\u003c');
+  const pageTitle = locals.analyticsTitle || (locals.title ? `${locals.title} — HelloDeploy` : 'HelloDeploy');
+%>
 <script nonce="<%= cspNonce %>">
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { window.dataLayer.push(arguments); }
-  gtag('js', new Date());
-  gtag('config', '<%= analytics.measurementId %>');
+  (function () {
+    var measurementId = <%- toScript(analytics.measurementId) %>;
+    try {
+      if (localStorage.getItem('hd-analytics-off') === '1') window['ga-disable-' + measurementId] = true;
+    } catch (e) {}
+    window.dataLayer = window.dataLayer || [];
+    window.gtag = function () { window.dataLayer.push(arguments); };
+    gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'denied', region: <%- toScript(consentRegions) %>, wait_for_update: 500 });
+    gtag('consent', 'default', { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied', analytics_storage: 'granted' });
+    gtag('js', new Date());
+    // Only the path and campaign tags leave the site: queries can hold search
+    // text, and a same-site referrer can carry the previous page's query.
+    function withoutQuery(href, keepCampaign) {
+      var url = new URL(href);
+      var kept = new URLSearchParams();
+      if (keepCampaign) url.searchParams.forEach(function (value, key) { if (key.indexOf('utm_') === 0) kept.append(key, value); });
+      var query = kept.toString();
+      return url.origin + url.pathname + (query ? '?' + query : '');
+    }
+    var referrer = document.referrer;
+    if (referrer && new URL(referrer).origin === location.origin) referrer = withoutQuery(referrer, false);
+    gtag('config', measurementId, {
+      page_location: withoutQuery(location.href, true),
+      page_referrer: referrer,
+      page_title: <%- toScript(pageTitle) %>,
+      allow_google_signals: false,
+      allow_ad_personalization_signals: false,
+    });
+  })();
 </script>
+<script async src="https://fundingchoicesmessages.google.com/i/<%= analytics.publisherId %>?ers=1"></script>
+<script nonce="<%= cspNonce %>">
+  (function signalGooglefcPresent() {
+    if (window.frames.googlefcPresent) return;
+    if (!document.body) { setTimeout(signalGooglefcPresent, 0); return; }
+    var frame = document.createElement('iframe');
+    frame.name = 'googlefcPresent';
+    frame.hidden = true;
+    document.body.appendChild(frame);
+  })();
+</script>
+<script async src="https://www.googletagmanager.com/gtag/js?id=<%= analytics.measurementId %>"></script>

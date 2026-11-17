@@ -24,7 +24,8 @@ export const LEGAL_POLICIES = Object.freeze([
   {
     slug: 'cookies',
     title: 'Cookie Policy',
-    summary: 'The cookie and browser storage HelloDeploy uses, and Google advertising cookies.',
+    summary:
+      'The cookie and browser storage HelloDeploy uses, and Google analytics and advertising cookies.',
     effective: '2026-06-30',
     updated: '2026-11-17',
   },

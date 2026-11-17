@@ -1,15 +1,5 @@
 import { env } from '../../config/env.js';
 
-const GA4_SOURCES = Object.freeze({
-  script: ['https://www.googletagmanager.com'],
-  connect: [
-    'https://*.google-analytics.com',
-    'https://*.analytics.google.com',
-    'https://*.googletagmanager.com',
-  ],
-  img: ['https://*.google-analytics.com', 'https://*.googletagmanager.com'],
-});
-
 // Hosts Google lists for AdSense, its ad-quality checks, and the Privacy &
 // messaging consent dialog that adsbygoogle.js loads for EEA/UK/CH visitors.
 const ADSENSE_SOURCES = Object.freeze({
@@ -55,19 +45,6 @@ const NO_ADSENSE_SOURCES = Object.freeze({
 
 // Google's fixed certification authority id for ads.txt entries.
 const GOOGLE_ADS_TXT_CERT_ID = 'f08c47fec0942fa0';
-
-/** GA4 for Learning Hub pages, or null while it must stay off. */
-export function learningHubAnalytics({
-  measurementId = env.GA4_MEASUREMENT_ID,
-  consentReady = env.LEARNING_HUB_ANALYTICS_CONSENT_READY,
-} = {}) {
-  return measurementId && consentReady ? { measurementId } : null;
-}
-
-/** CSP sources to add only while GA4 is active. */
-export function analyticsCspSources(analytics = learningHubAnalytics()) {
-  return analytics ? GA4_SOURCES : { script: [], connect: [], img: [] };
-}
 
 /**
  * The article ad slot, or null. Ads need the owner's switch, approved account

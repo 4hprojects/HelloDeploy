@@ -2,11 +2,10 @@ import { ARTICLES_PER_PAGE } from '../config/learning-hub.js';
 import { env } from '../config/env.js';
 import { normalizeSearchQuery } from '../services/learning-hub/content-repository.js';
 import * as articleStats from '../services/learning-hub/article-stats.service.js';
-import { articleAdSlot, learningHubAnalytics } from '../services/learning-hub/page-integrations.js';
+import { articleAdSlot } from '../services/learning-hub/page-integrations.js';
 
 const PAGE_STYLES = ['css/learning-hub.css'];
 const PAGE_SCRIPTS = ['js/learning-hub.js'];
-const AD_PAGE_SCRIPTS = [...PAGE_SCRIPTS, 'js/ad-consent.js'];
 const HUB_TITLE = 'Learning Hub';
 const COMMENT_VIEW_PARAMS = ['commentsPage', 'thread', 'replyTo'];
 const HUB_DESCRIPTION =
@@ -21,7 +20,6 @@ export function createBlogController({
   viewsEnabled = false,
   stats = articleStats,
   discussion = null,
-  analytics = learningHubAnalytics(),
 }) {
   function getIndex(req, res, next) {
     const repository = getRepository();
@@ -38,6 +36,8 @@ export function createBlogController({
 
     res.render('pages/blog/index', {
       title: isSearch ? `Search: ${query}` : HUB_TITLE,
+      // The visible title holds the reader's query; analytics gets a fixed one.
+      analyticsTitle: isSearch ? 'Learning Hub search' : undefined,
       pageMetadata: pageMetadata({
         path: '/blog',
         description: HUB_DESCRIPTION,
@@ -46,7 +46,6 @@ export function createBlogController({
       }),
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
-      analytics,
       query,
       featured: showFeatured ? present(repository, featured) : null,
       articles: page.items.map((article) => present(repository, article)),
@@ -80,7 +79,6 @@ export function createBlogController({
       }),
       pageStyles: PAGE_STYLES,
       pageScripts: PAGE_SCRIPTS,
-      analytics,
       category,
       articles: page.items.map((article) => present(repository, article)),
       pagination: paginationLinks(page, (number) =>
@@ -137,8 +135,7 @@ export function createBlogController({
         structuredData: articleStructuredData(repository, article, canonicalUrl),
       }),
       pageStyles: PAGE_STYLES,
-      pageScripts: adSlot ? AD_PAGE_SCRIPTS : PAGE_SCRIPTS,
-      analytics,
+      pageScripts: PAGE_SCRIPTS,
       adSlot,
       article: present(repository, article),
       canonicalUrl,

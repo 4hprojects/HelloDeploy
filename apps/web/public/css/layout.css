@@ -244,7 +244,7 @@
   font-size: var(--text-sm);
 }
 
-/* Reopens Google's ad consent message; rendered only on pages that show ads. */
+/* Privacy and cookie settings; rendered only on pages with Google ads or analytics. */
 .footer__link-button {
   padding: 0;
   border: 0;

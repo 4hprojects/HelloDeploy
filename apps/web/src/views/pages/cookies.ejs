@@ -4,6 +4,7 @@
     { id: 'cookies-we-use', title: 'Cookies we use' },
     { id: 'browser-storage', title: 'Browser storage' },
     { id: 'third-party', title: 'Third-party checks' },
+    { id: 'analytics', title: 'Analytics cookies' },
     { id: 'advertising-cookies', title: 'Advertising cookies' },
     { id: 'consent', title: 'Consent' },
     { id: 'managing-cookies', title: 'Managing cookies' },
@@ -20,8 +21,8 @@
       <h2 id="at-a-glance">At a glance</h2>
       <ul>
         <li>HelloDeploy sets one cookie, <code>hellodeploy.sid</code>, which keeps you signed in and protects forms.</li>
-        <li>Two browser storage keys remember your theme and keep an unsent blog comment on your device.</li>
-        <li>HelloDeploy itself sets no advertising, analytics, or tracking cookies.</li>
+        <li>Browser storage keys remember your theme, your analytics choice, and an unsent blog comment on your device.</li>
+        <li>Public pages may use Google Analytics, which sets its own cookies. Signed-in pages never do. You can turn it off below. See <a href="#analytics">Analytics cookies</a>.</li>
         <li>Learning Hub articles may show Google ads. Google may set its own advertising cookies there, and you can control them. See <a href="#advertising-cookies">Advertising cookies</a>.</li>
       </ul>
     </section>
@@ -60,11 +61,50 @@
           <td data-label="Duration">Until the browser tab is closed or the comment is published</td>
           <td data-label="Type">Session storage</td>
         </tr>
+        <tr>
+          <td data-label="Key"><code>hd-analytics-off</code></td>
+          <td data-label="Purpose">Remembers that you turned off Google Analytics on this browser.</td>
+          <td data-label="Duration">Until you turn analytics back on or clear browser storage</td>
+          <td data-label="Type">Preference storage</td>
+        </tr>
       </tbody>
     </table>
 
     <h2 id="third-party">Third-party checks</h2>
     <p>Sign-in and account forms load Cloudflare Turnstile from <code>challenges.cloudflare.com</code> to tell people from bots. Turnstile runs in its own frame under Cloudflare&rsquo;s control, and Cloudflare&rsquo;s own privacy policy covers any storage it uses there. HelloDeploy receives only a pass or fail token. See <a href="/privacy#recipients">Who receives your data</a>.</p>
+
+    <h2 id="analytics">Analytics cookies</h2>
+    <p>When analytics is switched on, public pages load Google Analytics 4 from <code>www.googletagmanager.com</code> and Google&rsquo;s consent tool from <code>fundingchoicesmessages.google.com</code>. Sign-in, account, dashboard, project, admin, and GitHub connection pages load neither. These cookies are set on <code>hellodeploy.online</code> by Google&rsquo;s scripts:</p>
+    <table class="table legal-table">
+      <thead>
+        <tr><th scope="col">Name</th><th scope="col">Purpose</th><th scope="col">Duration</th><th scope="col">Type</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-label="Name"><code>_ga</code></td>
+          <td data-label="Purpose">A random identifier that lets Google Analytics count returning visitors.</td>
+          <td data-label="Duration">2 years</td>
+          <td data-label="Type">Analytics</td>
+        </tr>
+        <tr>
+          <td data-label="Name"><code>_ga_&lt;id&gt;</code></td>
+          <td data-label="Purpose">Keeps the current visit together in Google Analytics.</td>
+          <td data-label="Duration">2 years</td>
+          <td data-label="Type">Analytics</td>
+        </tr>
+        <tr>
+          <td data-label="Name"><code>FCCDCF</code>, <code>FCNEC</code></td>
+          <td data-label="Purpose">Store the choice you made in Google&rsquo;s consent message.</td>
+          <td data-label="Duration">Up to 13 months</td>
+          <td data-label="Type">Consent</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>In the European Economic Area, the United Kingdom, and Switzerland, no analytics cookie is set until you accept in Google&rsquo;s consent message. Everywhere else analytics is on by default, and you can turn it off for this browser here or with Google&rsquo;s <a href="https://tools.google.com/dlpage/gaoptout" rel="noopener noreferrer">opt-out browser add-on</a>.</p>
+    <% if (locals.analytics) { %>
+    <p><button type="button" class="button button--secondary" data-analytics-toggle data-measurement-id="<%= analytics.measurementId %>" hidden>Turn off analytics</button></p>
+    <p data-analytics-toggle-status role="status"></p>
+    <% } %>
 
     <h2 id="advertising-cookies">Advertising cookies</h2>
     <p>When ads are switched on, Learning Hub articles load Google AdSense from <code>pagead2.googlesyndication.com</code>. Google and its partners may then set or read cookies, such as the DoubleClick cookie, and similar identifiers to serve ads, limit how often you see them, measure them, and detect fraud. These cookies belong to Google, and Google&rsquo;s <a href="https://policies.google.com/technologies/ads" rel="noopener noreferrer">advertising cookie page</a> lists them. Ads never load on sign-in, account, dashboard, project, or admin pages.</p>
@@ -75,14 +115,15 @@
 
     <h2 id="consent">Consent</h2>
     <p>The session cookie is strictly necessary to provide the service you ask for, so the law does not require your consent for it. The theme key only stores a preference you set yourself.</p>
+    <p>Analytics cookies are optional. See <a href="#analytics">Analytics cookies</a> for how consent and the opt-out work.</p>
     <p>Advertising cookies are optional. In the European Economic Area, the United Kingdom, and Switzerland, a Google-certified consent message asks for your choice before they are set. You can change that choice later from the <strong>Privacy and cookie settings</strong> link in the footer of any page that shows ads. If you decline, Google may still show non-personalized ads, which use cookies only for frequency capping, aggregated reporting, and fraud prevention, where the law allows.</p>
-    <p>HelloDeploy records a small, allowlisted set of first-party product milestones and Web Vitals on the server. This measurement does not set an analytics cookie, load a third-party analytics script, or store page URLs, repository names, credentials, or secret values.</p>
+    <p>HelloDeploy records a small, allowlisted set of first-party product milestones and Web Vitals on the server. This measurement does not set a cookie, load a third-party script, or store page URLs, repository names, credentials, or secret values.</p>
 
     <h2 id="managing-cookies">Managing cookies</h2>
     <p>You can block or delete cookies and site storage in your browser settings. If you block the session cookie, you will not be able to sign in or use authenticated HelloDeploy features. Reading the blog still works.</p>
 
     <h2 id="changes">Changes</h2>
-    <p>If HelloDeploy adds analytics or other optional cookies in the future, this policy will be updated first, and a consent control will be added before those cookies are set.</p>
+    <p>If HelloDeploy adds other optional cookies in the future, this policy will be updated first, and a consent control will be added before those cookies are set.</p>
   </article>
 </div>
 

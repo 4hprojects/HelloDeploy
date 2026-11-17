@@ -28,10 +28,8 @@ import { LEGAL_CONTACT_EMAIL, LEGAL_OPERATOR, LEGAL_POLICIES } from './config/le
 import { checkWebReadiness } from './services/readiness.service.js';
 import { releaseSha } from './utils/release-sha.js';
 import { getContentRepository } from './services/learning-hub/content-repository.js';
-import {
-  adsenseCspSources,
-  analyticsCspSources,
-} from './services/learning-hub/page-integrations.js';
+import { adsenseCspSources } from './services/learning-hub/page-integrations.js';
+import { analyticsCspSources, isPrivatePath, siteAnalytics } from './services/site-analytics.js';
 import {
   getDocsIndex,
   getDocsTopic,
@@ -50,7 +48,6 @@ import {
 import { postWebVital } from './controllers/telemetry.controller.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const PRIVATE_PATH_PREFIXES = ['/dashboard', '/projects', '/admin', '/auth', '/account', '/github'];
 
 function cspNonceMiddleware(_req, res, next) {
   res.locals.cspNonce = randomBytes(16).toString('base64');
@@ -59,6 +56,8 @@ function cspNonceMiddleware(_req, res, next) {
 
 export function createApp({
   readinessCheck = checkWebReadiness,
+  // GA4 settings for public pages; null keeps every Google analytics script off.
+  analytics = siteAnalytics(),
   learningHub = {
     enabled: env.LEARNING_HUB_ENABLED,
     viewsEnabled: env.LEARNING_HUB_VIEWS_ENABLED,
@@ -113,7 +112,7 @@ export function createApp({
   // used by the early theme bootstrap. Inline styles remain temporarily allowed
   // while legacy style attributes are migrated into CSS classes.
   // Empty unless GA4 is configured and the owner confirmed consent handling.
-  const analyticsSources = analyticsCspSources();
+  const analyticsSources = analyticsCspSources(analytics);
   // Empty unless the owner switched ads on with an approved account id.
   const adSources = adsenseCspSources();
   app.use(
@@ -141,7 +140,11 @@ export function createApp({
             ...analyticsSources.connect,
             ...adSources.connect,
           ],
-          frameSrc: ['https://challenges.cloudflare.com', ...adSources.frame],
+          frameSrc: [
+            'https://challenges.cloudflare.com',
+            ...analyticsSources.frame,
+            ...adSources.frame,
+          ],
           formAction: ["'self'"],
           frameAncestors: ["'none'"],
           upgradeInsecureRequests: null,
@@ -186,11 +189,7 @@ export function createApp({
   // robots.txt only stops crawling; the header also keeps a private page out
   // of search results when someone links to it.
   app.use((req, res, next) => {
-    if (
-      PRIVATE_PATH_PREFIXES.some(
-        (prefix) => req.path === prefix || req.path.startsWith(`${prefix}/`),
-      )
-    ) {
+    if (isPrivatePath(req.path)) {
       res.setHeader('X-Robots-Tag', 'noindex, nofollow');
     }
     next();
@@ -207,6 +206,14 @@ export function createApp({
   app.use(sessionMiddleware);
   app.use(csrfMiddleware);
   app.use(localsMiddleware);
+  if (analytics) {
+    app.use((req, res, next) => {
+      if (!isPrivatePath(req.path)) {
+        res.locals.analytics = analytics;
+      }
+      next();
+    });
+  }
   app.use((req, res, next) => {
     if (req.method === 'GET' && req.accepts('html')) {
       res.setHeader('Cache-Control', 'no-cache');

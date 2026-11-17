@@ -13,7 +13,7 @@ const { startTestDb, stopTestDb } = await import('../helpers/worker-db.js');
 const { createApp } = await import('../../apps/web/src/app.js');
 const { createContentRepository } =
   await import('../../apps/web/src/services/learning-hub/content-repository.js');
-const { adsTxt, adsenseCspSources, articleAdSlot, learningHubAnalytics, analyticsCspSources } =
+const { adsTxt, adsenseCspSources, articleAdSlot } =
   await import('../../apps/web/src/services/learning-hub/page-integrations.js');
 const { articleFile } = await import('./fixtures.js');
 
@@ -184,25 +184,7 @@ describe('Learning Hub SEO', () => {
   });
 });
 
-describe('Learning Hub analytics and ad gating', () => {
-  it('keeps GA4 off without confirmed consent handling', () => {
-    assert.equal(learningHubAnalytics({ measurementId: 'G-ABC1234', consentReady: false }), null);
-  });
-
-  it('keeps GA4 off without a measurement id', () => {
-    assert.equal(learningHubAnalytics({ measurementId: '', consentReady: true }), null);
-  });
-
-  it('turns GA4 on only with both an id and confirmed consent', () => {
-    assert.deepEqual(learningHubAnalytics({ measurementId: 'G-ABC1234', consentReady: true }), {
-      measurementId: 'G-ABC1234',
-    });
-  });
-
-  it('adds analytics CSP sources only when GA4 is on', () => {
-    assert.deepEqual(analyticsCspSources(null).script, []);
-  });
-
+describe('Learning Hub ad gating', () => {
   const adConfig = { enabled: true, clientId: 'ca-pub-0000000000000000', slotId: '1234567' };
   const eligible = { adEligible: true };
 
@@ -274,25 +256,17 @@ describe('Learning Hub analytics and ad gating', () => {
   const renderFooter = (locals) =>
     ejs.renderFile(
       fileURLToPath(new URL('../../apps/web/src/views/partials/footer.ejs', import.meta.url)),
-      { legalOperator: '4H Projects', ...locals },
+      { legalOperator: '4H Projects', assetPath: (file) => `/${file}`, ...locals },
     );
 
   it('offers the ad consent settings link on a page that shows ads', async () => {
     const html = await renderFooter({ adSlot: { clientId: 'ca-pub-0', slotId: '1' } });
-    assert.match(html, /data-ad-privacy-settings/);
+    assert.match(html, /data-privacy-settings/);
   });
 
   it('offers no ad consent settings link on a page without ads', async () => {
     const html = await renderFooter({ adSlot: null });
-    assert.doesNotMatch(html, /data-ad-privacy-settings/);
-  });
-
-  it('renders the analytics tag with only the measurement id', async () => {
-    const html = await ejs.renderFile(
-      fileURLToPath(new URL('../../apps/web/src/views/partials/analytics.ejs', import.meta.url)),
-      { analytics: { measurementId: 'G-ABC1234' }, cspNonce: 'nonce' },
-    );
-    assert.match(html, /gtag\('config', 'G-ABC1234'\);/);
+    assert.doesNotMatch(html, /data-privacy-settings/);
   });
 
   it('sends GA4 events with only an article id and fixed labels', async () => {
