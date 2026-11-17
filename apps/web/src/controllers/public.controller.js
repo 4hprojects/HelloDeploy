@@ -7,6 +7,7 @@ import { env } from '../config/env.js';
 import { donationOptions } from '../config/donations.js';
 import { LEGAL_POLICIES } from '../config/legal-policies.js';
 import { learningHubSitemapEntries } from './blog.controller.js';
+import { adsTxt } from '../services/learning-hub/page-integrations.js';
 
 const TOPIC_CONTENT = Object.freeze({
   'service-limits': [
@@ -516,6 +517,14 @@ export function getRobots(_req, res) {
     .send(
       `User-agent: *\nAllow: /\nDisallow: /dashboard\nDisallow: /projects\nDisallow: /admin\nDisallow: /auth/verify-email\nSitemap: https://${env.PLATFORM_DOMAIN}/sitemap.xml\n`,
     );
+}
+
+export function getAdsTxt(_req, res) {
+  const body = adsTxt();
+  if (!body) {
+    return res.status(404).type('text/plain').send('Not found\n');
+  }
+  res.type('text/plain').send(body);
 }
 
 export function getSitemap(req, res) {

@@ -13,7 +13,7 @@ const { startTestDb, stopTestDb } = await import('../helpers/worker-db.js');
 const { createApp } = await import('../../apps/web/src/app.js');
 const { createContentRepository } =
   await import('../../apps/web/src/services/learning-hub/content-repository.js');
-const { articleAdSlot, learningHubAnalytics, analyticsCspSources } =
+const { adsTxt, adsenseCspSources, articleAdSlot, learningHubAnalytics, analyticsCspSources } =
   await import('../../apps/web/src/services/learning-hub/page-integrations.js');
 const { articleFile } = await import('./fixtures.js');
 
@@ -162,6 +162,21 @@ describe('Learning Hub SEO', () => {
     const res = await fetch(`${target.baseUrl}/blog/sample-article`);
     assert.doesNotMatch(res.headers.get('content-security-policy'), /google/);
   });
+
+  it('serves no ads.txt without an AdSense account id', async () => {
+    const res = await fetch(`${target.baseUrl}/ads.txt`);
+    assert.equal(res.status, 404);
+  });
+
+  it('renders no AdSense account meta tag without an account id', async () => {
+    const html = await text('/blog/sample-article');
+    assert.doesNotMatch(html, /google-adsense-account/);
+  });
+
+  it('titles the home page without repeating the brand', async () => {
+    const html = await text('/', plain);
+    assert.match(html, /<title>Deploy web apps from GitHub — HelloDeploy<\/title>/);
+  });
 });
 
 describe('Learning Hub analytics and ad gating', () => {
@@ -205,6 +220,50 @@ describe('Learning Hub analytics and ad gating', () => {
   it('shows no ad next to guest comments', () => {
     const slot = articleAdSlot({ article: eligible, discussionVisible: true }, adConfig);
     assert.equal(slot, null);
+  });
+
+  it('adds no ad CSP sources while the owner switch is off', () => {
+    const sources = adsenseCspSources({ enabled: false, clientId: 'ca-pub-0000000000000000' });
+    assert.deepEqual(sources.script, []);
+  });
+
+  it('adds no ad CSP sources without an account id', () => {
+    const sources = adsenseCspSources({ enabled: true, clientId: '' });
+    assert.deepEqual(sources.frame, []);
+  });
+
+  it('allows the AdSense script host once ads are on', () => {
+    const sources = adsenseCspSources({ enabled: true, clientId: 'ca-pub-0000000000000000' });
+    assert.ok(sources.script.includes('https://*.googlesyndication.com'));
+  });
+
+  it('allows the consent dialog frame once ads are on', () => {
+    const sources = adsenseCspSources({ enabled: true, clientId: 'ca-pub-0000000000000000' });
+    assert.ok(sources.frame.includes('https://fundingchoicesmessages.google.com'));
+  });
+
+  it('writes the ads.txt line with the publisher id and Google certification id', () => {
+    assert.equal(
+      adsTxt('ca-pub-1234567890123456'),
+      'google.com, pub-1234567890123456, DIRECT, f08c47fec0942fa0\n',
+    );
+  });
+
+  it('writes no ads.txt without an account id', () => {
+    assert.equal(adsTxt(''), null);
+  });
+
+  it('renders the AdSense account meta tag when an account id is set', async () => {
+    const html = await ejs.renderFile(
+      fileURLToPath(new URL('../../apps/web/src/views/partials/head.ejs', import.meta.url)),
+      {
+        title: 'Guide',
+        adsenseAccount: 'ca-pub-1234567890123456',
+        cspNonce: 'nonce',
+        assetPath: (file) => `/${file}`,
+      },
+    );
+    assert.match(html, /<meta name="google-adsense-account" content="ca-pub-1234567890123456" \/>/);
   });
 
   it('renders the analytics tag with only the measurement id', async () => {
