@@ -14,6 +14,7 @@ const sources = [
   'js/app.js',
   'css/learning-hub.css',
   'js/learning-hub.js',
+  'js/ad-consent.js',
   'css/legal.css',
   'css/auth.css',
   'css/admin-shell.css',

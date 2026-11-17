@@ -50,6 +50,14 @@ describe('Legal pages', () => {
     );
   });
 
+  it('gives the Google ads opt-out link in the privacy policy', () => {
+    assert.match(pages.get('/privacy').html, /href="https:\/\/adssettings\.google\.com"/);
+  });
+
+  it('gives the Google ads opt-out link in the cookie policy', () => {
+    assert.match(pages.get('/cookies').html, /href="https:\/\/adssettings\.google\.com"/);
+  });
+
   it('never publishes a personal Gmail address', () => {
     assert.deepEqual(
       PATHS.filter((path) => /gmail/i.test(pages.get(path).html)),

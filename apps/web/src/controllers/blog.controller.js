@@ -6,6 +6,7 @@ import { articleAdSlot, learningHubAnalytics } from '../services/learning-hub/pa
 
 const PAGE_STYLES = ['css/learning-hub.css'];
 const PAGE_SCRIPTS = ['js/learning-hub.js'];
+const AD_PAGE_SCRIPTS = [...PAGE_SCRIPTS, 'js/ad-consent.js'];
 const HUB_TITLE = 'Learning Hub';
 const COMMENT_VIEW_PARAMS = ['commentsPage', 'thread', 'replyTo'];
 const HUB_DESCRIPTION =
@@ -119,6 +120,7 @@ export function createBlogController({
         : { availability: { visible: false, accepting: false } },
     ]);
 
+    const adSlot = articleAdSlot({ article, discussionVisible: comments.availability.visible });
     res.status(status).render('pages/blog/article', {
       title: article.seo.title ?? article.title,
       pageMetadata: pageMetadata({
@@ -135,9 +137,9 @@ export function createBlogController({
         structuredData: articleStructuredData(repository, article, canonicalUrl),
       }),
       pageStyles: PAGE_STYLES,
-      pageScripts: PAGE_SCRIPTS,
+      pageScripts: adSlot ? AD_PAGE_SCRIPTS : PAGE_SCRIPTS,
       analytics,
-      adSlot: articleAdSlot({ article, discussionVisible: comments.availability.visible }),
+      adSlot,
       article: present(repository, article),
       canonicalUrl,
       shareLinks: shareLinks(canonicalUrl, article.title),
