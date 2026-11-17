@@ -19,14 +19,14 @@ export const LEGAL_POLICIES = Object.freeze([
     title: 'Privacy Policy',
     summary: 'What personal data we collect, why, who receives it, and your rights.',
     effective: '2026-06-30',
-    updated: '2026-11-01',
+    updated: '2026-11-17',
   },
   {
     slug: 'cookies',
     title: 'Cookie Policy',
-    summary: 'The one cookie and two browser storage keys HelloDeploy uses.',
+    summary: 'The cookie and browser storage HelloDeploy uses, and Google advertising cookies.',
     effective: '2026-06-30',
-    updated: '2026-10-30',
+    updated: '2026-11-17',
   },
   {
     slug: 'acceptable-use',

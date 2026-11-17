@@ -8,6 +8,7 @@
     { id: 'recipients', title: 'Who receives your data' },
     { id: 'international-transfers', title: 'Processing outside the Philippines' },
     { id: 'automated-decisions', title: 'Automated decisions' },
+    { id: 'advertising', title: 'Advertising' },
     { id: 'cookies', title: 'Cookies' },
     { id: 'your-rights', title: 'Your rights' },
     { id: 'breaches', title: 'If a breach happens' },
@@ -26,7 +27,8 @@
     <section class="legal-summary" aria-labelledby="at-a-glance">
       <h2 id="at-a-glance">At a glance</h2>
       <ul>
-        <li>We collect what we need to run your account and deployments, keep the platform secure, and count blog readers. We do not sell personal data or use it for advertising.</li>
+        <li>We collect what we need to run your account and deployments, keep the platform secure, and count blog readers. We do not sell personal data, and we never give your account or project data to advertisers.</li>
+        <li>Learning Hub articles may show ads served by Google. Google can use cookies to choose those ads, and you can turn off personalized ads. See <a href="#advertising">Advertising</a>.</li>
         <li>Your environment secret values are encrypted. Your passwords are hashed. We never store your source code.</li>
         <li>A short list of named service providers receives data so the platform can work. Each is listed below with what it receives.</li>
         <li>You can ask to see, correct, export, or delete your data by emailing <a href="mailto:<%= legalContactEmail %>"><%= legalContactEmail %></a>.</li>
@@ -137,10 +139,11 @@
         <tr><td data-label="Provider">Resend</td><td data-label="What it does for us">Sends transactional email</td><td data-label="Data it receives">Your email address and name, and the message</td></tr>
         <tr><td data-label="Provider">Cloudflare</td><td data-label="What it does for us">DNS, TLS, and tunnel ingress</td><td data-label="Data it receives">IP addresses and HTTP request metadata</td></tr>
         <tr><td data-label="Provider">Cloudflare Turnstile</td><td data-label="What it does for us">Bot checks on sign-in and account forms, and on blog comments and reports when comments are enabled</td><td data-label="Data it receives">Browser and device signals and your IP address, processed by Cloudflare to issue a verification token</td></tr>
+        <tr><td data-label="Provider">Google AdSense</td><td data-label="What it does for us">Serves ads on Learning Hub articles, when ads are switched on</td><td data-label="Data it receives">Collected by Google directly from your browser: IP address, browser and device details, the page you are reading, and Google&rsquo;s own cookies or identifiers. HelloDeploy sends Google no account or project data</td></tr>
         <tr><td data-label="Provider">OpenAI</td><td data-label="What it does for us">Automated safety check on blog comments before they are published</td><td data-label="Data it receives">The display name and text of each submitted comment</td></tr>
       </tbody>
     </table>
-    <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. Product measurement is processed by HelloDeploy itself; no third-party analytics script is loaded.</p>
+    <p>We do not sell personal data or share it with anyone else, except where the law requires it, for example a valid order from a court or the National Privacy Commission. Product measurement is processed by HelloDeploy itself; no third-party analytics script is loaded. The only third-party script on reading pages is Google&rsquo;s ad script, described under <a href="#advertising">Advertising</a>.</p>
     <p>We name these providers because you have a right to know who receives your data. We do not publish how they are configured, such as accounts, regions, or internal addresses.</p>
 
     <h2 id="international-transfers">Processing outside the Philippines</h2>
@@ -153,8 +156,19 @@
       <li>On articles that accept comments, automated checks, including OpenAI&rsquo;s moderation service, decide whether a comment is published. Readers can report a published comment, and you can email us to ask a person to review any decision about your comment.</li>
     </ul>
 
+    <h2 id="advertising">Advertising</h2>
+    <p>To help pay for the free pilot, Learning Hub articles may show ads served by Google AdSense. Ads never appear on sign-in, account, dashboard, project, or admin pages, or next to reader comments.</p>
+    <ul>
+      <li>Google, as a third-party vendor, uses cookies to serve ads on this site. Google&rsquo;s advertising cookies let it and its partners serve ads based on your visits to this site and other sites on the internet.</li>
+      <li>You can turn off personalized advertising in Google&rsquo;s <a href="https://adssettings.google.com" rel="noopener noreferrer">Ads Settings</a>. You can also opt out of some third-party vendors&rsquo; use of cookies for personalized advertising at <a href="https://www.aboutads.info/choices/" rel="noopener noreferrer">aboutads.info</a>.</li>
+      <li>Google explains how it uses data from sites that show its ads in <a href="https://policies.google.com/technologies/partner-sites" rel="noopener noreferrer">How Google uses information from sites or apps that use its services</a>.</li>
+      <li>If you are in the European Economic Area, the United Kingdom, or Switzerland, a consent message from Google asks for your choice before any advertising cookies are set. Without consent, Google may still show limited, non-personalized ads. You can change your choice later from the privacy settings link or button that the message adds to the page.</li>
+      <li>If you live in a US state with a consumer privacy law, such as California, Google&rsquo;s use of advertising cookies may count as a &ldquo;sale&rdquo; or &ldquo;sharing&rdquo; of personal information. You can opt out through the same Ads Settings.</li>
+    </ul>
+    <p>Our legal basis for non-personalized ads is our legitimate interest in funding the free service. Personalized ads rely on your consent where the law requires it.</p>
+
     <h2 id="cookies">Cookies</h2>
-    <p>We use a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. We do not use tracking cookies, analytics cookies, or advertising cookies. See the <a href="/cookies">Cookie Policy</a> for details.</p>
+    <p>HelloDeploy sets a single session cookie (<code>hellodeploy.sid</code>) that is strictly necessary for authentication. HelloDeploy itself sets no tracking, analytics, or advertising cookies. When ads are shown, Google may set its own advertising cookies as described above. See the <a href="/cookies">Cookie Policy</a> for details.</p>
 
     <h2 id="your-rights">Your rights</h2>
     <p>Under the Data Privacy Act (Sections 16 to 18) you have the rights below. Visitors covered by the GDPR have equivalent rights.</p>
