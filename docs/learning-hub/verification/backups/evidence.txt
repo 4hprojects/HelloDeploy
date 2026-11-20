@@ -1,0 +1,20 @@
+Ubuntu 26.04.1 LTS, psql (PostgreSQL) 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1), restic 0.18.1
+PASS pg_dump writes to the postgres-owned /backup folder
+PASS pg_dumpall --globals-only writes roles
+PASS restic snapshot created
+PASS repository does not contain the file contents in plain text
+PASS wrong password cannot open the repository
+PASS pg_restore reads the restic-restored dump on stdin
+PASS restored database has 5000 rows
+PASS restored data matches the original checksum
+PASS restored uploads are identical
+PASS drill cleanup removes the copy and the test database
+PASS four snapshots exist before pruning
+PASS forget --keep-last 2 --prune leaves two snapshots
+PASS restic check passes on a healthy repository
+PASS backup script from the article runs successfully
+PASS backup script ran restic check
+systemd-analyze verify exit 0; output lines: 0
+PASS systemd-analyze verify accepts the timer and service
+after corrupting one pack file: restic check exit 1, restic check --read-data exit 1
+PASS check --read-data detects the corrupted pack file

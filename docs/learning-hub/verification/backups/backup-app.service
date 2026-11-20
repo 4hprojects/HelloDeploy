@@ -1,0 +1,7 @@
+# /etc/systemd/system/backup-app.service
+[Unit]
+Description=Back up the app database and files
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/backup-app.sh
