@@ -6,7 +6,7 @@ description: How attackers reach your app through npm dependencies, what the 202
 category: web-security
 tags: [npm, supply-chain, dependencies, nodejs, security]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: intermediate
 commentsEnabled: true
@@ -19,7 +19,7 @@ testedEnvironment:
     audit signatures, npm view on a missing package, and the package.json files allowlist were run
     in a disposable node:26-bookworm-slim container with Node.js 26.13.0 and npm 11.20.0. Trusted
     publishing and provenance need a registry account and CI, and were not run.
-  verifiedAt: '2026-11-21'
+  verifiedAt: '2026-11-20'
 references:
   - title: OWASP NPM Security Cheat Sheet
     url: https://cheatsheetseries.owasp.org/cheatsheets/NPM_Security_Cheat_Sheet.html

@@ -6,7 +6,7 @@ description: Decide how much data and downtime you can afford to lose, back up d
 category: self-hosting
 tags: [backups, disaster-recovery, postgresql, restic, self-hosting]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: beginner
 commentsEnabled: true
@@ -20,7 +20,7 @@ testedEnvironment:
     matched the original checksum, and the timer and service units passed systemd-analyze verify.
     MongoDB, SFTP and cloud repositories, object lock, append-only servers, and a timer firing on
     schedule were not tested.
-  verifiedAt: '2026-11-21'
+  verifiedAt: '2026-11-20'
 references:
   - title: NIST SP 800-34 Rev. 1 — Contingency Planning Guide for Federal Information Systems
     url: https://csrc.nist.gov/pubs/sp/800/34/r1/upd1/final

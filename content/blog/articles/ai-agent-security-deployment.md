@@ -6,7 +6,7 @@ description: How AI coding agents can be hijacked or over-trusted, the lethal tr
 category: web-security
 tags: [ai, agents, prompt-injection, least-privilege, ci-cd]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: intermediate
 commentsEnabled: true

@@ -122,3 +122,4 @@ Every model can fail. A cloud server's disk can be lost, a platform can have an 
 
 - [How to Host a Website on an Old Laptop Using Ubuntu](/blog/host-website-old-laptop-ubuntu)
 - [How to Secure a Node.js Application Before Production Deployment](/blog/secure-nodejs-before-production)
+- [Backups and Disaster Recovery for Small Self-Hosted Apps](/blog/backups-disaster-recovery-self-hosted)

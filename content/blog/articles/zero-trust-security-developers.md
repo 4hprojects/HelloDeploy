@@ -6,7 +6,7 @@ description: What zero trust means according to NIST, CISA, and the NCSC, withou
 category: web-security
 tags: [zero-trust, security, identity, access-control, small-teams]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: beginner
 commentsEnabled: true

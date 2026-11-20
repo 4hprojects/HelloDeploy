@@ -213,3 +213,4 @@ A 502 from Nginx means Nginx is working but could not get a valid response from 
 
 - [How to Deploy a Node.js Application: A Beginner's Step-by-Step Guide](/blog/how-to-deploy-nodejs-app)
 - [How to Secure a Node.js Application Before Production Deployment](/blog/secure-nodejs-before-production)
+- [How to Secure Nginx and Node.js Applications on Ubuntu](/blog/secure-nginx-nodejs-ubuntu)

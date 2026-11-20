@@ -313,5 +313,10 @@ Try to answer each question before reading the answers below.
 ## Related guides
 
 - [How to Deploy a Node.js Application: A Beginner's Step-by-Step Guide](/blog/how-to-deploy-nodejs-app)
+- [How to Protect Environment Variables and API Keys in Production](/blog/protect-environment-variables-api-keys)
+- [Software Supply Chain Attacks: The Hidden Risks in npm Packages](/blog/npm-supply-chain-security)
+- [GitHub Actions Security: How to Protect Your Deployment Pipeline](/blog/github-actions-security)
+- [How to Secure Nginx and Node.js Applications on Ubuntu](/blog/secure-nginx-nodejs-ubuntu)
+- [Backups and Disaster Recovery for Small Self-Hosted Apps](/blog/backups-disaster-recovery-self-hosted)
 - [How to Host a Website on an Old Laptop Using Ubuntu](/blog/host-website-old-laptop-ubuntu)
 - [PM2 and Nginx Explained: Running Node.js Applications in Production](/blog/pm2-nginx-nodejs-production)

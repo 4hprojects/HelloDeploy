@@ -6,7 +6,7 @@ description: What published threat reports show about attackers using AI, separa
 category: web-security
 tags: [ai, threats, phishing, prompt-injection, security]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: beginner
 commentsEnabled: true
