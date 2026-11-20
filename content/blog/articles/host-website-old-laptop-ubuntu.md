@@ -215,3 +215,4 @@ This setup has single points of failure everywhere: one disk, one power supply, 
 - [Self-Hosting vs Cloud Hosting: Costs, Benefits and Limitations](/blog/self-hosting-vs-cloud-hosting)
 - [PM2 and Nginx Explained: Running Node.js Applications in Production](/blog/pm2-nginx-nodejs-production)
 - [How to Secure a Node.js Application Before Production Deployment](/blog/secure-nodejs-before-production)
+- [Backups and Disaster Recovery for Small Self-Hosted Apps](/blog/backups-disaster-recovery-self-hosted)

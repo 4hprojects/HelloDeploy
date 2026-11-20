@@ -6,7 +6,7 @@ description: Learn what DevSecOps means, where security checks belong from plann
 category: web-security
 tags: [devsecops, security, ci-cd, threat-modeling, beginners]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: beginner
 commentsEnabled: true

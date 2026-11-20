@@ -21,13 +21,23 @@ describe('Published Learning Hub articles', () => {
     assert.deepEqual(repository.errors, []);
   });
 
-  it('include the five launch tutorials', () => {
+  it('include the launch tutorials and the cybersecurity series', () => {
     assert.deepEqual(articles.map((article) => article.slug).sort(), [
+      'ai-agent-security-deployment',
+      'ai-powered-cyberattacks',
+      'backups-disaster-recovery-self-hosted',
+      'github-actions-security',
       'host-website-old-laptop-ubuntu',
       'how-to-deploy-nodejs-app',
+      'npm-supply-chain-security',
+      'owasp-top-10-2025',
       'pm2-nginx-nodejs-production',
+      'protect-environment-variables-api-keys',
+      'secure-nginx-nodejs-ubuntu',
       'secure-nodejs-before-production',
       'self-hosting-vs-cloud-hosting',
+      'what-is-devsecops',
+      'zero-trust-security-developers',
     ]);
   });
 

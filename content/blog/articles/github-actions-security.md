@@ -6,7 +6,7 @@ description: Secure GitHub Actions workflows with least-privilege tokens, safe h
 category: deployment-guides
 tags: [github-actions, ci-cd, security, deployment, supply-chain]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: intermediate
 commentsEnabled: true
@@ -19,7 +19,7 @@ testedEnvironment:
     commit SHA was confirmed against the repository's v4.3.0 tag. The workflows were not run on
     GitHub, and the OIDC, environment, and repository settings were not configured for this
     guide.
-  verifiedAt: '2026-11-21'
+  verifiedAt: '2026-11-20'
 references:
   - title: GitHub Docs — Secure use reference for GitHub Actions
     url: https://docs.github.com/en/actions/reference/security/secure-use

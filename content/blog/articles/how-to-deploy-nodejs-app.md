@@ -198,3 +198,4 @@ This guide gets an app running; it does not make it secure. Before real users ar
 
 - [PM2 and Nginx Explained: Running Node.js Applications in Production](/blog/pm2-nginx-nodejs-production)
 - [How to Secure a Node.js Application Before Production Deployment](/blog/secure-nodejs-before-production)
+- [What Is DevSecOps? A Beginner's Guide to Secure Software Deployment](/blog/what-is-devsecops)

@@ -6,7 +6,7 @@ description: Where secrets in environment variables leak from (Git, front-end bu
 category: web-security
 tags: [secrets, environment-variables, api-keys, nodejs, docker]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: intermediate
 commentsEnabled: true
@@ -19,7 +19,7 @@ testedEnvironment:
     VITE_ prefix were run in a disposable node:26-bookworm-slim container (Node.js 26.13.0, Git
     2.39.5, Vite 8.3.8). The Docker build argument and secret mount comparison was run with Docker
     29.9.3, and the test images were then deleted. Rotation, secret managers, and history rewriting were not run.
-  verifiedAt: '2026-11-21'
+  verifiedAt: '2026-11-20'
 references:
   - title: OWASP Secrets Management Cheat Sheet
     url: https://cheatsheetseries.owasp.org/cheatsheets/Secrets_Management_Cheat_Sheet.html

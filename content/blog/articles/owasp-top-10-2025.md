@@ -6,7 +6,7 @@ description: A plain-language tour of the ten OWASP Top 10:2025 risk categories,
 category: web-security
 tags: [owasp, security, web-applications, access-control, beginners]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: beginner
 commentsEnabled: true

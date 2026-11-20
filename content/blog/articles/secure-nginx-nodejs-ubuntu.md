@@ -6,7 +6,7 @@ description: Harden an Nginx reverse proxy and a Node.js service on Ubuntu with 
 category: server-management
 tags: [nginx, nodejs, ubuntu, systemd, tls]
 authorId: henson-sagorsor
-status: draft
+status: published
 publishedAt: '2026-11-20'
 difficulty: intermediate
 commentsEnabled: true
@@ -20,7 +20,7 @@ testedEnvironment:
     systemd-analyze security in offline mode (systemd 259); they were not started, because the
     container does not run systemd. The timeouts, real certificates, firewall rules, IPv6 traffic,
     and a running systemd service were not tested.
-  verifiedAt: '2026-11-21'
+  verifiedAt: '2026-11-20'
 references:
   - title: Nginx — ngx_http_ssl_module (ssl_protocols, ssl_reject_handshake)
     url: https://nginx.org/en/docs/http/ngx_http_ssl_module.html
