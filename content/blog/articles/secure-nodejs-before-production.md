@@ -249,21 +249,21 @@ A backup you have never restored is a hope, not a backup.
 
 ## A pre-launch checklist
 
-Work through each item against your own deployment and tick it when it passes. The boxes are only for your own tracking; nothing is saved. The verification commands are illustrative: replace `example.com` and process names with your own.
+Work through each item against your own deployment. The verification commands are illustrative: replace `example.com` and process names with your own.
 
-- [ ] **No secrets in Git; production keys differ from development.** A leaked key gives direct access. _Verify:_ search history with `git log -p -S 'part-of-key'` and confirm keys differ per environment.
-- [ ] **HTTPS only, with HTTP redirected.** Protects passwords and cookies in transit. _Verify:_ `curl -sI http://example.com` returns a 301 or 308 to `https://`.
-- [ ] **`trust proxy` matches the real proxy chain.** A wrong value lets clients fake their IP. _Verify:_ log `req.ip` for one request and compare it with your real public IP.
-- [ ] **Security headers present.** Reduces script injection and protocol downgrade. _Verify:_ `curl -sI https://example.com` shows `content-security-policy` and `strict-transport-security`, and no `x-powered-by`.
-- [ ] **CORS allows only your origins.** Stops other sites reading signed-in users' data. _Verify:_ send `-H 'Origin: https://evil.example'`; the reply has no `access-control-allow-origin`.
-- [ ] **Rate limits on authentication and costly endpoints.** Slows password guessing and abuse. _Verify:_ repeat a failed login and expect `429` after the limit.
-- [ ] **Input validated, output escaped, queries parameterized, body size capped.** Blocks injection and oversized requests. _Verify:_ send an oversized JSON body and expect `413`.
-- [ ] **Passwords hashed; cookies `HttpOnly`, `Secure`, `SameSite`.** Limits damage from a data leak or script injection. _Verify:_ inspect `Set-Cookie` in the browser's developer tools.
-- [ ] **App runs as a non-root user; only needed ports open.** Contains a compromise. _Verify:_ `ps -o user= -p <pid>` shows your app user, and `ss -tlnp` shows the app on `127.0.0.1` only.
-- [ ] **CI/CD tokens least-privilege; 2FA on accounts.** The pipeline can change production. _Verify:_ review each workflow's `permissions:` and your account security settings.
-- [ ] **`npm audit --omit=dev` reviewed; supported Node.js.** Known vulnerabilities are the easiest to exploit. _Verify:_ run the audit and compare `node --version` with the Node.js release schedule.
-- [ ] **Generic error pages; security events logged; uptime monitored.** Hides internals and makes attacks visible. _Verify:_ trigger an error; the response has no stack trace.
-- [ ] **Backups taken and a restore tested.** Recovery from loss, mistakes, or ransomware. _Verify:_ restore into a test database and check record counts.
+- **No secrets in Git; production keys differ from development.** A leaked key gives direct access. _Verify:_ search history with `git log -p -S 'part-of-key'` and confirm keys differ per environment.
+- **HTTPS only, with HTTP redirected.** Protects passwords and cookies in transit. _Verify:_ `curl -sI http://example.com` returns a 301 or 308 to `https://`.
+- **`trust proxy` matches the real proxy chain.** A wrong value lets clients fake their IP. _Verify:_ log `req.ip` for one request and compare it with your real public IP.
+- **Security headers present.** Reduces script injection and protocol downgrade. _Verify:_ `curl -sI https://example.com` shows `content-security-policy` and `strict-transport-security`, and no `x-powered-by`.
+- **CORS allows only your origins.** Stops other sites reading signed-in users' data. _Verify:_ send `-H 'Origin: https://evil.example'`; the reply has no `access-control-allow-origin`.
+- **Rate limits on authentication and costly endpoints.** Slows password guessing and abuse. _Verify:_ repeat a failed login and expect `429` after the limit.
+- **Input validated, output escaped, queries parameterized, body size capped.** Blocks injection and oversized requests. _Verify:_ send an oversized JSON body and expect `413`.
+- **Passwords hashed; cookies `HttpOnly`, `Secure`, `SameSite`.** Limits damage from a data leak or script injection. _Verify:_ inspect `Set-Cookie` in the browser's developer tools.
+- **App runs as a non-root user; only needed ports open.** Contains a compromise. _Verify:_ `ps -o user= -p <pid>` shows your app user, and `ss -tlnp` shows the app on `127.0.0.1` only.
+- **CI/CD tokens least-privilege; 2FA on accounts.** The pipeline can change production. _Verify:_ review each workflow's `permissions:` and your account security settings.
+- **`npm audit --omit=dev` reviewed; supported Node.js.** Known vulnerabilities are the easiest to exploit. _Verify:_ run the audit and compare `node --version` with the Node.js release schedule.
+- **Generic error pages; security events logged; uptime monitored.** Hides internals and makes attacks visible. _Verify:_ trigger an error; the response has no stack trace.
+- **Backups taken and a restore tested.** Recovery from loss, mistakes, or ransomware. _Verify:_ restore into a test database and check record counts.
 
 ## Common mistakes and misconceptions
 
