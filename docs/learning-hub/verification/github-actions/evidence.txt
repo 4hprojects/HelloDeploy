@@ -1,0 +1,25 @@
+zizmor 1.32.0 actionlint 1.7.12
+--- actionlint, risky workflow
+risky/triage.yml:15:36: "github.event.pull_request.title" is potentially untrusted. avoid using it directly in inline scripts. instead, pass it through an environment variable. see https://docs.github.com/en/actions/reference/security/secure-use#good-practices-for-mitigating-script-injection-attacks for more details [expression]
+   |
+15 |         run: echo "Thanks for '${{ github.event.pull_request.title }}'"
+   |                                    ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+--- zizmor, risky workflow (rule names)
+      1 error[dangerous-triggers]
+      1 error[template-injection]
+      1 error[unpinned-uses]
+      1 warning[artipacked]
+--- zizmor, safer workflow
+ INFO zizmor: 🌈 zizmor v1.32.0
+ INFO audit: zizmor: 🌈 completed safer/triage.yml
+No findings to report. Good job! (2 suppressed)
+PASS actionlint flags the PR title injection
+PASS actionlint passes the safer workflow
+PASS zizmor flags template injection
+PASS zizmor flags pull_request_target
+PASS zizmor --persona=pedantic flags write-all permissions
+PASS zizmor flags the unpinned action
+PASS zizmor flags persisted checkout credentials
+PASS zizmor finds no template injection in the safer workflow
+PASS zizmor finds no dangerous trigger in the safer workflow
+PASS zizmor finds no unpinned action in the safer workflow
