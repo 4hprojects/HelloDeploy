@@ -1,0 +1,19 @@
+node v26.13.0 npm 11.20.0
+PASS install script runs on a normal install
+PASS npm ci --ignore-scripts skips the install script
+PASS --ignore-scripts skips the install script
+PASS .npmrc ignore-scripts=true skips it too
+transitive packages under express 4.21.2: 69
+PASS one direct dependency brings many packages
+PASS npm ci installs the locked version
+PASS npm ci refuses when package.json and lockfile disagree
+  npm says: npm error `npm ci` can only install packages when your package.json and package-lock.json or npm-shrinkwrap.json are in sync. Please update your lock file with `npm install` before continuing.
+PASS --before installs only versions published by that date
+express latest 5.3.0, with --min-release-age=365: 5.1.0
+PASS --min-release-age skips versions newer than the cutoff
+PASS .npmrc min-release-age=365 applies to every install
+PASS npm audit signatures verifies registry signatures
+  68 packages have verified registry signatures
+PASS npm view fails for a package that does not exist
+PASS files allowlist publishes index.js
+PASS files allowlist keeps .env out of the tarball

@@ -1,0 +1,7 @@
+{
+  "name": "install-script-demo",
+  "version": "1.0.0",
+  "scripts": {
+    "postinstall": "node -e \"require('fs').writeFileSync('/tmp/postinstall-ran', 'yes')\""
+  }
+}
