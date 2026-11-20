@@ -1,0 +1,9 @@
+[Unit]
+Description=My Node.js app (no hardening)
+
+[Service]
+ExecStart=/usr/bin/node /srv/myapp/app.js
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

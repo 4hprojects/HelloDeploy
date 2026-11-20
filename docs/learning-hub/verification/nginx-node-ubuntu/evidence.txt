@@ -1,0 +1,26 @@
+Ubuntu 26.04.1 LTS, nginx 1.28.3 (Ubuntu), node v22.22.1, openssl 3.5.5, systemd 259 (259.9-0ubuntu0.1)
+nginx.conf ssl_protocols: 	ssl_protocols TLSv1.2 TLSv1.3; # Dropping SSLv3 (POODLE), TLS 1.0, 1.1
+PASS nginx -t accepts the configuration
+PASS app listens on 127.0.0.1 only
+PASS HTTP redirects to HTTPS
+PASS ACME challenge path is served over HTTP, not redirected
+PASS www host is served too
+PASS IPv6 listener is active
+PASS HTTPS request reaches the app
+PASS server header hides the nginx version
+PASS HSTS header present
+PASS spoofed X-Forwarded-For is replaced
+PASS dotfiles are denied
+PASS body over 1 MB is rejected with 413
+PASS unknown Host on HTTP gets no response
+PASS unknown name on HTTPS: handshake rejected
+PASS TLS 1.1 is refused with a protocol_version alert (client allows it)
+PASS TLS 1.2 handshake completes
+PASS TLS 1.3 handshake completes
+30 rapid /login requests:  6 200; 24 429;
+PASS proxy_http_version 1.1 is in the loaded configuration
+PASS login rate limit returns 429 under a burst
+systemd-analyze, hardened unit: → Overall exposure level for myapp.service: 4.3 OK :-)
+systemd-analyze, minimal unit: → Overall exposure level for myapp-minimal.service: 9.4 UNSAFE :-{
+PASS hardened unit scores lower exposure than the minimal one
+PASS hardened unit has no syntax warnings
