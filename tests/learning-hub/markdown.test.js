@@ -31,6 +31,34 @@ describe('Learning Hub Markdown rendering', () => {
     });
   }
 
+  it('renders a task item as a labelled checkbox', () => {
+    const { html } = renderArticleMarkdown('- [ ] Rotate keys');
+    assert.match(
+      html,
+      /<li class="task-list__item"><label class="task-list__label"><input class="task-list__check" type="checkbox"> <span>Rotate keys<\/span><\/label><\/li>/,
+    );
+  });
+
+  it('renders a ticked task item as checked', () => {
+    const { html } = renderArticleMarkdown('- [x] Rotate keys');
+    assert.match(html, /type="checkbox" checked>/);
+  });
+
+  it('marks a list containing task items as a task list', () => {
+    const { html } = renderArticleMarkdown('- [ ] Rotate keys\n- [ ] Test restore');
+    assert.match(html, /^<ul class="task-list">/);
+  });
+
+  it('leaves ordinary list items without checkboxes', () => {
+    const { html } = renderArticleMarkdown('- Rotate keys\n- [link](/blog/a)');
+    assert.doesNotMatch(html, /checkbox/);
+  });
+
+  it('escapes raw HTML inside a task item', () => {
+    const { html } = renderArticleMarkdown('- [ ] <img src=x onerror=alert(1)>');
+    assert.match(html, /<span>&lt;img src=x onerror=alert\(1\)&gt;<\/span>/);
+  });
+
   it('marks external links noopener noreferrer', () => {
     const { html } = renderArticleMarkdown('[Node](https://nodejs.org/)');
     assert.match(html, /<a href="https:\/\/nodejs.org\/" rel="noopener noreferrer">/);

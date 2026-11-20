@@ -42,6 +42,17 @@ check "A5 x-powered-by removed" "! curl -sI localhost:3001/ip | grep -qi '^x-pow
 for i in 1 2 3 4 5; do curl -s -o /dev/null -X POST localhost:3001/login; done
 check "A5 6th login is 429" "test \"\$(curl -s -o /dev/null -w '%{http_code}' -X POST localhost:3001/login)\" = 429"
 check "A5 loopback proxy header trusted" "curl -s -H 'X-Forwarded-For: 203.0.113.9' localhost:3001/ip | grep -q '203.0.113.9'"
+npm install --no-audit --no-fund cors >/dev/null 2>&1
+npm ls cors --depth=0 2>/dev/null | tail -n +2
+NODE_ENV=production node cors.js 2>cors.log & CORSPID=$!; sleep 1.5
+check "A5 risky cors reflects any origin" "curl -sI -H 'Origin: https://evil.example' localhost:3002/me | grep -qi '^access-control-allow-origin: https://evil.example'"
+check "A5 risky cors allows credentials" "curl -sI -H 'Origin: https://evil.example' localhost:3002/me | grep -qi '^access-control-allow-credentials: true'"
+check "A5 safer cors omits header for evil origin" "! curl -sI -H 'Origin: https://evil.example' localhost:3003/me | grep -qi '^access-control-allow-origin'"
+check "A5 safer cors echoes listed origin" "curl -sI -H 'Origin: https://app.example.com' localhost:3003/me | grep -qi '^access-control-allow-origin: https://app.example.com'"
+check "A5 oversized JSON body is 413" "test \"\$(printf '{\"x\":\"%s\"}' \"\$(head -c 200000 /dev/zero | tr '\\0' a)\" | curl -s -o /dev/null -w '%{http_code}' -H 'Content-Type: application/json' --data-binary @- localhost:3003/data)\" = 413"
+check "A5 production error hides stack" "! curl -s localhost:3003/boom | grep -q 'internal detail'"
+check "A5 error detail kept in server log" "grep -q 'internal detail' cors.log"
+kill $CORSPID
 check "A5 npm audit runs" "npm audit --omit=dev >/dev/null 2>&1; test \$? -le 1"
 kill $SECPID
 check "A5 npm ci reproducible" "rm -rf node_modules && npm ci --omit=dev >/dev/null 2>&1 && test -d node_modules/express"

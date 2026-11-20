@@ -23,6 +23,16 @@ md.renderer.rules.fence = (tokens, idx) => {
 md.renderer.rules.table_open = () => '<div class="article-table" tabindex="0"><table>\n';
 md.renderer.rules.table_close = () => '</table></div>\n';
 
+// GitHub-style task items ("- [ ] text"). Readers can tick the boxes while
+// working through a checklist; nothing is saved or submitted.
+const TASK_MARKER = /^\[([ xX])\] /;
+
+md.renderer.rules.task_label_open = (tokens, idx) =>
+  `<label class="task-list__label"><input class="task-list__check" type="checkbox"${
+    tokens[idx].meta.checked ? ' checked' : ''
+  }> <span>`;
+md.renderer.rules.task_label_close = () => '</span></label>';
+
 /**
  * Render article Markdown to HTML and collect what validation and the
  * template need: headings for the table of contents, links, images, and a
@@ -53,6 +63,7 @@ export function renderArticleMarkdown(source) {
     }
 
     if (token.type === 'inline') {
+      markTaskItem(tokens, index);
       wordCount += countWords(inlineText(token));
       for (const child of token.children ?? []) {
         if (child.type === 'link_open') {
@@ -105,6 +116,43 @@ export function isSafeLink(url) {
     return true;
   }
   return !/^[a-z][a-z0-9+.-]*:/i.test(value) && !value.startsWith('//');
+}
+
+// A list item's first paragraph that starts with "[ ] " or "[x] " becomes a
+// labelled checkbox, and its list gets the task-list class.
+function markTaskItem(tokens, inlineIndex) {
+  const inline = tokens[inlineIndex];
+  const paragraph = tokens[inlineIndex - 1];
+  const item = tokens[inlineIndex - 2];
+  const first = inline.children?.[0];
+  if (
+    paragraph?.type !== 'paragraph_open' ||
+    item?.type !== 'list_item_open' ||
+    first?.type !== 'text' ||
+    !TASK_MARKER.test(first.content)
+  ) {
+    return;
+  }
+  const isChecked = first.content[1].toLowerCase() === 'x';
+  first.content = first.content.replace(TASK_MARKER, '');
+  const open = new inline.constructor('task_label_open', '', 0);
+  open.meta = { checked: isChecked };
+  inline.children.unshift(open);
+  inline.children.push(new inline.constructor('task_label_close', '', 0));
+  item.attrJoin('class', 'task-list__item');
+  const list = findListOpen(tokens, inlineIndex - 2, item.level - 1);
+  if (list && !list.attrGet('class')?.includes('task-list')) {
+    list.attrJoin('class', 'task-list');
+  }
+}
+
+function findListOpen(tokens, fromIndex, level) {
+  for (let i = fromIndex; i >= 0; i -= 1) {
+    if (tokens[i].level === level && tokens[i].type.endsWith('_list_open')) {
+      return tokens[i];
+    }
+  }
+  return null;
 }
 
 // "Setup", "Setup", "Setup 2" must still produce three distinct ids.
