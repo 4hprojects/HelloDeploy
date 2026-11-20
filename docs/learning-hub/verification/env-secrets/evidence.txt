@@ -1,0 +1,26 @@
+node v26.13.0 npm 11.20.0 git 2.39.5
+PASS --env-file loads values
+PASS real environment wins over --env-file
+PASS --env-file fails when file is missing
+missing.env not found. Continuing without it.
+PASS --env-file-if-exists tolerates a missing file
+PASS process.loadEnvFile loads values
+PASS startup check exits 1 when a variable is missing
+PASS startup error names the variable
+PASS startup error does not print values
+PASS startup succeeds with all variables
+PASS child process inherits the secret
+PASS child with an explicit env does not
+PASS same user can read /proc/PID/environ
+PASS other user cannot read /proc/PID/environ
+PASS deleted secret still in git history
+PASS .gitignore keeps .env out of git status
+PASS git check-ignore confirms .env is ignored
+vite 8.3.8
+PASS vite inlines VITE_ variable into the bundle
+PASS vite leaves unprefixed variable out of the bundle
+
+# Host run, Docker 29.9.3 (images deleted afterwards)
+docker build --build-arg NPM_TOKEN=npm_FAKE_demo_token img-arg: token found in docker history --no-trunc (2 matches): PASS
+docker build --secret id=npm_token img-secret: token found in docker history (0 matches): PASS
+secret-mount image: /run/secrets absent at runtime: PASS
