@@ -68,6 +68,17 @@ describe('httpHealthCheck', () => {
     assert.deepEqual(result, { healthy: false, finalStatus: undefined, error: 'socket hang up' });
   });
 
+  it('stops waiting between attempts once shouldStop answers true', async () => {
+    const url = await startServer([500]);
+    const result = await httpHealthCheck({
+      url,
+      attempts: 5,
+      intervalMs: 1,
+      shouldStop: async () => true,
+    });
+    assert.deepEqual(result, { healthy: false, stopped: true });
+  });
+
   it('returns healthy=false on 500 response throughout', async () => {
     const url = await startServer([500]);
     const result = await httpHealthCheck({ url, attempts: 2, intervalMs: 1 });

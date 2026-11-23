@@ -341,6 +341,10 @@ export const env = {
   PORT_RANGE_END: portRangeEnd,
 
   BUILD_WORKSPACE_ROOT: optional('BUILD_WORKSPACE_ROOT', '/var/lib/hellodeploy/builds'),
+  // Public-repository archives kept per commit so redeploys skip the download.
+  // Empty disables the cache.
+  SOURCE_CACHE_DIR:
+    optional('SOURCE_CACHE_DIR', '/var/lib/hellodeploy/source-cache').trim() || null,
   // Admin operations monitoring collector. On by default; turning it off stops
   // host and container sampling without affecting deployments.
   MONITORING_COLLECTOR_ENABLED: optional('MONITORING_COLLECTOR_ENABLED', 'true') !== 'false',

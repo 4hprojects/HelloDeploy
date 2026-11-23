@@ -15,14 +15,16 @@ const DEFAULT_TIMEOUT_MS = 4_000;
  *   attempts?: number,
  *   intervalMs?: number,
  *   timeoutMs?: number,
+ *   shouldStop?: () => Promise<boolean>,
  * }} opts
- * @returns {Promise<{ healthy: boolean, finalStatus?: number, error?: string }>}
+ * @returns {Promise<{ healthy: boolean, stopped?: boolean, finalStatus?: number, error?: string }>}
  */
 export async function httpHealthCheck({
   url,
   attempts = DEFAULT_ATTEMPTS,
   intervalMs = DEFAULT_INTERVAL_MS,
   timeoutMs = DEFAULT_TIMEOUT_MS,
+  shouldStop = null,
 }) {
   let lastError = null;
   let lastStatus = null;
@@ -53,6 +55,11 @@ export async function httpHealthCheck({
     }
 
     if (attempt < attempts) {
+      // Checked between attempts so a cancelled release stops waiting on an
+      // app nobody will route to, instead of running out the full window.
+      if (shouldStop && (await shouldStop())) {
+        return { healthy: false, stopped: true };
+      }
       await new Promise((r) => setTimeout(r, intervalMs));
     }
   }

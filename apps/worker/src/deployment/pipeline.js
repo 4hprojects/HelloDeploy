@@ -127,6 +127,12 @@ const TERMINAL_STATUSES = [
   DeploymentStatus.ROLLED_BACK,
 ];
 
+/** The deployment's status when it is already terminal, otherwise null. */
+async function getFinishedStatus(deploymentId) {
+  const current = await Deployment.findById(deploymentId).select('status').lean();
+  return current && TERMINAL_STATUSES.includes(current.status) ? current.status : null;
+}
+
 /**
  * Transition a deployment and run the terminal-status side effects:
  * image removal on FAILED (when `removeImageOnFailure`) and owner notification.
@@ -296,6 +302,25 @@ export async function runReleasePipeline({
     );
     return { ok: false };
   };
+  // Cancelling is allowed while a release is in flight. Nothing routes to the
+  // candidate container until the routing step, so stopping before it is clean.
+  const abandonRelease = async (status, { hasContainer }) => {
+    await logEvent(
+      deploymentId,
+      'DEPLOY',
+      'INFO',
+      `Release stopped before routing: deployment is ${status}.`,
+      correlationId,
+    );
+    if (hasContainer) {
+      await deps.stopAndRemoveContainer(cName);
+    }
+    logger.info('Pipeline: release abandoned before routing', {
+      deploymentId: String(deploymentId),
+      status,
+    });
+    return { ok: false };
+  };
 
   const runtimeType =
     configurationSnapshot?.runtimeType ?? project.runtimeType ?? RuntimeType.NODEJS;
@@ -379,6 +404,13 @@ export async function runReleasePipeline({
       correlationId,
     );
     await deps.stopAndRemoveContainer(cName);
+  }
+
+  // A release cancelled while it waited in the queue should not start a
+  // container only to be stopped after its health check.
+  const cancelledBeforeStart = await getFinishedStatus(deploymentId);
+  if (cancelledBeforeStart) {
+    return abandonRelease(cancelledBeforeStart, { hasContainer: false });
   }
 
   let containerId;
@@ -478,7 +510,16 @@ export async function runReleasePipeline({
     correlationId,
   );
 
-  const health = await deps.httpHealthCheck({ url: healthUrl, attempts: 12, intervalMs: 5_000 });
+  const health = await deps.httpHealthCheck({
+    url: healthUrl,
+    attempts: 12,
+    intervalMs: 5_000,
+    shouldStop: async () => Boolean(await getFinishedStatus(deploymentId)),
+  });
+
+  if (health.stopped) {
+    return abandonRelease(await getFinishedStatus(deploymentId), { hasContainer: true });
+  }
 
   if (!health.healthy) {
     await logEvent(
@@ -535,21 +576,9 @@ export async function runReleasePipeline({
   // its entry guard. Routing is the point of no return: after it, visitors are
   // being served by a release someone asked to stop. The container is healthy but
   // nothing points at it yet, so stopping here is clean.
-  const current = await Deployment.findById(deploymentId).select('status').lean();
-  if (current && TERMINAL_STATUSES.includes(current.status)) {
-    await logEvent(
-      deploymentId,
-      'DEPLOY',
-      'INFO',
-      `Release stopped before routing: deployment is ${current.status}.`,
-      correlationId,
-    );
-    await deps.stopAndRemoveContainer(cName);
-    logger.info('Pipeline: release abandoned before routing', {
-      deploymentId: String(deploymentId),
-      status: current.status,
-    });
-    return { ok: false };
+  const finishedStatus = await getFinishedStatus(deploymentId);
+  if (finishedStatus) {
+    return abandonRelease(finishedStatus, { hasContainer: true });
   }
 
   // Suspending a project already stops new deployments being created. One that

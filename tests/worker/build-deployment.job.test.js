@@ -468,6 +468,54 @@ describe('build-deployment job', () => {
     }
   });
 
+  it('skips the build when the deployment is cancelled during the clone', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      cloneExactCommit: async () => {
+        await Deployment.updateOne(
+          { _id: deployment._id },
+          { $set: { status: DeploymentStatus.CANCELLED } },
+        );
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.equal(calls.builds.length, 0);
+  });
+
+  it('does not queue activation when the deployment is cancelled during the build', async () => {
+    const { project, repo, deployment } = await seed();
+    const { deps, calls } = makeDeps({
+      buildDockerImage: async () => {
+        await Deployment.updateOne(
+          { _id: deployment._id },
+          { $set: { status: DeploymentStatus.CANCELLED } },
+        );
+      },
+    });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    assert.deepEqual(calls.enqueued, []);
+  });
+
+  it('logs that a public clone was served from the source cache', async () => {
+    const { project, deployment } = await seed();
+    const repo = await createRepository(project._id, {
+      sourceType: RepositorySourceType.PUBLIC_GIT,
+      provider: 'GITHUB',
+      installationId: null,
+      githubRepoId: null,
+      nodeId: null,
+      canonicalCloneUrl: 'https://github.com/owner/repo.git',
+      visibility: 'public',
+    });
+    const { deps } = makeDeps({ clonePublicExactCommit: async () => ({ cached: true, bytes: 1 }) });
+    await handleBuildDeployment(makeJob(project, repo, deployment), deps);
+    const line = await DeploymentEvent.findOne({
+      deploymentId: deployment._id,
+      messageRedacted: /^Used cached source archive for /,
+    });
+    assert.ok(line);
+  });
+
   it('clones public sources without requesting an installation token', async () => {
     const { project, deployment } = await seed();
     const repo = await createRepository(project._id, {
