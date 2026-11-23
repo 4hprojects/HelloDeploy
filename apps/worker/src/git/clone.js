@@ -1,5 +1,7 @@
 import { spawn } from 'node:child_process';
-import { mkdir, rm } from 'node:fs/promises';
+import { createReadStream, createWriteStream } from 'node:fs';
+import { mkdir, readdir, rename, rm, stat, utimes } from 'node:fs/promises';
+import { dirname, join } from 'node:path';
 import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { logger } from '@hellodeploy/observability';
@@ -7,8 +9,14 @@ import { normalizePublicGithubRepositoryUrl } from '@hellodeploy/contracts';
 
 const GIT_TIMEOUT_MS = 120_000;
 const GIT_OUTPUT_MAX_BYTES = 1_000_000;
-const TARBALL_DOWNLOAD_TIMEOUT_MS = 180_000;
+// A large repository on a slow uplink can take minutes while still making
+// progress, so the transfer is cut off only when it stalls. The total cap
+// bounds a trickle that never stalls.
+const TARBALL_DOWNLOAD_TIMEOUT_MS = 900_000;
+const TARBALL_IDLE_TIMEOUT_MS = 60_000;
 const TARBALL_MAX_BYTES = 200_000_000;
+const ARCHIVES_KEPT_PER_REPOSITORY = 3;
+const PROGRESS_STEP_BYTES = 10_000_000;
 const ISOLATED_GIT_ENV = {
   GIT_CONFIG_NOSYSTEM: '1',
   GIT_CONFIG_COUNT: '1',
@@ -214,6 +222,10 @@ export async function clonePublicExactCommit({
   workDir,
   maxBytes = TARBALL_MAX_BYTES,
   downloadTimeoutMs = TARBALL_DOWNLOAD_TIMEOUT_MS,
+  downloadIdleTimeoutMs = TARBALL_IDLE_TIMEOUT_MS,
+  cacheDir = null,
+  keepArchives = ARCHIVES_KEPT_PER_REPOSITORY,
+  onProgress = null,
 }) {
   let source;
   try {
@@ -248,23 +260,171 @@ export async function clonePublicExactCommit({
   // real property being traded away for reliability, worth keeping in mind.
   const tarballUrl = `https://codeload.github.com/${ownerLogin}/${repoName}/tar.gz/${commitSha}`;
 
+  // A commit's content never changes, so an archive keyed by its full SHA is
+  // safe to reuse. Redeploys and retries of one commit then skip a download
+  // that takes minutes on a slow uplink. Owner and repo names are validated
+  // above and cannot be `.` or `..`, so the path stays inside cacheDir.
+  let archivePath = null;
+  if (cacheDir) {
+    const repoCacheDir = join(cacheDir, ownerLogin, repoName);
+    archivePath = join(repoCacheDir, `${commitSha}.tar.gz`);
+    const cached = await stat(archivePath).catch(() => null);
+    if (cached) {
+      logger.info('Clone: using cached archive', {
+        repository: `${ownerLogin}/${repoName}`,
+        sha: commitSha.slice(0, 7),
+        workDir,
+      });
+      await extractCachedArchive(archivePath, workDir);
+      const now = new Date();
+      await utimes(archivePath, now, now);
+      return { cached: true, bytes: cached.size };
+    }
+    await mkdir(repoCacheDir, { recursive: true, mode: 0o700 });
+  }
+
   logger.info('Clone: downloading public repository archive', {
     repository: `${ownerLogin}/${repoName}`,
     sha: commitSha.slice(0, 7),
     workDir,
   });
 
-  const response = await fetch(tarballUrl, {
-    signal: AbortSignal.timeout(downloadTimeoutMs),
-    redirect: 'follow',
+  const deadline = createDownloadDeadline({
+    idleMs: downloadIdleTimeoutMs,
+    totalMs: downloadTimeoutMs,
   });
+  try {
+    return await downloadArchive({
+      tarballUrl,
+      signal: deadline.signal,
+      onChunk: deadline.touch,
+      archivePath,
+      workDir,
+      commitSha,
+      maxBytes,
+      keepArchives,
+      onProgress,
+    });
+  } finally {
+    deadline.clear();
+  }
+}
+
+async function downloadArchive({
+  tarballUrl,
+  signal,
+  onChunk,
+  archivePath,
+  workDir,
+  commitSha,
+  maxBytes,
+  keepArchives,
+  onProgress,
+}) {
+  const response = await fetch(tarballUrl, { signal, redirect: 'follow' });
   if (!response.ok || !response.body) {
     throw new Error(`Archive download failed: HTTP ${response.status}`);
   }
 
   const bodyStream = Readable.fromWeb(response.body);
   const limiter = createByteLimiter(maxBytes);
-  await extractTarballStream([bodyStream, limiter], workDir);
+  const progress = createProgressReporter(onProgress, onChunk);
 
+  if (!archivePath) {
+    await extractTarballStream([bodyStream, limiter, progress.stream], workDir);
+    logger.info('Clone: public repository extracted', { sha: commitSha.slice(0, 7), workDir });
+    return { cached: false, bytes: progress.bytes() };
+  }
+
+  // Download fully before extracting so a cut-off transfer never becomes a
+  // cache entry: only a complete file is renamed into place.
+  const partialPath = `${archivePath}.${process.pid}.partial`;
+  try {
+    await pipeline(
+      bodyStream,
+      limiter,
+      progress.stream,
+      createWriteStream(partialPath, { mode: 0o600 }),
+    );
+    await rename(partialPath, archivePath);
+  } catch (err) {
+    await rm(partialPath, { force: true });
+    throw err;
+  }
+
+  await extractCachedArchive(archivePath, workDir);
+  await pruneArchiveCache(dirname(archivePath), keepArchives);
   logger.info('Clone: public repository extracted', { sha: commitSha.slice(0, 7), workDir });
+  return { cached: false, bytes: progress.bytes() };
+}
+
+/**
+ * Extract a cached archive, discarding it when extraction fails so the
+ * caller's retry downloads a fresh copy instead of failing on it forever.
+ */
+async function extractCachedArchive(archivePath, workDir) {
+  try {
+    await extractTarballStream([createReadStream(archivePath)], workDir);
+  } catch (err) {
+    await rm(archivePath, { force: true });
+    throw err;
+  }
+}
+
+/** Keep the newest `keep` archives of one repository, by last use. */
+async function pruneArchiveCache(repoCacheDir, keep) {
+  const names = (await readdir(repoCacheDir)).filter((name) => name.endsWith('.tar.gz'));
+  const entries = await Promise.all(
+    names.map(async (name) => {
+      const path = join(repoCacheDir, name);
+      return { path, mtimeMs: (await stat(path)).mtimeMs };
+    }),
+  );
+  entries.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  await Promise.all(entries.slice(keep).map(({ path }) => rm(path, { force: true })));
+}
+
+/**
+ * A passthrough that counts bytes and reports every PROGRESS_STEP_BYTES, so a
+ * slow download shows movement in the deployment log instead of looking hung.
+ */
+function createProgressReporter(onProgress, onChunk) {
+  let total = 0;
+  let nextReport = PROGRESS_STEP_BYTES;
+  const stream = new Transform({
+    transform(chunk, _encoding, callback) {
+      total += chunk.length;
+      onChunk?.();
+      if (onProgress && total >= nextReport) {
+        nextReport = (Math.floor(total / PROGRESS_STEP_BYTES) + 1) * PROGRESS_STEP_BYTES;
+        onProgress({ receivedBytes: total });
+      }
+      callback(null, chunk);
+    },
+  });
+  return { stream, bytes: () => total };
+}
+
+/**
+ * An abort signal that fires when no data arrives for `idleMs`, or after
+ * `totalMs` overall. Both abort as TimeoutError, which the build job retries.
+ */
+function createDownloadDeadline({ idleMs, totalMs }) {
+  const controller = new AbortController();
+  const abortWith = (message) => () => controller.abort(new DOMException(message, 'TimeoutError'));
+  const total = setTimeout(abortWith(`Archive download exceeded ${totalMs / 1000} s.`), totalMs);
+  let idle = null;
+  const touch = () => {
+    clearTimeout(idle);
+    idle = setTimeout(abortWith(`Archive download stalled for ${idleMs / 1000} s.`), idleMs);
+  };
+  touch();
+  return {
+    signal: controller.signal,
+    touch,
+    clear: () => {
+      clearTimeout(total);
+      clearTimeout(idle);
+    },
+  };
 }

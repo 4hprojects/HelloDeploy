@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, readdir, readFile, rm, stat, utimes, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
@@ -91,6 +92,32 @@ describe('clonePublicExactCommit', () => {
     await assert.rejects(readFile(join(workDir, 'package.json'), 'utf8'));
   });
 
+  it('aborts a download that stops sending data', async () => {
+    const server = createServer((_req, res) => {
+      res.writeHead(200);
+      res.write(fixtureTarball.subarray(0, 10));
+    });
+    await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const localUrl = `http://127.0.0.1:${server.address().port}/`;
+    global.fetch = (_url, options) => originalFetch(localUrl, options);
+
+    try {
+      await assert.rejects(
+        clonePublicExactCommit({
+          ownerLogin: OWNER,
+          repoName: REPO,
+          commitSha: SHA,
+          workDir: await makeWorkDir(),
+          downloadIdleTimeoutMs: 100,
+        }),
+        { name: 'TimeoutError', message: 'Archive download stalled for 0.1 s.' },
+      );
+    } finally {
+      server.closeAllConnections();
+      await new Promise((resolve) => server.close(resolve));
+    }
+  });
+
   it('rejects an invalid commit SHA before making any network call', async () => {
     let fetchCalled = false;
     global.fetch = async () => {
@@ -108,5 +135,92 @@ describe('clonePublicExactCommit', () => {
       /Invalid public repository clone parameters/,
     );
     assert.equal(fetchCalled, false);
+  });
+});
+
+describe('clonePublicExactCommit source cache', () => {
+  const cachedPath = (cacheDir, sha = SHA) => join(cacheDir, OWNER, REPO, `${sha}.tar.gz`);
+  const serveFixture = () => {
+    global.fetch = async () => new Response(fixtureTarball, { status: 200 });
+  };
+  const clone = async (cacheDir, extra = {}) =>
+    clonePublicExactCommit({
+      ownerLogin: OWNER,
+      repoName: REPO,
+      commitSha: SHA,
+      workDir: await makeWorkDir(),
+      cacheDir,
+      ...extra,
+    });
+
+  it('stores the downloaded archive under the commit SHA', async () => {
+    const cacheDir = await makeWorkDir();
+    serveFixture();
+
+    await clone(cacheDir);
+
+    assert.equal((await stat(cachedPath(cacheDir))).size, fixtureTarball.length);
+  });
+
+  it('reports the downloaded byte count on a cache miss', async () => {
+    const cacheDir = await makeWorkDir();
+    serveFixture();
+
+    assert.deepEqual(await clone(cacheDir), { cached: false, bytes: fixtureTarball.length });
+  });
+
+  it('extracts a cached commit without touching the network', async () => {
+    const cacheDir = await makeWorkDir();
+    serveFixture();
+    await clone(cacheDir);
+    global.fetch = async () => {
+      throw new Error('network must not be used');
+    };
+    const workDir = await makeWorkDir();
+
+    await clonePublicExactCommit({
+      ownerLogin: OWNER,
+      repoName: REPO,
+      commitSha: SHA,
+      workDir,
+      cacheDir,
+    });
+
+    const pkg = JSON.parse(await readFile(join(workDir, 'package.json'), 'utf8'));
+    assert.equal(pkg.name, 'example-app');
+  });
+
+  it('leaves nothing in the cache when the download is rejected', async () => {
+    const cacheDir = await makeWorkDir();
+    serveFixture();
+
+    await assert.rejects(clone(cacheDir, { maxBytes: 10 }));
+
+    assert.deepEqual(await readdir(join(cacheDir, OWNER, REPO)), []);
+  });
+
+  it('discards a corrupt cached archive so the next attempt downloads again', async () => {
+    const cacheDir = await makeWorkDir();
+    await mkdir(join(cacheDir, OWNER, REPO), { recursive: true });
+    await writeFile(cachedPath(cacheDir), 'not a tarball');
+
+    await assert.rejects(clone(cacheDir));
+
+    await assert.rejects(stat(cachedPath(cacheDir)));
+  });
+
+  it('keeps only the newest archives for a repository', async () => {
+    const cacheDir = await makeWorkDir();
+    await mkdir(join(cacheDir, OWNER, REPO), { recursive: true });
+    const old = new Date('2026-01-01T00:00:00Z');
+    for (const sha of ['b', 'c', 'd'].map((c) => c.repeat(40))) {
+      await writeFile(cachedPath(cacheDir, sha), 'old');
+      await utimes(cachedPath(cacheDir, sha), old, old);
+    }
+    serveFixture();
+
+    await clone(cacheDir, { keepArchives: 2 });
+
+    assert.equal((await readdir(join(cacheDir, OWNER, REPO))).length, 2);
   });
 });

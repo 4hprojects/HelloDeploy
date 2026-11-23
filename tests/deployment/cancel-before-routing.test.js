@@ -26,8 +26,17 @@ function healthyDeps(calls) {
         ? { status: 'missing', running: false }
         : { status: 'running', running: true, exitCode: null };
     },
-    startContainer: async () => 'container-id',
-    httpHealthCheck: async () => ({ healthy: true, finalStatus: 200 }),
+    startContainer: async () => {
+      calls.started += 1;
+      return 'container-id';
+    },
+    httpHealthCheck: async () => {
+      // Simulates the owner cancelling while the new container warms up.
+      if (calls.cancelDuringHealthCheck) {
+        await Deployment.updateOne({}, { $set: { status: DeploymentStatus.CANCELLED } });
+      }
+      return { healthy: true, finalStatus: 200 };
+    },
     stopAndRemoveContainer: async (name) => calls.stopped.push(name),
     activateRoute: async (route) => calls.routed.push(route),
     removeDockerImage: () => {},
@@ -44,8 +53,12 @@ const ACTIVATE_OPTS = {
   logLabel: 'Container',
 };
 
-async function run(status, projectStatus = ProjectStatus.ACTIVE) {
-  const calls = { stopped: [], routed: [], inspected: 0 };
+async function run(
+  status,
+  projectStatus = ProjectStatus.ACTIVE,
+  { cancelDuringHealthCheck = false } = {},
+) {
+  const calls = { stopped: [], routed: [], inspected: 0, started: 0, cancelDuringHealthCheck };
   // Not a reserved label — a reserved one skips routing entirely. The project
   // must be ACTIVE: the model defaults to DRAFT, and a release only reaches the
   // pipeline for a project that was active when it was created.
@@ -102,10 +115,26 @@ describe('a release cancelled before routing does not take traffic', () => {
     assert.deepEqual(calls.routed, []);
   });
 
-  it('stops the container it started', async () => {
+  it('never starts a container for a release cancelled before activation', async () => {
     const { calls } = await run(DeploymentStatus.CANCELLED);
 
+    assert.equal(calls.started, 0);
+  });
+
+  it('stops the container when cancelled during the health check', async () => {
+    const { calls } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.ACTIVE, {
+      cancelDuringHealthCheck: true,
+    });
+
     assert.equal(calls.stopped.length, 1);
+  });
+
+  it('does not route a release cancelled during the health check', async () => {
+    const { calls } = await run(DeploymentStatus.DEPLOYING, ProjectStatus.ACTIVE, {
+      cancelDuringHealthCheck: true,
+    });
+
+    assert.deepEqual(calls.routed, []);
   });
 
   it('reports the release as not activated', async () => {

@@ -87,6 +87,15 @@ function isRetryableCloneError(err) {
 // checking their repository for a fault that lives on this host.
 const LOCAL_FS_ERROR_CODES = new Set(['EACCES', 'EPERM', 'ENOSPC', 'EROFS']);
 
+async function isCancelled(deploymentId) {
+  const current = await Deployment.findById(deploymentId).select('status').lean();
+  return current?.status === DeploymentStatus.CANCELLED;
+}
+
+function toMegabytes(bytes) {
+  return (bytes / 1_000_000).toFixed(1);
+}
+
 async function cloneWithRetry(cloneFn, sleep, onRetry) {
   for (let attempt = 1; attempt <= CLONE_RETRY_ATTEMPTS; attempt += 1) {
     try {
@@ -342,16 +351,37 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       );
 
     if (repo.sourceType === RepositorySourceType.PUBLIC_GIT) {
-      await cloneWithRetry(
+      const shortSha = commitSha.slice(0, 7);
+      const startedAt = Date.now();
+      // Progress lines are best-effort: a failed log write must not fail the clone.
+      const logProgress = (message) =>
+        logEvent(deploymentId, 'VALIDATE', 'INFO', message, correlationId).catch((err) =>
+          logger.warn('BuildDeployment: could not record clone progress', {
+            deploymentId,
+            correlationId,
+            error: err.message,
+          }),
+        );
+      await logProgress(`Fetching source for commit ${shortSha}.`);
+      const result = await cloneWithRetry(
         () =>
           deps.clonePublicExactCommit({
             ownerLogin: repo.ownerLogin,
             repoName: repo.name,
             commitSha,
             workDir,
+            cacheDir: env.SOURCE_CACHE_DIR,
+            onProgress: ({ receivedBytes }) =>
+              logProgress(`Downloaded ${toMegabytes(receivedBytes)} MB of source…`),
           }),
         deps.sleep,
         onRetry,
+      );
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      await logProgress(
+        result?.cached
+          ? `Used cached source archive for ${shortSha}.`
+          : `Downloaded ${toMegabytes(result?.bytes ?? 0)} MB of source in ${seconds} s.`,
       );
     } else {
       let installationToken;
@@ -405,6 +435,14 @@ export async function handleBuildDeployment(job, deps = defaultDeps) {
       failureSummary: `Repository clone failed: ${err.message}`.slice(0, 1000),
       completedAt: new Date(),
     });
+    await deps.cleanupBuildWorkspace(workDir);
+    return;
+  }
+
+  // The clone can take minutes; an owner who cancelled meanwhile should not
+  // also wait for a build.
+  if (await isCancelled(deploymentId)) {
+    logger.info('BuildDeployment: cancelled during clone; build skipped', { deploymentId });
     await deps.cleanupBuildWorkspace(workDir);
     return;
   }
@@ -858,12 +896,24 @@ async function finishBuild({
   }
 
   // ── Transition to DEPLOYING and enqueue ACTIVATE_RELEASE ───────────────────
-  await updateStatus(deploymentId, DeploymentStatus.DEPLOYING, {
+  const isDeploying = await updateStatus(deploymentId, DeploymentStatus.DEPLOYING, {
     imageTag,
     imageRef: builtImage.imageRef,
     imageDigest: builtImage.imageDigest,
     imageChildDigests: builtImage.childDigests ?? [],
   });
+  // False means the owner cancelled during the build. Activating anyway would
+  // start a container and run a full health check only to be thrown away.
+  if (!isDeploying) {
+    logger.info('BuildDeployment: cancelled during build; activation not queued', {
+      deploymentId,
+    });
+    if (isPlatformImage) {
+      await removeBuiltArtifact(builtImage, imageTag, deps);
+    }
+    await deps.cleanupBuildWorkspace(workDir);
+    return;
+  }
   await logEvent(
     deploymentId,
     'BUILD',
