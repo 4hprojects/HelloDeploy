@@ -61,7 +61,14 @@ logger.info('Worker: starting HelloDeploy deployment worker', {
 });
 
 if (env.NGINX_ENABLED) {
-  await validateNginxConfig();
+  try {
+    await validateNginxConfig();
+  } catch (err) {
+    // The fatal handler logs only the error type. Helper errors carry nginx -t
+    // output and socket paths, never credentials, so log the reason here.
+    logger.error('Worker: Nginx validation failed at startup', { error: err.message });
+    throw err;
+  }
   logger.info('Worker: Nginx helper connected and configuration valid');
 }
 
