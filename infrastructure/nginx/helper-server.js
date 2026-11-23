@@ -8,6 +8,7 @@ import { dirname } from 'node:path';
 import {
   activateRoute,
   activateRoutes,
+  assertNginxPidWritable,
   removeRoute,
   validateNginxConfig,
 } from '../../apps/worker/src/nginx/route-manager.js';
@@ -15,6 +16,16 @@ import {
 const socketPath = process.env.NGINX_HELPER_SOCKET || '/run/hellodeploy/nginx-helper.sock';
 const configDir = process.env.NGINX_HELLODEPLOY_CONFIG_DIR || '/etc/nginx/hellodeploy.d';
 const nginxBinary = process.env.NGINX_BINARY_PATH || '/usr/sbin/nginx';
+const nginxPidPath = process.env.NGINX_PID_PATH || '/run/nginx.pid';
+
+// Exiting lets systemd (Restart=on-failure) rebuild the sandbox once nginx has
+// re-created its PID file, instead of serving a helper whose every validation fails.
+try {
+  await assertNginxPidWritable(nginxPidPath);
+} catch (err) {
+  process.stderr.write(`[nginx-helper] ${err.message} Exiting so systemd restarts the helper.\n`);
+  process.exit(1);
+}
 const maxRequestBytes = 1024 * 1024;
 let operationQueue = Promise.resolve();
 

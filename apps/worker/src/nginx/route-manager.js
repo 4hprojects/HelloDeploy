@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { promises as fs } from 'node:fs';
+import { constants as fsConstants, promises as fs } from 'node:fs';
 import { join, basename } from 'node:path';
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 import { AuditOutcome } from '@hellodeploy/contracts';
@@ -313,4 +313,26 @@ export async function readRouteConfig({ configDir, slug }) {
  */
 export async function validateNginxConfig(nginxBinary = 'nginx', commandRunner = runCommand) {
   await commandRunner(nginxBinary, ['-t']);
+}
+
+/**
+ * Fail when the Nginx PID file is not writable from this process.
+ *
+ * `nginx -t` opens the PID file for writing. The helper's systemd sandbox
+ * grants that file through ReadWritePaths, which systemd binds only if the
+ * file exists when the helper starts. On 2026-11-21 an unattended nginx
+ * upgrade restarted the helper before nginx re-created the file, so every
+ * `nginx -t` failed with EROFS until a manual restart two days later.
+ *
+ * @param {string} pidPath
+ * @returns {Promise<void>}
+ */
+export async function assertNginxPidWritable(pidPath) {
+  try {
+    await fs.access(pidPath, fsConstants.W_OK);
+  } catch (err) {
+    throw new Error(
+      `Nginx PID file ${pidPath} is not writable (${err.code}); nginx -t would fail.`,
+    );
+  }
 }
