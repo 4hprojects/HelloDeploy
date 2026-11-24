@@ -32,6 +32,8 @@ finished or moved, so `docs/todo/` no longer exists.
 - **Backups**: daily encrypted off-host backups are running. The restore drill is still open.
 - **Multi-runtime**: every pilot flag is off. The builder control pilot (one administrator-owned
   Next.js project) passed its watch; the owner confirmed on 2026-11-25.
+- **Hello Motion**: done for HelloDeploy (#243, #244). The deployment page now shows live
+  stage progress ([audit](hello-motion/00_AUDIT_REPORT.md)).
 - **Docker optimization**: `optimized-v1` stays opt-in per project by owner decision
   (2026-11-25). P2–P5 are deferred.
 
@@ -57,13 +59,12 @@ page-scoped) merged 2026-11-25. Take the next item from **Next**.
 - **AdSense follow-up** (after Google's decision): if approved, mark articles `adEligible` and set the slot id and
   `ADSENSE_ENABLED` ([ADSENSE_READINESS.md](learning-hub/ADSENSE_READINESS.md)). If rejected, fix
   the stated reason and reapply.
-- **Hello Motion** ([docs/hello-motion/](hello-motion/README.md)): Phase 00 audit for
-  HelloDeploy first; the foundation and the HelloDeploy pilot follow only after the audit.
 - **Owner inputs for public pages**: governing law, liability cap, legal review, operator status,
   GitHub App permission list, Search Console, donations
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
-- **Dependency majors**, one PR each, smallest first: `resend` 6 (clears the 4 low audit
-  findings), dotenv, connect-mongo, EJS, svix, ioredis 6, BullMQ 6, Mongoose 9, Express 5.
+- **Dependency majors**, one PR each, smallest first: `resend` 6, `svix` 2, dotenv,
+  connect-mongo, `rate-limit-redis` 6, EJS, ioredis 6 with BullMQ 6, Mongoose 9, Express 5. `npm
+audit` is clean since #242 (2026-11-25), so none of these is a security fix.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
 - **Re-check version-sensitive article facts by 2027-04-30** (Node and npm flags, nginx
