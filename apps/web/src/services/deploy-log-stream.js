@@ -1,3 +1,5 @@
+import { getStatusPresentation } from '@hellodeploy/contracts';
+import { isTerminal } from '@hellodeploy/deployment-core';
 import { classifyRedisError, createRedisConnection } from '@hellodeploy/queue';
 import { logger } from '@hellodeploy/observability';
 import { env } from '../config/env.js';
@@ -33,6 +35,22 @@ export function dispatchDeployLogMessage(channel, raw, handlers = channelHandler
       // one broken stream must not affect the others
     }
   }
+}
+
+/**
+ * Build the sender for a stream's live, non-terminal status changes. It skips repeats and
+ * terminal statuses: only the terminal `status` event may show an outcome on the page.
+ */
+export function createProgressSender(sendEvent) {
+  let lastStatus = null;
+  return (status) => {
+    if (!status || isTerminal(status) || status === lastStatus) {
+      return;
+    }
+    lastStatus = status;
+    const { label, tone, hint } = getStatusPresentation('deployment', status);
+    sendEvent('progress', { status, presentation: { label, tone, hint } });
+  };
 }
 
 function getSubscriber() {

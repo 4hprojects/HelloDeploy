@@ -1467,19 +1467,25 @@
       }
     }
 
+    // The indicator is a status region, so a new stage label is announced as it arrives.
+    function showLiveIndicator(stageLabel) {
+      if (!indicator) {
+        return;
+      }
+      const dot = document.createElement('span');
+      dot.setAttribute('aria-hidden', 'true');
+      dot.textContent = '●';
+      indicator.replaceChildren(dot, stageLabel ? ` Live: ${stageLabel}` : ' Live');
+      indicator.className = 'badge badge--building text-xs';
+    }
+
     function connectLogStream() {
       if (source) {
         source.close();
       }
 
       setReconnectVisible(false);
-      if (indicator) {
-        const dot = document.createElement('span');
-        dot.setAttribute('aria-hidden', 'true');
-        dot.textContent = '●';
-        indicator.replaceChildren(dot, ' Live');
-        indicator.className = 'badge badge--building text-xs';
-      }
+      showLiveIndicator();
 
       source = new EventSource(output.dataset.streamUrl);
 
@@ -1488,6 +1494,20 @@
           appendLog(JSON.parse(e.data));
         } catch {
           // Ignore malformed SSE payloads and wait for the next event.
+        }
+      });
+
+      // Non-terminal stage changes only. The outcome still waits for the terminal status event.
+      source.addEventListener('progress', (e) => {
+        try {
+          const data = JSON.parse(e.data);
+          applyStatusPresentation(
+            document.querySelector('[data-detail-status]'),
+            data.presentation,
+          );
+          showLiveIndicator(data.presentation?.label);
+        } catch {
+          // Ignore malformed SSE progress payloads; the next event or the terminal status corrects it.
         }
       });
 
