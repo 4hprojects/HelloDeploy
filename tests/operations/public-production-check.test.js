@@ -157,6 +157,9 @@ describe('public production check', () => {
           'js/admin-shell.js': '/assets-dist/admin-shell.1.js',
           'css/admin-ops.css': '/assets-dist/admin-ops.1.css',
           'js/admin-ops.js': '/assets-dist/admin-ops.1.js',
+          'css/deployment-detail.css': '/assets-dist/deployment-detail.1.css',
+          'css/environment.css': '/assets-dist/environment.1.css',
+          'js/environment.js': '/assets-dist/environment.1.js',
         },
       }),
     );
