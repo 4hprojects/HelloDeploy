@@ -14,7 +14,7 @@ instead of adding a new package. Two gaps matter:
    as this report.
 2. **Truthful live status (spec P0)**: on the deployment page, the header badge changes only when
    a run ends. While a run is in progress the page shows no Queued → Building → Deploying
-   progress, even though the server knows it. Planned as Phase 03 (below).
+   progress, even though the server knows it. Fixed in Phase 03 (#244).
 
 ## What exists
 
@@ -32,16 +32,16 @@ instead of adding a new package. Two gaps matter:
 
 ## Gaps and decisions
 
-| Spec item                                          | Decision                                                                                                                                                                          |
-| -------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Duplicate reduced-motion rule                      | Fixed: one global rule in `tokens.css`, which now also sets `scroll-behavior: auto`                                                                                               |
-| `--transition-fast` (150 ms ease)                  | Fixed: now `var(--motion-fast) var(--ease-standard)`, so the 32 hover and focus transitions use the motion scale. Unused `--transition-normal` removed                            |
-| `LEAVE_MS = 220` in `app.js`                       | Fixed: read from `--motion-normal`, with 220 ms as fallback                                                                                                                       |
-| Live status on the deployment page (P0)            | Phase 03: the log stream sends a `progress` event on each non-terminal status change; the page updates the badge and announces it. Success still shows only on the terminal event |
-| MOT-01 switch, MOT-03 menu, MOT-05 tabs            | Not built. HelloDeploy has no switches, custom menus or tabs, and adding widgets only to animate them is out of scope                                                             |
-| Spec §4: avoid a universal reduced-motion selector | Kept on purpose. It is the safe default, it is already tested, and functional indicators (spinners, pulse) still show their state in text                                         |
-| Feature flag (spec §9)                             | Not used. Each change is small and additive; reverting the PR is the rollback                                                                                                     |
-| Shared package (spec §6)                           | Not created. Plain CSS and JS through `npm run assets:build`, as the spec allows                                                                                                  |
+| Spec item                                          | Decision                                                                                                                                                                              |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Duplicate reduced-motion rule                      | Fixed: one global rule in `tokens.css`, which now also sets `scroll-behavior: auto`                                                                                                   |
+| `--transition-fast` (150 ms ease)                  | Fixed: now `var(--motion-fast) var(--ease-standard)`, so the 32 hover and focus transitions use the motion scale. Unused `--transition-normal` removed                                |
+| `LEAVE_MS = 220` in `app.js`                       | Fixed: read from `--motion-normal`, with 220 ms as fallback                                                                                                                           |
+| Live status on the deployment page (P0)            | Done in #244: the log stream sends a `progress` event on each non-terminal status change; the page updates the badge and announces it. Success still shows only on the terminal event |
+| MOT-01 switch, MOT-03 menu, MOT-05 tabs            | Not built. HelloDeploy has no switches, custom menus or tabs, and adding widgets only to animate them is out of scope                                                                 |
+| Spec §4: avoid a universal reduced-motion selector | Kept on purpose. It is the safe default, it is already tested, and functional indicators (spinners, pulse) still show their state in text                                             |
+| Feature flag (spec §9)                             | Not used. Each change is small and additive; reverting the PR is the rollback                                                                                                         |
+| Shared package (spec §6)                           | Not created. Plain CSS and JS through `npm run assets:build`, as the spec allows                                                                                                      |
 
 ## Risks
 
@@ -51,7 +51,8 @@ instead of adding a new package. Two gaps matter:
 
 ## Next
 
-Phase 03 (HelloDeploy pilot): live `progress` status on the deployment page. Changed files will be
-`apps/web/src/controllers/deployment.controller.js` (`sseDeploymentLogs`) and
-`apps/web/public/js/app.js` (`initDeploymentLiveLogs`, reusing `applyStatusPresentation`). It
-needs a controller test and a browser test, both also run under reduced motion.
+Phase 03 shipped in #244: the worker publishes `progress` on non-terminal transitions,
+`sseDeploymentLogs` forwards it through `createProgressSender` (skips repeats and terminal
+statuses), and `initDeploymentLiveLogs` updates the badge and the live indicator. Nothing else is
+planned for HelloDeploy. Reopen only for a new UI pattern (tabs, menus, switches) that the product
+actually needs.
