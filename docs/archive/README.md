@@ -1,6 +1,6 @@
 # Documentation Archive
 
-Updated: 2026-10-29
+Updated: 2026-11-25
 
 Everything here is a historical record: earlier status trackers, resolved audits, finished
 phase specifications, and planning briefs. None of it is current status, and none of it is
@@ -13,6 +13,7 @@ Each file keeps the date it describes; the dates below are the period it covers.
 
 | Document                                                                                   | Covers        | What it was                                                                                     |
 | ------------------------------------------------------------------------------------------ | ------------- | ----------------------------------------------------------------------------------------------- |
+| [Priorities, 2026-11-16 version](PRIORITIES_2026-11-16.md)                                 | to 2026-11-25 | Builder pilot close-out, owner inputs and backups before the 2026-11-25 reorganization          |
 | [Priorities, 2026-10-28 version](PRIORITIES_2026-10-28.md)                                 | to 2026-11-03 | Multi-runtime pause, builder pilot watch, and the decisions closed on 2026-10-21 and 2026-10-22 |
 | [Priorities, previous version](PRIORITIES_2026-10-15.md)                                   | to 2026-10-15 | The earlier punch list, with its long "recently resolved" history                               |
 | [Implementation Batch Tracker](IMPLEMENTATION_BATCH_TRACKER.md)                            | to 2026-10-16 | Batch-by-batch production-readiness monitor                                                     |
@@ -41,14 +42,16 @@ Each file keeps the date it describes; the dates below are the period it covers.
 
 ## Closed specifications and programmes
 
-| Document                                                                                        | Covers                   | What it was                                                                |
-| ----------------------------------------------------------------------------------------------- | ------------------------ | -------------------------------------------------------------------------- |
-| [Public Git Repository Specification](PUBLIC_GIT_REPOSITORY_SPEC.md)                            | 2026-07-14               | Public-URL repository connection; implemented                              |
-| [Project Settings UX Specification](PROJECT_SETTINGS_UX_SPEC.md)                                | 2026-07-13               | Settings page spec; all four phases shipped                                |
-| [UI/UX Improvement Pack](hellodeploy-uiux-improvement-pack/00_MASTER_UI_UX_IMPROVEMENT_PLAN.md) | 2026-10-02 to 2026-10-09 | UI/UX programme and its implementation evidence                            |
-| [UI/UX audit and phased fixes](uiux-plan-2026-10-27/00-MASTER-ROADMAP.md)                       | 2026-10-27 to 2026-10-28 | Rendered audit, issue register and decisions; shipped as #153              |
-| [Improvement phases 1–11](phases/README.md)                                                     | 2026-07 to 2026-08       | Phase specs for the Improvements backlog; all done                         |
-| [Multi-runtime planning brief](multiruntime-brief-2026-10-16/00_START_HERE.md)                  | 2026-10-16               | Original brief; superseded by [multi-runtime/](../multi-runtime/README.md) |
+| Document                                                                                        | Covers                   | What it was                                                                                                                                      |
+| ----------------------------------------------------------------------------------------------- | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| [Public Git Repository Specification](PUBLIC_GIT_REPOSITORY_SPEC.md)                            | 2026-07-14               | Public-URL repository connection; implemented                                                                                                    |
+| [Project Settings UX Specification](PROJECT_SETTINGS_UX_SPEC.md)                                | 2026-07-13               | Settings page spec; all four phases shipped                                                                                                      |
+| [UI/UX Improvement Pack](hellodeploy-uiux-improvement-pack/00_MASTER_UI_UX_IMPROVEMENT_PLAN.md) | 2026-10-02 to 2026-10-09 | UI/UX programme and its implementation evidence                                                                                                  |
+| [UI/UX audit and phased fixes](uiux-plan-2026-10-27/00-MASTER-ROADMAP.md)                       | 2026-10-27 to 2026-10-28 | Rendered audit, issue register and decisions; shipped as #153                                                                                    |
+| [Improvement phases 1–11](phases/README.md)                                                     | 2026-07 to 2026-08       | Phase specs for the Improvements backlog; all done                                                                                               |
+| [Multi-runtime planning brief](multiruntime-brief-2026-10-16/00_START_HERE.md)                  | 2026-10-16               | Original brief; superseded by [multi-runtime/](../multi-runtime/README.md)                                                                       |
+| [GHCR decision and audit brief](GHCR_DECISION_AND_AUDIT_2026-10-22.md)                          | 2026-10-22               | Audit brief for keeping GHCR without a second host; superseded by builder control (live 2026-10-25)                                              |
+| [Public content package](public-content-package-2026-10-31/00_READ_ME_FIRST.md)                 | 2026-10-31               | Legal, product, docs, SEO and account package; shipped as #170–#176. Progress in [implementation/](../implementation/IMPLEMENTATION_PROGRESS.md) |
 
 ## Worklog
 

@@ -1,6 +1,6 @@
 # HelloDeploy public content audit
 
-Date: 2026-10-31. Scope: the Public Content Improvement Package (`docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31 (1)/`), Phase 0.
+Date: 2026-10-31. Scope: the Public Content Improvement Package ([`docs/archive/public-content-package-2026-10-31/`](../archive/public-content-package-2026-10-31/00_READ_ME_FIRST.md)), Phase 0.
 
 Method: read-only review of the repository at `main` (`6bb1c0f`) plus anonymous requests to https://hellodeploy.online. No credentials were read or printed. "Repo" means the code says it; "Prod" means it was observed on the live site.
 

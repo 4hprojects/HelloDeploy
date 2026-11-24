@@ -1,6 +1,6 @@
 # HelloDeploy Documentation Index
 
-Updated: 2026-11-03
+Updated: 2026-11-25
 
 Start here. The top-level [README](../README.md) stays short; this file maps every current
 document. Status and "what's next" live in exactly one place: [Priorities](PRIORITIES.md).
@@ -47,11 +47,15 @@ document. Status and "what's next" live in exactly one place: [Priorities](PRIOR
   and prebuilt images; merged with every pilot off. Status in
   [multi-runtime/STATUS.md](multi-runtime/STATUS.md).
 - [Docker optimization](docker-optimization/README.md) - opt-in `optimized-v1` image templates
-  (P0–P1 done); cache, metrics, retention, and rollout phases not started.
+  (P0–P1 done); cache, metrics, retention, and rollout phases deferred by owner decision
+  (2026-11-25).
 - [Learning Hub](learning-hub/00_MASTER_PLAN.md) - public `/blog` with Markdown tutorials, views,
   sharing, and moderated guest comments (live since 2026-11-01). Running it:
   [learning-hub/OPERATIONS.md](learning-hub/OPERATIONS.md); owner items:
-  [learning-hub/BLOCKERS_AND_HANDOFF.md](learning-hub/BLOCKERS_AND_HANDOFF.md).
+  [learning-hub/BLOCKERS_AND_HANDOFF.md](learning-hub/BLOCKERS_AND_HANDOFF.md); cybersecurity
+  series plan (done): [learning-hub/CYBERSECURITY_SERIES_PLAN.md](learning-hub/CYBERSECURITY_SERIES_PLAN.md).
+- [Hello Motion](hello-motion/README.md) - shared, accessible motion design system; not started,
+  audit first.
 - [Public content package](implementation/IMPLEMENTATION_PROGRESS.md) - the 2026-10-31 legal,
   product, docs, SEO and account work (#170–#176). Owner inputs still needed:
   [implementation/USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md); page owners and

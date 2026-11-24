@@ -36,9 +36,10 @@ These claims must be independently reconciled with code, configuration, current 
 Provide a table with these columns:
 
 | Component | Code state | Automated tests | Live infrastructure | Production availability | Evidence (file/line, test, command) | Gap or blocker |
-|---|---|---|---|---|---|---|
+| --------- | ---------- | --------------- | ------------------- | ----------------------- | ----------------------------------- | -------------- |
 
 Include at minimum:
+
 - Existing Node.js/Express/React/Vue/static deployments
 - Next.js standard, standalone, static modes
 - Python Flask/FastAPI/Django
@@ -87,18 +88,21 @@ Rank options by security, additional monthly cost, required hardware, maintenanc
 ## 7. Deliverables and work sequence
 
 ### Phase A: Read-only reconnaissance (start immediately)
+
 - Report repository HEAD, branch, worktree condition and relevant PR/commit identifiers.
 - Produce the audit matrix with concrete evidence.
 - Identify discrepancies between current documentation and implementation.
 - Separate existing features from missing infrastructure and untested functionality.
 
 ### Phase B: Recommendation (no code changes)
+
 - Recommend the safest no-additional-VPS route for the near term.
 - Provide a prioritized list of essential work, optional work, and deliberately deferred work.
 - Specify measurable test gates and minimum host resource requirements.
 - Estimate number of Claude Code sessions and approximate effort, with uncertainty clearly indicated.
 
 ### Phase C: Implementation only after owner approval
+
 - Perform only the approved, lowest-risk tasks.
 - Use a feature branch, tests, evidence log, and PR for review.
 - Update `docs/PRIORITIES.md` and `docs/multi-runtime/STATUS.md` to reflect measured reality, not assumed completion.

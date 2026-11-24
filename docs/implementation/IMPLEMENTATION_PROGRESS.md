@@ -1,6 +1,6 @@
 # Implementation progress
 
-Package: `docs/todo/HelloDeploy_Public_Content_Implementation_Package_2026-10-31 (1)/`. One PR per phase; the owner merges and autodeploy ships.
+Package: [`docs/archive/public-content-package-2026-10-31/`](../archive/public-content-package-2026-10-31/00_READ_ME_FIRST.md). One PR per phase; the owner merges and autodeploy ships.
 
 | PR  | Phase                                       | Status   | Branch / SHA     |
 | --- | ------------------------------------------- | -------- | ---------------- |

@@ -1,14 +1,18 @@
 # HelloDeploy Public Content Improvement Package
+
 Version: 2026-10-31 | Status: Approved direction, audit-first execution
 
 ## Objective
+
 Improve HelloDeploy's public-facing legal, privacy, security, product, documentation, support, SEO, and donation experience without misrepresenting its actual capabilities or disrupting production. Primary audience: Philippines; international access permitted subject to jurisdictional audit.
 
 ## Source of truth
+
 Planning Google Doc: https://docs.google.com/document/d/15AwcwFu-FueP8vjtDkmu0KJ-Pgi8GtDtyghoORY4R-M/edit
 Use existing repository and live configuration as the technical source of truth. If documents and code disagree, report the difference and fix only after evaluating consequences.
 
 ## Mandatory execution order
+
 1. 01_AUDIT_AND_INVENTORY.md
 2. 02_SECURITY_LEGAL_PRIVACY.md
 3. 03_PUBLIC_PAGES_PRICING.md
@@ -22,6 +26,7 @@ Use existing repository and live configuration as the technical source of truth.
 Phase numbering here identifies implementation units, not a requirement to create all features irrespective of audit results. Track approved, blocked and deferred items in 10_DECISIONS_RISKS_CHANGELOG.md. Proceed through safe implementation autonomously; stop at human-required gates.
 
 ## Non-negotiables
+
 - Do not invent product features, infrastructure guarantees, legal operator, retention periods, payment links or account controls.
 - Preserve working functionality, user data, established URLs and SEO equity.
 - No global claims of GDPR compliance or legal guarantees without review; legal policies are drafts pending qualified review.
@@ -33,4 +38,5 @@ Phase numbering here identifies implementation units, not a requirement to creat
 - If a required control cannot be implemented safely, mark blocked and present honest public wording rather than false promises.
 
 ## Delivery artifacts
+
 Audits, change log, implementation notes, screenshots of public UI where practical, tests, release checklist, rollback instructions, unresolved gates and an accurate user-facing feature inventory.
