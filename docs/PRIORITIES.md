@@ -27,8 +27,8 @@ finished or moved, so `docs/todo/` no longer exists.
   published 2026-11-20 (#227–#237; [plan](learning-hub/CYBERSECURITY_SERIES_PLAN.md)). Guest
   comments with moderation since 2026-11-01 ([operations](learning-hub/OPERATIONS.md)).
 - **Analytics and ads**: GA4 with Consent Mode v2 on public pages (#224) is live; the owner set
-  the production variables. AdSense code is ready behind flags (#222, #223); the review decision
-  has arrived and the follow-up is in **Next**.
+  the production variables. AdSense code is ready behind flags (#222, #223); the owner applied on
+  2026-11-21 and Google's review is still pending (2026-11-25).
 - **Backups**: daily encrypted off-host backups are running. The restore drill is still open.
 - **Multi-runtime**: every pilot flag is off. The builder control pilot (one administrator-owned
   Next.js project) passed its watch; the owner confirmed on 2026-11-25.
@@ -54,7 +54,7 @@ finished or moved, so `docs/todo/` no longer exists.
   lessons from the 2026-10-25 renewal outage ([evidence](multi-runtime/EVIDENCE.md)).
 - **Backup restore drill** on a clean host (#67)
   ([Operations Runbooks › Scheduled off-host backups](OPERATIONS_RUNBOOKS.md#scheduled-off-host-backups)).
-- **AdSense follow-up**: if approved, mark articles `adEligible` and set the slot id and
+- **AdSense follow-up** (after Google's decision): if approved, mark articles `adEligible` and set the slot id and
   `ADSENSE_ENABLED` ([ADSENSE_READINESS.md](learning-hub/ADSENSE_READINESS.md)). If rejected, fix
   the stated reason and reapply.
 - **Hello Motion** ([docs/hello-motion/](hello-motion/README.md)): Phase 00 audit for
