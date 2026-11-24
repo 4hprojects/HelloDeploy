@@ -3623,17 +3623,6 @@ a.setup-guide__step-link:hover .setup-guide__label {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
-    transition-duration: 0.01ms !important;
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-  }
-}
-
 /* ── Form row (side by side) ─────────────────────────────────────── */
 .form-row {
   display: grid;
