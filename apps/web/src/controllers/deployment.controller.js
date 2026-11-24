@@ -10,7 +10,7 @@ import { isTerminal } from '@hellodeploy/deployment-core';
 import { Deployment, DeploymentEvent } from '@hellodeploy/database';
 import { env } from '../config/env.js';
 import { acquireStreamSlot, releaseStreamSlot } from '../services/sse-limiter.js';
-import { subscribeDeployLogs } from '../services/deploy-log-stream.js';
+import { createProgressSender, subscribeDeployLogs } from '../services/deploy-log-stream.js';
 import {
   createDeployment,
   parseNoCacheFlag,
@@ -333,6 +333,8 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
     res.write(`data: ${JSON.stringify(data)}\n\n`);
   };
 
+  const sendProgress = createProgressSender(sendEvent);
+
   const sendLogEvent = (payload) => {
     if (sentEventIds.has(payload.id)) {
       return;
@@ -366,6 +368,8 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       res.end();
       return;
     }
+    // The page may have rendered an earlier stage than the one running now.
+    sendProgress(currentDeployment?.status);
   } catch (err) {
     closeStream();
     throw err;
@@ -378,6 +382,10 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
       sendEvent('status', { status: payload.status });
       closeStream();
       res.end();
+      return;
+    }
+    if (payload.type === 'progress') {
+      sendProgress(payload.status);
       return;
     }
     if (payload.type === 'log') {
@@ -425,6 +433,8 @@ export const sseDeploymentLogs = asyncHandler(async (req, res) => {
         sendEvent('status', { status: dep.status });
         closeStream();
         res.end();
+      } else {
+        sendProgress(dep?.status);
       }
     } catch {
       // Non-fatal — keep polling

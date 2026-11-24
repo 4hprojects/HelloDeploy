@@ -784,6 +784,46 @@ test('live indicator drops its live tone when the log stream disconnects', async
   await expect(page.locator('#live-indicator')).toHaveClass('badge text-xs');
 });
 
+async function openRunningDeploymentWithProgress(page) {
+  const progress = {
+    status: 'DEPLOYING',
+    presentation: {
+      label: 'Publishing',
+      tone: 'deploying',
+      hint: 'Starting the release, checking it, and preparing routing.',
+    },
+  };
+  await page.route('**/deployments/*/logs', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'text/event-stream',
+      body: `event: progress\ndata: ${JSON.stringify(progress)}\n\n`,
+    }),
+  );
+  await signIn(page);
+  await page.goto('/projects/northstar-notes/deployments');
+  const runningHref = await page
+    .getByRole('link', { name: '#8', exact: true })
+    .getAttribute('href');
+  await page.goto(runningHref);
+}
+
+test('live progress updates the deployment badge without a reload', async ({ page }) => {
+  await openRunningDeploymentWithProgress(page);
+
+  await expect(page.locator('[data-detail-status] .status-badge')).toHaveText('Publishing');
+});
+
+test.describe('live progress with reduced motion', () => {
+  test.use({ reducedMotion: 'reduce' });
+
+  test('still updates the deployment badge', async ({ page }) => {
+    await openRunningDeploymentWithProgress(page);
+
+    await expect(page.locator('[data-detail-status] .status-badge')).toHaveText('Publishing');
+  });
+});
+
 test('stable deployment failure visual', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await signIn(page);

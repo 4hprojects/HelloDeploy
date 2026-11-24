@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-const { dispatchDeployLogMessage } =
+const { createProgressSender, dispatchDeployLogMessage } =
   await import('../../apps/web/src/services/deploy-log-stream.js');
 
 describe('dispatchDeployLogMessage', () => {
@@ -51,5 +51,70 @@ describe('dispatchDeployLogMessage', () => {
     dispatchDeployLogMessage('deploy-logs:1', 'not-json', handlers);
 
     assert.deepEqual(received, []);
+  });
+});
+
+describe('createProgressSender', () => {
+  function collect() {
+    const sent = [];
+    const sendProgress = createProgressSender((event, data) => sent.push({ event, data }));
+    return { sent, sendProgress };
+  }
+
+  it('sends a progress event with the server presentation for a running status', () => {
+    const { sent, sendProgress } = collect();
+
+    sendProgress('BUILDING');
+
+    assert.deepEqual(sent, [
+      {
+        event: 'progress',
+        data: {
+          status: 'BUILDING',
+          presentation: {
+            label: 'Building app',
+            tone: 'building',
+            hint: 'Building the application release.',
+          },
+        },
+      },
+    ]);
+  });
+
+  it('sends a repeated status only once', () => {
+    const { sent, sendProgress } = collect();
+
+    sendProgress('BUILDING');
+    sendProgress('BUILDING');
+
+    assert.equal(sent.length, 1);
+  });
+
+  it('sends each new status after a change', () => {
+    const { sent, sendProgress } = collect();
+
+    sendProgress('BUILDING');
+    sendProgress('DEPLOYING');
+
+    assert.deepEqual(
+      sent.map(({ data }) => data.status),
+      ['BUILDING', 'DEPLOYING'],
+    );
+  });
+
+  it('never sends a terminal status as progress', () => {
+    const { sent, sendProgress } = collect();
+
+    sendProgress('HEALTHY');
+
+    assert.deepEqual(sent, []);
+  });
+
+  it('ignores a missing status', () => {
+    const { sent, sendProgress } = collect();
+
+    sendProgress(undefined);
+
+    assert.deepEqual(sent, []);
   });
 });

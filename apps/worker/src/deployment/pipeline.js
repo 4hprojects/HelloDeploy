@@ -169,6 +169,8 @@ export async function updateStatus(deploymentId, toStatus, extra = {}, options =
   });
 
   if (toStatus !== DeploymentStatus.HEALTHY && toStatus !== DeploymentStatus.FAILED) {
+    // Live stage change for SSE viewers; the web stream also catches it on its DB poll.
+    publishDeployEvent(deploymentId, { type: 'progress', status: toStatus });
     return true;
   }
 

@@ -61,6 +61,19 @@ describe('worker deploy-log pub/sub publishing', () => {
     assert.deepEqual(statusMsg.payload, { type: 'status', status: DeploymentStatus.FAILED });
   });
 
+  it('publishes a progress message on non-terminal transitions', async () => {
+    const publisher = makeFakePublisher();
+    setWorkerRedis(publisher);
+    const project = await createProject();
+    const deployment = await createDeployment(project._id, { status: DeploymentStatus.BUILDING });
+    await updateStatus(deployment._id, DeploymentStatus.DEPLOYING);
+    const progressMsg = publisher.published.find((m) => m.payload.type === 'progress');
+    assert.deepEqual(progressMsg.payload, {
+      type: 'progress',
+      status: DeploymentStatus.DEPLOYING,
+    });
+  });
+
   it('skips publishing (without throwing) when the connection is not ready', async () => {
     const publisher = makeFakePublisher();
     publisher.status = 'connecting';
