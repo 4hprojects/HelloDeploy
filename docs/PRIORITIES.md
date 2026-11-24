@@ -1,59 +1,73 @@
 # Priorities
 
-Updated 2026-11-16 (owner decisions and off-host backups recorded); last full review of the code, GitHub and
-the docs on 2026-11-03. This is the single current
-list of what to work on. Multi-runtime detail lives in
+Updated 2026-11-25 (full review of every to-do source and owner status answers). This is the
+single current list of what to work on. Multi-runtime detail lives in
 [multi-runtime/STATUS.md](multi-runtime/STATUS.md), owner inputs in
 [implementation/USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md), and dated
-evidence in the [worklog](../WORKLOG.md). The previous version, with the decisions closed on
-2026-10-21 and 2026-10-22, is [archive/PRIORITIES_2026-10-28.md](archive/PRIORITIES_2026-10-28.md).
+evidence in the [worklog](../WORKLOG.md). The previous version is
+[archive/PRIORITIES_2026-11-16.md](archive/PRIORITIES_2026-11-16.md).
 
 Keep this file short. Put evidence in the worklog, not here.
+
+## How to-do packages are handled
+
+`docs/todo/` holds a package only while its work is open. When a package is finished, the same
+PR moves it to its initiative folder or to [archive/](archive/README.md) and updates this file,
+the [documentation index](README.md) and the initiative tracker. On 2026-11-25 every package was
+finished or moved, so `docs/todo/` no longer exists.
 
 ## Where things stand
 
 - **Production** runs `main` through the CI-gated autodeploy timer
   ([Operations Runbooks › Automatic deploys](OPERATIONS_RUNBOOKS.md#automatic-deploys)). A red
   main CI silently stops deploys. Live customer apps include HelloRun, HelloPera, HelloEventHub and
-  HelloUniversity.
-- **Learning Hub**: `/blog` with five articles and view counts since 2026-10-29. Guest comments
-  with OpenAI moderation, a profanity filter and Turnstile since 2026-11-01
-  ([operations](learning-hub/OPERATIONS.md)).
-- **Public content**: legal fixes, `/about`, `/features`, `/contact`, fuller docs, SEO and
-  `/account`, deployed 2026-10-31 (#170–#176). Donations, GA4, AdSense and Search Console stay off
-  until the owner supplies inputs.
-- **Admin operations dashboard**: merged in seven stacked PRs, #197 to #203, and shipped by
-  autodeploy. See
-  [implementation/admin-operations-dashboard](implementation/admin-operations-dashboard/IMPLEMENTATION_PROGRESS.md).
-  Account closure requests are listed with days left against the 30-day promise on the overview
-  and in a queue at the top of the admin users list.
-- **Multi-runtime**: every pilot flag is off. The builder control pilot runs one
-  administrator-owned Next.js project; its 7-day watch ended 2026-11-01.
+  HelloUniversity. A 2026-11-21 nginx upgrade stopped the worker for two days; #238 fixed it.
+  Check the systemd units, not only `/health`. Source archives are cached since #239.
+- **Learning Hub**: `/blog` with 15 articles, including the ten-article cybersecurity series
+  published 2026-11-20 (#227–#237; [plan](learning-hub/CYBERSECURITY_SERIES_PLAN.md)). Guest
+  comments with moderation since 2026-11-01 ([operations](learning-hub/OPERATIONS.md)).
+- **Analytics and ads**: GA4 with Consent Mode v2 on public pages (#224) is live; the owner set
+  the production variables. AdSense code is ready behind flags (#222, #223); the review decision
+  has arrived and the follow-up is in **Next**.
+- **Backups**: daily encrypted off-host backups are running. The restore drill is still open.
+- **Multi-runtime**: every pilot flag is off. The builder control pilot (one administrator-owned
+  Next.js project) passed its watch; the owner confirmed on 2026-11-25.
+- **Docker optimization**: `optimized-v1` stays opt-in per project by owner decision
+  (2026-11-25). P2–P5 are deferred.
 
 ## Now — code
 
-Nothing open. Take the next item from **Next**.
+- **PR #204**: rebase and merge the production-check fix that treats admin bundles as
+  page-scoped (a false failure since 2026-11-05).
 
 ## Now — owner
 
-- **Builder pilot close-out**: check the admin Build Service page (idle shutdowns, no unexpected
-  cancels, the pilot app healthy) and say whether the watch passed.
-- **Comment checks**: as a signed-out guest, a comment with a link is refused. The PM2 per-article
+- **Comment checks**: as a signed-out guest, a comment with a link is refused. The per-article
   pause works after **Save controls**. Remove leftover test comments in `/admin/learning-hub`.
+- **GA4 console settings**: data retention 14 months, enhanced-measurement site search and form
+  interactions off, mark `sign_up_click` as a key event once it arrives
+  ([ADSENSE_READINESS.md](learning-hub/ADSENSE_READINESS.md)).
 
 ## Next
 
-- **Scheduled backups** (owner, #67): create the bucket and rclone `crypt` remote, then run
-  `install-backup.sh` ([Operations Runbooks › Scheduled off-host backups](OPERATIONS_RUNBOOKS.md#scheduled-off-host-backups)).
-  Then do the restore drill on a clean host.
 - **Renew the GHCR production token by 2027-01-09** (expires about 2027-01-23). Follow the
-  lessons from the 2026-10-25 renewal outage
-  ([evidence](multi-runtime/EVIDENCE.md)).
+  lessons from the 2026-10-25 renewal outage ([evidence](multi-runtime/EVIDENCE.md)).
+- **Backup restore drill** on a clean host (#67)
+  ([Operations Runbooks › Scheduled off-host backups](OPERATIONS_RUNBOOKS.md#scheduled-off-host-backups)).
+- **AdSense follow-up**: if approved, mark articles `adEligible` and set the slot id and
+  `ADSENSE_ENABLED` ([ADSENSE_READINESS.md](learning-hub/ADSENSE_READINESS.md)). If rejected, fix
+  the stated reason and reapply.
+- **Hello Motion** ([docs/hello-motion/](hello-motion/README.md)): Phase 00 audit for
+  HelloDeploy first; the foundation and the HelloDeploy pilot follow only after the audit.
 - **Owner inputs for public pages**: governing law, liability cap, legal review, operator status,
-  GitHub App permission list, GA4 and consent, Search Console
+  GitHub App permission list, Search Console, donations
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
+- **Dependency majors**, one PR each, smallest first: `resend` 6 (clears the 4 low audit
+  findings), dotenv, connect-mongo, EJS, svix, ioredis 6, BullMQ 6, Mongoose 9, Express 5.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
+- **Re-check version-sensitive article facts by 2027-04-30** (Node and npm flags, nginx
+  versions, the OWASP and agentic lists).
 
 ## Paused — multi-runtime pilots
 
@@ -64,8 +78,8 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 
 ## Later
 
-- **Dependency majors**, one at a time: `resend` 6 (clears the 4 low audit findings), Express 5,
-  Mongoose 9, BullMQ 6, ioredis 6, dotenv, connect-mongo, EJS, svix.
+- **Docker optimization P2–P5** (cache, metrics, retention, rollout): only if build time or disk
+  space becomes a real problem ([tracker](docker-optimization/IMPLEMENTATION_TRACKER.md)).
 - **Installable dashboard (PWA)**, specified fresh.
 - **HelloPera release API**: a fresh spec if HelloPera's gated release is wanted.
 - **Admin domain tunnels table** prints a `sudo` command; it goes away with the admin tunnel step
@@ -73,8 +87,11 @@ and the [runbook](multi-runtime/BUILDKIT_GHCR_RUNBOOK.md).
 - **Before owner images are generally available**: a builder per tenant or per build, and runtime
   egress filtering.
 - **E2 per-repository clone cache**: only with evidence that fetch time matters.
+- **More cybersecurity articles** from the evergreen backlog, on request.
 
 ## Product decisions
+
+Closed 2026-11-25: builder pilot watch passed; `optimized-v1` stays opt-in.
 
 Closed 2026-11-16: `main` is protected (both CI checks required, no review, admins may bypass,
 no force push or deletion; #62 keeps the rest of the older release design). Anonymized study

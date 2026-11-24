@@ -2,7 +2,7 @@
 
 Single checklist of what only the owner can supply. Placeholders (`TODO_USER_INPUT_*`) appear only here and in internal docs, never on public pages. Features waiting on an item stay disabled.
 
-Last updated: 2026-10-31.
+Last updated: 2026-11-25.
 
 ## A. Legal and business
 
@@ -22,10 +22,10 @@ Last updated: 2026-10-31.
 
 ## C. Analytics and SEO
 
-| ID                               | Needed                                  | Purpose                      | Affects      | Where it goes           | Priority | Blocks prod? | How to supply                                           | Status |
-| -------------------------------- | --------------------------------------- | ---------------------------- | ------------ | ----------------------- | -------- | ------------ | ------------------------------------------------------- | ------ |
-| `TODO_USER_INPUT_GA4_ID`         | GA4 measurement ID (`G-…`) and go-ahead | Site analytics after consent | public pages | `/opt/hellodeploy/.env` | P3       | No           | Add the env value only after approving the consent text | Open   |
-| `TODO_USER_INPUT_SEARCH_CONSOLE` | Search Console HTML-tag token           | Ownership verification       | `<head>`     | `/opt/hellodeploy/.env` | P3       | No           | Copy the `content` value of the verification meta tag   | Open   |
+| ID                               | Needed                                  | Purpose                      | Affects      | Where it goes           | Priority | Blocks prod? | How to supply                                           | Status                                                                                |
+| -------------------------------- | --------------------------------------- | ---------------------------- | ------------ | ----------------------- | -------- | ------------ | ------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `TODO_USER_INPUT_GA4_ID`         | GA4 measurement ID (`G-…`) and go-ahead | Site analytics after consent | public pages | `/opt/hellodeploy/.env` | P3       | No           | Add the env value only after approving the consent text | Done 2026-11-25: owner set the production variables (`G-0Y2MP5GL6H`, Consent Mode v2) |
+| `TODO_USER_INPUT_SEARCH_CONSOLE` | Search Console HTML-tag token           | Ownership verification       | `<head>`     | `/opt/hellodeploy/.env` | P3       | No           | Copy the `content` value of the verification meta tag   | Open                                                                                  |
 
 ## D. Donations and payments
 

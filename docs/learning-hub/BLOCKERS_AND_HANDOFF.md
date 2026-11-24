@@ -1,7 +1,7 @@
 # Learning Hub — Blockers and Owner Handoff
 
-Updated 2026-11-03. The blog and view counts are on (2026-10-29), and guest comments are on
-with OpenAI moderation (2026-11-01). GA4 and AdSense stay off. Each open item below needs the
+Updated 2026-11-25. The blog and view counts are on (2026-10-29), and guest comments are on
+with OpenAI moderation (2026-11-01). GA4 is on (2026-11-25); AdSense code is ready behind flags and the review decision has arrived. Each open item below needs the
 owner; none is blocked by code.
 
 ## 0. Merge the release (owner)
@@ -34,16 +34,19 @@ time stamps (#180), and the refusal dialog with the Acceptable Use Policy notice
 Still to confirm: a guest comment with a link is refused, and the per-article pause takes effect
 after **Save controls**. Emergency stop: [OPERATIONS.md](OPERATIONS.md#emergency-stop-guest-comments).
 
-## 3. GA4 (stays off)
+## 3. GA4 (on)
 
-GA4 now covers all public pages (not only the blog). Missing: a measurement id and a published
-consent message. Owner steps are in [ADSENSE_READINESS.md](ADSENSE_READINESS.md#google-analytics-4-off-until-the-owner-sets-it-up).
+GA4 covers all public pages (not only the blog) with Consent Mode v2 (#224). The owner set the
+production variables (confirmed 2026-11-25). Still to do in the GA4 console: retention 14 months,
+enhanced-measurement site search and form interactions off, and `sign_up_click` as a key event. Owner steps are in [ADSENSE_READINESS.md](ADSENSE_READINESS.md#google-analytics-4-off-until-the-owner-sets-it-up).
 
-## 4. AdSense (stays off)
+## 4. AdSense (decision received)
 
-Missing: account approval, a certified consent platform for EEA/UK/CH visitors, CSP additions
-for ad hosts (code change), ids, and `ads.txt`. See [ADSENSE_READINESS.md](ADSENSE_READINESS.md).
-Also add truthful `/about` and `/contact` pages before applying.
+The code is ready behind flags: site verification, `ads.txt`, ad CSP (#222) and the consent
+footer link (#223). The owner applied on 2026-11-21, and Google's decision arrived by 2026-11-25.
+If approved: mark articles `adEligible`, then set `ADSENSE_ARTICLE_SLOT_ID` and
+`ADSENSE_ENABLED=true`. If rejected: fix the stated reason and reapply. See
+[ADSENSE_READINESS.md](ADSENSE_READINESS.md).
 
 ## 5. Review legal text
 

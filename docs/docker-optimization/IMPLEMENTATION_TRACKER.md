@@ -10,13 +10,13 @@ repository-wide tracker limited to summary status and a link here.
 
 ## Current Status
 
-Updated 2026-10-21.
+Updated 2026-11-25.
 
 | Field            | Value                                                                                                                                                                                         |
 | ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Overall status   | P0 and P1 complete; P1 merged in `cb47147` (2026-10-10) and in production. P2–P5 not started                                                                                                  |
+| Overall status   | P0 and P1 complete; P1 merged in `cb47147` (2026-10-10) and in production. P2–P5 deferred                                                                                                     |
 | Current phase    | None active. The next phase is P2 — Cache Evaluation                                                                                                                                          |
-| Next action      | Product decision on making `optimized-v1` the default (see [PRIORITIES.md](../PRIORITIES.md)); then P2 benchmarks and a per-project canary                                                    |
+| Next action      | None. Owner decision 2026-11-25: `optimized-v1` stays opt-in; P2–P5 wait until build time or disk space becomes a real problem ([PRIORITIES.md](../PRIORITIES.md))                            |
 | Rollout state    | Production default `USER_IMAGE_TEMPLATE_VERSION=legacy`; the dedicated `hellodeploy-builder` is in use. `optimized-v1` passed real-daemon builds on 2026-10-10                                |
 | Production state | `optimized-v1` off except for projects listed in `USER_IMAGE_OPTIMIZED_PROJECT_IDS`. The multi-runtime work added digest-aware registry retention, which overlaps P4 for registry images only |
 

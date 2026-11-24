@@ -3,6 +3,7 @@
 Audit then refine: registration/sign-in/recovery, session policy, profile, connected GitHub identity and permission revocation, application stop/deletion, account closure and user-data rights, suspension notices and fair appeals, additional MFA feasibility.
 
 ## Rules
+
 - GitHub disconnect must not silently delete apps; explain update/deploy limitations.
 - Project deletion must distinguish runtime stop, files/logs/env cleanup, domains, external databases and backups; confirm destructive actions.
 - Account deletion needs identity verification, realistic retention/backups exceptions, receipts/status and meaningful user notice. No promise of instant universal erasure.
