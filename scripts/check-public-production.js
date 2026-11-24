@@ -8,12 +8,20 @@ const REQUIRED_COOKIE_ATTRIBUTES = ['secure', 'httponly', 'samesite=lax'];
 const ALLOWED_HEALTH_KEYS = ['commit', 'service', 'status', 'timestamp'];
 const ALLOWED_READY_KEYS = ['checks', 'service', 'status'];
 const REQUIRED_READY_CHECKS = ['email', 'mongodb', 'queue', 'redis'];
-// Loaded only on Learning Hub and policy pages, so the homepage never references them.
+// Loaded only on Learning Hub, policy, auth, admin, deployment and environment pages, so the
+// homepage never references them.
 const PAGE_SCOPED_ASSET_KEYS = new Set([
   'css/learning-hub.css',
   'js/learning-hub.js',
   'css/legal.css',
   'css/auth.css',
+  'css/admin-shell.css',
+  'js/admin-shell.js',
+  'css/admin-ops.css',
+  'js/admin-ops.js',
+  'css/deployment-detail.css',
+  'css/environment.css',
+  'js/environment.js',
 ]);
 
 function exactKeys(value, expected) {
