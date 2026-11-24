@@ -1091,8 +1091,11 @@
     badge.dataset.tooltip = presentation.hint;
   }
 
-  // Matches --motion-normal so the row finishes fading before it is removed.
-  const LEAVE_MS = 220;
+  // Read from --motion-normal so the row finishes fading before it is removed.
+  const LEAVE_MS =
+    Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--motion-normal'),
+    ) || 220;
 
   function removeWithMotion(element) {
     if (
