@@ -37,8 +37,8 @@ finished or moved, so `docs/todo/` no longer exists.
 
 ## Now — code
 
-- **PR #204**: rebase and merge the production-check fix that treats admin bundles as
-  page-scoped (a false failure since 2026-11-05).
+Nothing open. #204 (production check treats admin, deployment and environment bundles as
+page-scoped) merged 2026-11-25. Take the next item from **Next**.
 
 ## Now — owner
 
