@@ -25,7 +25,8 @@ export async function handleResendWebhook(req, res, deps = {}) {
   if (!env.RESEND_WEBHOOK_SECRET) {
     return res.status(503).json({ error: 'Email webhooks are not configured.' });
   }
-  const payload = req.body.toString('utf8');
+  // Express 5 leaves req.body undefined when the content type is not JSON.
+  const payload = Buffer.isBuffer(req.body) ? req.body.toString('utf8') : '';
   try {
     new Webhook(env.RESEND_WEBHOOK_SECRET).verify(payload, {
       'svix-id': req.headers['svix-id'],
