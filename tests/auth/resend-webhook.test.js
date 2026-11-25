@@ -54,6 +54,21 @@ describe('Resend webhook', () => {
     assert.equal(tampered.statusCode, 401);
   });
 
+  it('never queries notifications with a non-string provider message id', async () => {
+    const queries = [];
+    const event = { type: 'email.delivered', data: { email_id: { $ne: null } } };
+    await handleResendWebhook(signedRequest('event-operator', event), response(), {
+      EventModel: { async create() {} },
+      NotificationModel: {
+        async findOne(query) {
+          queries.push(query);
+          return null;
+        },
+      },
+    });
+    assert.deepEqual(queries, []);
+  });
+
   it('maps every supported provider event and records provider time', async () => {
     const mappings = {
       'email.sent': 'SENT',

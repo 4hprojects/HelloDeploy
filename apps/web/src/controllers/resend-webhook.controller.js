@@ -44,7 +44,7 @@ export async function handleResendWebhook(req, res, deps = {}) {
   }
 
   const eventId = req.headers['svix-id'];
-  const providerMessageId = event?.data?.email_id ?? null;
+  const providerMessageId = typeof event?.data?.email_id === 'string' ? event.data.email_id : null;
   try {
     await (deps.EventModel ?? NotificationWebhookEvent).create({
       eventId,
