@@ -67,7 +67,7 @@ export async function saveMonitoringPolicy({
     setting = await PlatformSetting.findOneAndUpdate(
       filter,
       { $set: { value: next, updatedBy: actor.id } },
-      { upsert: before.revision === 0, new: true },
+      { upsert: before.revision === 0, returnDocument: 'after' },
     ).lean();
   } catch (error) {
     // Two first-time saves racing: the loser's upsert hits the unique key.

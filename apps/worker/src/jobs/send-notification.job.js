@@ -82,7 +82,7 @@ export async function handleSendNotification(job, deps = {}) {
       },
     },
     { $set: { status: NotificationStatus.PROCESSING }, $inc: { attemptCount: 1 } },
-    { new: true },
+    { returnDocument: 'after' },
   ).select('+ciphertext +iv +authTag');
   if (!notification) {
     return;

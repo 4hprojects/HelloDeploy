@@ -50,7 +50,7 @@ export async function setCommentSettings(
   await Setting.findOneAndUpdate(
     { key: COMMENT_SETTINGS_KEY },
     { $set: { value, updatedBy: adminId } },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   );
   cached = { ...value, readable: true };
   cachedAt = Date.now();

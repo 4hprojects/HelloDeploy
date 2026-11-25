@@ -68,7 +68,7 @@ export async function acknowledgeIncident({ incidentId, actor, redis = getRedisC
         acknowledgedBy: actor.id,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   await writeAuditEvent({
     action: 'admin.incident_acknowledged',

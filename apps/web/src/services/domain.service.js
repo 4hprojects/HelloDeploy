@@ -227,7 +227,7 @@ export async function requestVerification(domainId, projectId, actorId, opts = {
         operationCompletedAt: null,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   if (!domain) {
     const existing = await Domain.findOne({ _id: domainId, projectId }).lean();
@@ -347,7 +347,7 @@ export async function approveDomain(domainId, adminId, opts = {}) {
         operationCompletedAt: null,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   if (!claimed) {
     return { success: false, error: 'Domain state changed before activation could be queued.' };
@@ -427,7 +427,7 @@ export async function requestDomainActivation(domainId, projectId, actorId, opts
         operationCompletedAt: null,
       },
     },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   if (!domain) {
     return { success: false, error: 'Domain is not ready for activation.' };
@@ -562,7 +562,7 @@ export async function removeDomain(domainId, projectId, actorId, opts = {}) {
           operationCompletedAt: null,
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     ).lean();
     if (!claimed) {
       return { success: false, error: 'Domain state changed before removal could be queued.' };
@@ -908,7 +908,7 @@ function storeCustomHostname(domain, result) {
   return Domain.findOneAndUpdate(
     { _id: domain._id },
     { $set: toCustomHostnameFields(result) },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
 }
 
