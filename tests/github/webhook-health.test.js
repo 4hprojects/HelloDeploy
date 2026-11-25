@@ -92,6 +92,14 @@ describe('GitHub webhook health', () => {
     assert.equal(await getWebhookHealth(null), null);
   });
 
+  it('rejects a delivery whose body was not parsed as raw JSON', async () => {
+    const res = makeRes();
+    await handleGithubWebhook({ ...webhookRequest(), body: undefined }, res, {
+      getRedisConnection: () => fakeRedis(),
+    });
+    assert.equal(res.statusCode, 401);
+  });
+
   it('records a rejected delivery from the webhook handler', async () => {
     const redis = fakeRedis();
     await handleGithubWebhook(webhookRequest('sha256=wrong'), makeRes(), {

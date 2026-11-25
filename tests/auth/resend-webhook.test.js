@@ -42,6 +42,16 @@ describe('Resend webhook', () => {
     assert.equal(bad.statusCode, 401);
   });
 
+  it('rejects a request whose body was not parsed as raw JSON', async () => {
+    const event = { type: 'email.delivered', data: { email_id: 'provider-1' } };
+    const unparsed = response();
+    await handleResendWebhook(
+      { ...signedRequest('event-unparsed', event), body: undefined },
+      unparsed,
+    );
+    assert.equal(unparsed.statusCode, 401);
+  });
+
   it('rejects a body changed after signing', async () => {
     const event = { type: 'email.delivered', data: { email_id: 'provider-1' } };
     const tampered = response();

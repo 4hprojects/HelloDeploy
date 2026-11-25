@@ -384,8 +384,9 @@ export async function handleGithubWebhook(req, res, deps = defaultWebhookDeps) {
   const event = req.headers['x-github-event'];
   const correlationId = req.correlationId;
 
-  // req.body is a Buffer — raw bytes from express.raw()
-  if (!verifyWebhookSignature(req.body, signature)) {
+  // Raw bytes from express.raw(); Express 5 leaves req.body undefined for other content types.
+  const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+  if (!verifyWebhookSignature(rawBody, signature)) {
     // Real GitHub deliveries failing here mean the server's GITHUB_WEBHOOK_SECRET
     // differs from the GitHub App's; nothing else surfaces it.
     logger.error('Webhook: invalid signature rejected', {
@@ -406,7 +407,7 @@ export async function handleGithubWebhook(req, res, deps = defaultWebhookDeps) {
 
   let payload;
   try {
-    payload = JSON.parse(req.body.toString('utf8'));
+    payload = JSON.parse(rawBody.toString('utf8'));
   } catch {
     return res.status(400).json({ error: 'Invalid JSON payload' });
   }

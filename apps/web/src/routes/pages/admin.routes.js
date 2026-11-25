@@ -181,8 +181,11 @@ router.post('/builder/settings', requireBuilderControl, requireSuperAdmin, postB
 // comment and pause submissions: abuse response must not wait for a super admin.
 router.get('/learning-hub', getAdminLearningHub);
 router.post('/learning-hub/settings', postAdminCommentSettings);
+// Express 5 routes take no inline regex, so any other action falls through to 404 here.
+const COMMENT_ACTIONS = new Set(['hide', 'remove', 'restore']);
 router.post(
-  '/learning-hub/comments/:commentId/:action(hide|remove|restore)',
+  '/learning-hub/comments/:commentId/:action',
+  (req, res, next) => (COMMENT_ACTIONS.has(req.params.action) ? next() : next('route')),
   postAdminCommentAction,
 );
 

@@ -62,9 +62,8 @@ page-scoped) merged 2026-11-25. Take the next item from **Next**.
 - **Owner inputs for public pages**: governing law, liability cap, legal review, operator status,
   GitHub App permission list, Search Console, donations
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
-- **Dependency majors**, one PR each, smallest first:
-  Express 5. `npm
-audit` is clean since #242 (2026-11-25), so none of these is a security fix.
+- **Dependency majors**: all done (#246–#254, 2026-11-26). Remaining minor: `argon2` 0.41 →
+  0.45, with a hash-compatibility check first.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
 - **Re-check version-sensitive article facts by 2027-04-30** (Node and npm flags, nginx

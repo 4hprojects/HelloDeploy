@@ -23,6 +23,21 @@ describe('error pages rendered before request locals', () => {
     await stopTestDb();
   });
 
+  it('answers a sign-in sent without a body with a form error, not a 500', async () => {
+    const form = await fetch(`${baseUrl}/auth/sign-in`);
+    const cookie = form.headers
+      .getSetCookie()
+      .map((value) => value.split(';')[0])
+      .join('; ');
+    const csrf = (await form.text()).match(/name="_csrf" value="([^"]+)"/)[1];
+    const res = await fetch(`${baseUrl}/auth/sign-in`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: { cookie, 'x-csrf-token': csrf, accept: 'text/html' },
+    });
+    assert.ok(res.status < 500, `status ${res.status}`);
+  });
+
   it('answers an unauthenticated POST probe with a 403 page, not a 500', async () => {
     const res = await fetch(`${baseUrl}/xmlrpc.php`, {
       method: 'POST',

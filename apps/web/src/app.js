@@ -196,6 +196,12 @@ export function createApp({
   });
   app.use(express.json({ limit: '1mb' }));
   app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+  // Express 5 leaves req.body undefined when no parser matched; controllers read fields
+  // directly, so keep the Express 4 empty object and let validation reject the request.
+  app.use((req, _res, next) => {
+    req.body ??= {};
+    next();
+  });
 
   // ── Deploy hook route — token-authenticated, called by external CI systems
   //    without a browser session, so it must skip session/CSRF middleware.
@@ -285,7 +291,7 @@ export function createApp({
     res.status(404).render('pages/404', { title: 'Page Not Found', layout: 'layouts/main' });
   });
 
-  app.use((err, req, res, _next) => {
+  app.use((err, req, res, next) => {
     logger.error('[web] Unhandled error', {
       message: err.message,
       stack: err.stack,
@@ -293,6 +299,11 @@ export function createApp({
       method: req.method,
       url: req.originalUrl,
     });
+    // A late failure (such as a session write as the response ends) cannot get a second
+    // response; Express's default handler closes the connection instead of throwing.
+    if (res.headersSent) {
+      return next(err);
+    }
     res.status(500).render('pages/error', {
       title: 'Something Went Wrong',
       layout: 'layouts/main',
