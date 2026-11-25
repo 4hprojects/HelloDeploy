@@ -12,6 +12,6 @@
   },
   "dependencies": {
     "@hellodeploy/contracts": "*",
-    "mongoose": "^8.24.9"
+    "mongoose": "^9.13.1"
   }
 }

@@ -223,7 +223,7 @@ export async function linkGoogleAccount({
           emailVerificationExpiresAt: null,
         },
       },
-      { new: true },
+      { returnDocument: 'after' },
     );
     if (!updated) {
       return { success: false, error: 'Google could not be linked. Please start again.' };

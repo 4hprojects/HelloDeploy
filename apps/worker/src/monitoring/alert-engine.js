@@ -332,7 +332,7 @@ export function createAlertEngine({
           },
           $inc: { occurrences: 1 },
         },
-        { new: true, sort: { resolvedAt: -1 } },
+        { returnDocument: 'after', sort: { resolvedAt: -1 } },
       )
       .lean()
       .catch((error) => {
@@ -388,7 +388,7 @@ export function createAlertEngine({
             expiresAt: new Date(at.getTime() + RESOLVED_RETENTION_MS),
           },
         },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean();
     open.delete(fingerprint);
@@ -418,7 +418,7 @@ export function createAlertEngine({
       .findOneAndUpdate(
         { _id: current._id, state: { $in: OPEN_INCIDENT_STATES } },
         { $set: update },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean();
     if (!doc) {
@@ -536,7 +536,7 @@ export function createAlertEngine({
                 $set: { lastSeen: now(), detail: observation.detail, href: observation.href },
                 $inc: { occurrences: 1 },
               },
-              { new: true },
+              { returnDocument: 'after' },
             )
             .lean();
           if (doc) {

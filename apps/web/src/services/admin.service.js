@@ -867,7 +867,7 @@ export async function setQuotaOverride({
         ...(Object.keys(toUnset).length > 0 && { $unset: toUnset }),
         $setOnInsert: { createdBy: adminId },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
     ).lean();
   } else if (existing) {
     // Nothing left to override — drop the document so platform defaults apply.
@@ -1112,7 +1112,7 @@ export async function retryProjectTeardown(
   const teardown = await ProjectTeardown.findOneAndUpdate(
     { _id: teardownId, status: ProjectTeardownStatus.FAILED },
     { $set: { status: ProjectTeardownStatus.PENDING } },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   if (!teardown) {
     return { success: false, error: 'This cleanup is no longer waiting for a retry.' };

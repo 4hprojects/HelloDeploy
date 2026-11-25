@@ -446,7 +446,7 @@ export async function completePasswordReset(
       $inc: { configVersion: 1 },
       $unset: { passwordResetSessionNonceHash: 1, passwordResetSessionExpiresAt: 1 },
     },
-    { new: true },
+    { returnDocument: 'after' },
   );
 
   if (!user) {

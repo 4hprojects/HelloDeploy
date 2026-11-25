@@ -106,7 +106,7 @@ export async function changeCommentStatus(
   const result = await Comment.findOneAndUpdate(
     { _id: commentId, status: { $in: transition.from } },
     { $set: update },
-    { new: true },
+    { returnDocument: 'after' },
   ).lean();
   if (!result) {
     return { changed: false, reason: 'not_allowed' };

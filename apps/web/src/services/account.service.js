@@ -29,7 +29,7 @@ export async function updateProfile({ userId, firstName, lastName, sourceIp, cor
   const user = await User.findOneAndUpdate(
     { _id: userId, status: UserStatus.ACTIVE },
     { $set: { firstName, lastName } },
-    { new: true, runValidators: true },
+    { returnDocument: 'after', runValidators: true },
   );
   if (!user) {
     return { success: false, error: 'Your account could not be updated.' };
@@ -125,7 +125,7 @@ export async function requestAccountClosure(
   const user = await User.findOneAndUpdate(
     { _id: userId, status: UserStatus.ACTIVE, closureRequestedAt: null },
     { $set: { closureRequestedAt: new Date() } },
-    { new: true },
+    { returnDocument: 'after' },
   );
   if (!user) {
     return { success: false, error: 'A closure request is already open for this account.' };

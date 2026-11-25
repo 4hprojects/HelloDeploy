@@ -15,9 +15,11 @@ export const PLATFORM_MANAGED_NAME_ERROR =
 // missing field is treated as 1; a plain $inc would set it to 1 and the first
 // change after the upgrade would look like no change.
 async function bumpEnvironmentVersion(projectId) {
-  await Project.updateOne({ _id: projectId }, [
-    { $set: { environmentVersion: { $add: [{ $ifNull: ['$environmentVersion', 1] }, 1] } } },
-  ]);
+  await Project.updateOne(
+    { _id: projectId },
+    [{ $set: { environmentVersion: { $add: [{ $ifNull: ['$environmentVersion', 1] }, 1] } } }],
+    { updatePipeline: true },
+  );
 }
 
 export function validateSecretName(name) {
@@ -434,7 +436,7 @@ export async function setSecret(projectId, name, value, actorId, opts = {}) {
       },
       $setOnInsert: { createdBy: actorId },
     },
-    { upsert: true, new: true },
+    { upsert: true, returnDocument: 'after' },
   );
 
   await writeAuditEvent({

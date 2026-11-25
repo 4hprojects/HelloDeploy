@@ -47,7 +47,7 @@ export async function setMaintenanceMode({
         updatedBy: adminId,
       },
     },
-    { upsert: true, new: true, setDefaultsOnInsert: true },
+    { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
   ).lean();
 
   await writeAuditEvent({
