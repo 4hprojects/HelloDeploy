@@ -6,7 +6,7 @@
   "main": "src/index.js",
   "dependencies": {
     "@hellodeploy/contracts": "*",
-    "bullmq": "^5.56.0",
-    "ioredis": "^5.4.2"
+    "bullmq": "^6.7.10",
+    "ioredis": "^6.1.0"
   }
 }

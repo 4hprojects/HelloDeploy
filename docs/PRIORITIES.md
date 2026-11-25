@@ -63,7 +63,7 @@ page-scoped) merged 2026-11-25. Take the next item from **Next**.
   GitHub App permission list, Search Console, donations
   ([USER_INPUT_REQUIRED.md](implementation/USER_INPUT_REQUIRED.md)).
 - **Dependency majors**, one PR each, smallest first:
-  ioredis 6 with BullMQ 6, Mongoose 9, Express 5. `npm
+  Mongoose 9, Express 5. `npm
 audit` is clean since #242 (2026-11-25), so none of these is a security fix.
 - **Acceptance evidence**: #65 (UI/UX sessions), #66 (runtime pilot matrix), then the final
   GO or NO-GO in #68.
