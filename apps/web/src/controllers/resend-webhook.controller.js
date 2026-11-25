@@ -25,16 +25,22 @@ export async function handleResendWebhook(req, res, deps = {}) {
   if (!env.RESEND_WEBHOOK_SECRET) {
     return res.status(503).json({ error: 'Email webhooks are not configured.' });
   }
-  let event;
+  const payload = req.body.toString('utf8');
   try {
-    const verifier = deps.verifier ?? new Webhook(env.RESEND_WEBHOOK_SECRET);
-    event = verifier.verify(req.body.toString('utf8'), {
+    new Webhook(env.RESEND_WEBHOOK_SECRET).verify(payload, {
       'svix-id': req.headers['svix-id'],
       'svix-timestamp': req.headers['svix-timestamp'],
       'svix-signature': req.headers['svix-signature'],
     });
   } catch {
     return res.status(401).json({ error: 'Invalid signature.' });
+  }
+  // svix 2 only verifies; it no longer returns the parsed payload.
+  let event;
+  try {
+    event = JSON.parse(payload);
+  } catch {
+    return res.status(400).json({ error: 'Invalid payload.' });
   }
 
   const eventId = req.headers['svix-id'];
