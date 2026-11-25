@@ -14,6 +14,8 @@ import { JobRetryPolicy } from '@hellodeploy/contracts';
 export function createRedisConnection(config) {
   const { connection } = resolveRedisConnectionConfig(config);
   const options = {
+    // ioredis 6 defaults to RESP3; keep RESP2 so replies and pub/sub behave as before.
+    protocol: 2,
     maxRetriesPerRequest: null,
     enableReadyCheck: false,
     lazyConnect: false,
