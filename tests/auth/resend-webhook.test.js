@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-process.env.RESEND_WEBHOOK_SECRET = 'whsec_test';
+import { Webhook } from 'svix';
+
+const SECRET = `whsec_${Buffer.from('resend-webhook-test-secret-32by').toString('base64')}`;
+process.env.RESEND_WEBHOOK_SECRET = SECRET;
 const { handleResendWebhook } =
   await import('../../apps/web/src/controllers/resend-webhook.controller.js');
 
@@ -20,32 +23,50 @@ function response() {
   };
 }
 
-function request(eventId = 'event-1') {
+function signedRequest(eventId, event, { body = JSON.stringify(event) } = {}) {
+  const sentAt = new Date();
   return {
-    body: Buffer.from('{}'),
+    body: Buffer.from(body),
     headers: {
       'svix-id': eventId,
-      'svix-timestamp': '1',
-      'svix-signature': 'signature',
+      'svix-timestamp': String(Math.floor(sentAt.getTime() / 1000)),
+      'svix-signature': new Webhook(SECRET).sign(eventId, sentAt, JSON.stringify(event)),
     },
   };
-}
-
-function verifier(event) {
-  return { verify: () => event };
 }
 
 describe('Resend webhook', () => {
   it('rejects invalid signatures', async () => {
     const bad = response();
-    await handleResendWebhook({ body: Buffer.from('{}'), headers: {} }, bad, {
-      verifier: {
-        verify() {
-          throw new Error('bad');
+    await handleResendWebhook({ body: Buffer.from('{}'), headers: {} }, bad);
+    assert.equal(bad.statusCode, 401);
+  });
+
+  it('rejects a body changed after signing', async () => {
+    const event = { type: 'email.delivered', data: { email_id: 'provider-1' } };
+    const tampered = response();
+    await handleResendWebhook(
+      signedRequest('event-tampered', event, {
+        body: JSON.stringify({ ...event, type: 'email.bounced' }),
+      }),
+      tampered,
+    );
+    assert.equal(tampered.statusCode, 401);
+  });
+
+  it('never queries notifications with a non-string provider message id', async () => {
+    const queries = [];
+    const event = { type: 'email.delivered', data: { email_id: { $ne: null } } };
+    await handleResendWebhook(signedRequest('event-operator', event), response(), {
+      EventModel: { async create() {} },
+      NotificationModel: {
+        async findOne(query) {
+          queries.push(query);
+          return null;
         },
       },
     });
-    assert.equal(bad.statusCode, 401);
+    assert.deepEqual(queries, []);
   });
 
   it('maps every supported provider event and records provider time', async () => {
@@ -61,8 +82,8 @@ describe('Resend webhook', () => {
       const updates = [];
       const occurredAt = '2026-10-08T00:00:00.000Z';
       const ok = response();
-      await handleResendWebhook(request(`event-${expected}`), ok, {
-        verifier: verifier({ type, created_at: occurredAt, data: { email_id: 'provider-1' } }),
+      const event = { type, created_at: occurredAt, data: { email_id: 'provider-1' } };
+      await handleResendWebhook(signedRequest(`event-${expected}`, event), ok, {
         EventModel: { async create() {} },
         NotificationModel: {
           async findOne() {
@@ -87,18 +108,21 @@ describe('Resend webhook', () => {
   it('deduplicates replayed events and ignores unknown messages and stale events', async () => {
     const updates = [];
     const duplicate = response();
-    await handleResendWebhook(request('event-replay'), duplicate, {
-      verifier: verifier({
+    await handleResendWebhook(
+      signedRequest('event-replay', {
         type: 'email.delivered',
         created_at: new Date().toISOString(),
         data: { email_id: 'provider-1' },
       }),
-      EventModel: {
-        async create() {
-          throw Object.assign(new Error('duplicate'), { code: 11000 });
+      duplicate,
+      {
+        EventModel: {
+          async create() {
+            throw Object.assign(new Error('duplicate'), { code: 11000 });
+          },
         },
       },
-    });
+    );
     assert.deepEqual(duplicate.body, { ok: true, duplicate: true });
 
     const NotificationModel = {
@@ -109,15 +133,18 @@ describe('Resend webhook', () => {
         updates.push({ query, update });
       },
     };
-    await handleResendWebhook(request('event-unknown'), response(), {
-      verifier: verifier({
+    await handleResendWebhook(
+      signedRequest('event-unknown', {
         type: 'email.delivered',
         created_at: new Date().toISOString(),
         data: { email_id: 'unknown-provider-id' },
       }),
-      EventModel: { async create() {} },
-      NotificationModel,
-    });
+      response(),
+      {
+        EventModel: { async create() {} },
+        NotificationModel,
+      },
+    );
     const staleModel = {
       async findOne() {
         return { _id: 'notification-1', status: 'DELIVERED' };
@@ -126,15 +153,18 @@ describe('Resend webhook', () => {
         updates.push({ query, update });
       },
     };
-    await handleResendWebhook(request('event-stale'), response(), {
-      verifier: verifier({
+    await handleResendWebhook(
+      signedRequest('event-stale', {
         type: 'email.sent',
         created_at: new Date().toISOString(),
         data: { email_id: 'provider-1' },
       }),
-      EventModel: { async create() {} },
-      NotificationModel: staleModel,
-    });
+      response(),
+      {
+        EventModel: { async create() {} },
+        NotificationModel: staleModel,
+      },
+    );
     assert.equal(updates.length, 0);
   });
 });
