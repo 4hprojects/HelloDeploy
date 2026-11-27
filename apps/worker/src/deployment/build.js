@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { access, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
-import { homedir } from 'node:os';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { isIsolatedBuilderEndpoint } from '@hellodeploy/contracts';
 import { logger } from '@hellodeploy/observability';
@@ -367,31 +367,58 @@ export async function inspectLocalImageDigest(imageTag) {
  * Create the dedicated memory-limited buildx builder when it does not exist.
  * Builder definitions live in the invoking user's Docker config, so the worker
  * must create its own. An existing builder is left untouched: after changing
- * the memory limit an operator removes it (`docker buildx rm <name>`) and the
- * next worker start recreates it.
+ * the memory limit or DNS servers an operator removes it
+ * (`docker buildx rm <name>`) and the next worker start recreates it.
+ *
+ * `dnsServers` pins the builder's resolvers. Without it the builder keeps the
+ * host's upstream resolvers from when it last started, and pulls fail when
+ * those go down even though the host itself fails over.
  *
  * @returns {Promise<{ created: boolean }>}
  */
-export async function ensureBuildBuilder({ name, memoryMb }, deps = { run: runDocker }) {
+export async function ensureBuildBuilder(
+  { name, memoryMb, dnsServers = [] },
+  deps = { run: runDocker },
+) {
   const inspect = await deps.run(['buildx', 'inspect', name]);
   if (inspect.code === 0) {
     return { created: false };
   }
 
-  const create = await deps.run([
-    'buildx',
-    'create',
-    '--name',
-    name,
-    '--driver',
-    'docker-container',
-    '--driver-opt',
-    `memory=${memoryMb}m`,
-    // Equal to memory: the build may not escape the limit through swap.
-    '--driver-opt',
-    `memory-swap=${memoryMb}m`,
-    '--bootstrap',
-  ]);
+  // buildx copies the config into the builder at create time, so it can go afterwards.
+  const configDir = dnsServers.length > 0 ? await mkdtemp(join(tmpdir(), 'hd-buildkitd-')) : null;
+  let create;
+  try {
+    const configArgs = [];
+    if (configDir) {
+      const configPath = join(configDir, 'buildkitd.toml');
+      await writeFile(
+        configPath,
+        `[dns]\n  nameservers = [${dnsServers.map((server) => JSON.stringify(server)).join(', ')}]\n`,
+        'utf8',
+      );
+      configArgs.push('--buildkitd-config', configPath);
+    }
+    create = await deps.run([
+      'buildx',
+      'create',
+      '--name',
+      name,
+      '--driver',
+      'docker-container',
+      '--driver-opt',
+      `memory=${memoryMb}m`,
+      // Equal to memory: the build may not escape the limit through swap.
+      '--driver-opt',
+      `memory-swap=${memoryMb}m`,
+      ...configArgs,
+      '--bootstrap',
+    ]);
+  } finally {
+    if (configDir) {
+      await rm(configDir, { recursive: true, force: true });
+    }
+  }
   if (create.code !== 0) {
     throw new Error(
       `Could not create build builder ${name}: ${create.stderr.trim().slice(0, 500)}`,
