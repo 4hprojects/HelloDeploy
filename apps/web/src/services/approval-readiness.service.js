@@ -18,6 +18,23 @@ const SUPPORTED_RUNTIMES = new Set([
 // No server process runs at runtime, so the blast radius is static files behind nginx.
 const LOW_RISK_RUNTIMES = new Set([RuntimeType.STATIC, RuntimeType.REACT, RuntimeType.VUE]);
 
+// Static sites are the usual phishing vehicle, so an untrusted owner's site is
+// approved on submit only when its repository was plainly worked on. GitHub sets
+// both creation dates; the commit count can be scripted and is only one signal.
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MIN_REPOSITORY_AGE_MS = 7 * DAY_MS;
+const MIN_GITHUB_ACCOUNT_AGE_MS = 30 * DAY_MS;
+const MIN_BRANCH_COMMITS = 5;
+
+export function isLowRiskRuntime(runtimeType) {
+  return LOW_RISK_RUNTIMES.has(runtimeType);
+}
+
+export const REPOSITORY_HISTORY_BLOCKERS = Object.freeze([
+  'repository_history',
+  'repository_history_unavailable',
+]);
+
 const DETECTION_ISSUE_FINDINGS = Object.freeze({
   ERROR: { label: 'Application check issue', status: 'BLOCKING' },
   WARNING: { label: 'Application check recommendation', status: 'WARNING' },
@@ -177,7 +194,14 @@ export function assessInitialApprovalReadiness({
  * Returns reason codes either way so the audit trail shows why a project was or
  * was not approved automatically.
  */
-export function assessAutoApprovalEligibility({ project, readiness, owner, hasPriorApproval }) {
+export function assessAutoApprovalEligibility({
+  project,
+  readiness,
+  owner,
+  hasPriorApproval,
+  repositoryHistory = null,
+  now = new Date(),
+}) {
   const blockers = [];
   if (!readiness.isReady) {
     blockers.push('not_ready');
@@ -198,8 +222,16 @@ export function assessAutoApprovalEligibility({ project, readiness, owner, hasPr
   }
 
   const isLowRiskRuntime = LOW_RISK_RUNTIMES.has(project.runtimeType);
-  if (!isLowRiskRuntime && trustReasons.length === 0) {
+  const isUntrusted = trustReasons.length === 0;
+  if (!isLowRiskRuntime && isUntrusted) {
     blockers.push('server_runtime_untrusted_owner');
+  }
+  if (isLowRiskRuntime && isUntrusted) {
+    if (!repositoryHistory) {
+      blockers.push('repository_history_unavailable');
+    } else if (!isEstablishedRepository(repositoryHistory, now)) {
+      blockers.push('repository_history');
+    }
   }
 
   if (blockers.length > 0) {
@@ -207,8 +239,23 @@ export function assessAutoApprovalEligibility({ project, readiness, owner, hasPr
   }
   return {
     isEligible: true,
-    reasons: [...(isLowRiskRuntime ? ['low_risk_runtime'] : []), ...trustReasons],
+    reasons: [
+      ...(isLowRiskRuntime ? ['low_risk_runtime'] : []),
+      ...(isLowRiskRuntime && isUntrusted ? ['established_repository'] : []),
+      ...trustReasons,
+    ],
   };
+}
+
+function isEstablishedRepository(history, now) {
+  const isOlderThan = (date, minimumMs) =>
+    date instanceof Date && now.getTime() - date.getTime() >= minimumMs;
+  return (
+    isOlderThan(history.repoCreatedAt, MIN_REPOSITORY_AGE_MS) &&
+    isOlderThan(history.ownerCreatedAt, MIN_GITHUB_ACCOUNT_AGE_MS) &&
+    !history.isFork &&
+    history.commitCount >= MIN_BRANCH_COMMITS
+  );
 }
 
 export function isApprovalSnapshotCurrent({

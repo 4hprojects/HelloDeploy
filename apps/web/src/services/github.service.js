@@ -394,6 +394,84 @@ export async function getLatestCommit(installationId, fullName, branch) {
   };
 }
 
+/**
+ * Signals that the code behind a repository was really worked on, used by the
+ * automatic approval decision. GitHub sets both creation dates, so an owner
+ * cannot backdate them; the commit count can be scripted and is only one signal.
+ * Uses the installation token when the repository came through the GitHub App.
+ *
+ * @returns {Promise<{ repoCreatedAt: Date|null, ownerCreatedAt: Date|null, isFork: boolean, commitCount: number }>}
+ */
+export async function getRepositoryHistory(repository, branch) {
+  if (!isSafeBranchName(branch)) {
+    throw new RepositorySourceError('BRANCH_NOT_FOUND', 'Select a valid repository branch.');
+  }
+  const [owner, repo] = splitFullName(repository.fullName);
+  const headers = {
+    Accept: 'application/vnd.github+json',
+    'X-GitHub-Api-Version': '2022-11-28',
+    'User-Agent': 'hellodeploy',
+  };
+  if (repository.installationId) {
+    headers.Authorization = `Bearer ${await getInstallationToken(repository.installationId)}`;
+  }
+
+  const repoPath = `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+  const [repoInfo, commits] = await Promise.all([
+    fetchGithubWithLink(repoPath, headers),
+    fetchGithubWithLink(
+      `${repoPath}/commits?sha=${encodeURIComponent(branch)}&per_page=1`,
+      headers,
+    ),
+  ]);
+  const ownerLogin = repoInfo.data.owner?.login ?? owner;
+  const ownerInfo = await fetchGithubWithLink(`/users/${encodeURIComponent(ownerLogin)}`, headers);
+
+  return {
+    repoCreatedAt: toValidDate(repoInfo.data.created_at),
+    ownerCreatedAt: toValidDate(ownerInfo.data.created_at),
+    isFork: repoInfo.data.fork === true,
+    commitCount: countFromLastPage(commits.link, commits.data),
+  };
+}
+
+async function fetchGithubWithLink(path, headers) {
+  let res;
+  try {
+    res = await fetch(`https://api.github.com${path}`, {
+      redirect: 'error',
+      signal: AbortSignal.timeout(PUBLIC_GITHUB_TIMEOUT_MS),
+      headers,
+    });
+  } catch {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      'The repository could not be checked. Try again.',
+    );
+  }
+  if (!res.ok) {
+    throw new RepositorySourceError(
+      'REPOSITORY_UNAVAILABLE',
+      `GitHub repository history request failed (${res.status}).`,
+    );
+  }
+  return { data: await readBoundedJson(res), link: res.headers.get('link') };
+}
+
+// With per_page=1, the page number of the "last" link is the total item count.
+function countFromLastPage(link, data) {
+  const match = /[?&]page=(\d+)[^>]*>;\s*rel="last"/.exec(link ?? '');
+  if (match) {
+    return Number.parseInt(match[1], 10);
+  }
+  return Array.isArray(data) ? data.length : 0;
+}
+
+function toValidDate(value) {
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
 // ─── Webhook signature verification ───────────────────────────────────────────
 
 /**

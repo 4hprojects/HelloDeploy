@@ -22,6 +22,15 @@ import { updateUserApprovalTrust } from '../../apps/web/src/services/admin.servi
 
 const COMMIT = 'c'.repeat(40);
 const PURPOSE = 'Shows the opening hours and menu for a neighbourhood cafe.';
+const YEAR_AGO = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000);
+// GitHub is a system boundary: each test states the repository history it sees.
+const ESTABLISHED_HISTORY = Object.freeze({
+  repoCreatedAt: YEAR_AGO,
+  ownerCreatedAt: YEAR_AGO,
+  isFork: false,
+  commitCount: 40,
+});
+const establishedRepository = async () => ESTABLISHED_HISTORY;
 
 async function createOwner(overrides = {}) {
   return User.create({
@@ -76,10 +85,10 @@ async function createReadyProject({
   return project;
 }
 
-function submit(project, deps = { isAutoApprovalEnabled: true }) {
+function submit(project, deps = {}) {
   return submitForReview(
     { projectId: project._id, actorId: project.ownerId, purpose: PURPOSE },
-    deps,
+    { isAutoApprovalEnabled: true, getRepositoryHistory: establishedRepository, ...deps },
   );
 }
 
@@ -131,7 +140,7 @@ describe('automatic project approval on submit', () => {
         status: ApprovalStatus.APPROVED,
         isAutoApproved: true,
         reviewedBy: null,
-        reasons: ['low_risk_runtime'],
+        reasons: ['low_risk_runtime', 'established_repository'],
       },
     );
   });
@@ -178,6 +187,56 @@ describe('automatic project approval on submit', () => {
 
     const request = await ApprovalRequest.findOne({ projectId: project._id }).lean();
     assert.equal(request.status, ApprovalStatus.PENDING);
+  });
+
+  it('queues a static site whose repository was created this week', async () => {
+    const owner = await createOwner();
+    const project = await createReadyProject({
+      ownerId: owner._id,
+      runtimeType: RuntimeType.STATIC,
+    });
+
+    await submit(project, {
+      getRepositoryHistory: async () => ({ ...ESTABLISHED_HISTORY, repoCreatedAt: new Date() }),
+    });
+
+    const request = await ApprovalRequest.findOne({ projectId: project._id }).lean();
+    assert.deepEqual(
+      { status: request.status, blockers: request.autoApprovalBlockers },
+      { status: ApprovalStatus.PENDING, blockers: ['repository_history'] },
+    );
+  });
+
+  it('keeps the repository history on a queued request for the reviewer', async () => {
+    const owner = await createOwner();
+    const project = await createReadyProject({
+      ownerId: owner._id,
+      runtimeType: RuntimeType.STATIC,
+    });
+
+    await submit(project, {
+      getRepositoryHistory: async () => ({ ...ESTABLISHED_HISTORY, commitCount: 1 }),
+    });
+
+    const request = await ApprovalRequest.findOne({ projectId: project._id }).lean();
+    assert.equal(request.repositoryHistory.commitCount, 1);
+  });
+
+  it('queues a static site when GitHub cannot be reached', async () => {
+    const owner = await createOwner();
+    const project = await createReadyProject({
+      ownerId: owner._id,
+      runtimeType: RuntimeType.STATIC,
+    });
+
+    await submit(project, {
+      getRepositoryHistory: async () => {
+        throw new Error('GitHub repository history request failed (503).');
+      },
+    });
+
+    const request = await ApprovalRequest.findOne({ projectId: project._id }).lean();
+    assert.deepEqual(request.autoApprovalBlockers, ['repository_history_unavailable']);
   });
 
   it('queues every submission when automatic approval is off', async () => {

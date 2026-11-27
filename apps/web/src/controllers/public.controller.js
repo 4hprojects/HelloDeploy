@@ -411,6 +411,10 @@ const FAQ = Object.freeze([
     'Does a failed deployment take down my live release?',
     'No; traffic stays on the previous healthy release.',
   ],
+  [
+    'How is my project approved?',
+    'Every project passes automated readiness checks before its first deployment. Static, React, and Vue sites from an established GitHub repository with a real commit history can be approved immediately. Other projects, and sites from new repositories, are reviewed by an administrator first.',
+  ],
   ['Are there paid plans?', 'No. HelloDeploy is free during the pilot and nothing is for sale.'],
   [
     'Who owns the code I deploy?',

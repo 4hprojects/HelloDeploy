@@ -18,7 +18,10 @@ import {
 import { logger, writeAuditEvent } from '@hellodeploy/observability';
 
 import { env } from '../config/env.js';
-import { isApprovalSnapshotCurrent } from './approval-readiness.service.js';
+import {
+  REPOSITORY_HISTORY_BLOCKERS,
+  isApprovalSnapshotCurrent,
+} from './approval-readiness.service.js';
 import { queueEmailNotification } from './notification.service.js';
 
 export const PROVISIONAL_APPROVAL_DELAY_MS = 30 * 60 * 1000;
@@ -76,6 +79,8 @@ export async function approveOverdueRequests({ now = new Date() } = {}) {
     status: ApprovalStatus.PENDING,
     requestType: 'INITIAL_DEPLOYMENT',
     createdAt: { $lte: new Date(now.getTime() - PROVISIONAL_APPROVAL_DELAY_MS) },
+    // A static site from an unproven repository is the phishing pattern; an admin decides.
+    autoApprovalBlockers: { $nin: REPOSITORY_HISTORY_BLOCKERS },
   }).lean();
 
   let approved = 0;

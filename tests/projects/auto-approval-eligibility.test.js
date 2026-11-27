@@ -6,27 +6,80 @@ import { assessAutoApprovalEligibility } from '../../apps/web/src/services/appro
 
 const READY = { isReady: true, findings: [{ code: 'repository_access', status: 'PASS' }] };
 const FREE_OWNER = { accountTier: AccountTier.FREE, isTrustedForAutoApproval: false };
+const NOW = new Date('2026-11-27T12:00:00Z');
+const daysAgo = (days) => new Date(NOW.getTime() - days * 24 * 60 * 60 * 1000);
+const ESTABLISHED = Object.freeze({
+  repoCreatedAt: daysAgo(7),
+  ownerCreatedAt: daysAgo(30),
+  isFork: false,
+  commitCount: 5,
+});
 
 function assess({
   runtimeType = RuntimeType.NODEJS,
   readiness = READY,
   owner = FREE_OWNER,
   hasPriorApproval = false,
+  repositoryHistory = ESTABLISHED,
 } = {}) {
   return assessAutoApprovalEligibility({
     project: { runtimeType },
     readiness,
     owner,
     hasPriorApproval,
+    repositoryHistory,
+    now: NOW,
+  });
+}
+
+function assessStatic(history) {
+  return assess({
+    runtimeType: RuntimeType.STATIC,
+    repositoryHistory: history === null ? null : { ...ESTABLISHED, ...history },
   });
 }
 
 describe('assessAutoApprovalEligibility', () => {
-  it('approves a static site from a free first-time owner', () => {
+  it('approves a static site from an established repository', () => {
     assert.deepEqual(assess({ runtimeType: RuntimeType.STATIC }), {
       isEligible: true,
-      reasons: ['low_risk_runtime'],
+      reasons: ['low_risk_runtime', 'established_repository'],
     });
+  });
+
+  it('queues a static site from a repository younger than 7 days', () => {
+    assert.deepEqual(assessStatic({ repoCreatedAt: daysAgo(6) }).reasons, ['repository_history']);
+  });
+
+  it('queues a static site from a GitHub account younger than 30 days', () => {
+    assert.deepEqual(assessStatic({ ownerCreatedAt: daysAgo(29) }).reasons, ['repository_history']);
+  });
+
+  it('queues a static site from a forked repository', () => {
+    assert.deepEqual(assessStatic({ isFork: true }).reasons, ['repository_history']);
+  });
+
+  it('queues a static site with fewer than 5 commits on its branch', () => {
+    assert.deepEqual(assessStatic({ commitCount: 4 }).reasons, ['repository_history']);
+  });
+
+  it('queues a static site whose repository creation date is unknown', () => {
+    assert.deepEqual(assessStatic({ repoCreatedAt: null }).reasons, ['repository_history']);
+  });
+
+  it('queues a static site when repository history could not be read', () => {
+    assert.deepEqual(assessStatic(null).reasons, ['repository_history_unavailable']);
+  });
+
+  it('approves a static site from a trusted owner without repository history', () => {
+    assert.deepEqual(
+      assess({
+        runtimeType: RuntimeType.STATIC,
+        owner: { accountTier: AccountTier.FREE, isTrustedForAutoApproval: true },
+        repositoryHistory: null,
+      }),
+      { isEligible: true, reasons: ['low_risk_runtime', 'trusted_owner'] },
+    );
   });
 
   it('approves a React site from a free first-time owner', () => {
