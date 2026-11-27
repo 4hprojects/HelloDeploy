@@ -138,10 +138,13 @@ async function getQueueStats(queue) {
 
 async function getRunningContainerCount() {
   try {
-    return Deployment.countDocuments({
+    // Superseded releases kept for rollback stay HEALTHY with their old
+    // container id, so count projects rather than deployment records.
+    const projectIds = await Deployment.distinct('projectId', {
       status: DeploymentStatus.HEALTHY,
       activeContainerId: { $ne: null },
     });
+    return projectIds.length;
   } catch {
     return null;
   }

@@ -56,6 +56,22 @@ describe('admin.service — getQuotaConsumption', () => {
     assert.equal(usage.runningApps, 1);
   });
 
+  it('counts a project once when retained releases still hold a container id', async () => {
+    const ownerId = objectId();
+    const project = await createProject({ ownerId });
+    await createDeployment(project._id, {
+      status: DeploymentStatus.HEALTHY,
+      activeContainerId: 'c-retained',
+    });
+    await createDeployment(project._id, {
+      sequenceNumber: 2,
+      status: DeploymentStatus.HEALTHY,
+      activeContainerId: 'c-live',
+    });
+    const usage = await getQuotaConsumption(QuotaScope.USER, ownerId);
+    assert.equal(usage.runningApps, 1);
+  });
+
   it('counts project members for the PROJECT scope', async () => {
     const project = await createProject();
     await ProjectMembership.create({

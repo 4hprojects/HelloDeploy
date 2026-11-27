@@ -40,7 +40,7 @@ import { initiatePasswordReset, resendVerificationEmail } from './auth.service.j
 import { queueEmailNotification } from './notification.service.js';
 import { deleteProject } from './project.service.js';
 import { revokeUserSessions } from './session-revocation.service.js';
-import { countDeploymentsThisMonth } from './quota.service.js';
+import { countDeploymentsThisMonth, countRunningApps } from './quota.service.js';
 
 const ADMIN_SEARCH_MAX_LENGTH = 200;
 
@@ -978,11 +978,7 @@ export async function getQuotaConsumption(scopeType, scopeId) {
     const projectIds = projects.map((project) => project._id);
     const [ownedProjects, runningApps, customDomains] = await Promise.all([
       Project.countDocuments({ ownerId: scopeId, status: { $ne: ProjectStatus.ARCHIVED } }),
-      Deployment.countDocuments({
-        projectId: { $in: projectIds },
-        status: DeploymentStatus.HEALTHY,
-        activeContainerId: { $ne: null },
-      }),
+      countRunningApps(scopeId),
       Domain.countDocuments({
         projectId: { $in: projectIds },
         status: { $ne: DomainStatus.REMOVED },
