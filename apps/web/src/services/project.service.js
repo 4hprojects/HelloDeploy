@@ -44,7 +44,9 @@ import { checkCanCreateProject, checkCanAddMember } from './quota.service.js';
 import {
   assessAutoApprovalEligibility,
   assessInitialApprovalReadiness,
+  isLowRiskRuntime,
 } from './approval-readiness.service.js';
+import { getRepositoryHistory } from './github.service.js';
 import { notifyAdminsOfPendingReview } from './provisional-approval.service.js';
 import { releaseCustomHostname } from './domain.service.js';
 import { recordProductEvent } from './product-analytics.service.js';
@@ -767,8 +769,17 @@ export async function submitForReview(
     validationFindings: readiness.findings,
   };
 
+  let queuedFields = {};
   if (isAutoApprovalEnabled) {
-    const autoApproval = await tryAutoApprove({ project, readiness, snapshot });
+    const { request: autoApproval, ...decision } = await tryAutoApprove({
+      project,
+      repository,
+      readiness,
+      snapshot,
+      readHistory: deps.getRepositoryHistory ?? getRepositoryHistory,
+      correlationId,
+    });
+    queuedFields = decision;
     if (autoApproval) {
       await writeAuditEvent({
         action: 'project.auto_approved',
@@ -792,7 +803,7 @@ export async function submitForReview(
 
   let request;
   try {
-    request = await ApprovalRequest.create(snapshot);
+    request = await ApprovalRequest.create({ ...snapshot, ...queuedFields });
   } catch (err) {
     if (err?.code === 11000) {
       return { success: false, error: 'A review request is already pending for this project.' };
@@ -828,28 +839,41 @@ export async function submitForReview(
 
 /**
  * Approve a ready submission without an admin when the owner and runtime qualify.
- * Returns the approved request, or null when the project must go to the queue.
+ * Returns the approved request (null when the project must go to the queue),
+ * plus the blockers and repository history to keep on a queued request.
  */
-async function tryAutoApprove({ project, readiness, snapshot }) {
+async function tryAutoApprove({
+  project,
+  repository,
+  readiness,
+  snapshot,
+  readHistory,
+  correlationId,
+}) {
   const ownedProjectIds = await Project.find({
     ownerId: project.ownerId,
     _id: { $ne: project._id },
   }).distinct('_id');
-  const [owner, hasPriorApproval] = await Promise.all([
+  const [owner, hasPriorApproval, repositoryHistory] = await Promise.all([
     User.findById(project.ownerId).select('accountTier isTrustedForAutoApproval').lean(),
     ApprovalRequest.exists({
       projectId: { $in: ownedProjectIds },
       status: ApprovalStatus.APPROVED,
     }),
+    // Only static-site approval depends on it; skip GitHub calls for server apps.
+    isLowRiskRuntime(project.runtimeType)
+      ? readRepositoryHistory({ project, repository, readHistory, correlationId })
+      : null,
   ]);
   const eligibility = assessAutoApprovalEligibility({
     project,
     readiness,
     owner,
     hasPriorApproval: Boolean(hasPriorApproval),
+    repositoryHistory,
   });
   if (!eligibility.isEligible) {
-    return null;
+    return { request: null, autoApprovalBlockers: eligibility.reasons, repositoryHistory };
   }
 
   const session = await mongoose.startSession();
@@ -874,6 +898,7 @@ async function tryAutoApprove({ project, readiness, snapshot }) {
             reviewedAt: new Date(),
             isAutoApproved: true,
             autoApprovalReasons: eligibility.reasons,
+            repositoryHistory,
           },
         ],
         { session },
@@ -882,7 +907,25 @@ async function tryAutoApprove({ project, readiness, snapshot }) {
   } finally {
     await session.endSession();
   }
-  return request;
+  return { request, autoApprovalBlockers: [], repositoryHistory };
+}
+
+// A GitHub outage must not fail the submission; the request just goes to an admin.
+async function readRepositoryHistory({ project, repository, readHistory, correlationId }) {
+  if (!repository) {
+    return null;
+  }
+  try {
+    const history = await readHistory(repository, project.productionBranch);
+    return { ...history, checkedAt: new Date() };
+  } catch (err) {
+    logger.warn('Approval: could not read repository history', {
+      projectId: project._id.toString(),
+      error: err.message,
+      correlationId,
+    });
+    return null;
+  }
 }
 
 // ─── Membership ────────────────────────────────────────────────────────────────

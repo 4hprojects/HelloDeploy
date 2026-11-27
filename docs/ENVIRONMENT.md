@@ -158,9 +158,20 @@ Upper bounds an admin quota override may set, so a typo can't give one app more 
 | ----------------------- | --------------- | ------- | ------------------------------------------------------------------------------ |
 | `AUTO_APPROVAL_ENABLED` | no              | `false` | When `true`, low-risk project submissions are approved without an admin review |
 
-With the flag on, a submission that passes every readiness check and has no application-check warnings is approved on submit when it is a static, React, or Vue site, or when the owner is trusted: a Premium account, marked trusted by an admin on `/admin/users/:userId`, or already has an approved project. Everything else still waits in `/admin/approval-requests`. Each automatic approval writes a `project.auto_approved` audit event with its reasons.
+With the flag on, a submission that passes every readiness check and has no application-check warnings is approved on submit in two cases:
 
-With the flag on, the web process also checks the queue every minute. A request nobody has reviewed within 30 minutes is approved **provisionally**, as long as its repository and settings still match the submission. The project goes live with a project quota override of 256 MB memory, 0.25 CPU and no custom domains, and stays in the approval queue until an admin confirms it (the override is removed) or suspends it (the container is stopped). Provisional approvals write a `project.provisionally_approved` audit event. Admins are emailed when a project enters the queue, whether or not the flag is on.
+- **The owner is trusted:** a Premium account, marked trusted by an admin on `/admin/users/:userId`, or already has an approved project.
+- **It is a static, React, or Vue site from an established GitHub repository.** On submit, the web process reads the repository's history from the GitHub API. It uses the installation token for GitHub App repositories. All four conditions must hold:
+  - the repository was created at least 7 days ago;
+  - the GitHub account that owns it is at least 30 days old;
+  - it is not a fork;
+  - the production branch has at least 5 commits.
+
+  GitHub sets both creation dates, so owners cannot backdate them. The thresholds are constants in `apps/web/src/services/approval-readiness.service.js`. If GitHub cannot be reached, the request is queued (`repository_history_unavailable`).
+
+Everything else still waits in `/admin/approval-requests`, which shows the repository age, GitHub account age, fork status, and commit count. Each automatic approval writes a `project.auto_approved` audit event with its reasons. A queued request records why it was not approved in `autoApprovalBlockers`.
+
+With the flag on, the web process also checks the queue every minute. A request nobody has reviewed within 30 minutes is approved **provisionally**, as long as its repository and settings still match the submission. Requests held back for repository history (`repository_history` or `repository_history_unavailable`) are never approved provisionally, so an admin always decides them. The project goes live with a project quota override of 256 MB memory, 0.25 CPU and no custom domains, and stays in the approval queue until an admin confirms it (the override is removed) or suspends it (the container is stopped). Provisional approvals write a `project.provisionally_approved` audit event. Admins are emailed when a project enters the queue, whether or not the flag is on.
 
 ## Learning Hub (web)
 

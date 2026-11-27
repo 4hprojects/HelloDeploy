@@ -43,17 +43,20 @@ async function createUser(overrides = {}) {
   });
 }
 
-async function createQueuedProject() {
+async function createQueuedProject({ runtimeType = RuntimeType.NODEJS, deps = {} } = {}) {
   const owner = await createUser();
+  const isServer = runtimeType === RuntimeType.NODEJS;
   const project = await Project.create({
     name: 'Ticket Desk',
     slug: `ticket-desk-${approvalObjectId()}`,
     ownerId: owner._id,
     status: ProjectStatus.DRAFT,
-    runtimeType: RuntimeType.NODEJS,
+    runtimeType,
     productionBranch: 'main',
     deploymentMode: DeploymentMode.MANUAL,
-    buildConfiguration: { startCommand: 'npm start', applicationPort: 3000, healthCheckPath: '/' },
+    buildConfiguration: isServer
+      ? { startCommand: 'npm start', applicationPort: 3000, healthCheckPath: '/' }
+      : { outputDirectory: 'public', healthCheckPath: '/' },
     configurationVersion: 3,
     detection: {
       status: DetectionStatus.READY,
@@ -83,7 +86,7 @@ async function createQueuedProject() {
       actorId: owner._id,
       purpose: 'Tracks support tickets for a small help desk.',
     },
-    { isAutoApprovalEnabled: true },
+    { isAutoApprovalEnabled: true, ...deps },
   );
   const request = await ApprovalRequest.findOne({ projectId: project._id });
   return { project, repository, request };
@@ -135,6 +138,24 @@ describe('provisional approval sweep', () => {
     const { project } = await provisionallyApprove();
 
     assert.equal(await projectStatus(project), ProjectStatus.ACTIVE);
+  });
+
+  it('leaves a static site from a new repository for an admin', async () => {
+    const { project } = await createQueuedProject({
+      runtimeType: RuntimeType.STATIC,
+      deps: {
+        getRepositoryHistory: async () => ({
+          repoCreatedAt: new Date(),
+          ownerCreatedAt: new Date(),
+          isFork: false,
+          commitCount: 1,
+        }),
+      },
+    });
+
+    await approveOverdueRequests({ now: overdueNow() });
+
+    assert.equal(await projectStatus(project), ProjectStatus.DRAFT);
   });
 
   it('marks the request provisional with a review-timeout reason', async () => {

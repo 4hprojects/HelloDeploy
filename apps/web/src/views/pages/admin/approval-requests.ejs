@@ -236,7 +236,20 @@ const staleCount = requests.filter((r) => r.status === 'PENDING' && !r.snapshotS
                 <code class="code-inline"><%= r.snapshotCommitSha ? r.snapshotCommitSha.slice(0, 7) : 'Not saved' %></code>
                 <% } %>
               </dd>
+              <% if (r.repositoryHistory) { %>
+              <dt>Repository created</dt>
+              <dd><%= r.repositoryHistory.repoCreatedAt ? formatAge(r.repositoryHistory.repoCreatedAt) : 'Unknown' %><% if (r.repositoryHistory.isFork) { %> <span class="status-badge status-badge--warning">Fork</span><% } %></dd>
+              <dt>GitHub account created</dt>
+              <dd><%= r.repositoryHistory.ownerCreatedAt ? formatAge(r.repositoryHistory.ownerCreatedAt) : 'Unknown' %></dd>
+              <dt>Commits on branch</dt>
+              <dd><%= r.repositoryHistory.commitCount %></dd>
+              <% } %>
             </dl>
+            <% if ((r.autoApprovalBlockers || []).includes('repository_history')) { %>
+            <p class="text-sm text-muted mt-2">Not approved automatically: the repository is new or has little history. This request waits for you instead of being approved provisionally.</p>
+            <% } else if ((r.autoApprovalBlockers || []).includes('repository_history_unavailable')) { %>
+            <p class="text-sm text-muted mt-2">Not approved automatically: GitHub repository history could not be read. This request waits for you instead of being approved provisionally.</p>
+            <% } %>
           </section>
         </aside>
       </div>

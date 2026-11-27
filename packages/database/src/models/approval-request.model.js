@@ -17,6 +17,17 @@ const validationFindingSchema = new Schema(
   { _id: false },
 );
 
+const repositoryHistorySchema = new Schema(
+  {
+    repoCreatedAt: { type: Date, default: null },
+    ownerCreatedAt: { type: Date, default: null },
+    isFork: { type: Boolean, default: false },
+    commitCount: { type: Number, default: 0, min: 0 },
+    checkedAt: { type: Date, required: true },
+  },
+  { _id: false },
+);
+
 const approvalRequestSchema = new Schema(
   {
     projectId: { type: Schema.Types.ObjectId, ref: 'Project', required: true },
@@ -41,6 +52,10 @@ const approvalRequestSchema = new Schema(
     // Approved by the system on submit rather than by an admin; reviewedBy stays null.
     isAutoApproved: { type: Boolean, default: false },
     autoApprovalReasons: { type: [String], default: [] },
+    // Why a queued request was not approved on submit; some keep it out of provisional approval.
+    autoApprovalBlockers: { type: [String], default: [] },
+    // GitHub signals read on submit; null when they were not fetched or GitHub was unavailable.
+    repositoryHistory: { type: repositoryHistorySchema, default: null },
     // Live with reduced limits after nobody reviewed it in time; an admin still confirms or suspends.
     isProvisional: { type: Boolean, default: false },
     provisionalQuotaId: { type: Schema.Types.ObjectId, ref: 'Quota', default: null },
