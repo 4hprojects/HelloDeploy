@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, it } from 'node:test';
@@ -159,6 +159,40 @@ describe('ensureBuildBuilder', () => {
       'memory-swap=1024m',
       '--bootstrap',
     ]);
+  });
+
+  it('pins the builder DNS servers through a buildkitd config', async () => {
+    let config = null;
+    await ensureBuildBuilder(
+      { name: 'hellodeploy-builder', memoryMb: 1024, dnsServers: ['192.168.100.1', '1.1.1.1'] },
+      {
+        run: async (args) => {
+          const flag = args.indexOf('--buildkitd-config');
+          if (flag !== -1) {
+            config = await readFile(args[flag + 1], 'utf8');
+          }
+          return { code: args[1] === 'inspect' ? 1 : 0, stderr: '' };
+        },
+      },
+    );
+    assert.equal(config, '[dns]\n  nameservers = ["192.168.100.1", "1.1.1.1"]\n');
+  });
+
+  it('removes the temporary buildkitd config after creating the builder', async () => {
+    let configPath = null;
+    await ensureBuildBuilder(
+      { name: 'hellodeploy-builder', memoryMb: 1024, dnsServers: ['1.1.1.1'] },
+      {
+        run: async (args) => {
+          const flag = args.indexOf('--buildkitd-config');
+          if (flag !== -1) {
+            configPath = args[flag + 1];
+          }
+          return { code: args[1] === 'inspect' ? 1 : 0, stderr: '' };
+        },
+      },
+    );
+    await assert.rejects(access(configPath), { code: 'ENOENT' });
   });
 
   it('reports why a builder could not be created', async () => {

@@ -38,6 +38,22 @@ and starve live apps (finding H1, confirmed 2026-10-10).
 (`sudo -u hellodeploy-worker HOME=/var/lib/hellodeploy docker buildx rm hellodeploy-builder`)
 and restart the worker, which recreates it. Do this when no build is running.
 
+**Pinning the builder's DNS servers:** the builder container takes a copy of the host's
+upstream resolvers each time it starts and never refreshes it. On 2026-11-27 both ISP
+resolvers went down. The host failed over to the router, but every build failed at
+`load metadata for docker.io/library/node:22-alpine` with
+`lookup registry-1.docker.io on 121.54.70.179:53: ... i/o timeout`. Set
+`BUILD_DNS_SERVERS` (comma-separated IPs, e.g. `192.168.100.1,1.1.1.1`) and recreate the
+builder the same way as for a new memory limit. Verify with:
+
+```bash
+docker exec buildx_buildkit_hellodeploy-builder0 cat /etc/buildkit/buildkitd.toml
+docker exec buildx_buildkit_hellodeploy-builder0 nslookup registry-1.docker.io
+```
+
+Without the setting, `docker restart buildx_buildkit_hellodeploy-builder0` refreshes the
+copied resolvers as a stopgap.
+
 **Rollback:** unset `BUILD_BUILDER_NAME` and restart the worker. Builds return to the
 default builder (no memory enforcement). Optionally remove the builder as above.
 

@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import { accessSync, constants as fsConstants } from 'node:fs';
+import { isIP } from 'node:net';
 import {
   assertAllOrNoneEnvironment,
   assertProductionSecrets,
@@ -60,6 +61,15 @@ if (buildBuilderName && !BUILD_BUILDER_NAME_PATTERN.test(buildBuilderName)) {
   throw new ConfigurationError(
     'BUILD_BUILDER_NAME must be 1-63 lowercase letters, digits, hyphens, or underscores.',
   );
+}
+// Docker copies the host's upstream resolvers into the builder once, at start,
+// so a dead ISP resolver breaks every image pull; pinned servers avoid that.
+const buildDnsServers = optional('BUILD_DNS_SERVERS', '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+if (buildDnsServers.some((value) => isIP(value) === 0)) {
+  throw new ConfigurationError('BUILD_DNS_SERVERS must be a comma-separated list of IP addresses.');
 }
 const userImageTemplateVersion = parseImageTemplateVersion(
   optional('USER_IMAGE_TEMPLATE_VERSION', ImageTemplateVersion.LEGACY),
@@ -308,6 +318,7 @@ export const env = {
   BUILD_TIMEOUT_MS: buildTimeoutMs,
   BUILD_MEMORY_MB: buildMemoryMb,
   BUILD_BUILDER_NAME: buildBuilderName,
+  BUILD_DNS_SERVERS: buildDnsServers,
   BUILD_EXECUTOR: buildExecutor,
   HELLODEPLOY_NONPRODUCTION_ENVIRONMENT_ID: nonproductionEnvironmentId,
   USER_IMAGE_REGISTRY: userImageRegistry,

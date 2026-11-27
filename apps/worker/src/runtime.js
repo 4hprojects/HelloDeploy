@@ -87,10 +87,12 @@ if (env.BUILD_BUILDER_NAME) {
       const { created } = await ensureBuildBuilder({
         name: env.BUILD_BUILDER_NAME,
         memoryMb: env.BUILD_MEMORY_MB,
+        dnsServers: env.BUILD_DNS_SERVERS,
       });
       logger.info('Worker: memory-limited build builder ready', {
         builder: env.BUILD_BUILDER_NAME,
         memoryMb: env.BUILD_MEMORY_MB,
+        dnsServers: env.BUILD_DNS_SERVERS,
         created,
       });
     }
